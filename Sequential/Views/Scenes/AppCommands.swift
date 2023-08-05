@@ -31,9 +31,9 @@ struct AppCommands: Commands {
           }
 
           do {
-            let urls = try panel.urls.map { try PersistentURL(url: $0, isSecurityScoped: true) }
+            let urls = try panel.urls.map { try PersistentURL($0) }
             
-            openWindow(value: urls)
+            openWindow(value: Sequence(from: urls))
             windowOpened()
           } catch {
             Logger.ui.error("\(error)")

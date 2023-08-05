@@ -1,5 +1,5 @@
 //
-//  WindowView.swift
+//  WindowViewModifier.swift
 //  Sequential
 //
 //  Created by Kyle Erhabor on 7/30/23.
@@ -7,6 +7,9 @@
 
 import SwiftUI
 
+// The reason we can't simply grab NSApp.keyWindow is that it changes over time. A prime example is this is in the
+// "Cover Full Window" setting, in which the main window would be the setting window rather than the sequence view
+// (which would still not work, since there could be many sequence views).
 struct WindowEnvironmentKey: EnvironmentKey {
   static var defaultValue: NSWindow?
 }
@@ -19,7 +22,7 @@ extension EnvironmentValues {
 }
 
 // https://stackoverflow.com/a/65401530/14695788
-struct WindowDataView: NSViewRepresentable {
+struct WindowView: NSViewRepresentable {
   @Binding var window: NSWindow?
 
   func makeNSView(context: Context) -> some NSView {
@@ -40,9 +43,10 @@ struct WindowViewModifier: ViewModifier {
 
   func body(content: Content) -> some View {
     content
+      // Should this instead use .focusedSceneValue(keypath:value:)?
       .environment(\.window, window)
       .background {
-        WindowDataView(window: $window)
+        WindowView(window: $window)
       }
   }
 }
