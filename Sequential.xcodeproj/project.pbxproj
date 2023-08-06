@@ -63,6 +63,7 @@
 				004D8FBF2A76C1C900C0303E /* SettingsView.swift */,
 				00E0ECBF2A76A8000030A0DC /* AppDelegate.swift */,
 				00E0ECBE2A7633100030A0DC /* Scenes */,
+				003075BE2A7F269E005B0D48 /* Components */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -99,6 +100,13 @@
 				001CB5242A718D4200DBB6FA /* Sequential.entitlements */,
 			);
 			path = Sequential;
+			sourceTree = "<group>";
+		};
+		003075BE2A7F269E005B0D48 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Components;
 			sourceTree = "<group>";
 		};
 		00BC8FA92A777D7F0094E0C4 /* Frameworks */ = {

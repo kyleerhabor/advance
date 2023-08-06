@@ -22,9 +22,9 @@ struct ContentView: View {
         return
       }
 
-      // This makes closing the current window work, but is kind of a hack. It also has an obvious delay which isn't
-      // present in the "Open..." menu item. Calling NSApp.keyWindow?.close() explicitly has the same effect, meanwhile.
-      Task {
+      // We're getting one step closer to being able to axe this whole window! We still can't just toggle present in
+      // .onAppear since the window will still be visible in the back.
+      withTransaction(\.dismissBehavior, .destructive) {
         dismissWindow(id: "app")
         openWindow(value: Sequence(from: pUrls))
       }

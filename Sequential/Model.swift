@@ -7,7 +7,7 @@
 
 import ImageIO
 import OSLog
-import Observation
+import SwiftUI
 
 struct BookmarkURL {
   let url: URL
@@ -57,7 +57,7 @@ struct PersistentURL: Hashable, Codable {
     // don't include). I'm not sure if it is a requirement, but better safe than sorry?
     bookmark = try Self.createBookmark(for: bookmarked.url)
 
-    // If the bookmark is still stale, then I don't know what problem we're in. Maybe add a log just to be safe?
+    // If the bookmark is still stale, then I don't know what problem we're in.
     return try BookmarkURL(from: bookmark).url
   }
 }
@@ -65,6 +65,7 @@ struct PersistentURL: Hashable, Codable {
 enum StorageKeys: String {
   case fullWindow
   case margin
+  case sidebar
 }
 
 enum TitleBarVisibility {
@@ -83,15 +84,12 @@ struct SequenceImage: Hashable, Codable {
 
 @Observable
 class Sequence: Codable {
+  // TODO: Override the default coders to only encode urls.
   var images = [SequenceImage]()
-  let urls: [PersistentURL]
+  var urls: [PersistentURL]
 
   init(from urls: [PersistentURL]) {
     self.urls = urls
-  }
-
-  enum CodingKeys: CodingKey {
-    case urls
   }
 
   func load() {
@@ -113,6 +111,11 @@ class Sequence: Codable {
       }
     }
   }
+
+  func move(from source: IndexSet, to destination: Int) {
+    urls.move(fromOffsets: source, toOffset: destination)
+    images.move(fromOffsets: source, toOffset: destination)
+  }
 }
 
 extension Sequence: Hashable {
@@ -122,5 +125,26 @@ extension Sequence: Hashable {
   
   func hash(into hasher: inout Hasher) {
     hasher.combine(self.urls.map { $0.bookmark })
+  }
+}
+
+extension NavigationSplitViewVisibility: RawRepresentable {
+  // We could really use a bidirectional map here.
+  public typealias RawValue = Int
+
+  public init?(rawValue: RawValue) {
+    switch rawValue {
+      case 0: self = .all
+      case 1: self = .detailOnly
+      default: return nil
+    }
+  }
+
+  public var rawValue: RawValue {
+    switch self {
+      case .all: 0
+      case .detailOnly: 1
+      default: -1
+    }
   }
 }

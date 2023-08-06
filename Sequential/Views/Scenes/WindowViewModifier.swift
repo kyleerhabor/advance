@@ -43,7 +43,6 @@ struct WindowViewModifier: ViewModifier {
 
   func body(content: Content) -> some View {
     content
-      // Should this instead use .focusedSceneValue(keypath:value:)?
       .environment(\.window, window)
       .background {
         WindowView(window: $window)

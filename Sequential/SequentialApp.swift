@@ -33,10 +33,16 @@ struct SequentialApp: App {
       }
 
       WindowGroup(for: Sequence.self) { $sequence in
-        if let sequence {
-          SequenceView(sequence: sequence)
+        // When I use the initializer with the default value parameter, the result isn't persisted.
+        if let seq = Binding($sequence) {
+          SequenceView(sequence: seq)
             .windowed()
         }
+      }
+      // TODO: Figure out how to remove the tab bar functionality.
+      .commands {
+        // FIXME: The images in the ScrollView sometimes flashes when toggling the sidebar.
+        SidebarCommands()
       }
     }
     // This is required for imports using the document types feature (e.g. dropping a set of images on to the dock icon)

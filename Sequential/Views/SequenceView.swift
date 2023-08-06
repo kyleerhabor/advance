@@ -70,7 +70,7 @@ func resizeImage(at url: URL, to size: CGSize) async -> Image? {
     return nil
   }
 
-  Logger.ui.info("Created a resampled image from \"\(url)\" at dimensions \(image.width)x\(image.height) for size \(size.width) / \(size.height)")
+  Logger.ui.info("Created a resampled image from \"\(url)\" at dimensions \(image.width.description)x\(image.height.description) for size \(size.width) / \(size.height)")
 
   return Image(nsImage: .init(cgImage: image, size: size))
 }
@@ -81,6 +81,7 @@ struct SequenceImageCellView: View {
   private let sizePublisher: AnyPublisher<CGSize, Never>
 
   let url: URL
+  @State private var size: CGSize?
 
   var body: some View {
     GeometryReader { proxy in
@@ -88,21 +89,27 @@ struct SequenceImageCellView: View {
         .onChange(of: proxy.size, initial: true) {
           sizeSubject.send(proxy.size)
         }.onReceive(sizePublisher) { size in
-          Task {
-            guard let image = await resizeImage(at: url, to: size) else {
-              phase = .failure(ImageError.undecodable)
+          self.size = size
+        }
+        // We want the task to be bound to the view's lifetime.
+        .task(id: size) {
+          guard let size else {
+            return
+          }
 
-              return
-            }
+          guard let image = await resizeImage(at: url, to: size) else {
+            phase = .failure(ImageError.undecodable)
 
-            // Only animate when transitioning from empty to successful.
-            if case .empty = phase {
-              withAnimation {
-                phase = .success(image)
-              }
-            } else {
+            return
+          }
+
+          // Only animate when transitioning from empty to successful.
+          if case .empty = phase {
+            withAnimation {
               phase = .success(image)
             }
+          } else {
+            phase = .success(image)
           }
         }
     }
@@ -151,8 +158,6 @@ struct SequenceItemView: View {
     //
     // I tried this before, but it came out poorly since I was using an NSImageView.
     SequenceImageView(image: image)
-      .navigationTitle(url.deletingPathExtension().lastPathComponent)
-      .navigationDocument(url)
       .padding(Double(margins * 6))
       .shadow(radius: CGFloat(margins))
       .contextMenu {
@@ -169,22 +174,29 @@ struct SequenceSidebarView: View {
 
   let images: [SequenceImage]
   @Binding var selection: Set<URL>
+  let onMove: (IndexSet, Int) -> Void
 
   var body: some View {
-    // There's an uncomfortable amount of padding missing from the top when in full screen mode. Is
-    List(images, id: \.url, selection: $selection) { image in
-      VStack {
-        SequenceImageView(image: image)
-
-        let path = image.url.lastPathComponent
-
-        Text(path)
-          .font(.subheadline)
-          .padding(.init(top: 4, leading: 8, bottom: 4, trailing: 8))
-          .background(Color(nsColor: .secondarySystemFill))
-          .clipShape(.rect(cornerRadius: 4, style: .continuous))
-          .help(path)
-      }
+    // There's an uncomfortable amount of padding missing from the top when in full screen mode.
+    //
+    // TODO: Support drag and drop, removal, and additions.
+    //
+    // Drag and drop support would allow users to take an
+    List(selection: $selection) {
+      ForEach(images, id: \.url) { image in
+        VStack {
+          SequenceImageView(image: image)
+          
+          let path = image.url.lastPathComponent
+          
+          Text(path)
+            .font(.subheadline)
+            .padding(.init(top: 4, leading: 8, bottom: 4, trailing: 8))
+            .background(Color(nsColor: .secondarySystemFill))
+            .clipShape(.rect(cornerRadius: 4, style: .continuous))
+            .help(path)
+        }
+      }.onMove(perform: onMove)
     }
     .quickLookPreview($previewItem, in: preview)
     .contextMenu { urls in
@@ -194,7 +206,7 @@ struct SequenceSidebarView: View {
 
       // TODO: Figure out how to bind this to the space key while the context menu is not open.
       //
-      // I tried using .onKeyPress(_:action:), but the action was never called. Maybe related to 109799056?
+      // I tried using .onKeyPress(_:action:) on the list, but the action was never called. Maybe related to 109799056?
       // "View.onKeyPress(_:action:) can't filter key presses when bridged controls have focus."
       Button("Quick Look") {
         quicklook(urls: urls)
@@ -227,26 +239,17 @@ struct SequenceSidebarView: View {
   }
 }
 
-//struct PersistentLazyStackLayout: Layout {
-//  func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-//    <#code#>
-//  }
-//  
-//  func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-//    <#code#>
-//  }
-//}
-
 struct SequenceView: View {
   @Environment(\.window) private var window
   @AppStorage(StorageKeys.fullWindow.rawValue) private var allowsFullWindow: Bool = false
+  @SceneStorage(StorageKeys.sidebar.rawValue) private var columns = NavigationSplitViewVisibility.detailOnly
   @State private var selection = Set<URL>()
-  @State private var columns = NavigationSplitViewVisibility.detailOnly
   @State private var didFirstScroll = false
-  let sequence: Sequence
+
+  @Binding var sequence: Sequence
 
   var body: some View {
-    // FIXME: Scrolling through a lot of images feels slightly slow.
+    // FIXME: Scrolling through images can feel slow.
     //
     // This is compared to Preview, where slowdowns are only really perceived in PDFs when resizing. AsyncImage blocks
     // when loading the view, which is where this perceived slowness comes from. Is there a way to asynchronously
@@ -257,12 +260,19 @@ struct SequenceView: View {
     // ScrollView supports scrolling to a specific view, but makes scrolling to its *exact* position possible through
     // anchors. It would require measuring the sizes of the views preceding it, which I imagine could either be done
     // via `images`/the data model.
+    //
+    // TODO: Implement Touch Bar support.
+    //
+    // Personally, I think the Touch Bar's most useful feature is it's scrubbing capability (and *not* the buttons).
+    // I imagine displaying the images in a line akin to QuickTime Player / IINA's time scrubbing, but it would not
+    // have to be fixed to a certain amount of items.
     NavigationSplitView(columnVisibility: $columns) {
       // Extracted to prevent the compiler from hanging.
-      SequenceSidebarView(images: sequence.images, selection: $selection)
-        .navigationSplitViewColumnWidth(min: 128, ideal: 192, max: 256)
+      SequenceSidebarView(images: sequence.images, selection: $selection) { source, destination in
+        sequence.move(from: source, to: destination)
+      }.navigationSplitViewColumnWidth(min: 128, ideal: 192, max: 256)
     } detail: {
-      ScrollViewReader { proxy in
+      ScrollViewReader { scroller in
         // FIXME: Full screening a window messes up the position.
         //
         // FIXME: Scrolling sometimes jumps.
@@ -271,12 +281,15 @@ struct SequenceView: View {
         // smooth, but it has a behavior where it slightly "scrolls to place" when a user with a trackpad releases,
         // which looks jarring. Under the hood, List is an NSTableView, but I don't see a property which disables said
         // behavior.
+        //
+        // I tried using .scrollPosition to set the navigation title accurately, but the jumping got worse there due to
+        // the dynamic height.
         ScrollView {
           // I read somewhere that LazyVStack does not reuse cells, and it seems to be that LazyVStack cannot size very
-          // well in both directions (even though we arguably know both of them). This is what I believe results in
-          // scrolling feeling slower than a List implementation. The Layout protocol may be able to resolve this issue,
-          // but it's fairly complex, and I don't know how to fully use it yet. I would like to try it soon, however,
-          // since it's my longest-standing issue that would make the app Preview-replaceable.
+          // well vertically. This is what I believe results in scrolling feeling slower than a List implementation.
+          // The Layout protocol may be able to resolve this issue, but it's fairly complex, and I don't know how to
+          // fully use it yet. I would like to try it soon, however, since it's my longest-standing issue that would
+          // make the app Preview-replaceable.
           LazyVStack(spacing: 0) {
             ForEach(sequence.images, id: \.url) { image in
               // Extracted to prevent the compiler from hanging.
@@ -303,7 +316,7 @@ struct SequenceView: View {
           }
 
           withAnimation {
-            proxy.scrollTo(url, anchor: .top)
+            scroller.scrollTo(url, anchor: .top)
           }
         }
       }.onPreferenceChange(ScrollPreferenceKey.self) { _ in
@@ -376,5 +389,5 @@ struct SequenceView: View {
 }
 
 #Preview {
-  SequenceView(sequence: .init(from: []))
+  SequenceView(sequence: .constant(.init(from: [])))
 }
