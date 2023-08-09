@@ -16,14 +16,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
   func application(_ application: NSApplication, open urls: [URL]) {
     // For some reason, the first URL is *sometimes* at the end. I tried on a local copy of The Ancient Magus' Bride (https://anilist.co/manga/85435/The-Ancient-Magus-Bride)
-    // and found, for that particular case, that when there are more than three URLs, the last URL is moved towards the
-    // end. I'm not sure if this is a Sonoma bug.
+    // and found, for that particular case, that when there were more than three URLs, the last URL was moved towards
+    // the end. I'm not sure if this is a Sonoma bug.
     do {
       let urls = try urls.map { try PersistentURL($0) }
 
       onOpenURL(urls)
     } catch {
-      Logger.ui.error("\(error)")
+      Logger.ui.error("Could not open URLs: \(error)")
     }
   }
 }

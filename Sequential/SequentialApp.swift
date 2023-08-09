@@ -13,11 +13,13 @@ struct SequentialApp: App {
   @NSApplicationDelegateAdaptor private var delegate: AppDelegate
   @Environment(\.dismissWindow) private var dismissWindow
   @Environment(\.openWindow) private var openWindow
+  @AppStorage(StorageKeys.appearance.rawValue) private var appearance: SettingsView.Scheme
 
   var body: some Scene {
     Group {
       WindowGroup("Sequential", id: "app") {
         ContentView()
+          .preferredColorScheme(appearance)
       }.commands {
         AppCommands {
           dismissWindow(id: "app")
@@ -34,10 +36,12 @@ struct SequentialApp: App {
 
       WindowGroup(for: Sequence.self) { $sequence in
         // When I use the initializer with the default value parameter, the result isn't persisted.
-        if let seq = Binding($sequence) {
-          SequenceView(sequence: seq)
-            .windowed()
-        }
+        VStack {
+          if let seq = Binding($sequence) {
+            SequenceView(sequence: seq)
+              .windowed()
+          }
+        }.preferredColorScheme(appearance)
       }
       // TODO: Figure out how to remove the tab bar functionality.
       .commands {
@@ -51,6 +55,7 @@ struct SequentialApp: App {
 
     Settings {
       SettingsView()
+        .preferredColorScheme(appearance)
     }
   }
 }

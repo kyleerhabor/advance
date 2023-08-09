@@ -66,6 +66,7 @@ enum StorageKeys: String {
   case fullWindow
   case margin
   case sidebar
+  case appearance
 }
 
 enum TitleBarVisibility {
@@ -73,7 +74,7 @@ enum TitleBarVisibility {
 }
 
 enum ImageError: Error {
-  case undecodable
+  case undecodable, lost
 }
 
 struct SequenceImage: Hashable, Codable {
@@ -92,29 +93,38 @@ class Sequence: Codable {
     self.urls = urls
   }
 
-  func load() {
+  func load() async -> [SequenceImage] {
+    var images = [SequenceImage]()
+
     for var url in urls {
       do {
         let url = try url.resolve()
-        let source = CGImageSourceCreateWithURL(url as CFURL, nil)!
-        let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil)! as Dictionary
-        let width = Double(properties[kCGImagePropertyPixelWidth] as! Int)
-        let height = Double(properties[kCGImagePropertyPixelHeight] as! Int)
 
-        self.images.append(.init(
-          url: url,
-          width: width,
-          height: height
-        ))
+        images.append(image(from: url))
       } catch {
-        Logger.model.error("Could not resolve bookmark \"\(url.bookmark, privacy: .public)\": \(error)")
+        Logger.model.error("Could not resolve bookmark \"\(url.bookmark, privacy: .sensitive)\": \(error)")
       }
     }
+
+    return images
   }
 
   func move(from source: IndexSet, to destination: Int) {
     urls.move(fromOffsets: source, toOffset: destination)
     images.move(fromOffsets: source, toOffset: destination)
+  }
+
+  func image(from url: URL) -> SequenceImage {
+    let source = CGImageSourceCreateWithURL(url as CFURL, nil)!
+
+    guard let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? Dictionary<CFString, Any> else {
+      return .init(url: url, width: 0, height: 0)
+    }
+
+    let width = Double(properties[kCGImagePropertyPixelWidth] as! Int)
+    let height = Double(properties[kCGImagePropertyPixelHeight] as! Int)
+
+    return .init(url: url, width: width, height: height)
   }
 }
 
@@ -147,4 +157,29 @@ extension NavigationSplitViewVisibility: RawRepresentable {
       default: -1
     }
   }
+}
+
+func resizeImage(at url: URL, toSize size: CGSize) async -> Image? {
+  let options: [CFString : Any] = [
+    // We're not going to use kCGImageSourceShouldAllowFloat here since the sizes can get very precise.
+    kCGImageSourceShouldCacheImmediately: true,
+    // For some reason, resizing images with kCGImageSourceCreateThumbnailFromImageIfAbsent sometimes uses a
+    // significantly smaller pixel size than specified with kCGImageSourceThumbnailMaxPixelSize. For example, I have a
+    // copy of Mikuni Shimokaway's album "all the way" (https://musicbrainz.org/release/19a73c6d-8a11-4851-bb3b-632bcd6f1adc)
+    // with scanned images. Even though the first image's size is 800x677 and I set the max pixel size to 802 (since
+    // it's based on the view's size), it sometimes returns 160x135. This is made even worse by how the view refuses to
+    // update to the next created image.
+    kCGImageSourceCreateThumbnailFromImageAlways: true,
+    kCGImageSourceThumbnailMaxPixelSize: max(size.width, size.height),
+    kCGImageSourceCreateThumbnailWithTransform: true
+  ]
+
+  guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+        let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
+    return nil
+  }
+
+  Logger.model.info("Created a resampled image from \"\(url)\" at dimensions \(image.width.description)x\(image.height.description) for size \(size.width) / \(size.height)")
+
+  return Image(nsImage: .init(cgImage: image, size: size))
 }

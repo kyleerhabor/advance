@@ -30,9 +30,11 @@ struct SequenceImagePhaseView: View {
     } else {
       Color(nsColor: .tertiarySystemFill)
         .overlay {
-          if case .failure = phase {
-            Image(systemName: "exclamationmark.triangle.fill")
+          if case .failure(let err) = phase {
+            Image(systemName: errorSymbol(for: err as! ImageError))
               .symbolRenderingMode(.multicolor)
+              .resizable()
+              .frame(maxWidth: 32, maxHeight: 32)
           } else if elapsed {
             ProgressView()
           }
@@ -47,37 +49,20 @@ struct SequenceImagePhaseView: View {
         }
     }
   }
-}
 
-// Should this work be moved to the model? Maybe it could improve performance...
-func resizeImage(at url: URL, to size: CGSize) async -> Image? {
-  let options: [CFString : Any] = [
-    // We're not going to use kCGImageSourceShouldAllowFloat here since the sizes can get very precise.
-    kCGImageSourceShouldCacheImmediately: true,
-    // For some reason, resizing images with kCGImageSourceCreateThumbnailFromImageIfAbsent sometimes uses a
-    // significantly smaller pixel size than specified with kCGImageSourceThumbnailMaxPixelSize. For example, I have a
-    // copy of Mikuni Shimokaway's album "all the way" (https://musicbrainz.org/release/19a73c6d-8a11-4851-bb3b-632bcd6f1adc)
-    // with scanned images. Even though the first image's size is 800x677 and I set the max pixel size to 802 (since
-    // it's based on the view's size), it sometimes returns 160x135. This is made even worse by how the view refuses to
-    // update to the next created image.
-    kCGImageSourceCreateThumbnailFromImageAlways: true,
-    kCGImageSourceThumbnailMaxPixelSize: max(size.width, size.height),
-    kCGImageSourceCreateThumbnailWithTransform: true
-  ]
-
-  guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
-        let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
-    return nil
+  func errorSymbol(for error: ImageError) -> String {
+    switch error {
+      case .undecodable: "exclamationmark.triangle.fill"
+      case .lost: "questionmark.circle.fill"
+    }
   }
-
-  Logger.ui.info("Created a resampled image from \"\(url)\" at dimensions \(image.width.description)x\(image.height.description) for size \(size.width) / \(size.height)")
-
-  return Image(nsImage: .init(cgImage: image, size: size))
 }
 
 struct SequenceImageCellView: View {
+  typealias Subject = CurrentValueSubject<CGSize, Never>
+
   @State private var phase = AsyncImagePhase.empty
-  private let sizeSubject: CurrentValueSubject<CGSize, Never>
+  private let sizeSubject: Subject
   private let sizePublisher: AnyPublisher<CGSize, Never>
 
   let url: URL
@@ -97,8 +82,15 @@ struct SequenceImageCellView: View {
             return
           }
 
-          guard let image = await resizeImage(at: url, to: size) else {
-            phase = .failure(ImageError.undecodable)
+          guard let image = await resizeImage(at: url, toSize: size) else {
+            var fileUrl = URLComponents(url: url, resolvingAgainstBaseURL: false)!
+            fileUrl.scheme = nil
+
+            phase = .failure(
+              FileManager.default.fileExists(atPath: fileUrl.string!.removingPercentEncoding!)
+                ? ImageError.undecodable
+                : ImageError.lost
+            )
 
             return
           }
@@ -118,11 +110,12 @@ struct SequenceImageCellView: View {
   init(url: URL) {
     self.url = url
 
-    let subject = CurrentValueSubject<CGSize, Never>(.init())
+    let subject = Subject(.init())
 
     self.sizeSubject = subject
     self.sizePublisher = subject
       .debounce(for: .milliseconds(200), scheduler: DispatchQueue.main)
+      .removeDuplicates { $0.height == $1.height }
       .eraseToAnyPublisher()
   }
 }
@@ -138,7 +131,7 @@ struct SequenceImageView: View {
       .aspectRatio(image.width / image.height, contentMode: .fit)
       .onAppear {
         if !url.startAccessingSecurityScopedResource() {
-          Logger.ui.error("Could not access security scoped resource for \"\(url, privacy: .public)\"")
+          Logger.ui.error("Could not access security scoped resource for \"\(url, privacy: .sensitive)\"")
         }
       }.onDisappear {
         url.stopAccessingSecurityScopedResource()
@@ -147,9 +140,8 @@ struct SequenceImageView: View {
 }
 
 struct SequenceItemView: View {
-  @AppStorage(StorageKeys.margin.rawValue) private var margins = 0
-
   let image: SequenceImage
+  let margins: Double
 
   var body: some View {
     let url = image.url
@@ -158,7 +150,9 @@ struct SequenceItemView: View {
     //
     // I tried this before, but it came out poorly since I was using an NSImageView.
     SequenceImageView(image: image)
-      .padding(Double(margins * 6))
+      .navigationTitle(url.deletingPathExtension().lastPathComponent)
+      .navigationDocument(url)
+      .padding(margins * 6)
       .shadow(radius: CGFloat(margins))
       .contextMenu {
         Button("Show in Finder") {
@@ -180,8 +174,6 @@ struct SequenceSidebarView: View {
     // There's an uncomfortable amount of padding missing from the top when in full screen mode.
     //
     // TODO: Support drag and drop, removal, and additions.
-    //
-    // Drag and drop support would allow users to take an
     List(selection: $selection) {
       ForEach(images, id: \.url) { image in
         VStack {
@@ -241,20 +233,16 @@ struct SequenceSidebarView: View {
 
 struct SequenceView: View {
   @Environment(\.window) private var window
-  @AppStorage(StorageKeys.fullWindow.rawValue) private var allowsFullWindow: Bool = false
+  @AppStorage(StorageKeys.fullWindow.rawValue) private var allowsFullWindow = false
+  @AppStorage(StorageKeys.margin.rawValue) private var margins = 0
   @SceneStorage(StorageKeys.sidebar.rawValue) private var columns = NavigationSplitViewVisibility.detailOnly
   @State private var selection = Set<URL>()
   @State private var didFirstScroll = false
+  @State private var item: URL?
 
   @Binding var sequence: Sequence
 
   var body: some View {
-    // FIXME: Scrolling through images can feel slow.
-    //
-    // This is compared to Preview, where slowdowns are only really perceived in PDFs when resizing. AsyncImage blocks
-    // when loading the view, which is where this perceived slowness comes from. Is there a way to asynchronously
-    // render the image? (which would allow for a proper animation).
-    //
     // TODO: On scene restoration, scroll to the last image the user viewed.
     //
     // ScrollView supports scrolling to a specific view, but makes scrolling to its *exact* position possible through
@@ -273,44 +261,43 @@ struct SequenceView: View {
       }.navigationSplitViewColumnWidth(min: 128, ideal: 192, max: 256)
     } detail: {
       ScrollViewReader { scroller in
-        // FIXME: Full screening a window messes up the position.
-        //
-        // FIXME: Scrolling sometimes jumps.
-        //
-        // I would really like to use a List here, since it has a very nice layout mechanism that makes scrolling feel
-        // smooth, but it has a behavior where it slightly "scrolls to place" when a user with a trackpad releases,
-        // which looks jarring. Under the hood, List is an NSTableView, but I don't see a property which disables said
-        // behavior.
-        //
-        // I tried using .scrollPosition to set the navigation title accurately, but the jumping got worse there due to
-        // the dynamic height.
-        ScrollView {
-          // I read somewhere that LazyVStack does not reuse cells, and it seems to be that LazyVStack cannot size very
-          // well vertically. This is what I believe results in scrolling feeling slower than a List implementation.
-          // The Layout protocol may be able to resolve this issue, but it's fairly complex, and I don't know how to
-          // fully use it yet. I would like to try it soon, however, since it's my longest-standing issue that would
-          // make the app Preview-replaceable.
-          LazyVStack(spacing: 0) {
-            ForEach(sequence.images, id: \.url) { image in
-              // Extracted to prevent the compiler from hanging.
-              SequenceItemView(image: image)
-            }.introspect(.scrollView, on: .macOS(.v14), scope: .ancestor) { scrollView in
-              scrollView.allowsMagnification = true
-              // I tried constraining the scroll view's center X anchor to its first subview, but that resulted in the view
-              // being blank. For now, we'll deal with this.
-              scrollView.minMagnification = 1
-            }
-          }.background {
-            if let window, coverFullWindow(for: window) {
-              // This seems to significantly hinder performance (though, I'm not sure if it's in updating the title bar
-              // visibility or publishing changes to the preference).
-              GeometryReader { proxy in
-                Color.clear
-                  .preference(key: ScrollPreferenceKey.self, value: proxy.frame(in: .scrollView).origin.y)
-              }
-            }
-          }
-        }.onChange(of: selection) { prior, selection in
+        // TODO: Figure out how to support .scrollPosition (or something like it)
+        List(sequence.images, id: \.url) { image in
+          SequenceItemView(image: image, margins: Double(margins))
+            // Normally, NSTableView's style can just be set to .plain, which will take up the full size of the
+            // container. List, for some reason, doesn't want to do that, so I have to do this arbitrary dance.
+            .listRowInsets(.init(top: 0, leading: -8, bottom: 0, trailing: -9))
+            .listRowSeparator(.hidden)
+        }.listStyle(.plain)
+//        ScrollView {
+//          LazyVStack(spacing: 0) {
+//            ForEach(sequence.images, id: \.url) { image in
+//              // Extracted to prevent the compiler from hanging.
+//              SequenceItemView(image: image)
+//            }.introspect(.scrollView, on: .macOS(.v14), scope: .ancestor) { scrollView in
+//              scrollView.allowsMagnification = true
+//              // I tried constraining the scroll view's center X anchor to its first subview, but that resulted in the view
+//              // being blank. For now, we'll deal with this.
+//              scrollView.minMagnification = 1
+//            }
+//          }
+//          // I read somewhere that LazyVStack does not reuse cells, and it seems to be that LazyVStack cannot size very
+//          // well vertically. This is what I believe results in scrolling feeling slower than a List implementation.
+//          // The Layout protocol may be able to resolve this issue, but it's fairly complex, and I don't know how to
+//          // fully use it yet. I would like to try it soon, however, since it's my longest-standing issue that would
+//          // make the app Preview-replaceable.
+//          .background {
+//            if let window, coverFullWindow(for: window) {
+//              // This seems to significantly hinder performance (though, I'm not sure if it's in updating the title bar
+//              // visibility or publishing changes to the preference).
+//              GeometryReader { proxy in
+//                Color.clear
+//                  .preference(key: ScrollPreferenceKey.self, value: proxy.frame(in: .scrollView).origin.y)
+//              }
+//            }
+//          }
+//        }
+        .onChange(of: selection) { prior, selection in
           guard let url = selection.subtracting(prior).first else {
             return
           }
@@ -343,8 +330,8 @@ struct SequenceView: View {
     // still pull up the sidebar by hovering their mouse near (but not exactly at) the leading edge, but not all users
     // may know this.
     .toolbar(.hidden)
-    .onAppear {
-      sequence.load()
+    .task {
+      sequence.images = await sequence.load()
     }
     // .onHover's action doesn't get called when "some other event" interrupts its focus streak (e.g. the user begins
     // hovering inside a view, then starts scrolling, and then goes back to hovering, in which the action isn't called).
