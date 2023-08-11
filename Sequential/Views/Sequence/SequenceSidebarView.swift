@@ -56,9 +56,10 @@ struct SequenceSidebarView: View {
     }
     // onDelete(perform:) doesn't seem to work.
     .onDeleteCommand(perform: onDelete)
-    .focusedSceneValue(\.sequenceSelection) {
-      ordered(urls: selection)
-    }
+    .focusedSceneValue(\.sequenceSelection, .init(
+      amount: selection.count,
+      resolve: { ordered(urls: selection) }
+    ))
   }
 
   func ordered(urls: Set<URL>) -> [URL] {

@@ -7,8 +7,13 @@
 
 import SwiftUI
 
+struct SequenceSelection {
+  let amount: Int
+  let resolve: () -> [URL]
+}
+
 struct SequenceSelectionFocusedValueKey: FocusedValueKey {
-  typealias Value = () -> [URL]
+  typealias Value = SequenceSelection
 }
 
 extension FocusedValues {
@@ -46,13 +51,15 @@ struct SequenceScene: Scene {
         // it's not stable enough for me to consider. In addition, it's kind of weird visually, since there's no clear
         // selection (unlike the sidebar).
         Button("Show in Finder") {
-          guard let urls = selection?(),
+          guard let urls = selection?.resolve(),
                 !urls.isEmpty else {
             return
           }
 
           openFinder(for: urls)
-        }.keyboardShortcut("R")
+        }
+        .keyboardShortcut("R")
+        .disabled(selection == nil || selection!.amount == 0)
       }
     }
   }
