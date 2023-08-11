@@ -35,13 +35,15 @@ struct SequentialApp: App {
         }
       }
 
+      // Idea: Add a feature that automatically removes borders embedded in images.
       WindowGroup(for: Sequence.self) { $sequence in
         // When I use the initializer with the default value parameter, the result isn't persisted.
-        if let seq = Binding($sequence) {
-          SequenceView(sequence: seq)
+        if let sequence {
+          SequenceView(sequence: sequence)
             .windowed()
         }
       }
+      .windowToolbarStyle(.unifiedCompact) // Sexy!
       // TODO: Figure out how to remove the tab bar functionality (for this window group specifically).
       //
       // TODO: Figure out how to add a "Go to Current Image" button.

@@ -9,6 +9,8 @@ import SwiftUI
 
 struct SequenceCollectionView: View {
   @AppStorage(StorageKeys.margin.rawValue) private var margins = 0
+  @State private var scale: CGFloat = 1
+  @State private var priorScale: CGFloat = 1
 
   @Binding var visible: [URL]
   let images: [SequenceImage]
@@ -18,7 +20,17 @@ struct SequenceCollectionView: View {
     let page = visible.last
 
     // A killer limitation in using List is it doesn't support magnification, like how an NSScrollView does. Maybe try
-    // reimplementing an NSCollectionView / NSTableView again?
+    // reimplementing an NSCollectionView / NSTableView again? I tried implementing a MagnifyGesture solution but ran
+    // into the following issues:
+    // - The list, itself, was zoomed out, and not the cells. This made views that should've been visible not appear
+    // unless explicitly scrolling down the new list size.
+    // - When setting the scale factor on the cells, they would maintain their frame size, creating varying gaps
+    // between each other
+    // - At a certain magnification level (somewhere past `x < 0.25` and `x > 4`), the app may have crashed.
+    //
+    // This is not even commenting on how it's not a one-to-one equivalent to the native experience of magnifying.
+    //
+    // For reference, I tried implementing a simplified version of https://github.com/fuzzzlove/swiftui-image-viewer
     List(images, id: \.url) { image in
       let url = image.url
 

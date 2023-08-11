@@ -7,17 +7,23 @@
 
 import SwiftUI
 
-// The reason we can't simply grab NSApp.keyWindow is that it changes over time. A prime example is this is in the
-// "Cover Full Window" setting, in which the main window would be the setting window rather than the sequence view
-// (which would still not work, since there could be many sequence views).
 struct WindowEnvironmentKey: EnvironmentKey {
   static var defaultValue: NSWindow?
+}
+
+struct FullScreenEnvironmentKey: EnvironmentKey {
+  static var defaultValue: Bool?
 }
 
 extension EnvironmentValues {
   var window: WindowEnvironmentKey.Value {
     get { self[WindowEnvironmentKey.self] }
     set { self[WindowEnvironmentKey.self] = newValue }
+  }
+
+  var fullScreen: FullScreenEnvironmentKey.Value {
+    get { self[FullScreenEnvironmentKey.self] }
+    set { self[FullScreenEnvironmentKey.self] = newValue }
   }
 }
 
@@ -50,8 +56,41 @@ struct WindowViewModifier: ViewModifier {
   }
 }
 
+struct WindowFullScreenViewModifier: ViewModifier {
+  @Environment(\.window) private var window
+  @State private var fullScreen: Bool?
+
+  func body(content: Content) -> some View {
+    content
+      .environment(\.fullScreen, fullScreen)
+      .onChange(of: window) {
+        fullScreen = window?.isFullScreened()
+      }.onReceive(NotificationCenter.default.publisher(for: NSWindow.willEnterFullScreenNotification)) { notification in
+        guard isCurrentWindow(notification) else {
+          return
+        }
+
+        fullScreen = true
+      }.onReceive(NotificationCenter.default.publisher(for: NSWindow.willExitFullScreenNotification)) { notification in
+        guard isCurrentWindow(notification) else {
+          return
+        }
+
+        fullScreen = false
+      }
+  }
+
+  func isCurrentWindow(_ notification: Notification) -> Bool {
+    let window = notification.object as! NSWindow
+
+    return window == self.window
+  }
+}
+
 extension View {
   func windowed() -> some View {
-    self.modifier(WindowViewModifier())
+    self
+      .modifier(WindowFullScreenViewModifier())
+      .modifier(WindowViewModifier())
   }
 }

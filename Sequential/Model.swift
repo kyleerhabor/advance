@@ -139,7 +139,8 @@ func resampleImage(at url: URL, forSize size: CGSize) async -> Image? {
     // copy of Mikuni Shimokaway's album "all the way" (https://musicbrainz.org/release/19a73c6d-8a11-4851-bb3b-632bcd6f1adc)
     // with scanned images. Even though the first image's size is 800x677 and I set the max pixel size to 802 (since
     // it's based on the view's size), it sometimes returns 160x135. This is made even worse by how the view refuses to
-    // update to the next created image.
+    // update to the next created image. This behavior seems to be predicated on the given max pixel size, given a
+    // larger image did not trigger the behavior (but did in one odd case).
     kCGImageSourceCreateThumbnailFromImageAlways: true,
     kCGImageSourceThumbnailMaxPixelSize: max(size.width, size.height),
     kCGImageSourceCreateThumbnailWithTransform: true
