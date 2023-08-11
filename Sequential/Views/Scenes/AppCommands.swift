@@ -5,13 +5,12 @@
 //  Created by Kyle Erhabor on 7/29/23.
 //
 
+import OSLog
 import SwiftUI
-import os
 
 struct AppCommands: Commands {
+  @Environment(\.dismissWindow) private var dismissWindow
   @Environment(\.openWindow) private var openWindow
-
-  var windowOpened: () -> Void
 
   var body: some Commands {
     CommandGroup(replacing: .newItem) {
@@ -29,12 +28,12 @@ struct AppCommands: Commands {
           guard res == .OK else {
             return
           }
-
+          
           do {
-            let urls = try panel.urls.map { try PersistentURL($0) }
-            
-            openWindow(value: Sequence(from: urls))
-            windowOpened()
+            let bookmarks = try panel.urls.map { try $0.bookmark() }
+
+            openWindow(value: Sequence(bookmarks: bookmarks))
+            dismissWindow(id: "app")
           } catch {
             Logger.ui.error("\(error)")
           }

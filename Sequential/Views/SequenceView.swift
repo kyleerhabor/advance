@@ -15,7 +15,6 @@ import SwiftUIIntrospect
 struct ScrollPreferenceKey: PreferenceKey {
   static var defaultValue = CGFloat.zero
 
-  // I don't know if I really need ot do anything here.
   static func reduce(value: inout Self.Value, nextValue: () -> Self.Value) {}
 }
 
@@ -28,13 +27,12 @@ struct SequenceImagePhaseView: View {
     if let image = phase.image {
       image.resizable()
     } else {
-      Color(nsColor: .tertiarySystemFill)
+      Color.tertiaryFill
         .overlay {
           if case .failure(let err) = phase {
             Image(systemName: errorSymbol(for: err as! ImageError))
               .symbolRenderingMode(.multicolor)
-              .resizable()
-              .frame(maxWidth: 32, maxHeight: 32)
+              .imageScale(.large)
           } else if elapsed {
             ProgressView()
           }
@@ -53,70 +51,49 @@ struct SequenceImagePhaseView: View {
   func errorSymbol(for error: ImageError) -> String {
     switch error {
       case .undecodable: "exclamationmark.triangle.fill"
-      case .lost: "questionmark.circle.fill"
+      case .lost: "questionmark.circle"
     }
   }
 }
 
 struct SequenceImageCellView: View {
-  typealias Subject = CurrentValueSubject<CGSize, Never>
-
   @State private var phase = AsyncImagePhase.empty
-  private let sizeSubject: Subject
-  private let sizePublisher: AnyPublisher<CGSize, Never>
 
   let url: URL
-  @State private var size: CGSize?
 
   var body: some View {
     GeometryReader { proxy in
       SequenceImagePhaseView(phase: phase)
-        .onChange(of: proxy.size, initial: true) {
-          sizeSubject.send(proxy.size)
-        }.onReceive(sizePublisher) { size in
-          self.size = size
-        }
-        // We want the task to be bound to the view's lifetime.
-        .task(id: size) {
-          guard let size else {
+        .task {
+          // FIXME: This is a hack to prevent seeing the "failed to load" icon.
+          //
+          // For some reason, the initial call gets a frame size of zero, and then immediately updates with the proper
+          // value.
+          guard proxy.size != .zero else {
             return
           }
 
-          guard let image = await resizeImage(at: url, toSize: size) else {
-            var fileUrl = URLComponents(url: url, resolvingAgainstBaseURL: false)!
-            fileUrl.scheme = nil
-
-            phase = .failure(
-              FileManager.default.fileExists(atPath: fileUrl.string!.removingPercentEncoding!)
-                ? ImageError.undecodable
-                : ImageError.lost
-            )
+          guard let image = await resampleImage(at: url, forSize: proxy.size) else {
+            if let path = url.fileRepresentation(),
+               !FileManager.default.fileExists(atPath: path) {
+              phase = .failure(ImageError.lost)
+            } else {
+              phase = .failure(ImageError.undecodable)
+            }
 
             return
           }
 
-          // Only animate when transitioning from empty to successful.
-          if case .empty = phase {
+          // Only animate when transitioning from non-successful to successful.
+          if case .success = phase {
+            phase = .success(image)
+          } else {
             withAnimation {
               phase = .success(image)
             }
-          } else {
-            phase = .success(image)
           }
         }
     }
-  }
-
-  init(url: URL) {
-    self.url = url
-
-    let subject = Subject(.init())
-
-    self.sizeSubject = subject
-    self.sizePublisher = subject
-      .debounce(for: .milliseconds(200), scheduler: DispatchQueue.main)
-      .removeDuplicates { $0.height == $1.height }
-      .eraseToAnyPublisher()
   }
 }
 
@@ -128,7 +105,7 @@ struct SequenceImageView: View {
 
     SequenceImageCellView(url: url)
       .id(url)
-      .aspectRatio(image.width / image.height, contentMode: .fit)
+      .aspectRatio(image.aspectRatio, contentMode: .fit)
       .onAppear {
         if !url.startAccessingSecurityScopedResource() {
           Logger.ui.error("Could not access security scoped resource for \"\(url, privacy: .sensitive)\"")
@@ -139,35 +116,12 @@ struct SequenceImageView: View {
   }
 }
 
-struct SequenceItemView: View {
-  let image: SequenceImage
-  let margins: Double
-
-  var body: some View {
-    let url = image.url
-
-    // TODO: Implement Live Text.
-    //
-    // I tried this before, but it came out poorly since I was using an NSImageView.
-    SequenceImageView(image: image)
-      .navigationTitle(url.deletingPathExtension().lastPathComponent)
-      .navigationDocument(url)
-      .padding(margins * 6)
-      .shadow(radius: CGFloat(margins))
-      .contextMenu {
-        Button("Show in Finder") {
-          openFinder(for: url)
-        }
-      }
-  }
-}
-
 struct SequenceSidebarView: View {
   @State private var preview = [URL]()
   @State private var previewItem: URL?
 
-  let images: [SequenceImage]
   @Binding var selection: Set<URL>
+  let images: [SequenceImage]
   let onMove: (IndexSet, Int) -> Void
 
   var body: some View {
@@ -184,8 +138,8 @@ struct SequenceSidebarView: View {
           Text(path)
             .font(.subheadline)
             .padding(.init(top: 4, leading: 8, bottom: 4, trailing: 8))
-            .background(Color(nsColor: .secondarySystemFill))
-            .clipShape(.rect(cornerRadius: 4, style: .continuous))
+            .background(Color.secondaryFill)
+            .clipShape(.rect(cornerRadius: 4))
             .help(path)
         }
       }.onMove(perform: onMove)
@@ -234,15 +188,16 @@ struct SequenceSidebarView: View {
 struct SequenceView: View {
   @Environment(\.window) private var window
   @AppStorage(StorageKeys.fullWindow.rawValue) private var allowsFullWindow = false
-  @AppStorage(StorageKeys.margin.rawValue) private var margins = 0
   @SceneStorage(StorageKeys.sidebar.rawValue) private var columns = NavigationSplitViewVisibility.detailOnly
   @State private var selection = Set<URL>()
+  @State private var visible = [URL]()
   @State private var didFirstScroll = false
-  @State private var item: URL?
 
   @Binding var sequence: Sequence
 
   var body: some View {
+    let page = visible.last
+
     // TODO: On scene restoration, scroll to the last image the user viewed.
     //
     // ScrollView supports scrolling to a specific view, but makes scrolling to its *exact* position possible through
@@ -255,20 +210,24 @@ struct SequenceView: View {
     // I imagine displaying the images in a line akin to QuickTime Player / IINA's time scrubbing, but it would not
     // have to be fixed to a certain amount of items.
     NavigationSplitView(columnVisibility: $columns) {
-      // Extracted to prevent the compiler from hanging.
-      SequenceSidebarView(images: sequence.images, selection: $selection) { source, destination in
-        sequence.move(from: source, to: destination)
-      }.navigationSplitViewColumnWidth(min: 128, ideal: 192, max: 256)
+      ScrollViewReader { scroller in
+        SequenceSidebarView(selection: $selection, images: sequence.images) { source, destination in
+          sequence.move(from: source, to: destination)
+        }
+        .navigationSplitViewColumnWidth(min: 128, ideal: 192, max: 256)
+        .onChange(of: page) {
+          // Scrolling off-screen allows the user to not think about the sidebar.
+          guard let page, columns == .detailOnly else {
+            return
+          }
+
+          scroller.scrollTo(page, anchor: .center)
+        }
+      }
     } detail: {
       ScrollViewReader { scroller in
         // TODO: Figure out how to support .scrollPosition (or something like it)
-        List(sequence.images, id: \.url) { image in
-          SequenceItemView(image: image, margins: Double(margins))
-            // Normally, NSTableView's style can just be set to .plain, which will take up the full size of the
-            // container. List, for some reason, doesn't want to do that, so I have to do this arbitrary dance.
-            .listRowInsets(.init(top: 0, leading: -8, bottom: 0, trailing: -9))
-            .listRowSeparator(.hidden)
-        }.listStyle(.plain)
+        SequenceCollectionView(visible: $visible, images: sequence.images)
 //        ScrollView {
 //          LazyVStack(spacing: 0) {
 //            ForEach(sequence.images, id: \.url) { image in
@@ -280,13 +239,7 @@ struct SequenceView: View {
 //              // being blank. For now, we'll deal with this.
 //              scrollView.minMagnification = 1
 //            }
-//          }
-//          // I read somewhere that LazyVStack does not reuse cells, and it seems to be that LazyVStack cannot size very
-//          // well vertically. This is what I believe results in scrolling feeling slower than a List implementation.
-//          // The Layout protocol may be able to resolve this issue, but it's fairly complex, and I don't know how to
-//          // fully use it yet. I would like to try it soon, however, since it's my longest-standing issue that would
-//          // make the app Preview-replaceable.
-//          .background {
+//          }.background {
 //            if let window, coverFullWindow(for: window) {
 //              // This seems to significantly hinder performance (though, I'm not sure if it's in updating the title bar
 //              // visibility or publishing changes to the preference).
@@ -331,24 +284,25 @@ struct SequenceView: View {
     // may know this.
     .toolbar(.hidden)
     .task {
-      sequence.images = await sequence.load()
+      await sequence.load()
     }
     // .onHover's action doesn't get called when "some other event" interrupts its focus streak (e.g. the user begins
     // hovering inside a view, then starts scrolling, and then goes back to hovering, in which the action isn't called).
     // .onContinuousHover does that, though it feels kind of wasteful for how often it's called. I just want to say
     // "when the user is hovering over this view and is not scrolling"
-    .onContinuousHover(coordinateSpace: .global) { phase in
-      // The title bar will constantly flicker from the hover position and view size (for determining scrolling)
-      // constantly updating in tandem. Since only the hover state will be excluded, the user gets a really nice effect
-      // where resizing reveals the full window and brings back the title bar when it ends.
-      guard let window, !window.isFullScreened(), !window.inLiveResize else {
-        return
-      }
-
-      withAnimation {
-        setTitleBarVisibility(for: window, to: .visible)
-      }
-    }.onReceive(NotificationCenter.default.publisher(for: NSWindow.willEnterFullScreenNotification)) { notification in
+//    .onContinuousHover(coordinateSpace: .global) { phase in
+//      // The title bar will constantly flicker from the hover position and view size (for determining scrolling)
+//      // constantly updating in tandem. Since only the hover state will be excluded, the user gets a really nice effect
+//      // where resizing reveals the full window and brings back the title bar when it ends.
+//      guard let window, !window.isFullScreened(), !window.inLiveResize else {
+//        return
+//      }
+//
+//      withAnimation {
+//        setTitleBarVisibility(for: window, to: .visible)
+//      }
+//    }
+    .onReceive(NotificationCenter.default.publisher(for: NSWindow.willEnterFullScreenNotification)) { notification in
       let window = notification.object as! NSWindow
 
       setTitleBarVisibility(for: window, to: .visible)
@@ -376,5 +330,5 @@ struct SequenceView: View {
 }
 
 #Preview {
-  SequenceView(sequence: .constant(.init(from: [])))
+  SequenceView(sequence: .constant(.init(bookmarks: [])))
 }

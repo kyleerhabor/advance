@@ -11,7 +11,6 @@ import OSLog
 @main
 struct SequentialApp: App {
   @NSApplicationDelegateAdaptor private var delegate: AppDelegate
-  @Environment(\.dismissWindow) private var dismissWindow
   @Environment(\.openWindow) private var openWindow
   @AppStorage(StorageKeys.appearance.rawValue) private var appearance: SettingsView.Scheme
 
@@ -19,16 +18,18 @@ struct SequentialApp: App {
     Group {
       WindowGroup("Sequential", id: "app") {
         ContentView()
-          .preferredColorScheme(appearance)
       }.commands {
-        AppCommands {
-          dismissWindow(id: "app")
-        }
+        AppCommands()
 
         CommandGroup(after: .windowArrangement) {
+          // This little hack allows us to do stuff with the UI on startup (since it's always called).
           Color.clear.onAppear {
-            delegate.onOpenURL = { urls in
-              openWindow(value: Sequence(from: urls))
+            // We need to set NSApp's appearance explicitly so windows we don't directly control (such as the about)
+            // will still sync with the user's preference.
+            NSApp.appearance = appearance?.app()
+
+            delegate.onOpenURL = { sequence in
+              openWindow(value: sequence)
             }
           }
         }
@@ -36,16 +37,17 @@ struct SequentialApp: App {
 
       WindowGroup(for: Sequence.self) { $sequence in
         // When I use the initializer with the default value parameter, the result isn't persisted.
-        VStack {
-          if let seq = Binding($sequence) {
-            SequenceView(sequence: seq)
-              .windowed()
-          }
-        }.preferredColorScheme(appearance)
+        if let seq = Binding($sequence) {
+          SequenceView(sequence: seq)
+            .windowed()
+        }
       }
-      // TODO: Figure out how to remove the tab bar functionality.
+      // TODO: Figure out how to remove the tab bar functionality (for this window group specifically).
+      //
+      // TODO: Figure out how to add a "Go to Current Image" button.
+      //
+      // Last time, I tried with a callback, but the ScrollViewProxy wouldn't scroll.
       .commands {
-        // FIXME: The images in the ScrollView sometimes flashes when toggling the sidebar.
         SidebarCommands()
       }
     }
@@ -55,7 +57,6 @@ struct SequentialApp: App {
 
     Settings {
       SettingsView()
-        .preferredColorScheme(appearance)
     }
   }
 }

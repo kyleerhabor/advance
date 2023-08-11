@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import OSLog
 
 struct ContentView: View {
   @Environment(\.openWindow) private var openWindow
@@ -17,16 +18,21 @@ struct ContentView: View {
     Button("Select...") {
       present.toggle()
     }.fileImporter(isPresented: $present, allowedContentTypes: [.image], allowsMultipleSelection: true) { result in
-      guard case let .success(urls) = result,
-            let pUrls = try? urls.map({ try PersistentURL($0) }) else {
+      guard case let .success(urls) = result else {
         return
       }
 
       // We're getting one step closer to being able to axe this whole window! We still can't just toggle present in
       // .onAppear since the window will still be visible in the back.
       withTransaction(\.dismissBehavior, .destructive) {
-        dismissWindow(id: "app")
-        openWindow(value: Sequence(from: pUrls))
+        do {
+          let bookmarks = try urls.map { try $0.bookmark() }
+
+          dismissWindow(id: "app")
+          openWindow(value: Sequence(bookmarks: bookmarks))
+        } catch {
+          Logger.ui.error("\(error)")
+        }
       }
     }
   }

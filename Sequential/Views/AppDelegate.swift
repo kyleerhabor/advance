@@ -6,24 +6,21 @@
 //
 
 import SwiftUI
-import os
+import OSLog
 
 class AppDelegate: NSObject, NSApplicationDelegate {
   // If we try to use @Environment(\.openWindow) in this delegate, we'll get a warning about it not being used in a
   // SwiftUI view (which will note that the value will not be updated). While it's not really a problem, we're better
   // off not worrying about what other side effects it may entail.
-  var onOpenURL: ([PersistentURL]) -> Void = { _ in }
+  var onOpenURL: (Sequence) -> Void = { _ in }
 
   func application(_ application: NSApplication, open urls: [URL]) {
-    // For some reason, the first URL is *sometimes* at the end. I tried on a local copy of The Ancient Magus' Bride (https://anilist.co/manga/85435/The-Ancient-Magus-Bride)
-    // and found, for that particular case, that when there were more than three URLs, the last URL was moved towards
-    // the end. I'm not sure if this is a Sonoma bug.
     do {
-      let urls = try urls.map { try PersistentURL($0) }
+      let bookmarks = try urls.map { try $0.bookmark() }
 
-      onOpenURL(urls)
+      onOpenURL(.init(bookmarks: bookmarks))
     } catch {
-      Logger.ui.error("Could not open URLs: \(error)")
+      Logger.ui.error("\(error)")
     }
   }
 }

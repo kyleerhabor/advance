@@ -23,6 +23,7 @@
 		00C618C92A82F41C00266052 /* DynamicVStackCellView.xib in Resources */ = {isa = PBXBuildFile; fileRef = 00C618C82A82F41C00266052 /* DynamicVStackCellView.xib */; };
 		00CE2C052A7373D90059F073 /* SequenceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00CE2C042A7373D90059F073 /* SequenceView.swift */; };
 		00E0ECC02A76A8000030A0DC /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E0ECBF2A76A8000030A0DC /* AppDelegate.swift */; };
+		00FC65412A845E67009982A1 /* SequenceCollectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00FC65402A845E67009982A1 /* SequenceCollectionView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -46,6 +47,7 @@
 		00CE2C042A7373D90059F073 /* SequenceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequenceView.swift; sourceTree = "<group>"; };
 		00DC498E2A75B92000161495 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		00E0ECBF2A76A8000030A0DC /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		00FC65402A845E67009982A1 /* SequenceCollectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequenceCollectionView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -70,6 +72,7 @@
 				00E0ECBF2A76A8000030A0DC /* AppDelegate.swift */,
 				00E0ECBE2A7633100030A0DC /* Scenes */,
 				003075BE2A7F269E005B0D48 /* Components */,
+				00FC653F2A845E50009982A1 /* Sequence */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -133,6 +136,14 @@
 				007FDD482A76E1C800A1E42B /* WindowViewModifier.swift */,
 			);
 			path = Scenes;
+			sourceTree = "<group>";
+		};
+		00FC653F2A845E50009982A1 /* Sequence */ = {
+			isa = PBXGroup;
+			children = (
+				00FC65402A845E67009982A1 /* SequenceCollectionView.swift */,
+			);
+			path = Sequence;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -219,6 +230,7 @@
 				007FDD492A76E1C800A1E42B /* WindowViewModifier.swift in Sources */,
 				000BE9F62A75E62600B9C44E /* AppCommands.swift in Sources */,
 				004BCAF22A82A03300223A45 /* DynamicVStackView.swift in Sources */,
+				00FC65412A845E67009982A1 /* SequenceCollectionView.swift in Sources */,
 				00CE2C052A7373D90059F073 /* SequenceView.swift in Sources */,
 				00E0ECC02A76A8000030A0DC /* AppDelegate.swift in Sources */,
 				0008556C2A72FEDD00309905 /* ContentView.swift in Sources */,
@@ -366,7 +378,6 @@
 				INFOPLIST_FILE = Sequential/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSMainStoryboardFile = "";
-				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -397,7 +408,6 @@
 				INFOPLIST_FILE = Sequential/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSMainStoryboardFile = "";
-				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",

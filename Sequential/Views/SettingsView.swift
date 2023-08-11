@@ -23,12 +23,20 @@ extension ColorScheme: RawRepresentable {
       @unknown default: -1
     }
   }
+
+  func app() -> NSAppearance? {
+    switch self {
+      case .light: .init(named: .aqua)
+      case .dark: .init(named: .darkAqua)
+      @unknown default: nil
+    }
+  }
 }
 
 struct SettingsView: View {
   typealias Scheme = ColorScheme?
 
-  @AppStorage(StorageKeys.fullWindow.rawValue) private var fullWindow: Bool = false
+//  @AppStorage(StorageKeys.fullWindow.rawValue) private var fullWindow: Bool = false
   @AppStorage(StorageKeys.margin.rawValue) private var appMargin = 0
   @AppStorage(StorageKeys.appearance.rawValue) private var appearance: Scheme
   @State private var margin = 0.0
@@ -48,8 +56,10 @@ struct SettingsView: View {
           
           Text("Light").tag(.light as Scheme)
           Text("Dark").tag(.dark as Scheme)
+        }.onChange(of: appearance) {
+          NSApp.appearance = appearance?.app()
         }
-        
+
         //        Toggle(isOn: $fullWindow) {
         //          Text("Cover the full window")
         //        }

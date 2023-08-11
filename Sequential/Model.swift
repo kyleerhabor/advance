@@ -9,59 +9,6 @@ import ImageIO
 import OSLog
 import SwiftUI
 
-struct BookmarkURL {
-  let url: URL
-  let isStale: Bool
-
-  init(from bookmark: Data) throws {
-    var isStale = false
-
-    self.url = try URL(resolvingBookmarkData: bookmark, bookmarkDataIsStale: &isStale)
-    self.isStale = isStale
-  }
-}
-
-enum PersistentURLError: Error {
-  case inaccessibleSecurityScope
-}
-
-struct PersistentURL: Hashable, Codable {
-  var bookmark: Data
-
-  init(_ url: URL) throws {
-    self.bookmark = try Self.createBookmark(for: url)
-  }
-
-  static func createBookmark(for url: URL) throws -> Data {
-    guard url.startAccessingSecurityScopedResource() else {
-      throw PersistentURLError.inaccessibleSecurityScope
-    }
-
-    let bookmark = try url.bookmarkData()
-
-    url.stopAccessingSecurityScopedResource()
-
-    return bookmark
-  }
-
-  mutating func resolve() throws -> URL {
-    let bookmarked = try BookmarkURL(from: bookmark)
-
-    guard bookmarked.isStale else {
-      return bookmarked.url
-    }
-
-    // Per the documentation: "Your app should create a new bookmark ***using the returned URL*** and use it in place of any stored copies of the existing bookmark."
-    //
-    // "it" clearly refers to the bookmark, but "using the returned URL" is a bit vague without emphasis (which they
-    // don't include). I'm not sure if it is a requirement, but better safe than sorry?
-    bookmark = try Self.createBookmark(for: bookmarked.url)
-
-    // If the bookmark is still stale, then I don't know what problem we're in.
-    return try BookmarkURL(from: bookmark).url
-  }
-}
-
 enum StorageKeys: String {
   case fullWindow
   case margin
@@ -77,64 +24,88 @@ enum ImageError: Error {
   case undecodable, lost
 }
 
-struct SequenceImage: Hashable, Codable {
-  let url: URL
-  let width: Double
-  let height: Double
+struct SequenceImage: Codable {
+  var url: URL
+  let aspectRatio: Double
+
+  init(url: URL) throws {
+    self.url = url
+
+    let source = CGImageSourceCreateWithURL(url as CFURL, nil)!
+    let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as! Dictionary<CFString, Any>
+    let width = Double(properties[kCGImagePropertyPixelWidth] as! Int)
+    let height = Double(properties[kCGImagePropertyPixelHeight] as! Int)
+
+    self.aspectRatio = width / height
+  }
 }
 
 @Observable
 class Sequence: Codable {
-  // TODO: Override the default coders to only encode urls.
   var images = [SequenceImage]()
-  var urls: [PersistentURL]
+  var bookmarks: [Data]
 
-  init(from urls: [PersistentURL]) {
-    self.urls = urls
+  init(bookmarks: [Data]) {
+    self.bookmarks = bookmarks
   }
 
-  func load() async -> [SequenceImage] {
+  func load() async {
     var images = [SequenceImage]()
 
-    for var url in urls {
-      do {
-        let url = try url.resolve()
+    // Interesting findings in Instruments:
+    // - Resolving bookmarks is slow
+    // - Extracting the width and height from an image can be slow, but relative to resolving bookmarks, not by much.
+    //
+    // I tried refactoring SequenceImage to only load the URL when a view appears, but this involved making SequenceImage
+    // a class and adding a resolve method. To put it shortly, @Observable kept complaining about modifying the layout
+    // engine from concurrent threads, and I couldn't be bothered to figure out exactly why. It wasn't exactly in zero
+    // vain, however, since `bookmarks` is now directly an Array of bookmarks (rather than a wrapped class) and the
+    // aspect ratio is directly derived (since no view actually uses its separate values).
+    do {
+      for (index, var bookmark) in bookmarks.enumerated() {
+        var isStale = false
+        var resolved = try URL(resolvingBookmarkData: bookmark, bookmarkDataIsStale: &isStale)
 
-        images.append(image(from: url))
-      } catch {
-        Logger.model.error("Could not resolve bookmark \"\(url.bookmark, privacy: .sensitive)\": \(error)")
+        if isStale {
+          bookmark = try resolved.bookmark()
+          bookmarks[index] = bookmark
+        }
+
+        resolved = try URL(resolvingBookmarkData: bookmark, bookmarkDataIsStale: &isStale)
+
+        images.append(try SequenceImage(url: resolved))
       }
+      
+      self.images = images
+    } catch {
+      Logger.model.error("\(error)")
     }
-
-    return images
   }
 
   func move(from source: IndexSet, to destination: Int) {
-    urls.move(fromOffsets: source, toOffset: destination)
+    bookmarks.move(fromOffsets: source, toOffset: destination)
     images.move(fromOffsets: source, toOffset: destination)
   }
 
-  func image(from url: URL) -> SequenceImage {
-    let source = CGImageSourceCreateWithURL(url as CFURL, nil)!
+  required init(from decoder: Decoder) throws {
+    let container = try decoder.singleValueContainer()
 
-    guard let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? Dictionary<CFString, Any> else {
-      return .init(url: url, width: 0, height: 0)
-    }
+    self.bookmarks = try container.decode([Data].self)
+  }
 
-    let width = Double(properties[kCGImagePropertyPixelWidth] as! Int)
-    let height = Double(properties[kCGImagePropertyPixelHeight] as! Int)
-
-    return .init(url: url, width: width, height: height)
+  func encode(to encoder: Encoder) throws {
+    var container = encoder.singleValueContainer()
+    try container.encode(bookmarks)
   }
 }
 
 extension Sequence: Hashable {
   static func ==(lhs: Sequence, rhs: Sequence) -> Bool {
-    lhs.urls == rhs.urls
+    lhs.bookmarks == rhs.bookmarks
   }
-  
+
   func hash(into hasher: inout Hasher) {
-    hasher.combine(self.urls.map { $0.bookmark })
+    hasher.combine(bookmarks)
   }
 }
 
@@ -159,7 +130,7 @@ extension NavigationSplitViewVisibility: RawRepresentable {
   }
 }
 
-func resizeImage(at url: URL, toSize size: CGSize) async -> Image? {
+func resampleImage(at url: URL, forSize size: CGSize) async -> Image? {
   let options: [CFString : Any] = [
     // We're not going to use kCGImageSourceShouldAllowFloat here since the sizes can get very precise.
     kCGImageSourceShouldCacheImmediately: true,
@@ -182,4 +153,8 @@ func resizeImage(at url: URL, toSize size: CGSize) async -> Image? {
   Logger.model.info("Created a resampled image from \"\(url)\" at dimensions \(image.width.description)x\(image.height.description) for size \(size.width) / \(size.height)")
 
   return Image(nsImage: .init(cgImage: image, size: size))
+}
+
+enum URLError: Error {
+  case inaccessibleSecurityScope
 }
