@@ -11,12 +11,14 @@
 		0008556C2A72FEDD00309905 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0008556B2A72FEDD00309905 /* ContentView.swift */; };
 		0008556E2A7306CB00309905 /* Standard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0008556D2A7306CB00309905 /* Standard.swift */; };
 		000BE9F62A75E62600B9C44E /* AppCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000BE9F52A75E62600B9C44E /* AppCommands.swift */; };
+		001483392A86D4C50040E5CB /* SequenceSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001483382A86D4C50040E5CB /* SequenceSidebarView.swift */; };
 		001CB5202A718D4200DBB6FA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 001CB51F2A718D4200DBB6FA /* Assets.xcassets */; };
 		001D8D0E2A74AC5400B58790 /* Model.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001D8D0D2A74AC5400B58790 /* Model.swift */; };
 		002C27B52A80F81C00958AAC /* CollectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002C27B42A80F81C00958AAC /* CollectionView.swift */; };
 		004BCAF22A82A03300223A45 /* DynamicVStackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 004BCAF12A82A03300223A45 /* DynamicVStackView.swift */; };
 		004D8FC02A76C1C900C0303E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 004D8FBF2A76C1C900C0303E /* SettingsView.swift */; };
 		007FDD492A76E1C800A1E42B /* WindowViewModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 007FDD482A76E1C800A1E42B /* WindowViewModifier.swift */; };
+		00823A9B2A86CA050043B8BE /* SequenceScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00823A9A2A86CA050043B8BE /* SequenceScene.swift */; };
 		00BC8FAB2A777D800094E0C4 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 00BC8FAA2A777D800094E0C4 /* SwiftUI.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
 		00C09BBF2A789D30006EB887 /* View.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00C09BBE2A789D30006EB887 /* View.swift */; };
 		00C09BC22A78D0F7006EB887 /* SwiftUIIntrospect in Frameworks */ = {isa = PBXBuildFile; productRef = 00C09BC12A78D0F7006EB887 /* SwiftUIIntrospect */; };
@@ -31,6 +33,7 @@
 		0008556B2A72FEDD00309905 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		0008556D2A7306CB00309905 /* Standard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Standard.swift; sourceTree = "<group>"; };
 		000BE9F52A75E62600B9C44E /* AppCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCommands.swift; sourceTree = "<group>"; };
+		001483382A86D4C50040E5CB /* SequenceSidebarView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SequenceSidebarView.swift; sourceTree = "<group>"; };
 		001CB5182A718D3C00DBB6FA /* Sequential.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Sequential.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		001CB51F2A718D4200DBB6FA /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		001CB5242A718D4200DBB6FA /* Sequential.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Sequential.entitlements; sourceTree = "<group>"; };
@@ -40,6 +43,7 @@
 		004BCAF12A82A03300223A45 /* DynamicVStackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DynamicVStackView.swift; sourceTree = "<group>"; };
 		004D8FBF2A76C1C900C0303E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		007FDD482A76E1C800A1E42B /* WindowViewModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowViewModifier.swift; sourceTree = "<group>"; };
+		00823A9A2A86CA050043B8BE /* SequenceScene.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SequenceScene.swift; sourceTree = "<group>"; };
 		00BC8FAA2A777D800094E0C4 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		00C09BBE2A789D30006EB887 /* View.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = View.swift; sourceTree = "<group>"; };
 		00C618C82A82F41C00266052 /* DynamicVStackCellView.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = DynamicVStackCellView.xib; sourceTree = "<group>"; };
@@ -132,6 +136,7 @@
 		00E0ECBE2A7633100030A0DC /* Scenes */ = {
 			isa = PBXGroup;
 			children = (
+				00823A9A2A86CA050043B8BE /* SequenceScene.swift */,
 				000BE9F52A75E62600B9C44E /* AppCommands.swift */,
 				007FDD482A76E1C800A1E42B /* WindowViewModifier.swift */,
 			);
@@ -142,6 +147,7 @@
 			isa = PBXGroup;
 			children = (
 				00FC65402A845E67009982A1 /* SequenceCollectionView.swift */,
+				001483382A86D4C50040E5CB /* SequenceSidebarView.swift */,
 			);
 			path = Sequence;
 			sourceTree = "<group>";
@@ -236,6 +242,8 @@
 				0008556C2A72FEDD00309905 /* ContentView.swift in Sources */,
 				002C27B52A80F81C00958AAC /* CollectionView.swift in Sources */,
 				000855692A72FE2C00309905 /* SequentialApp.swift in Sources */,
+				00823A9B2A86CA050043B8BE /* SequenceScene.swift in Sources */,
+				001483392A86D4C50040E5CB /* SequenceSidebarView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -137,7 +137,6 @@ struct SequenceImageView: View {
     SequenceImageCellView(url: url)
       .id(url)
       .aspectRatio(image.aspectRatio, contentMode: .fit)
-      .frame(maxHeight: 10000)
       .onAppear {
         if !url.startAccessingSecurityScopedResource() {
           Logger.ui.error("Could not access security scoped resource for \"\(url, privacy: .sensitive)\"")
@@ -145,75 +144,6 @@ struct SequenceImageView: View {
       }.onDisappear {
         url.stopAccessingSecurityScopedResource()
       }
-  }
-}
-
-struct SequenceSidebarView: View {
-  @State private var preview = [URL]()
-  @State private var previewItem: URL?
-
-  @Binding var selection: Set<URL>
-  let images: [SequenceImage]
-  let onMove: (IndexSet, Int) -> Void
-
-  var body: some View {
-    // There's an uncomfortable amount of padding missing from the top when in full screen mode.
-    //
-    // TODO: Support drag and drop, removal, and additions.
-    List(selection: $selection) {
-      ForEach(images, id: \.url) { image in
-        VStack {
-          SequenceImageView(image: image)
-          
-          let path = image.url.lastPathComponent
-          
-          Text(path)
-            .font(.subheadline)
-            .padding(.init(top: 4, leading: 8, bottom: 4, trailing: 8))
-            .background(Color.secondaryFill)
-            .clipShape(.rect(cornerRadius: 4))
-            .help(path)
-        }
-      }.onMove(perform: onMove)
-    }
-    .quickLookPreview($previewItem, in: preview)
-    .contextMenu { urls in
-      Button("Show in Finder") {
-        openFinder(for: Array(urls))
-      }
-
-      // TODO: Figure out how to bind this to the space key while the context menu is not open.
-      //
-      // I tried using .onKeyPress(_:action:) on the list, but the action was never called. Maybe related to 109799056?
-      // "View.onKeyPress(_:action:) can't filter key presses when bridged controls have focus."
-      Button("Quick Look") {
-        quicklook(urls: urls)
-      }
-    } primaryAction: { urls in
-      openFinder(for: Array(urls))
-    }
-  }
-
-  func quicklook(urls: Set<URL>) {
-    let images = images
-      .enumerated()
-      .reduce(into: [:]) { partialResult, pair in
-        partialResult[pair.1.url] = pair.0
-      }
-
-    preview = urls.sorted { a, b in
-      guard let ai = images[a] else {
-        return false
-      }
-
-      guard let bi = images[b] else {
-        return true
-      }
-
-      return ai < bi
-    }
-
-    previewItem = preview.first
   }
 }
 
@@ -246,6 +176,10 @@ struct SequenceView: View {
       ScrollViewReader { scroller in
         SequenceSidebarView(selection: $selection, images: sequence.images) { source, destination in
           sequence.move(from: source, to: destination)
+        } onDrop: { urls, offset in
+          sequence.insert(urls, at: offset)
+        } onDelete: {
+          sequence.delete(selection)
         }.onChange(of: page) {
           // Scrolling off-screen allows the user to not think about the sidebar.
           guard let page, columns == .detailOnly else {
@@ -267,44 +201,7 @@ struct SequenceView: View {
               scroller.scrollTo(url, anchor: .top)
             }
           }
-//        ScrollView {
-//          LazyVStack(spacing: 0) {
-//            ForEach(sequence.images, id: \.url) { image in
-//              // Extracted to prevent the compiler from hanging.
-//              SequenceItemView(image: image)
-//            }.introspect(.scrollView, on: .macOS(.v14), scope: .ancestor) { scrollView in
-//              scrollView.allowsMagnification = true
-//              // I tried constraining the scroll view's center X anchor to its first subview, but that resulted in the view
-//              // being blank. For now, we'll deal with this.
-//              scrollView.minMagnification = 1
-//            }
-//          }.background {
-//            if let window, coverFullWindow(for: window) {
-//              // This seems to significantly hinder performance (though, I'm not sure if it's in updating the title bar
-//              // visibility or publishing changes to the preference).
-//              GeometryReader { proxy in
-//                Color.clear
-//                  .preference(key: ScrollPreferenceKey.self, value: proxy.frame(in: .scrollView).origin.y)
-//              }
-//            }
-//          }
-//        }
       }
-//      .onPreferenceChange(ScrollPreferenceKey.self) { _ in
-//        guard didFirstScroll else {
-//          didFirstScroll = true
-//
-//          return
-//        }
-//
-//        guard let window, !window.isFullScreened() else {
-//          return
-//        }
-//
-//        withAnimation {
-//          setTitleBarVisibility(for: window)
-//        }
-//      }
       // An annoying effect from ignoring the safe area is that the scrolling indicator may be under the title bar.
       .ignoresSafeArea(window != nil && coverFullWindow(for: window!) ? .all : [])
     }
@@ -330,22 +227,6 @@ struct SequenceView: View {
         window.animator().titlebarSeparatorStyle = .automatic
       }
     }
-    // .onHover's action doesn't get called when "some other event" interrupts its focus streak (e.g. the user begins
-    // hovering inside a view, then starts scrolling, and then goes back to hovering, in which the action isn't called).
-    // .onContinuousHover does that, though it feels kind of wasteful for how often it's called. I just want to say
-    // "when the user is hovering over this view and is not scrolling"
-//    .onContinuousHover(coordinateSpace: .global) { phase in
-//      // The title bar will constantly flicker from the hover position and view size (for determining scrolling)
-//      // constantly updating in tandem. Since only the hover state will be excluded, the user gets a really nice effect
-//      // where resizing reveals the full window and brings back the title bar when it ends.
-//      guard let window, !window.isFullScreened(), !window.inLiveResize else {
-//        return
-//      }
-//
-//      withAnimation {
-//        setTitleBarVisibility(for: window, to: .visible)
-//      }
-//    }
   }
 
   func coverFullWindow(for window: NSWindow) -> Bool {

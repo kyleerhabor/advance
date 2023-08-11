@@ -28,10 +28,15 @@ struct SequenceImage: Codable {
   var url: URL
   let aspectRatio: Double
 
-  init(url: URL) throws {
+  // For some reason, conforming to Transferable and declaring the support for UTType.image is not enough to support
+  // dropping.
+  init?(url: URL) {
+    guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+      return nil
+    }
+
     self.url = url
 
-    let source = CGImageSourceCreateWithURL(url as CFURL, nil)!
     let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as! Dictionary<CFString, Any>
     let width = Double(properties[kCGImagePropertyPixelWidth] as! Int)
     let height = Double(properties[kCGImagePropertyPixelHeight] as! Int)
@@ -40,18 +45,22 @@ struct SequenceImage: Codable {
   }
 }
 
-@Observable
-class Sequence: Codable {
-  var images = [SequenceImage]()
-  var bookmarks: [Data]
+class Bookmark: Codable {
+  var data: Data
+  var url: URL?
 
-  init(bookmarks: [Data]) {
-    self.bookmarks = bookmarks
+  init(data: Data, url: URL? = nil) {
+    self.data = data
+    self.url = url
   }
 
-  func load() async {
-    var images = [SequenceImage]()
+  required init(from decoder: Decoder) throws {
+    let container = try decoder.singleValueContainer()
 
+    self.data = try container.decode(Data.self)
+  }
+
+  func resolve() throws {
     // Interesting findings in Instruments:
     // - Resolving bookmarks is slow
     // - Extracting the width and height from an image can be slow, but relative to resolving bookmarks, not by much.
@@ -61,22 +70,60 @@ class Sequence: Codable {
     // engine from concurrent threads, and I couldn't be bothered to figure out exactly why. It wasn't exactly in zero
     // vain, however, since `bookmarks` is now directly an Array of bookmarks (rather than a wrapped class) and the
     // aspect ratio is directly derived (since no view actually uses its separate values).
-    do {
-      for (index, var bookmark) in bookmarks.enumerated() {
-        var isStale = false
-        var resolved = try URL(resolvingBookmarkData: bookmark, bookmarkDataIsStale: &isStale)
+    var isStale = false
+    var resolved = try URL(resolvingBookmarkData: data, bookmarkDataIsStale: &isStale)
 
-        if isStale {
-          bookmark = try resolved.bookmark()
-          bookmarks[index] = bookmark
+    if isStale {
+      data = try resolved.bookmark()
+      resolved = try URL(resolvingBookmarkData: data, bookmarkDataIsStale: &isStale)
+    }
+
+    url = resolved
+  }
+
+  func encode(to encoder: Encoder) throws {
+    var container = encoder.singleValueContainer()
+
+    try container.encode(data)
+  }
+}
+
+extension Bookmark: Hashable {
+  static func ==(lhs: Bookmark, rhs: Bookmark) -> Bool {
+    lhs.data == rhs.data
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine(data)
+  }
+}
+
+@Observable
+class Sequence: Codable {
+  var images = [SequenceImage]()
+  var bookmarks: [Bookmark]
+
+  init(bookmarks: [Data]) {
+    self.bookmarks = bookmarks.map { .init(data: $0) }
+  }
+
+  required init(from decoder: Decoder) throws {
+    let container = try decoder.singleValueContainer()
+
+    self.bookmarks = try container.decode([Bookmark].self)
+  }
+
+  func load() async {
+    do {
+      self.images = try bookmarks.map { bookmark in
+        try bookmark.resolve()
+
+        guard let image = SequenceImage(url: bookmark.url!) else {
+          throw ImageError.undecodable
         }
 
-        resolved = try URL(resolvingBookmarkData: bookmark, bookmarkDataIsStale: &isStale)
-
-        images.append(try SequenceImage(url: resolved))
+        return image
       }
-      
-      self.images = images
     } catch {
       Logger.model.error("\(error)")
     }
@@ -87,10 +134,38 @@ class Sequence: Codable {
     images.move(fromOffsets: source, toOffset: destination)
   }
 
-  required init(from decoder: Decoder) throws {
-    let container = try decoder.singleValueContainer()
+  func insert(_ urls: [URL], at offset: Int) {
+    // Since the user can drop anything that can be associated with a URL, first we need to filter anything that isn't
+    // image-like.
+    let images = urls.compactMap { SequenceImage(url: $0) }
 
-    self.bookmarks = try container.decode([Data].self)
+    do {
+      let bookmarks = try images.map { image in
+        let url = image.url
+
+        return Bookmark(
+          data: try url.bookmarkData(),
+          url: url
+        )
+      }
+
+      self.bookmarks.insert(contentsOf: bookmarks, at: offset)
+      self.images.insert(contentsOf: images, at: offset)
+    } catch {
+      Logger.ui.error("\(error)")
+    }
+  }
+
+  func delete(_ urls: Set<URL>) {
+    bookmarks.removeAll { bookmark in
+      guard let url = bookmark.url else {
+        return false
+      }
+
+      return urls.contains(url)
+    }
+
+    images.removeAll { urls.contains($0.url) }
   }
 
   func encode(to encoder: Encoder) throws {
