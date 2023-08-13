@@ -17,7 +17,7 @@ enum StorageKeys: String {
 }
 
 enum ImageError: Error {
-  case undecodable, lost
+  case undecodable
 }
 
 class Bookmark: Codable {
@@ -82,7 +82,8 @@ extension Bookmark: Hashable {
 // For some reason, conforming to Transferable and declaring the support for UTType.image is not enough to support .dropDestination(...)
 struct SeqImage: Codable {
   var url: URL
-  let aspectRatio: Double
+  let width: Double
+  let height: Double
 
   // TODO: Make this non-failable.
   //
@@ -95,11 +96,9 @@ struct SeqImage: Codable {
       return nil
     }
 
-    let width = Double(properties[kCGImagePropertyPixelWidth] as! Int)
-    let height = Double(properties[kCGImagePropertyPixelHeight] as! Int)
-
     self.url = url
-    self.aspectRatio = width / height
+    self.width = Double(properties[kCGImagePropertyPixelWidth] as! Int)
+    self.height = Double(properties[kCGImagePropertyPixelHeight] as! Int)
   }
 }
 
@@ -218,9 +217,9 @@ extension NavigationSplitViewVisibility: RawRepresentable {
   }
 }
 
-func resampleImage(at url: URL, forSize size: CGSize) async -> Image? {
+func resampleImage(at url: URL, forSize size: CGSize) async throws -> Image? {
   let options: [CFString : Any] = [
-    // We're not going to use kCGImageSourceShouldAllowFloat here since the sizes can get very precise.
+    // We're not going to use kCGImageSourceShouldAllowFloat since the sizes can get very precise.
     kCGImageSourceShouldCacheImmediately: true,
     // For some reason, resizing images with kCGImageSourceCreateThumbnailFromImageIfAbsent sometimes uses a
     // significantly smaller pixel size than specified with kCGImageSourceThumbnailMaxPixelSize. For example, I have a
@@ -230,20 +229,20 @@ func resampleImage(at url: URL, forSize size: CGSize) async -> Image? {
     // update to the next created image. This behavior seems to be predicated on the given max pixel size, given a
     // larger image did not trigger the behavior (but did in one odd case).
     kCGImageSourceCreateThumbnailFromImageAlways: true,
-    kCGImageSourceThumbnailMaxPixelSize: max(size.width, size.height),
+    kCGImageSourceThumbnailMaxPixelSize: size.length(),
     kCGImageSourceCreateThumbnailWithTransform: true
   ]
 
-  // There seems to be a memory leak somewhere (at least, sometimes).
   guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
         let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
     return nil
   }
 
+  try Task.checkCancellation()
+
   Logger.model.info("Created a resampled image from \"\(url)\" at dimensions \(image.width.description)x\(image.height.description) for size \(size.width) / \(size.height)")
 
   return Image(nsImage: .init(cgImage: image, size: size))
-    .resizable()
 }
 
 enum URLError: Error {

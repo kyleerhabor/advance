@@ -11,19 +11,51 @@ import OSLog
 import QuickLook
 import SwiftUI
 
+struct SequenceImagePhaseErrorView: View {
+  let error: Error
+
+  var body: some View {
+    if error is CancellationError {
+      Color.clear
+    } else {
+      Image(systemName: errorSymbol(for: error))
+    }
+  }
+
+  func errorSymbol(for err: Error) -> String {
+    switch err {
+      case let err as CocoaError where err.code == .fileReadNoSuchFile: "questionmark.circle"
+      default: "exclamationmark.triangle.fill"
+    }
+  }
+}
+
 struct SequenceImagePhaseView: View {
   @State private var elapsed = false
 
-  let phase: AsyncImagePhase
+  @Binding var phase: AsyncImagePhase
 
   var body: some View {
     if let image = phase.image {
       image
+        .resizable()
+        .onDisappear {
+          // This is necessary to slow down the memory creep SwiftUI creates when rendering images. It does not
+          // eliminate it, but severely halts it. As an example, I have a copy of the first volume of Mysterious
+          // Girlfriend X, which weights in at ~700 MBs. When the window size is the default and the sidebar is open
+          // but hasn't been scrolled through, by time I reach page 24, the memory has ballooned to ~600 MBs. With this
+          // little trick, however, it rests at about ~150-200 MBs. Note that I haven't profiled the app to see if the
+          // remaining memory comes from SwiftUI or Image I/O.
+          //
+          // An alternative solution to always resetting the phase would be to measure the app's memory usage and reset
+          // the phase when it crosses a threshold.
+          phase = .empty
+        }
     } else {
       Color.tertiaryFill
         .overlay {
           if case .failure(let err) = phase {
-            Image(systemName: errorSymbol(for: err as! ImageError))
+            SequenceImagePhaseErrorView(error: err)
               .symbolRenderingMode(.multicolor)
               .imageScale(.large)
           } else if elapsed {
@@ -40,13 +72,6 @@ struct SequenceImagePhaseView: View {
         }
     }
   }
-
-  func errorSymbol(for error: ImageError) -> String {
-    switch error {
-      case .undecodable: "exclamationmark.triangle.fill"
-      case .lost: "questionmark.circle"
-    }
-  }
 }
 
 struct SequenceImageCellView: View {
@@ -58,11 +83,11 @@ struct SequenceImageCellView: View {
   private var sizeSubject: Subject
   private var sizePublisher: AnyPublisher<CGSize, Never>
 
-  let url: URL
+  let image: SeqImage
 
   var body: some View {
     GeometryReader { proxy in
-      SequenceImagePhaseView(phase: phase)
+      SequenceImagePhaseView(phase: $phase)
         .onChange(of: proxy.size, initial: true) {
           sizeSubject.send(proxy.size)
         }.onReceive(sizePublisher) { size in
@@ -76,7 +101,7 @@ struct SequenceImageCellView: View {
           guard size != .zero else {
             return
           }
-
+          
           // For some reason, SwiftUI may choose to block when rendering the image that is scrolled into view. A lot of
           // the time it won't, but it can sometimes. This doesn't seem to necessarily be correlated with size, given
           // that a smaller image I tested with caused the block (and not the larger one). Maybe profile in Instruments
@@ -85,32 +110,37 @@ struct SequenceImageCellView: View {
             width: size.width / pixel,
             height: size.height / pixel
           )
-
-          guard let image = await resampleImage(at: url, forSize: size) else {
-            if let path = url.fileRepresentation(),
-               !FileManager.default.fileExists(atPath: path) {
-              phase = .failure(ImageError.lost)
-            } else {
-              phase = .failure(ImageError.undecodable)
+          
+          do {
+            // FIXME: Certain images / certain points in rendering block.
+            guard let image = try await sizeImage(for: size) else {
+              if let path = image.url.fileRepresentation(),
+                 !FileManager.default.fileExists(atPath: path) {
+                phase = .failure(CocoaError(.fileReadNoSuchFile))
+              } else {
+                phase = .failure(ImageError.undecodable)
+              }
+              
+              return
             }
-
-            return
-          }
-
-          // Only animate when transitioning from non-successful to successful.
-          if case .success = phase {
-            phase = .success(image)
-          } else {
-            withAnimation {
+            
+            // Only animate when transitioning from non-successful to successful.
+            if case .success = phase {
               phase = .success(image)
+            } else {
+              withAnimation {
+                phase = .success(image)
+              }
             }
+          } catch {
+            phase = .failure(CancellationError())
           }
         }
     }
   }
 
-  init(url: URL) {
-    self.url = url
+  init(image: SeqImage) {
+    self.image = image
 
     let size = Subject(.init())
 
@@ -118,6 +148,16 @@ struct SequenceImageCellView: View {
     self.sizePublisher = size
       .debounce(for: .milliseconds(200), scheduler: DispatchQueue.main)
       .eraseToAnyPublisher()
+  }
+
+  nonisolated func sizeImage(for size: CGSize) async throws -> Image? {
+    let url = image.url
+
+    guard size.length() >= max(image.width, image.height) else {
+      return try await resampleImage(at: url, forSize: size)
+    }
+
+    return Image(nsImage: .init(byReferencing: url))
   }
 }
 
@@ -127,9 +167,9 @@ struct SequenceImageView: View {
   var body: some View {
     let url = image.url
 
-    SequenceImageCellView(url: url)
+    SequenceImageCellView(image: image)
       .id(url)
-      .aspectRatio(image.aspectRatio, contentMode: .fit)
+      .aspectRatio(image.width / image.height, contentMode: .fit)
       .onAppear {
         if !url.startAccessingSecurityScopedResource() {
           Logger.ui.error("Could not access security scoped resource for \"\(url, privacy: .sensitive)\"")

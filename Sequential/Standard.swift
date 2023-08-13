@@ -62,3 +62,9 @@ extension Sequence {
     return result
   }
 }
+
+extension CGSize {
+  func length() -> Double {
+    max(self.width, self.height)
+  }
+}
