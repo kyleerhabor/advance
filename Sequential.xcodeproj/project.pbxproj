@@ -8,9 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		000855692A72FE2C00309905 /* SequentialApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000855682A72FE2C00309905 /* SequentialApp.swift */; };
-		0008556C2A72FEDD00309905 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0008556B2A72FEDD00309905 /* ContentView.swift */; };
 		0008556E2A7306CB00309905 /* Standard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0008556D2A7306CB00309905 /* Standard.swift */; };
-		000BE9F62A75E62600B9C44E /* AppCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000BE9F52A75E62600B9C44E /* AppCommands.swift */; };
 		001483392A86D4C50040E5CB /* SequenceSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001483382A86D4C50040E5CB /* SequenceSidebarView.swift */; };
 		001CB5202A718D4200DBB6FA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 001CB51F2A718D4200DBB6FA /* Assets.xcassets */; };
 		001D8D0E2A74AC5400B58790 /* Model.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001D8D0D2A74AC5400B58790 /* Model.swift */; };
@@ -19,20 +17,19 @@
 		004D8FC02A76C1C900C0303E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 004D8FBF2A76C1C900C0303E /* SettingsView.swift */; };
 		007FDD492A76E1C800A1E42B /* WindowViewModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 007FDD482A76E1C800A1E42B /* WindowViewModifier.swift */; };
 		00823A9B2A86CA050043B8BE /* SequenceScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00823A9A2A86CA050043B8BE /* SequenceScene.swift */; };
+		008EA2192A886C260005AB44 /* SequenceSidebarContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 008EA2172A886C260005AB44 /* SequenceSidebarContentView.swift */; };
+		008EA21A2A886C260005AB44 /* SequenceSidebarEmptyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 008EA2182A886C260005AB44 /* SequenceSidebarEmptyView.swift */; };
 		00BC8FAB2A777D800094E0C4 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 00BC8FAA2A777D800094E0C4 /* SwiftUI.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
 		00C09BBF2A789D30006EB887 /* View.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00C09BBE2A789D30006EB887 /* View.swift */; };
-		00C09BC22A78D0F7006EB887 /* SwiftUIIntrospect in Frameworks */ = {isa = PBXBuildFile; productRef = 00C09BC12A78D0F7006EB887 /* SwiftUIIntrospect */; };
 		00C618C92A82F41C00266052 /* DynamicVStackCellView.xib in Resources */ = {isa = PBXBuildFile; fileRef = 00C618C82A82F41C00266052 /* DynamicVStackCellView.xib */; };
 		00CE2C052A7373D90059F073 /* SequenceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00CE2C042A7373D90059F073 /* SequenceView.swift */; };
 		00E0ECC02A76A8000030A0DC /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E0ECBF2A76A8000030A0DC /* AppDelegate.swift */; };
-		00FC65412A845E67009982A1 /* SequenceCollectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00FC65402A845E67009982A1 /* SequenceCollectionView.swift */; };
+		00FC65412A845E67009982A1 /* SequenceDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00FC65402A845E67009982A1 /* SequenceDetailView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		000855682A72FE2C00309905 /* SequentialApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequentialApp.swift; sourceTree = "<group>"; };
-		0008556B2A72FEDD00309905 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		0008556D2A7306CB00309905 /* Standard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Standard.swift; sourceTree = "<group>"; };
-		000BE9F52A75E62600B9C44E /* AppCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCommands.swift; sourceTree = "<group>"; };
 		001483382A86D4C50040E5CB /* SequenceSidebarView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SequenceSidebarView.swift; sourceTree = "<group>"; };
 		001CB5182A718D3C00DBB6FA /* Sequential.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Sequential.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		001CB51F2A718D4200DBB6FA /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -44,6 +41,8 @@
 		004D8FBF2A76C1C900C0303E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		007FDD482A76E1C800A1E42B /* WindowViewModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowViewModifier.swift; sourceTree = "<group>"; };
 		00823A9A2A86CA050043B8BE /* SequenceScene.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SequenceScene.swift; sourceTree = "<group>"; };
+		008EA2172A886C260005AB44 /* SequenceSidebarContentView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SequenceSidebarContentView.swift; sourceTree = "<group>"; };
+		008EA2182A886C260005AB44 /* SequenceSidebarEmptyView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SequenceSidebarEmptyView.swift; sourceTree = "<group>"; };
 		00BC8FAA2A777D800094E0C4 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		00C09BBE2A789D30006EB887 /* View.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = View.swift; sourceTree = "<group>"; };
 		00C618C82A82F41C00266052 /* DynamicVStackCellView.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = DynamicVStackCellView.xib; sourceTree = "<group>"; };
@@ -51,7 +50,7 @@
 		00CE2C042A7373D90059F073 /* SequenceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequenceView.swift; sourceTree = "<group>"; };
 		00DC498E2A75B92000161495 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		00E0ECBF2A76A8000030A0DC /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		00FC65402A845E67009982A1 /* SequenceCollectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequenceCollectionView.swift; sourceTree = "<group>"; };
+		00FC65402A845E67009982A1 /* SequenceDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequenceDetailView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -60,7 +59,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				00BC8FAB2A777D800094E0C4 /* SwiftUI.framework in Frameworks */,
-				00C09BC22A78D0F7006EB887 /* SwiftUIIntrospect in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -70,15 +68,23 @@
 		0008556A2A72FECF00309905 /* Views */ = {
 			isa = PBXGroup;
 			children = (
-				0008556B2A72FEDD00309905 /* ContentView.swift */,
 				00CE2C042A7373D90059F073 /* SequenceView.swift */,
 				004D8FBF2A76C1C900C0303E /* SettingsView.swift */,
 				00E0ECBF2A76A8000030A0DC /* AppDelegate.swift */,
 				00E0ECBE2A7633100030A0DC /* Scenes */,
-				003075BE2A7F269E005B0D48 /* Components */,
 				00FC653F2A845E50009982A1 /* Sequence */,
+				003075BE2A7F269E005B0D48 /* Components */,
 			);
 			path = Views;
+			sourceTree = "<group>";
+		};
+		000A43BE2A885E99001DAC0A /* Sidebar */ = {
+			isa = PBXGroup;
+			children = (
+				008EA2172A886C260005AB44 /* SequenceSidebarContentView.swift */,
+				008EA2182A886C260005AB44 /* SequenceSidebarEmptyView.swift */,
+			);
+			path = Sidebar;
 			sourceTree = "<group>";
 		};
 		001CB50F2A718D3C00DBB6FA = {
@@ -137,7 +143,6 @@
 			isa = PBXGroup;
 			children = (
 				00823A9A2A86CA050043B8BE /* SequenceScene.swift */,
-				000BE9F52A75E62600B9C44E /* AppCommands.swift */,
 				007FDD482A76E1C800A1E42B /* WindowViewModifier.swift */,
 			);
 			path = Scenes;
@@ -146,8 +151,9 @@
 		00FC653F2A845E50009982A1 /* Sequence */ = {
 			isa = PBXGroup;
 			children = (
-				00FC65402A845E67009982A1 /* SequenceCollectionView.swift */,
+				00FC65402A845E67009982A1 /* SequenceDetailView.swift */,
 				001483382A86D4C50040E5CB /* SequenceSidebarView.swift */,
+				000A43BE2A885E99001DAC0A /* Sidebar */,
 			);
 			path = Sequence;
 			sourceTree = "<group>";
@@ -169,7 +175,6 @@
 			);
 			name = Sequential;
 			packageProductDependencies = (
-				00C09BC12A78D0F7006EB887 /* SwiftUIIntrospect */,
 			);
 			productName = Sequential;
 			productReference = 001CB5182A718D3C00DBB6FA /* Sequential.app */;
@@ -201,7 +206,6 @@
 			);
 			mainGroup = 001CB50F2A718D3C00DBB6FA;
 			packageReferences = (
-				00C09BC02A78D0F7006EB887 /* XCRemoteSwiftPackageReference "SwiftUI-Introspect" */,
 			);
 			productRefGroup = 001CB5192A718D3C00DBB6FA /* Products */;
 			projectDirPath = "";
@@ -231,18 +235,18 @@
 			files = (
 				001D8D0E2A74AC5400B58790 /* Model.swift in Sources */,
 				004D8FC02A76C1C900C0303E /* SettingsView.swift in Sources */,
+				008EA21A2A886C260005AB44 /* SequenceSidebarEmptyView.swift in Sources */,
 				00C09BBF2A789D30006EB887 /* View.swift in Sources */,
 				0008556E2A7306CB00309905 /* Standard.swift in Sources */,
 				007FDD492A76E1C800A1E42B /* WindowViewModifier.swift in Sources */,
-				000BE9F62A75E62600B9C44E /* AppCommands.swift in Sources */,
 				004BCAF22A82A03300223A45 /* DynamicVStackView.swift in Sources */,
-				00FC65412A845E67009982A1 /* SequenceCollectionView.swift in Sources */,
+				00FC65412A845E67009982A1 /* SequenceDetailView.swift in Sources */,
 				00CE2C052A7373D90059F073 /* SequenceView.swift in Sources */,
 				00E0ECC02A76A8000030A0DC /* AppDelegate.swift in Sources */,
-				0008556C2A72FEDD00309905 /* ContentView.swift in Sources */,
 				002C27B52A80F81C00958AAC /* CollectionView.swift in Sources */,
 				000855692A72FE2C00309905 /* SequentialApp.swift in Sources */,
 				00823A9B2A86CA050043B8BE /* SequenceScene.swift in Sources */,
+				008EA2192A886C260005AB44 /* SequenceSidebarContentView.swift in Sources */,
 				001483392A86D4C50040E5CB /* SequenceSidebarView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -450,25 +454,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		00C09BC02A78D0F7006EB887 /* XCRemoteSwiftPackageReference "SwiftUI-Introspect" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/siteline/SwiftUI-Introspect";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.10.0;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		00C09BC12A78D0F7006EB887 /* SwiftUIIntrospect */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 00C09BC02A78D0F7006EB887 /* XCRemoteSwiftPackageReference "SwiftUI-Introspect" */;
-			productName = SwiftUIIntrospect;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 001CB5102A718D3C00DBB6FA /* Project object */;
 }

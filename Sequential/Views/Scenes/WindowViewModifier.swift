@@ -15,6 +15,10 @@ struct FullScreenEnvironmentKey: EnvironmentKey {
   static var defaultValue: Bool?
 }
 
+struct PrerenderEnvironmentKey: EnvironmentKey {
+  static var defaultValue = true
+}
+
 extension EnvironmentValues {
   var window: WindowEnvironmentKey.Value {
     get { self[WindowEnvironmentKey.self] }
@@ -24,6 +28,11 @@ extension EnvironmentValues {
   var fullScreen: FullScreenEnvironmentKey.Value {
     get { self[FullScreenEnvironmentKey.self] }
     set { self[FullScreenEnvironmentKey.self] = newValue }
+  }
+
+  var prerendering: PrerenderEnvironmentKey.Value {
+    get { self[PrerenderEnvironmentKey.self] }
+    set { self[PrerenderEnvironmentKey.self] = newValue }
   }
 }
 
@@ -87,10 +96,21 @@ struct WindowFullScreenViewModifier: ViewModifier {
   }
 }
 
+struct PrerenderViewModifier: ViewModifier {
+  @State private var prerendering = true
+
+  func body(content: Content) -> some View {
+    content
+      .environment(\.prerendering, prerendering)
+      .task { prerendering = false }
+  }
+}
+
 extension View {
   func windowed() -> some View {
     self
       .modifier(WindowFullScreenViewModifier())
       .modifier(WindowViewModifier())
+      .modifier(PrerenderViewModifier())
   }
 }

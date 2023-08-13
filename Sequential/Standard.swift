@@ -32,15 +32,33 @@ extension URL {
     return components.url?.absoluteString.removingPercentEncoding
   }
 
-  func bookmark() throws -> Data {
+  func scoped<T>(_ body: () throws -> T) throws -> T {
     guard self.startAccessingSecurityScopedResource() else {
       throw URLError.inaccessibleSecurityScope
     }
+    
+    defer {
+      self.stopAccessingSecurityScopedResource()
+    }
 
-    let bookmark = try self.bookmarkData()
+    return try body()
+  }
+}
 
-    self.stopAccessingSecurityScopedResource()
+extension Sequence {
+  func forEach(_ body: (Element) async throws -> Void) async rethrows {
+    for element in self {
+      try await body(element)
+    }
+  }
 
-    return bookmark
+  func map<T>(_ transform: (Element) async throws -> T) async rethrows -> [T] {
+    var result = [T]()
+
+    try await forEach { element in
+      result.append(try await transform(element))
+    }
+
+    return result
   }
 }

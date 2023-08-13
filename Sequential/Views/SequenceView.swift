@@ -10,13 +10,6 @@ import ImageIO
 import OSLog
 import QuickLook
 import SwiftUI
-import SwiftUIIntrospect
-
-struct ScrollPreferenceKey: PreferenceKey {
-  static var defaultValue = CGFloat.zero
-
-  static func reduce(value: inout Self.Value, nextValue: () -> Self.Value) {}
-}
 
 struct SequenceImagePhaseView: View {
   @State private var elapsed = false
@@ -25,7 +18,7 @@ struct SequenceImagePhaseView: View {
 
   var body: some View {
     if let image = phase.image {
-      image.resizable()
+      image
     } else {
       Color.tertiaryFill
         .overlay {
@@ -129,7 +122,7 @@ struct SequenceImageCellView: View {
 }
 
 struct SequenceImageView: View {
-  let image: SequenceImage
+  let image: SeqImage
 
   var body: some View {
     let url = image.url
@@ -150,13 +143,11 @@ struct SequenceImageView: View {
 struct SequenceView: View {
   @Environment(\.fullScreen) private var fullScreen
   @Environment(\.window) private var window
-  @AppStorage(StorageKeys.fullWindow.rawValue) private var allowsFullWindow = false
-  @SceneStorage(StorageKeys.sidebar.rawValue) private var columns = NavigationSplitViewVisibility.detailOnly
+  @SceneStorage(StorageKeys.sidebar.rawValue) private var columns = NavigationSplitViewVisibility.all
   @State private var selection = Set<URL>()
   @State private var visible = [URL]()
-  @State private var didFirstScroll = false
 
-  @Bindable var sequence: Sequence
+  @Binding var sequence: Seq
 
   var body: some View {
     let page = visible.last
@@ -174,24 +165,19 @@ struct SequenceView: View {
     // have to be fixed to a certain amount of items.
     NavigationSplitView(columnVisibility: $columns) {
       ScrollViewReader { scroller in
-        SequenceSidebarView(selection: $selection, images: sequence.images) { source, destination in
-          sequence.move(from: source, to: destination)
-        } onDrop: { urls, offset in
-          sequence.insert(urls, at: offset)
-        } onDelete: {
-          sequence.delete(selection)
-        }.onChange(of: page) {
-          // Scrolling off-screen allows the user to not think about the sidebar.
-          guard let page, columns == .detailOnly else {
-            return
-          }
+        SequenceSidebarView(sequence: sequence, selection: $selection)
+          .onChange(of: page) {
+            // Scrolling off-screen allows the user to not think about the sidebar.
+            guard let page, columns == .detailOnly else {
+              return
+            }
 
-          scroller.scrollTo(page, anchor: .center)
-        }
+            scroller.scrollTo(page, anchor: .center)
+          }
       }.navigationSplitViewColumnWidth(min: 128, ideal: 192, max: 256)
     } detail: {
       ScrollViewReader { scroller in
-        SequenceCollectionView(visible: $visible, images: sequence.images)
+        SequenceDetailView(visible: $visible, images: sequence.images)
           .onChange(of: selection) { prior, selection in
             guard let url = selection.subtracting(prior).first else {
               return
@@ -202,8 +188,6 @@ struct SequenceView: View {
             }
           }
       }
-      // An annoying effect from ignoring the safe area is that the scrolling indicator may be under the title bar.
-      .ignoresSafeArea(window != nil && coverFullWindow(for: window!) ? .all : [])
     }
     // If the app is launched with a window already full screened, the toolbar bar is properly hidden (still accessible
     // by bringing the mouse to the top). If the app is full screened manually, however, the title bar remains visible,
@@ -212,38 +196,15 @@ struct SequenceView: View {
     // may know this.
     .toolbar(fullScreen == true ? .hidden : .automatic)
     .task {
-      await sequence.load()
+      sequence.load()
     }.onChange(of: fullScreen) {
       guard let fullScreen,
             let window else {
         return
       }
 
-      if fullScreen {
-        setTitleBarVisibility(for: window, to: .visible)
-
-        window.animator().titlebarSeparatorStyle = .none
-      } else {
-        window.animator().titlebarSeparatorStyle = .automatic
-      }
+      // With the toolbar visibility logic gone, would it potentially make more sense to extract this into a modifier?
+      window.animator().titlebarSeparatorStyle = fullScreen ? .none : .automatic
     }
   }
-
-  func coverFullWindow(for window: NSWindow) -> Bool {
-    allowsFullWindow && !window.isFullScreened() && columns == .detailOnly
-  }
-
-  func setTitleBarVisibility(for window: NSWindow) {
-    setTitleBarVisibility(for: window, to: coverFullWindow(for: window) ? .hidden : .visible)
-  }
-
-  func setTitleBarVisibility(for window: NSWindow, to visibility: Visibility) {
-    let isVisible = visibility == .automatic || visibility == .visible
-
-    window.standardWindowButton(.closeButton)?.superview?.animator().alphaValue = isVisible ? 1 : 0
-  }
-}
-
-#Preview {
-  SequenceView(sequence: .init(bookmarks: []))
 }

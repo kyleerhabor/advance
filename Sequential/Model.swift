@@ -16,33 +16,8 @@ enum StorageKeys: String {
   case appearance
 }
 
-enum TitleBarVisibility {
-  case visible, invisible
-}
-
 enum ImageError: Error {
   case undecodable, lost
-}
-
-struct SequenceImage: Codable {
-  var url: URL
-  let aspectRatio: Double
-
-  // For some reason, conforming to Transferable and declaring the support for UTType.image is not enough to support
-  // dropping.
-  init?(url: URL) {
-    guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
-      return nil
-    }
-
-    self.url = url
-
-    let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as! Dictionary<CFString, Any>
-    let width = Double(properties[kCGImagePropertyPixelWidth] as! Int)
-    let height = Double(properties[kCGImagePropertyPixelHeight] as! Int)
-
-    self.aspectRatio = width / height
-  }
 }
 
 class Bookmark: Codable {
@@ -60,25 +35,31 @@ class Bookmark: Codable {
     self.data = try container.decode(Data.self)
   }
 
+  func resolved() throws -> (Bool, URL) {
+    var stale = false
+    let resolved = try URL(resolvingBookmarkData: data, bookmarkDataIsStale: &stale)
+
+    return (stale, resolved)
+  }
+
   func resolve() throws {
     // Interesting findings in Instruments:
     // - Resolving bookmarks is slow
     // - Extracting the width and height from an image can be slow, but relative to resolving bookmarks, not by much.
     //
-    // I tried refactoring SequenceImage to only load the URL when a view appears, but this involved making SequenceImage
+    // I tried refactoring SeqImage to only load the URL when a view appears, but this involved making SeqImage
     // a class and adding a resolve method. To put it shortly, @Observable kept complaining about modifying the layout
     // engine from concurrent threads, and I couldn't be bothered to figure out exactly why. It wasn't exactly in zero
     // vain, however, since `bookmarks` is now directly an Array of bookmarks (rather than a wrapped class) and the
     // aspect ratio is directly derived (since no view actually uses its separate values).
-    var isStale = false
-    var resolved = try URL(resolvingBookmarkData: data, bookmarkDataIsStale: &isStale)
+    var (stale, url) = try resolved()
 
-    if isStale {
-      data = try resolved.bookmark()
-      resolved = try URL(resolvingBookmarkData: data, bookmarkDataIsStale: &isStale)
+    if stale {
+      data = try url.scoped { try url.bookmarkData() }
+      url = try resolved().1
     }
 
-    url = resolved
+    self.url = url
   }
 
   func encode(to encoder: Encoder) throws {
@@ -98,9 +79,33 @@ extension Bookmark: Hashable {
   }
 }
 
+// For some reason, conforming to Transferable and declaring the support for UTType.image is not enough to support .dropDestination(...)
+struct SeqImage: Codable {
+  var url: URL
+  let aspectRatio: Double
+
+  // TODO: Make this non-failable.
+  //
+  // I couldn't get Image I/O to read the resolved bookmark when it was explicitly created with the .withSecurityScope
+  // option. Currently, the image will just be dropped from the UI if this fails, but I'd like to get it working, since
+  // things like moving files to different locations are not supported.
+  init?(url: URL) {
+    guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+          let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? Dictionary<CFString, Any> else {
+      return nil
+    }
+
+    let width = Double(properties[kCGImagePropertyPixelWidth] as! Int)
+    let height = Double(properties[kCGImagePropertyPixelHeight] as! Int)
+
+    self.url = url
+    self.aspectRatio = width / height
+  }
+}
+
 @Observable
-class Sequence: Codable {
-  var images = [SequenceImage]()
+class Seq: Codable {
+  var images = [SeqImage]()
   var bookmarks: [Bookmark]
 
   init(bookmarks: [Data]) {
@@ -113,16 +118,12 @@ class Sequence: Codable {
     self.bookmarks = try container.decode([Bookmark].self)
   }
 
-  func load() async {
+  func load() {
     do {
-      self.images = try bookmarks.map { bookmark in
+      self.images = try bookmarks.compactMap { bookmark in
         try bookmark.resolve()
 
-        guard let image = SequenceImage(url: bookmark.url!) else {
-          throw ImageError.undecodable
-        }
-
-        return image
+        return SeqImage(url: bookmark.url!)
       }
     } catch {
       Logger.model.error("\(error)")
@@ -134,25 +135,37 @@ class Sequence: Codable {
     images.move(fromOffsets: source, toOffset: destination)
   }
 
-  func insert(_ urls: [URL], at offset: Int) {
-    // Since the user can drop anything that can be associated with a URL, first we need to filter anything that isn't
-    // image-like.
-    let images = urls.compactMap { SequenceImage(url: $0) }
-
+  func insert(_ urls: [URL], at offset: Int, scoped: Bool) -> Bool {
     do {
+      let images = try urls.compactMap { url in
+        if scoped {
+          try url.scoped { SeqImage(url: url) }
+        } else {
+          SeqImage(url: url)
+        }
+      }
+
+      guard !images.isEmpty else {
+        return false
+      }
+
       let bookmarks = try images.map { image in
         let url = image.url
+        let data = try scoped
+          ? url.scoped { try url.bookmarkData() }
+          : url.bookmarkData()
 
-        return Bookmark(
-          data: try url.bookmarkData(),
-          url: url
-        )
+        return Bookmark(data: data, url: url)
       }
 
       self.bookmarks.insert(contentsOf: bookmarks, at: offset)
       self.images.insert(contentsOf: images, at: offset)
+
+      return true
     } catch {
       Logger.ui.error("\(error)")
+
+      return false
     }
   }
 
@@ -174,8 +187,8 @@ class Sequence: Codable {
   }
 }
 
-extension Sequence: Hashable {
-  static func ==(lhs: Sequence, rhs: Sequence) -> Bool {
+extension Seq: Hashable {
+  static func ==(lhs: Seq, rhs: Seq) -> Bool {
     lhs.bookmarks == rhs.bookmarks
   }
 
@@ -221,6 +234,7 @@ func resampleImage(at url: URL, forSize size: CGSize) async -> Image? {
     kCGImageSourceCreateThumbnailWithTransform: true
   ]
 
+  // There seems to be a memory leak somewhere (at least, sometimes).
   guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
         let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
     return nil
@@ -229,6 +243,7 @@ func resampleImage(at url: URL, forSize size: CGSize) async -> Image? {
   Logger.model.info("Created a resampled image from \"\(url)\" at dimensions \(image.width.description)x\(image.height.description) for size \(size.width) / \(size.height)")
 
   return Image(nsImage: .init(cgImage: image, size: size))
+    .resizable()
 }
 
 enum URLError: Error {
