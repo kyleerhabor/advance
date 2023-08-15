@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct SequenceDetailView: View {
-  @AppStorage(StorageKeys.margin.rawValue) private var margins = 0
+  @AppStorage(Keys.margin.key) private var margins = Keys.margin.value
 
   @Binding var visible: [URL]
   let images: [SeqImage]

@@ -20,6 +20,6 @@ struct SequentialApp: App {
 
     Settings {
       SettingsView()
-    }
+    }.windowResizability(.contentMinSize)
   }
 }

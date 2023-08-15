@@ -17,32 +17,40 @@ struct SequenceSelectionFocusedValueKey: FocusedValueKey {
   typealias Value = SequenceSelection
 }
 
+struct QuickLookFocusedValueKey: FocusedValueKey {
+  typealias Value = () -> Void
+}
+
 extension FocusedValues {
   var sequenceSelection: SequenceSelectionFocusedValueKey.Value? {
     get { self[SequenceSelectionFocusedValueKey.self] }
     set { self[SequenceSelectionFocusedValueKey.self] = newValue }
   }
+
+  var quicklook: QuickLookFocusedValueKey.Value? {
+    get { self[QuickLookFocusedValueKey.self] }
+    set { self[QuickLookFocusedValueKey.self] = newValue }
+  }
 }
 
 struct SequenceScene: Scene {
   @NSApplicationDelegateAdaptor private var delegate: AppDelegate
-  // TODO: Use FocusedValue
   @Environment(\.dismissWindow) private var dismissWindow
   @Environment(\.openWindow) private var openWindow
-  @AppStorage(StorageKeys.appearance.rawValue) private var appearance: SettingsView.Scheme
+  @AppStorage(Keys.appearance.key) private var appearance: SettingsView.Scheme
+  @FocusedValue(\.quicklook) private var quicklook
   @FocusedValue(\.sequenceSelection) private var selection
 
   var body: some Scene {
-    // Does Seq being an Observable cause trouble with the 
     WindowGroup(for: Seq.self) { $sequence in
       SequenceView(sequence: $sequence)
         .windowed()
     } defaultValue: {
-      // You wouldn't believe how much work it took to get this parameter to behave correctly...
+      // You wouldn't believe how much work it took to get this parameter to behave correctly.
       .init(bookmarks: [])
     }
     .windowToolbarStyle(.unifiedCompact) // Sexy!
-    // TODO: Figure out how to add a "Go to Current Image" button.
+    // TODO: Figure out how to add a "Go to Current Image" item.
     //
     // I tried this prior with a callback, but ScrollViewProxy wouldn't scroll when called.
     //
@@ -50,33 +58,11 @@ struct SequenceScene: Scene {
     .commands {
       SidebarCommands()
 
+      let empty = selection == nil || selection!.amount == 0
+
       CommandGroup(after: .newItem) {
-        // Is there a way to grab the default menu items used for a viewable-only document-based app? I'd rather not
-        // hard-code values (specifically like this) that may change over time.
-        Button("Open...") {
-          let panel = NSOpenPanel()
-          panel.canChooseFiles = true
-          panel.allowsMultipleSelection = true
-          panel.allowedContentTypes = [.image]
-
-          // For some reason, the panel does not like being called in a Task (complains about not being run on the main
-          // thread, even though it's worked before).
-          panel.begin { res in
-            guard res == .OK else {
-              return
-            }
-
-            do {
-              let bookmarks = try panel.urls.map { url in
-                try url.scoped { try url.bookmarkData() }
-              }
-
-              openWindow(value: Seq(bookmarks: bookmarks))
-            } catch {
-              Logger.ui.error("\(error)")
-            }
-          }
-        }.keyboardShortcut("o", modifiers: .command)
+        Button("Open...", action: openFiles)
+          .keyboardShortcut(.open)
 
         Divider()
 
@@ -91,22 +77,70 @@ struct SequenceScene: Scene {
 
           openFinder(for: urls)
         }
-        .keyboardShortcut("R")
-        .disabled(selection == nil || selection!.amount == 0)
+        .keyboardShortcut(.finder)
+        .disabled(empty)
+
+        Button("Quick Look") {
+          quicklook?()
+        }
+        // For some reason, the shortcut is not aligned with the rest in the menu bar (though, I would rather it not
+        // be displayed).
+        //
+        // For some reason, I can't bind the space key alone.
+        .keyboardShortcut(.quicklook)
+        .disabled(empty || quicklook == nil)
+      }
+
+      CommandGroup(after: .sidebar) {
+//        Divider()
+//
+//        Button("Go to Current Image") {
+//
+//        }
+//        .keyboardShortcut(.currentImage)
+//        .disabled(empty)
+
+        // The "Enter Full Screen" item is usually in its own space.
+        Divider()
       }
 
       CommandGroup(after: .windowArrangement) {
         // This little hack allows us to do stuff with the UI on startup (since it's always called).
         Color.clear
           .onAppear {
-            delegate.onOpenURL = { sequence in
-              openWindow(value: sequence)
-            }
-          }.onChange(of: appearance, initial: true) {
             // We need to set NSApp's appearance explicitly so windows we don't directly control (such as the about)
             // will still sync with the user's preference.
             NSApp.appearance = appearance?.app()
+
+            delegate.onOpenURL = { sequence in
+              openWindow(value: sequence)
+            }
           }
+      }
+    }
+  }
+
+  // Maybe a better name?
+  func openFiles() {
+    // Using .fileImporter(...) results in a crash, for some reason.
+    let panel = NSOpenPanel()
+    panel.canChooseFiles = true
+    panel.allowsMultipleSelection = true
+    panel.allowedContentTypes = [.image]
+
+    Task {
+      guard await panel.begin() == .OK else {
+        return
+      }
+
+      do {
+        let bookmarks = try panel.urls.map { url in
+          try url.scoped { try url.bookmarkData() }
+        }
+
+        openWindow(value: Seq(bookmarks: bookmarks))
+      } catch {
+        Logger.ui.error("\(error)")
       }
     }
   }

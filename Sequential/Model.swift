@@ -9,13 +9,6 @@ import ImageIO
 import OSLog
 import SwiftUI
 
-enum StorageKeys: String {
-  case fullWindow
-  case margin
-  case sidebar
-  case appearance
-}
-
 enum ImageError: Error {
   case undecodable
 }
@@ -233,18 +226,39 @@ func resampleImage(at url: URL, forSize size: CGSize) async throws -> Image? {
     kCGImageSourceCreateThumbnailWithTransform: true
   ]
 
-  guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
-        let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
+  guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+    return nil
+  }
+
+  let index = CGImageSourceGetPrimaryImageIndex(source)
+
+  guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, index, options as CFDictionary) else {
     return nil
   }
 
   try Task.checkCancellation()
 
-  Logger.model.info("Created a resampled image from \"\(url)\" at dimensions \(image.width.description)x\(image.height.description) for size \(size.width) / \(size.height)")
+  Logger.model.info("Created a resampled image from \"\(url)\" at dimensions \(thumbnail.width.description)x\(thumbnail.height.description) for size \(size.width) / \(size.height)")
 
-  return Image(nsImage: .init(cgImage: image, size: size))
+  return Image(nsImage: .init(cgImage: thumbnail, size: size))
 }
 
 enum URLError: Error {
   case inaccessibleSecurityScope
+}
+
+struct Keys {
+  static let margin = Item("margin", 1)
+  static let sidebar = Item("sidebar", NavigationSplitViewVisibility.all)
+  static let appearance = Item("appearance", nil as SettingsView.Scheme)
+
+  struct Item<Key, Value> {
+    let key: Key
+    let value: Value
+
+    init(_ key: Key, _ value: Value) {
+      self.key = key
+      self.value = value
+    }
+  }
 }

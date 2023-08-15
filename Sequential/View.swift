@@ -24,3 +24,10 @@ extension Color {
   static let tertiaryFill = Self(nsColor: .tertiarySystemFill)
   static let secondaryFill = Self(nsColor: .secondarySystemFill)
 }
+
+extension KeyboardShortcut {
+  static let finder = Self("r")
+  static let currentImage = Self("l")
+  static let open = Self("o")
+  static let quicklook = Self("y")
+}

@@ -5,7 +5,7 @@
 //  Created by Kyle Erhabor on 7/30/23.
 //
 
-import SwiftUI
+import AppKit
 import OSLog
 
 class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {

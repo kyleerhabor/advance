@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct SequenceSidebarContentView: View {
+  @Environment(\.fullScreen) private var fullScreen
   @State private var preview = [URL]()
   @State private var previewItem: URL?
   private var description: SequenceSelection {
@@ -21,7 +22,11 @@ struct SequenceSidebarContentView: View {
   @Binding var selection: Set<URL>
 
   var body: some View {
-    // There's an uncomfortable amount of padding missing from the top when in full screen mode.
+    // There's an uncomfortable amount of padding missing from the top when in full screen mode. If I try to add an
+    // empty view when in full screen, toggling causes the images to go blank then immediately be restored, which looks
+    // wack. I can't apply padding to the List, since it'll clip the contents, nor apply it to the ForEach / contents
+    // since they'll all get it (which will create extra space when clicking, which is also why it can't just be applied
+    // to the first child).
     List(selection: $selection) {
       ForEach(sequence.images, id: \.url) { image in
         VStack {
@@ -40,24 +45,28 @@ struct SequenceSidebarContentView: View {
         sequence.move(from: source, to: destination)
       }.dropDestination(for: URL.self) { urls, offset in
         _ = sequence.insert(urls, at: offset, scoped: false)
-      }.contextMenu { urls in
-        Button("Show in Finder") {
-          openFinder(for: Array(urls))
-        }
-
-        // TODO: Figure out how to bind this to the space key while the context menu is not open.
-        //
-        // I tried using .onKeyPress(_:action:) on the list, but the action was never called. Maybe related to 109799056?
-        // "View.onKeyPress(_:action:) can't filter key presses when bridged controls have focus."
-        Button("Quick Look") {
-          quicklook(urls: urls)
-        }
-      } primaryAction: { urls in
-        openFinder(for: Array(urls))
       }
     }
     .quickLookPreview($previewItem, in: preview)
+    .contextMenu { urls in
+      Button("Show in Finder") {
+        openFinder(for: Array(urls))
+      }
+
+      Button("Quick Look") {
+        quicklook(urls: urls)
+      }
+    } primaryAction: { urls in
+      openFinder(for: Array(urls))
+    }
     .focusedSceneValue(\.sequenceSelection, description)
+    .focusedSceneValue(\.quicklook) {
+      if previewItem == nil {
+        quicklook(urls: selection)
+      } else {
+        previewItem = nil
+      }
+    }
   }
 
   func ordered(urls: Set<URL>) -> [URL] {

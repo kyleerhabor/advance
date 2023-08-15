@@ -36,8 +36,8 @@ extension ColorScheme: RawRepresentable {
 struct SettingsView: View {
   typealias Scheme = ColorScheme?
 
-  @AppStorage(StorageKeys.margin.rawValue) private var appMargin = 0
-  @AppStorage(StorageKeys.appearance.rawValue) private var appearance: Scheme
+  @AppStorage(Keys.margin.key) private var appMargin = Keys.margin.value
+  @AppStorage(Keys.appearance.key) private var appearance: Scheme
   @State private var margin = 0.0
 
   var body: some View {
@@ -55,8 +55,10 @@ struct SettingsView: View {
           
           Text("Light").tag(.light as Scheme)
           Text("Dark").tag(.dark as Scheme)
+        }.onChange(of: appearance) {
+          NSApp.appearance = appearance?.app()
         }
-        
+
         Slider(value: $margin, in: 0...4, step: 1) {
           Text("Margins:")
         } minimumValueLabel: {

@@ -6,7 +6,6 @@
 //
 
 import Combine
-import ImageIO
 import OSLog
 import QuickLook
 import SwiftUI
@@ -102,18 +101,13 @@ struct SequenceImageCellView: View {
             return
           }
           
-          // For some reason, SwiftUI may choose to block when rendering the image that is scrolled into view. A lot of
-          // the time it won't, but it can sometimes. This doesn't seem to necessarily be correlated with size, given
-          // that a smaller image I tested with caused the block (and not the larger one). Maybe profile in Instruments
-          // later?
           let size = CGSize(
             width: size.width / pixel,
             height: size.height / pixel
           )
           
           do {
-            // FIXME: Certain images / certain points in rendering block.
-            guard let image = try await sizeImage(for: size) else {
+            guard let image = try await resampleImage(at: image.url, forSize: size) else {
               if let path = image.url.fileRepresentation(),
                  !FileManager.default.fileExists(atPath: path) {
                 phase = .failure(CocoaError(.fileReadNoSuchFile))
@@ -133,7 +127,7 @@ struct SequenceImageCellView: View {
               }
             }
           } catch {
-            phase = .failure(CancellationError())
+            phase = .failure(error)
           }
         }
     }
@@ -149,16 +143,6 @@ struct SequenceImageCellView: View {
       .debounce(for: .milliseconds(200), scheduler: DispatchQueue.main)
       .eraseToAnyPublisher()
   }
-
-  nonisolated func sizeImage(for size: CGSize) async throws -> Image? {
-    let url = image.url
-
-    guard size.length() >= max(image.width, image.height) else {
-      return try await resampleImage(at: url, forSize: size)
-    }
-
-    return Image(nsImage: .init(byReferencing: url))
-  }
 }
 
 struct SequenceImageView: View {
@@ -170,6 +154,7 @@ struct SequenceImageView: View {
     SequenceImageCellView(image: image)
       .id(url)
       .aspectRatio(image.width / image.height, contentMode: .fit)
+      .frame(maxWidth: .infinity, maxHeight: .infinity) // I don't know if this actually has an effect.
       .onAppear {
         if !url.startAccessingSecurityScopedResource() {
           Logger.ui.error("Could not access security scoped resource for \"\(url, privacy: .sensitive)\"")
@@ -183,7 +168,7 @@ struct SequenceImageView: View {
 struct SequenceView: View {
   @Environment(\.fullScreen) private var fullScreen
   @Environment(\.window) private var window
-  @SceneStorage(StorageKeys.sidebar.rawValue) private var columns = NavigationSplitViewVisibility.all
+  @SceneStorage(Keys.sidebar.key) private var columns = Keys.sidebar.value
   @State private var selection = Set<URL>()
   @State private var visible = [URL]()
 
@@ -206,6 +191,7 @@ struct SequenceView: View {
     NavigationSplitView(columnVisibility: $columns) {
       ScrollViewReader { scroller in
         SequenceSidebarView(sequence: sequence, selection: $selection)
+          // FIXME: This is often not called (maybe it needs to be right above the list?).
           .onChange(of: page) {
             // Scrolling off-screen allows the user to not think about the sidebar.
             guard let page, columns == .detailOnly else {
