@@ -17,15 +17,19 @@ struct SequenceImagePhaseErrorView: View {
     if error is CancellationError {
       Color.clear
     } else {
-      Image(systemName: errorSymbol(for: error))
+      let noSuchFile = isNoSuchFileError()
+
+      Image(systemName: noSuchFile ? "questionmark.diamond" : "exclamationmark.triangle.fill")
+        .symbolRenderingMode(noSuchFile ? .hierarchical : .multicolor)
     }
   }
 
-  func errorSymbol(for err: Error) -> String {
-    switch err {
-      case let err as CocoaError where err.code == .fileReadNoSuchFile: "questionmark.circle"
-      default: "exclamationmark.triangle.fill"
+  func isNoSuchFileError() -> Bool {
+    guard let err = error as? CocoaError else {
+      return false
     }
+
+    return err.code == .fileReadNoSuchFile
   }
 }
 
@@ -46,8 +50,7 @@ struct SequenceImagePhaseView: View {
           // little trick, however, it rests at about ~150-200 MBs. Note that I haven't profiled the app to see if the
           // remaining memory comes from SwiftUI or Image I/O.
           //
-          // An alternative solution to always resetting the phase would be to measure the app's memory usage and reset
-          // the phase when it crosses a threshold.
+          // I'd like to change this so one or more images are preloaded before they come into view and disappear as such.
           phase = .empty
         }
     } else {
@@ -55,7 +58,6 @@ struct SequenceImagePhaseView: View {
         .overlay {
           if case .failure(let err) = phase {
             SequenceImagePhaseErrorView(error: err)
-              .symbolRenderingMode(.multicolor)
               .imageScale(.large)
           } else if elapsed {
             ProgressView()
@@ -218,9 +220,10 @@ struct SequenceView: View {
     // If the app is launched with a window already full screened, the toolbar bar is properly hidden (still accessible
     // by bringing the mouse to the top). If the app is full screened manually, however, the title bar remains visible,
     // which ruins the purpose of full screen mode. Until I find a fix, the toolbar is explicitly disabled. Users can
-    // still pull up the sidebar by hovering their mouse near (but not exactly at) the leading edge, but not all users
-    // may know this.
+    // still pull up the sidebar by hovering their mouse near the leading edge of the screen or use Command-Control-S /
+    // the menu bar, but not all users may know this.
     .toolbar(fullScreen == true ? .hidden : .automatic)
+    .focusedSceneValue(\.sequenceSelection, selectionDescription())
     .task {
       sequence.load()
     }.onChange(of: fullScreen) {
@@ -232,5 +235,12 @@ struct SequenceView: View {
       // With the toolbar visibility logic gone, would it potentially make more sense to extract this into a modifier?
       window.animator().titlebarSeparatorStyle = fullScreen ? .none : .automatic
     }
+  }
+
+  func selectionDescription() -> SequenceSelection {
+    .init(
+      enabled: columns == .all && !selection.isEmpty,
+      resolve: { selection.ordered(by: sequence.images.map(\.url)) }
+    )
   }
 }

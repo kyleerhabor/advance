@@ -11,12 +11,6 @@ struct SequenceSidebarContentView: View {
   @Environment(\.fullScreen) private var fullScreen
   @State private var preview = [URL]()
   @State private var previewItem: URL?
-  private var description: SequenceSelection {
-    .init(
-      amount: selection.count,
-      resolve: { ordered(urls: selection) }
-    )
-  }
 
   let sequence: Seq
   @Binding var selection: Set<URL>
@@ -58,9 +52,7 @@ struct SequenceSidebarContentView: View {
       }
     } primaryAction: { urls in
       openFinder(for: Array(urls))
-    }
-    .focusedSceneValue(\.sequenceSelection, description)
-    .focusedSceneValue(\.quicklook) {
+    }.focusedSceneValue(\.quicklook) {
       if previewItem == nil {
         quicklook(urls: selection)
       } else {
@@ -69,35 +61,15 @@ struct SequenceSidebarContentView: View {
     }
   }
 
-  func ordered(urls: Set<URL>) -> [URL] {
-    let images = sequence.images
-      .enumerated()
-      .reduce(into: [:]) { partialResult, pair in
-        partialResult[pair.1.url] = pair.0
-      }
-
-    return urls.sorted { a, b in
-      guard let ai = images[a] else {
-        return false
-      }
-
-      guard let bi = images[b] else {
-        return true
-      }
-
-      return ai < bi
-    }
-  }
-
   func quicklook(urls: Set<URL>) {
-    preview = ordered(urls: urls)
+    preview = urls.ordered(by: sequence.images.map(\.url))
     previewItem = preview.first
   }
 }
 
 #Preview {
   SequenceSidebarContentView(
-    sequence: .init(bookmarks: []),
+    sequence: try! .init(urls: []),
     selection: .constant([])
   )
 }

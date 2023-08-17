@@ -19,7 +19,6 @@
 		00823A9B2A86CA050043B8BE /* SequenceScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00823A9A2A86CA050043B8BE /* SequenceScene.swift */; };
 		008EA2192A886C260005AB44 /* SequenceSidebarContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 008EA2172A886C260005AB44 /* SequenceSidebarContentView.swift */; };
 		008EA21A2A886C260005AB44 /* SequenceSidebarEmptyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 008EA2182A886C260005AB44 /* SequenceSidebarEmptyView.swift */; };
-		00BC8FAB2A777D800094E0C4 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 00BC8FAA2A777D800094E0C4 /* SwiftUI.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
 		00C09BBF2A789D30006EB887 /* View.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00C09BBE2A789D30006EB887 /* View.swift */; };
 		00C618C92A82F41C00266052 /* DynamicVStackCellView.xib in Resources */ = {isa = PBXBuildFile; fileRef = 00C618C82A82F41C00266052 /* DynamicVStackCellView.xib */; };
 		00CE2C052A7373D90059F073 /* SequenceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00CE2C042A7373D90059F073 /* SequenceView.swift */; };
@@ -58,7 +57,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				00BC8FAB2A777D800094E0C4 /* SwiftUI.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

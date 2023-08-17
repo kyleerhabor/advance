@@ -9,7 +9,7 @@ import OSLog
 import SwiftUI
 
 struct SequenceSelection {
-  let amount: Int
+  let enabled: Bool
   let resolve: () -> [URL]
 }
 
@@ -34,7 +34,7 @@ extension FocusedValues {
 }
 
 struct SequenceScene: Scene {
-  @NSApplicationDelegateAdaptor private var delegate: AppDelegate
+  @EnvironmentObject private var delegate: AppDelegate
   @Environment(\.dismissWindow) private var dismissWindow
   @Environment(\.openWindow) private var openWindow
   @AppStorage(Keys.appearance.key) private var appearance: SettingsView.Scheme
@@ -47,7 +47,7 @@ struct SequenceScene: Scene {
         .windowed()
     } defaultValue: {
       // You wouldn't believe how much work it took to get this parameter to behave correctly.
-      .init(bookmarks: [])
+      try! .init(urls: [])
     }
     .windowToolbarStyle(.unifiedCompact) // Sexy!
     // TODO: Figure out how to add a "Go to Current Image" item.
@@ -58,7 +58,7 @@ struct SequenceScene: Scene {
     .commands {
       SidebarCommands()
 
-      let empty = selection == nil || selection!.amount == 0
+      let enabled = selection?.enabled == true
 
       CommandGroup(after: .newItem) {
         Button("Open...", action: openFiles)
@@ -78,7 +78,7 @@ struct SequenceScene: Scene {
           openFinder(for: urls)
         }
         .keyboardShortcut(.finder)
-        .disabled(empty)
+        .disabled(!enabled)
 
         Button("Quick Look") {
           quicklook?()
@@ -88,7 +88,7 @@ struct SequenceScene: Scene {
         //
         // For some reason, I can't bind the space key alone.
         .keyboardShortcut(.quicklook)
-        .disabled(empty || quicklook == nil)
+        .disabled(!enabled || quicklook == nil)
       }
 
       CommandGroup(after: .sidebar) {
@@ -134,11 +134,7 @@ struct SequenceScene: Scene {
       }
 
       do {
-        let bookmarks = try panel.urls.map { url in
-          try url.scoped { try url.bookmarkData() }
-        }
-
-        openWindow(value: Seq(bookmarks: bookmarks))
+        openWindow(value: try Seq(urls: panel.urls))
       } catch {
         Logger.ui.error("\(error)")
       }

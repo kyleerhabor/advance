@@ -36,12 +36,16 @@ extension URL {
     guard self.startAccessingSecurityScopedResource() else {
       throw URLError.inaccessibleSecurityScope
     }
-    
+
     defer {
       self.stopAccessingSecurityScopedResource()
     }
 
     return try body()
+  }
+
+  func bookmark() throws -> Data {
+    try self.bookmarkData(options: [.withSecurityScope, .securityScopeAllowOnlyReadAccess])
   }
 }
 
@@ -60,6 +64,24 @@ extension Sequence {
     }
 
     return result
+  }
+
+  func ordered(by array: [Element]) -> [Element] where Element: Hashable {
+    let index = array.enumerated().reduce(into: [:]) { partialResult, pair in
+      partialResult[pair.1] = pair.0
+    }
+
+    return self.sorted { a, b in
+      guard let ai = index[a] else {
+        return false
+      }
+
+      guard let bi = index[b] else {
+        return true
+      }
+
+      return ai < bi
+    }
   }
 }
 

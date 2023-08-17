@@ -44,5 +44,5 @@ struct SequenceSidebarEmptyView: View {
 }
 
 #Preview {
-  SequenceSidebarEmptyView(sequence: .init(bookmarks: []))
+  SequenceSidebarEmptyView(sequence: try! .init(urls: []))
 }

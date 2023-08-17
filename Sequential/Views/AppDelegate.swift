@@ -16,11 +16,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
   func application(_ application: NSApplication, open urls: [URL]) {
     do {
-      let bookmarks = try urls.map { url in
-        try url.scoped { try url.bookmarkData() }
-      }
-
-      onOpenURL(.init(bookmarks: bookmarks))
+      onOpenURL(try .init(urls: urls))
     } catch {
       Logger.ui.error("\(error)")
     }

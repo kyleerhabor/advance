@@ -15,14 +15,18 @@ struct SequenceSidebarView: View {
   @Binding var selection: Set<URL>
 
   var body: some View {
+    // We don't want the "Drop Images Here" button to appear while the view is pre-rendering since it may change to
+    // have data immediately after.
+    let empty = !prerendering && sequence.bookmarks.isEmpty
+
     VStack {
-      if !prerendering && sequence.bookmarks.isEmpty {
+      if empty {
         SequenceSidebarEmptyView(sequence: sequence)
       } else {
         SequenceSidebarContentView(sequence: sequence, selection: $selection)
       }
     }
-    .animation(.default, value: prerendering || !sequence.bookmarks.isEmpty)
+    .animation(.default, value: empty)
     .onDeleteCommand { // onDelete(perform:) doesn't seem to work.
       sequence.delete(selection)
     }
@@ -31,7 +35,7 @@ struct SequenceSidebarView: View {
 
 #Preview {
   SequenceSidebarView(
-    sequence: .init(bookmarks: []),
+    sequence: try! .init(urls: []),
     selection: .constant([])
   ).padding()
 }

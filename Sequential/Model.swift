@@ -30,12 +30,12 @@ class Bookmark: Codable {
 
   func resolved() throws -> (Bool, URL) {
     var stale = false
-    let resolved = try URL(resolvingBookmarkData: data, bookmarkDataIsStale: &stale)
+    let resolved = try URL(resolvingBookmarkData: data, options: .withSecurityScope, bookmarkDataIsStale: &stale)
 
     return (stale, resolved)
   }
 
-  func resolve() throws {
+  func resolve() throws -> URL {
     // Interesting findings in Instruments:
     // - Resolving bookmarks is slow
     // - Extracting the width and height from an image can be slow, but relative to resolving bookmarks, not by much.
@@ -48,11 +48,13 @@ class Bookmark: Codable {
     var (stale, url) = try resolved()
 
     if stale {
-      data = try url.scoped { try url.bookmarkData() }
+      data = try url.scoped { try url.bookmark() }
       url = try resolved().1
     }
 
     self.url = url
+
+    return url
   }
 
   func encode(to encoder: Encoder) throws {
@@ -78,16 +80,13 @@ struct SeqImage: Codable {
   let width: Double
   let height: Double
 
-  // TODO: Make this non-failable.
-  //
-  // I couldn't get Image I/O to read the resolved bookmark when it was explicitly created with the .withSecurityScope
-  // option. Currently, the image will just be dropped from the UI if this fails, but I'd like to get it working, since
-  // things like moving files to different locations are not supported.
   init?(url: URL) {
-    guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
-          let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? Dictionary<CFString, Any> else {
+    guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
       return nil
     }
+
+    let index = CGImageSourceGetPrimaryImageIndex(source)
+    let properties = CGImageSourceCopyPropertiesAtIndex(source, index, nil) as! Dictionary<CFString, Any>
 
     self.url = url
     self.width = Double(properties[kCGImagePropertyPixelWidth] as! Int)
@@ -97,11 +96,19 @@ struct SeqImage: Codable {
 
 @Observable
 class Seq: Codable {
+  // TODO: Try collapsing these two into one SeqImage
+  //
+  // The point would be to support users who move their files while the app is still open. It may also simplify the
+  // data model, since I won't need to sync two separate data structures. It won't be possible to, however, not have
+  // two separate properties, since one needs to be materialized to derive the width and height for aspect ratio
+  // measuring beforehand. To get around this, using Combine to stream new values may be possible.
   var images = [SeqImage]()
   var bookmarks: [Bookmark]
 
-  init(bookmarks: [Data]) {
-    self.bookmarks = bookmarks.map { .init(data: $0) }
+  init(urls: [URL]) throws {
+    self.bookmarks = try urls.map { url in
+      .init(data: try url.bookmark())
+    }
   }
 
   required init(from decoder: Decoder) throws {
@@ -111,14 +118,28 @@ class Seq: Codable {
   }
 
   func load() {
-    do {
-      self.images = try bookmarks.compactMap { bookmark in
-        try bookmark.resolve()
+    bookmarks = bookmarks.filter { bookmark in
+      do {
+        _ = try bookmark.resolve()
 
-        return SeqImage(url: bookmark.url!)
+        return true
+      } catch {
+        Logger.model.info("Could not resolve bookmark \"\(bookmark.data)\": \(error)")
+
+        return false
+      }
+    }
+
+    do {
+      images = try bookmarks.compactMap { bookmark in
+        let url = bookmark.url!
+
+        return try url.scoped {
+          SeqImage(url: url)
+        }
       }
     } catch {
-      Logger.model.error("\(error)")
+      Logger.model.error("Could not load images from bookmarks: \(error)")
     }
   }
 
@@ -127,35 +148,33 @@ class Seq: Codable {
     images.move(fromOffsets: source, toOffset: destination)
   }
 
+  func inserted(url: URL) throws -> (Bookmark, SeqImage) {
+    let data = try url.bookmark()
+    let bookmark = Bookmark(data: data)
+
+    guard let image = SeqImage(url: try bookmark.resolve()) else {
+      throw ImageError.undecodable
+    }
+
+    return (bookmark, image)
+  }
+
   func insert(_ urls: [URL], at offset: Int, scoped: Bool) -> Bool {
     do {
-      let images = try urls.compactMap { url in
-        if scoped {
-          try url.scoped { SeqImage(url: url) }
+      let results = try urls.map { url in
+        return try if scoped {
+          url.scoped { try inserted(url: url) }
         } else {
-          SeqImage(url: url)
+          inserted(url: url)
         }
       }
 
-      guard !images.isEmpty else {
-        return false
-      }
-
-      let bookmarks = try images.map { image in
-        let url = image.url
-        let data = try scoped
-          ? url.scoped { try url.bookmarkData() }
-          : url.bookmarkData()
-
-        return Bookmark(data: data, url: url)
-      }
-
-      self.bookmarks.insert(contentsOf: bookmarks, at: offset)
-      self.images.insert(contentsOf: images, at: offset)
+      bookmarks.insert(contentsOf: results.map(\.0), at: offset)
+      images.insert(contentsOf: results.map(\.1), at: offset)
 
       return true
     } catch {
-      Logger.ui.error("\(error)")
+      Logger.ui.error("Could not insert new images: \(error)")
 
       return false
     }
@@ -190,7 +209,6 @@ extension Seq: Hashable {
 }
 
 extension NavigationSplitViewVisibility: RawRepresentable {
-  // We could really use a bidirectional map here.
   public typealias RawValue = Int
 
   public init?(rawValue: RawValue) {
@@ -219,7 +237,7 @@ func resampleImage(at url: URL, forSize size: CGSize) async throws -> Image? {
     // copy of Mikuni Shimokaway's album "all the way" (https://musicbrainz.org/release/19a73c6d-8a11-4851-bb3b-632bcd6f1adc)
     // with scanned images. Even though the first image's size is 800x677 and I set the max pixel size to 802 (since
     // it's based on the view's size), it sometimes returns 160x135. This is made even worse by how the view refuses to
-    // update to the next created image. This behavior seems to be predicated on the given max pixel size, given a
+    // update to the next created image. This behavior seems to be predicated on the given max pixel size, since a
     // larger image did not trigger the behavior (but did in one odd case).
     kCGImageSourceCreateThumbnailFromImageAlways: true,
     kCGImageSourceThumbnailMaxPixelSize: size.length(),
