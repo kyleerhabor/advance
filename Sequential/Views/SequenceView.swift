@@ -216,6 +216,9 @@ struct SequenceView: View {
             }
           }
       }
+      // Interestingly, attaching this to the outer NavigationSplitView causes SwiftUI to repeatedly re-render the
+      // scene.
+      .focusedSceneValue(\.sequenceSelection, selectionDescription())
     }
     // If the app is launched with a window already full screened, the toolbar bar is properly hidden (still accessible
     // by bringing the mouse to the top). If the app is full screened manually, however, the title bar remains visible,
@@ -223,7 +226,6 @@ struct SequenceView: View {
     // still pull up the sidebar by hovering their mouse near the leading edge of the screen or use Command-Control-S /
     // the menu bar, but not all users may know this.
     .toolbar(fullScreen == true ? .hidden : .automatic)
-    .focusedSceneValue(\.sequenceSelection, selectionDescription())
     .task {
       sequence.load()
     }.onChange(of: fullScreen) {
