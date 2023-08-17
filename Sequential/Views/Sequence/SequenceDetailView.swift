@@ -31,6 +31,9 @@ struct SequenceDetailView: View {
     // For reference, I tried implementing a simplified version of https://github.com/fuzzzlove/swiftui-image-viewer
     //
     // TODO: Figure out how to remove that annoying ring when right clicking on an image.
+    //
+    // I played around with adding a list item whose sole purpose was to capture the scrolling state, but couldn't get
+    // it to not take up space and mess with the ForEach items.
     List {
       ForEach(images, id: \.url) { image in
         let url = image.url
@@ -61,6 +64,9 @@ struct SequenceDetailView: View {
       }
     }
     .listStyle(.plain)
+    // I experimented using .navigationSubtitle instead to preserve the app name in Mission Control spaces, but it
+    // ironically turned out worse.
+    //
     // FIXME: This is still inaccurate.
     //
     // Likely the same issue as SequenceImageCellView.
