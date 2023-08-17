@@ -86,7 +86,10 @@ struct SeqImage: Codable {
     }
 
     let index = CGImageSourceGetPrimaryImageIndex(source)
-    let properties = CGImageSourceCopyPropertiesAtIndex(source, index, nil) as! Dictionary<CFString, Any>
+
+    guard let properties = CGImageSourceCopyPropertiesAtIndex(source, index, nil) as? Dictionary<CFString, Any> else {
+      return nil
+    }
 
     self.url = url
     self.width = Double(properties[kCGImagePropertyPixelWidth] as! Int)
@@ -148,12 +151,12 @@ class Seq: Codable {
     images.move(fromOffsets: source, toOffset: destination)
   }
 
-  func inserted(url: URL) throws -> (Bookmark, SeqImage) {
+  func inserted(url: URL) throws -> (Bookmark, SeqImage)? {
     let data = try url.bookmark()
     let bookmark = Bookmark(data: data)
 
     guard let image = SeqImage(url: try bookmark.resolve()) else {
-      throw ImageError.undecodable
+      return nil
     }
 
     return (bookmark, image)
@@ -161,7 +164,7 @@ class Seq: Codable {
 
   func insert(_ urls: [URL], at offset: Int, scoped: Bool) -> Bool {
     do {
-      let results = try urls.map { url in
+      let results = try urls.compactMap { url in
         return try if scoped {
           url.scoped { try inserted(url: url) }
         } else {
