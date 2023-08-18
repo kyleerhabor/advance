@@ -38,7 +38,12 @@ struct SequenceSidebarContentView: View {
       }.onMove { source, destination in
         sequence.move(from: source, to: destination)
       }.dropDestination(for: URL.self) { urls, offset in
-        _ = sequence.insert(urls, at: offset, scoped: false)
+        Task {
+          sequence.store(
+            bookmarks: await sequence.insert(urls, scoped: false),
+            at: offset
+          )
+        }
       }
     }
     .quickLookPreview($previewItem, in: preview)
@@ -62,7 +67,7 @@ struct SequenceSidebarContentView: View {
   }
 
   func quicklook(urls: Set<URL>) {
-    preview = urls.ordered(by: sequence.images.map(\.url))
+    preview = sequence.images.map(\.url).filter(urls.contains)
     previewItem = preview.first
   }
 }

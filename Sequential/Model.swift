@@ -13,100 +13,102 @@ enum ImageError: Error {
   case undecodable
 }
 
-class Bookmark: Codable {
+// For some reason, conforming to Transferable and declaring the support for UTType.image is not enough to support .dropDestination(...)
+struct SeqImage {
+  let id: UUID
+  var url: URL
+  var width: Double
+  var height: Double
+}
+
+struct SeqResolvedBookmark {
+  let url: URL
+  let stale: Bool
+}
+
+struct SeqBookmark: Codable, Hashable {
+  let id: UUID
   var data: Data
   var url: URL?
+  var width: Double?
+  var height: Double?
 
-  init(data: Data, url: URL? = nil) {
+  init(
+    id: UUID = .init(),
+    data: Data,
+    url: URL? = nil,
+    width: Double? = nil,
+    height: Double? = nil
+  ) {
+    self.id = id
     self.data = data
     self.url = url
+    self.width = width
+    self.height = height
   }
 
-  required init(from decoder: Decoder) throws {
-    let container = try decoder.singleValueContainer()
+  init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
 
-    self.data = try container.decode(Data.self)
+    self.init(data: try container.decode(Data.self, forKey: .data))
   }
 
-  func resolved() throws -> (Bool, URL) {
+  func resolved() throws -> SeqResolvedBookmark {
     var stale = false
-    let resolved = try URL(resolvingBookmarkData: data, options: .withSecurityScope, bookmarkDataIsStale: &stale)
+    let url = try URL(resolvingBookmarkData: data, options: .withSecurityScope, bookmarkDataIsStale: &stale)
 
-    return (stale, resolved)
+    return .init(url: url, stale: stale)
   }
 
-  func resolve() throws -> URL {
-    // Interesting findings in Instruments:
-    // - Resolving bookmarks is slow
-    // - Extracting the width and height from an image can be slow, but relative to resolving bookmarks, not by much.
-    //
-    // I tried refactoring SeqImage to only load the URL when a view appears, but this involved making SeqImage
-    // a class and adding a resolve method. To put it shortly, @Observable kept complaining about modifying the layout
-    // engine from concurrent threads, and I couldn't be bothered to figure out exactly why. It wasn't exactly in zero
-    // vain, however, since `bookmarks` is now directly an Array of bookmarks (rather than a wrapped class) and the
-    // aspect ratio is directly derived (since no view actually uses its separate values).
-    var (stale, url) = try resolved()
+  func resolve() throws -> Self {
+    var this = self
+    var resolved = try this.resolved()
 
-    if stale {
-      data = try url.scoped { try url.bookmark() }
-      url = try resolved().1
+    if resolved.stale {
+      let url = resolved.url
+      this.data = try url.scoped { try url.bookmark() }
+      resolved = try this.resolved()
     }
 
-    self.url = url
+    this.url = resolved.url
 
-    return url
+    return this
   }
 
-  func encode(to encoder: Encoder) throws {
-    var container = encoder.singleValueContainer()
-
-    try container.encode(data)
-  }
-}
-
-extension Bookmark: Hashable {
-  static func ==(lhs: Bookmark, rhs: Bookmark) -> Bool {
-    lhs.data == rhs.data
-  }
-
-  func hash(into hasher: inout Hasher) {
-    hasher.combine(data)
-  }
-}
-
-// For some reason, conforming to Transferable and declaring the support for UTType.image is not enough to support .dropDestination(...)
-struct SeqImage: Codable {
-  var url: URL
-  let width: Double
-  let height: Double
-
-  init?(url: URL) {
-    guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+  func image() throws -> Self? {
+    guard let url else {
       return nil
     }
 
-    let index = CGImageSourceGetPrimaryImageIndex(source)
+    return try url.scoped {
+      guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+        return nil
+      }
 
-    guard let properties = CGImageSourceCopyPropertiesAtIndex(source, index, nil) as? Dictionary<CFString, Any> else {
-      return nil
+      let index = CGImageSourceGetPrimaryImageIndex(source)
+
+      guard let properties = CGImageSourceCopyPropertiesAtIndex(source, index, nil) as? Dictionary<CFString, Any> else {
+        return nil
+      }
+
+      var this = self
+      this.url = url
+      this.width = Double(properties[kCGImagePropertyPixelWidth] as! Int)
+      this.height = Double(properties[kCGImagePropertyPixelHeight] as! Int)
+
+      return this
     }
+  }
 
-    self.url = url
-    self.width = Double(properties[kCGImagePropertyPixelWidth] as! Int)
-    self.height = Double(properties[kCGImagePropertyPixelHeight] as! Int)
+  enum CodingKeys: CodingKey {
+    case data
   }
 }
 
 @Observable
 class Seq: Codable {
-  // TODO: Try collapsing these two into one SeqImage
-  //
-  // The point would be to support users who move their files while the app is still open. It may also simplify the
-  // data model, since I won't need to sync two separate data structures. It won't be possible to, however, not have
-  // two separate properties, since one needs to be materialized to derive the width and height for aspect ratio
-  // measuring beforehand. To get around this, using Combine to stream new values may be possible.
   var images = [SeqImage]()
-  var bookmarks: [Bookmark]
+  var bookmarks: [SeqBookmark]
 
   init(urls: [URL]) throws {
     self.bookmarks = try urls.map { url in
@@ -115,72 +117,102 @@ class Seq: Codable {
   }
 
   required init(from decoder: Decoder) throws {
-    let container = try decoder.singleValueContainer()
+    let container = try decoder.container(keyedBy: CodingKeys.self)
 
-    self.bookmarks = try container.decode([Bookmark].self)
+    self.bookmarks = try container.decode([SeqBookmark].self, forKey: .bookmarks)
   }
 
-  func load() {
-    bookmarks = bookmarks.filter { bookmark in
-      do {
-        _ = try bookmark.resolve()
+  func update() {
+    images = bookmarks.compactMap { bookmark in
+      guard let url = bookmark.url,
+            let width = bookmark.width,
+            let height = bookmark.height else {
+        return nil
+      }
 
-        return true
+      return .init(
+        id: bookmark.id,
+        url: url,
+        width: width,
+        height: height
+      )
+    }
+  }
+
+  func store(bookmarks: [SeqBookmark]) {
+    let index = self.bookmarks.enumerated().reduce(into: [:]) { partialResult, pair in
+      partialResult[pair.1.id] = pair.0
+    }
+
+    bookmarks.forEach { bookmark in
+      guard let key = index[bookmark.id] else {
+        self.bookmarks.append(bookmark)
+
+        return
+      }
+
+      self.bookmarks[key] = bookmark
+    }
+
+    update()
+  }
+
+  func store(bookmarks: [SeqBookmark], at offset: Int) {
+    self.bookmarks.insert(contentsOf: bookmarks, at: offset)
+
+    // We could speed this up with some indexes (I just don't want to think about it right now).
+    self.bookmarks = self.bookmarks.filter { bookmark in
+      !bookmarks.contains { $0.url == bookmark.url && $0.id != bookmark.id }
+    }
+
+    update()
+  }
+
+  func load() async -> [SeqBookmark] {
+    var bookmarks = [SeqBookmark]()
+
+    await self.bookmarks.forEach(concurrently: 8) { bookmark in
+      do {
+        guard let bookmark = try bookmark.resolve().image() else {
+          return
+        }
+
+        bookmarks.append(bookmark)
       } catch {
         Logger.model.info("Could not resolve bookmark \"\(bookmark.data)\": \(error)")
-
-        return false
       }
     }
 
-    do {
-      images = try bookmarks.compactMap { bookmark in
-        let url = bookmark.url!
-
-        return try url.scoped {
-          SeqImage(url: url)
-        }
-      }
-    } catch {
-      Logger.model.error("Could not load images from bookmarks: \(error)")
-    }
+    return bookmarks.ordered(\.id, by: self.bookmarks)
   }
 
   func move(from source: IndexSet, to destination: Int) {
     bookmarks.move(fromOffsets: source, toOffset: destination)
-    images.move(fromOffsets: source, toOffset: destination)
+    update()
   }
 
-  func inserted(url: URL) throws -> (Bookmark, SeqImage)? {
+  func inserted(url: URL) throws -> SeqBookmark? {
     let data = try url.bookmark()
-    let bookmark = Bookmark(data: data)
 
-    guard let image = SeqImage(url: try bookmark.resolve()) else {
-      return nil
-    }
-
-    return (bookmark, image)
+    return try SeqBookmark(data: data).resolve().image()
   }
 
-  func insert(_ urls: [URL], at offset: Int, scoped: Bool) -> Bool {
+  func insert(_ urls: [URL], scoped: Bool) async -> [SeqBookmark] {
+    var bookmarks = [SeqBookmark]()
+
     do {
-      let results = try urls.compactMap { url in
-        return try if scoped {
+      bookmarks = try urls.compactMap { url in
+        try if scoped {
           url.scoped { try inserted(url: url) }
         } else {
           inserted(url: url)
         }
       }
-
-      bookmarks.insert(contentsOf: results.map(\.0), at: offset)
-      images.insert(contentsOf: results.map(\.1), at: offset)
-
-      return true
     } catch {
-      Logger.ui.error("Could not insert new images: \(error)")
-
-      return false
+      Logger.ui.error("Could not insert new bookmarks: \(error)")
     }
+
+    return bookmarks
   }
 
   func delete(_ urls: Set<URL>) {
@@ -192,12 +224,17 @@ class Seq: Codable {
       return urls.contains(url)
     }
 
-    images.removeAll { urls.contains($0.url) }
+    update()
   }
 
   func encode(to encoder: Encoder) throws {
-    var container = encoder.singleValueContainer()
-    try container.encode(bookmarks)
+    var container = encoder.container(keyedBy: CodingKeys.self)
+
+    try container.encode(bookmarks, forKey: .bookmarks)
+  }
+
+  enum CodingKeys: CodingKey {
+    case bookmarks
   }
 }
 
@@ -205,7 +242,7 @@ extension Seq: Hashable {
   static func ==(lhs: Seq, rhs: Seq) -> Bool {
     lhs.bookmarks == rhs.bookmarks
   }
-
+  
   func hash(into hasher: inout Hasher) {
     hasher.combine(bookmarks)
   }

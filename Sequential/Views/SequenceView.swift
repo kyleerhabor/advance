@@ -227,7 +227,7 @@ struct SequenceView: View {
     // the menu bar, but not all users may know this.
     .toolbar(fullScreen == true ? .hidden : .automatic)
     .task {
-      sequence.load()
+      sequence.store(bookmarks: await sequence.load())
     }.onChange(of: fullScreen) {
       guard let fullScreen,
             let window else {
@@ -242,7 +242,7 @@ struct SequenceView: View {
   func selectionDescription() -> SequenceSelection {
     .init(
       enabled: columns == .all && !selection.isEmpty,
-      resolve: { selection.ordered(by: sequence.images.map(\.url)) }
+      resolve: { sequence.images.map(\.url).filter(selection.contains) }
     )
   }
 }
