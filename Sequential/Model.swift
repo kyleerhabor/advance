@@ -92,7 +92,6 @@ struct SeqBookmark: Codable, Hashable {
       }
 
       var this = self
-      this.url = url
       this.width = Double(properties[kCGImagePropertyPixelWidth] as! Int)
       this.height = Double(properties[kCGImagePropertyPixelHeight] as! Int)
 

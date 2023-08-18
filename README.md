@@ -18,3 +18,11 @@ From my own personal experience, prior to developing Sequential, I had been usin
 The goal of Sequential is to provide an experience that is as simple as (or even simpler than) Preview, while also solving many of the outlined problems above. At the same time, however, it is not Sequential's goal to replicate Preview's basic editing capabilities, as Sequential's domain is scoped to image viewing.
 
 [shortcut]: https://kyleerhabor.com/convert-images-to-same-width-pdf.shortcut
+
+## Screenshot
+
+<details>
+  <summary>An example using the 1st volume of the manga "The Ancient Magus' Bride"</summary>
+  
+  <img src="Documentation/Screenshot.png" alt="The app showcasing the main canvas with one image, and a sidebar with three images (all images scaled to fit horizontally)">
+</details>
