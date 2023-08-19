@@ -17,8 +17,7 @@ enum ImageError: Error {
 struct SeqImage {
   let id: UUID
   var url: URL
-  var width: Double
-  var height: Double
+  var ratio: Double
 }
 
 struct SeqResolvedBookmark {
@@ -30,21 +29,18 @@ struct SeqBookmark: Codable, Hashable {
   let id: UUID
   var data: Data
   var url: URL?
-  var width: Double?
-  var height: Double?
+  var ratio: Double?
 
   init(
     id: UUID = .init(),
     data: Data,
     url: URL? = nil,
-    width: Double? = nil,
-    height: Double? = nil
+    ratio: Double? = nil
   ) {
     self.id = id
     self.data = data
     self.url = url
-    self.width = width
-    self.height = height
+    self.ratio = ratio
   }
 
   init(from decoder: Decoder) throws {
@@ -91,9 +87,11 @@ struct SeqBookmark: Codable, Hashable {
         return nil
       }
 
+      let width = Double(properties[kCGImagePropertyPixelWidth] as! Int)
+      let height = Double(properties[kCGImagePropertyPixelHeight] as! Int)
+
       var this = self
-      this.width = Double(properties[kCGImagePropertyPixelWidth] as! Int)
-      this.height = Double(properties[kCGImagePropertyPixelHeight] as! Int)
+      this.ratio = width / height
 
       return this
     }
@@ -124,7 +122,7 @@ class Seq: Codable {
   func load() async -> [SeqBookmark] {
     var bookmarks = [SeqBookmark]()
 
-    await self.bookmarks.forEach(concurrently: 8) { bookmark in
+    await self.bookmarks.perform { bookmark in
       do {
         guard let bookmark = try bookmark.resolve().image() else {
           return
@@ -136,22 +134,20 @@ class Seq: Codable {
       }
     }
 
-    return bookmarks.ordered(\.id, by: self.bookmarks)
+    return bookmarks.ordered(by: self.bookmarks, for: \.id)
   }
 
   func update() {
     images = bookmarks.compactMap { bookmark in
       guard let url = bookmark.url,
-            let width = bookmark.width,
-            let height = bookmark.height else {
+            let ratio = bookmark.ratio else {
         return nil
       }
 
       return .init(
         id: bookmark.id,
         url: url,
-        width: width,
-        height: height
+        ratio: ratio
       )
     }
   }
@@ -172,28 +168,42 @@ class Seq: Codable {
     update()
   }
 
-  func inserted(url: URL) throws -> SeqBookmark? {
-    let data = try url.bookmark()
+  func inserted(bookmark: SeqBookmark, url: URL) throws -> SeqBookmark? {
+    var bookmark = bookmark
+    bookmark.data = try url.bookmark()
 
-    return try SeqBookmark(data: data).resolve().image()
+    return try bookmark.resolve().image()
   }
 
   func insert(_ urls: [URL], scoped: Bool) async -> [SeqBookmark] {
-    var bookmarks = [SeqBookmark]()
+    // Note that the data property gets replaced later.
+    let bookmarks = urls.map { SeqBookmark(id: .init(), data: .init(), url: $0) }
 
     do {
-      bookmarks = try urls.compactMap { url in
-        try if scoped {
-          url.scoped { try inserted(url: url) }
-        } else {
-          inserted(url: url)
-        }
-      }
-    } catch {
-      Logger.ui.error("Could not insert new bookmarks: \(error)")
-    }
+      var results = [SeqBookmark]()
 
-    return bookmarks
+      try await bookmarks.perform { bookmark in
+        let url = bookmark.url!
+
+        let bookmark = try if scoped {
+          url.scoped { try self.inserted(bookmark: bookmark, url: url) }
+        } else {
+          self.inserted(bookmark: bookmark, url: url)
+        }
+
+        guard let bookmark else {
+          return
+        }
+
+        results.append(bookmark)
+      }
+
+      return results.ordered(by: bookmarks, for: \.id)
+    } catch {
+      Logger.ui.error("Could not insert bookmarks: \(error)")
+
+      return []
+    }
   }
 
   func delete(_ urls: Set<URL>) {

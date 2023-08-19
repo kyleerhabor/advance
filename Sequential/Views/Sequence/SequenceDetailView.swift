@@ -10,12 +10,10 @@ import SwiftUI
 struct SequenceDetailView: View {
   @AppStorage(Keys.margin.key) private var margins = Keys.margin.value
 
-  @Binding var visible: [URL]
   let images: [SeqImage]
 
   var body: some View {
     let margin = Double(margins)
-    let page = visible.last
 
     // A killer limitation in using List is it doesn't support magnification, like how an NSScrollView does. Maybe try
     // reimplementing an NSCollectionView / NSTableView again? I tried implementing a MagnifyGesture solution but ran
@@ -37,7 +35,7 @@ struct SequenceDetailView: View {
     List {
       ForEach(images, id: \.url) { image in
         let url = image.url
-        
+
         // TODO: Implement Live Text.
         //
         // I tried this before, but it came out poorly since I was using an NSImageView.
@@ -51,30 +49,12 @@ struct SequenceDetailView: View {
               openFinder(for: url)
             }
           }
-          // We can't just use .navigationTitle and .navigationDocument on the view since List will only update the
-          // title when its succeeding view is loaded.
-          .onAppear {
-            visible.append(url)
-          }.onDisappear {
-            // An ordered set would have less complexity (Swift Collections's implementation is O(n), while this is O(n * 2)),
-            // but the size of this array will likely be too small to make a notable difference (Set requiring Hashable
-            // conformance likely blows away any performance gains).
-            visible.remove(at: visible.firstIndex(of: url)!)
-          }
       }
     }
     .listStyle(.plain)
-    // I experimented using .navigationSubtitle instead to preserve the app name in Mission Control spaces, but it
-    // ironically turned out worse.
-    //
-    // FIXME: This is still inaccurate.
-    //
-    // Likely the same issue as SequenceImageCellView.
-    .navigationTitle(page == nil ? "Sequential" : page!.deletingPathExtension().lastPathComponent)
-    .navigationDocument(page ?? .blank)
   }
 }
 
 #Preview {
-  SequenceDetailView(visible: .constant([]), images: [])
+  SequenceDetailView(images: [])
 }

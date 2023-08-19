@@ -49,10 +49,9 @@ struct SequenceScene: Scene {
       SequenceView(sequence: $sequence)
         .windowed()
     } defaultValue: {
-      // You wouldn't believe how much work it took to get this parameter to behave correctly.
       try! .init(urls: [])
     }
-    .windowToolbarStyle(.unifiedCompact) // Sexy!
+    .windowToolbarStyle(.unifiedCompact)
     // TODO: Figure out how to add a "Go to Current Image" item.
     //
     // I tried this prior with a callback, but ScrollViewProxy wouldn't scroll when called.
@@ -69,9 +68,6 @@ struct SequenceScene: Scene {
 
         Divider()
 
-        // I've thought about allowing the user to open the image(s) visible in the main view in Finder as well, but
-        // it's not stable enough for me to consider. In addition, it's kind of weird visually, since there's no clear
-        // selection (unlike the sidebar).
         Button("Show in Finder") {
           guard let urls = selection?.resolve(),
                 !urls.isEmpty else {
@@ -86,10 +82,8 @@ struct SequenceScene: Scene {
         Button("Quick Look") {
           quicklook?()
         }
-        // For some reason, the shortcut is not aligned with the rest in the menu bar (though, I would rather it not
-        // be displayed).
-        //
-        // For some reason, I can't bind the space key alone.
+        // For some reason, I can't bind the space key alone. When I use Command-Space, the shortcut is also not
+        // aligned with the rest in the menu bar.
         .keyboardShortcut(.quicklook)
         .disabled(!enabled || quicklook == nil)
       }
@@ -109,16 +103,18 @@ struct SequenceScene: Scene {
 
       CommandGroup(after: .windowArrangement) {
         // This little hack allows us to do stuff with the UI on startup (since it's always called).
-        Color.clear
-          .onAppear {
-            // We need to set NSApp's appearance explicitly so windows we don't directly control (such as the about)
-            // will still sync with the user's preference.
-            NSApp.appearance = appearance?.app()
+        Color.clear.onAppear {
+          // We need to set NSApp's appearance explicitly so windows we don't directly control (such as the about) will
+          // still sync with the user's preference.
+          //
+          // Note that we can't use .onChange(of:initial:_) since this scene will have to be focused to receive the
+          // change (when the settings view would have focus).
+          NSApp.appearance = appearance?.app()
 
-            delegate.onOpenURL = { sequence in
-              openWindow(value: sequence)
-            }
+          delegate.onOpenURL = { sequence in
+            openWindow(value: sequence)
           }
+        }
       }
     }
   }

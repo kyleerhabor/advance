@@ -50,23 +50,7 @@ extension URL {
 }
 
 extension Sequence {
-  func forEach(_ body: (Element) async throws -> Void) async rethrows {
-    for element in self {
-      try await body(element)
-    }
-  }
-
-  func map<T>(_ transform: (Element) async throws -> T) async rethrows -> [T] {
-    var result = [T]()
-
-    try await forEach { element in
-      result.append(try await transform(element))
-    }
-
-    return result
-  }
-
-  func ordered(_ keyPath: KeyPath<Element, some Hashable>, by array: [Element]) -> [Element] where Element: Hashable {
+  func ordered(by array: [Element], for keyPath: KeyPath<Element, some Hashable>) -> [Element] where Element: Hashable {
     let index = array.enumerated().reduce(into: [:]) { partialResult, pair in
       partialResult[pair.1[keyPath: keyPath]] = pair.0
     }
@@ -79,8 +63,29 @@ extension Sequence {
       guard let bi = index[b[keyPath: keyPath]] else {
         return true
       }
-
       return ai < bi
+    }
+  }
+
+  // These functions should only be used for bodies that execute very quickly (to prevent task explosion).
+
+  func perform(_ body: @escaping (Element) async -> Void) async {
+    await withDiscardingTaskGroup { group in
+      self.forEach { element in
+        group.addTask {
+          await body(element)
+        }
+      }
+    }
+  }
+
+  func perform(_ body: @escaping (Element) async throws -> Void) async throws {
+    try await withThrowingDiscardingTaskGroup { group in
+      self.forEach { element in
+        group.addTask {
+          try await body(element)
+        }
+      }
     }
   }
 }
@@ -88,30 +93,5 @@ extension Sequence {
 extension CGSize {
   func length() -> Double {
     max(self.width, self.height)
-  }
-}
-
-extension Collection {
-  func forEach<T>(concurrently limit: Int, _ body: @escaping (Element) async throws -> T) async rethrows where Self.Index == Int {
-    try await withThrowingTaskGroup(of: T.self) { group in
-      self.prefix(limit).forEach { element in
-        group.addTask {
-          try await body(element)
-        }
-      }
-
-      var limit = limit
-
-      for try await _ in group {
-        if limit < self.count {
-          let element = self[limit]
-          limit += 1
-
-          group.addTask {
-            try await body(element)
-          }
-        }
-      }
-    }
   }
 }

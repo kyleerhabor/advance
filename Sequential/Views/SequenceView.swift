@@ -155,8 +155,8 @@ struct SequenceImageView: View {
 
     SequenceImageCellView(image: image)
       .id(url)
-      .aspectRatio(image.width / image.height, contentMode: .fit)
-      .frame(maxWidth: .infinity, maxHeight: .infinity) // I don't know if this actually has an effect.
+      .aspectRatio(image.ratio, contentMode: .fit)
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
       .onAppear {
         if !url.startAccessingSecurityScopedResource() {
           Logger.ui.error("Could not access security scoped resource for \"\(url, privacy: .sensitive)\"")
@@ -172,13 +172,10 @@ struct SequenceView: View {
   @Environment(\.window) private var window
   @SceneStorage(Keys.sidebar.key) private var columns = Keys.sidebar.value
   @State private var selection = Set<URL>()
-  @State private var visible = [URL]()
 
   @Binding var sequence: Seq
 
   var body: some View {
-    let page = visible.last
-
     // TODO: On scene restoration, scroll to the last image the user viewed.
     //
     // ScrollView supports scrolling to a specific view, but makes scrolling to its *exact* position possible through
@@ -190,22 +187,24 @@ struct SequenceView: View {
     // Personally, I think the Touch Bar's most useful feature is it's scrubbing capability (and *not* the buttons).
     // I imagine displaying the images in a line akin to QuickTime Player / IINA's time scrubbing, but it would not
     // have to be fixed to a certain amount of items.
+    //
+    // TODO: Display the current page in the title.
+    //
+    // This used to be a feature, but I removed it since it was based on .onAppear/.onDisappear, which was unreliable.
+    // It can really only be implemented in a custom List implementation (e.g. NSCollectionView or NSTableView).
+    //
+    // TODO: Add a setting to fade the title bar while scrolling.
+    //
+    // This used to be a feature, but it was removed due to issues with capturing the scrolling position in List. The
+    // implementation can't use .toolbar since it'd remove itself from the view hierarchy, messing with the scroll.
+    // Note that the title bar should only be faded while the sidebar is not visible.
     NavigationSplitView(columnVisibility: $columns) {
       ScrollViewReader { scroller in
         SequenceSidebarView(sequence: sequence, selection: $selection)
-          // FIXME: This is often not called (maybe it needs to be right above the list?).
-          .onChange(of: page) {
-            // Scrolling off-screen allows the user to not think about the sidebar.
-            guard let page, columns == .detailOnly else {
-              return
-            }
-
-            scroller.scrollTo(page, anchor: .center)
-          }
       }.navigationSplitViewColumnWidth(min: 128, ideal: 192, max: 256)
     } detail: {
       ScrollViewReader { scroller in
-        SequenceDetailView(visible: $visible, images: sequence.images)
+        SequenceDetailView(images: sequence.images)
           .onChange(of: selection) { prior, selection in
             guard let url = selection.subtracting(prior).first else {
               return
@@ -227,15 +226,6 @@ struct SequenceView: View {
     // the menu bar, but not all users may know this.
     .toolbar(fullScreen == true ? .hidden : .automatic)
     .task {
-      // While it is totally possible that the bookmarks that couldn't be loaded is only due to a temporary state (e.g.
-      // the files are on a separate volume that may have been disconnected), it is also possible that the file simply
-      // no longer exists or is no longer reasonably reachable. I personally think overwriting the bookmarks to only
-      // display ones that could be resolved is a better choice regardless, since it won't result in a blank sidebar
-      //
-      // ... or would it make more sense to just try and hide the bookmarks that aren't available and display them
-      // later? This would have the disadvantage of the unavailable bookmarks only being available on scene restoration.
-      // In addition, it may be confusing to see the images re-appear when changes to the scene have probably already
-      // been made.
       sequence.bookmarks = await sequence.load()
       sequence.update()
     }.onChange(of: fullScreen) {
