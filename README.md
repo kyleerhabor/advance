@@ -20,7 +20,7 @@ Sequential was created to provide an experience as simple as (or even simpler th
 ## Screenshot
 
 <details>
-  <summary>An example using the 1st volume of the manga "The Ancient Magus' Bride"</summary>
+  <summary>An example using the first volume of the manga "The Ancient Magus' Bride"</summary>
   
   <img src="Documentation/Screenshot.png" alt="The app showcasing the main canvas with one image, and a sidebar with three images.">
 </details>

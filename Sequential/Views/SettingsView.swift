@@ -38,7 +38,9 @@ struct SettingsView: View {
 
   @AppStorage(Keys.margin.key) private var appMargin = Keys.margin.value
   @AppStorage(Keys.appearance.key) private var appearance: Scheme
-  @State private var margin = 0.0
+  @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
+  @AppStorage(Keys.liveTextIcons.key) private var liveTextIcons = Keys.liveTextIcons.value
+  @State private var margin = Double(Keys.margin.value)
 
   var body: some View {
     Spacer()
@@ -65,6 +67,15 @@ struct SettingsView: View {
           Text("None")
         } maximumValueLabel: {
           Text("A lot")
+        }
+
+        LabeledContent("Live Text:") {
+          VStack(alignment: .leading) {
+            Toggle("Enable Live Text", isOn: $liveText)
+
+            Toggle("Show icons", isOn: $liveTextIcons)
+              .disabled(!liveText)
+          }
         }
       }.frame(width: 384)
 

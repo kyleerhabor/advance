@@ -18,6 +18,10 @@ extension EdgeInsets {
   // reason, doesn't want to do that, so I have to do this little dance. I have no idea if this will transfer well to
   // other devices.
   static let listRow = Self(top: 0, leading: -8, bottom: 0, trailing: -9)
+
+  init(_ insets: Double) {
+    self.init(top: insets, leading: insets, bottom: insets, trailing: insets)
+  }
 }
 
 extension Color {
@@ -30,4 +34,5 @@ extension KeyboardShortcut {
   static let currentImage = Self("l")
   static let open = Self("o")
   static let quicklook = Self("y")
+  static let liveText = Self("t", modifiers: [.command, .control])
 }

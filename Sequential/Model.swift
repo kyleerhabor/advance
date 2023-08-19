@@ -14,7 +14,7 @@ enum ImageError: Error {
 }
 
 // For some reason, conforming to Transferable and declaring the support for UTType.image is not enough to support .dropDestination(...)
-struct SeqImage {
+struct SeqImage: Identifiable {
   let id: UUID
   var url: URL
   var ratio: Double
@@ -89,9 +89,16 @@ struct SeqBookmark: Codable, Hashable {
 
       let width = Double(properties[kCGImagePropertyPixelWidth] as! Int)
       let height = Double(properties[kCGImagePropertyPixelHeight] as! Int)
-
       var this = self
-      this.ratio = width / height
+
+      if let raw = properties[kCGImagePropertyOrientation] as? UInt32,
+         let orientation = CGImagePropertyOrientation(rawValue: raw),
+         // TODO: Cover other orientations.
+         orientation == .right {
+        this.ratio = height / width
+      } else {
+        this.ratio = width / height
+      }
 
       return this
     }
@@ -206,16 +213,13 @@ class Seq: Codable {
     }
   }
 
-  func delete(_ urls: Set<URL>) {
-    bookmarks.removeAll { bookmark in
-      guard let url = bookmark.url else {
-        return false
-      }
-
-      return urls.contains(url)
-    }
-
+  func delete(_ urls: Set<SeqImage.ID>) {
+    bookmarks.removeAll { urls.contains($0.id) }
     update()
+  }
+
+  func urls(from ids: Set<SeqImage.ID>) -> [URL] {
+    images.filter { ids.contains($0.id) }.map(\.url)
   }
 
   func encode(to encoder: Encoder) throws {
@@ -259,39 +263,6 @@ extension NavigationSplitViewVisibility: RawRepresentable {
   }
 }
 
-func resampleImage(at url: URL, forSize size: CGSize) async throws -> Image? {
-  let options: [CFString : Any] = [
-    // We're not going to use kCGImageSourceShouldAllowFloat since the sizes can get very precise.
-    kCGImageSourceShouldCacheImmediately: true,
-    // For some reason, resizing images with kCGImageSourceCreateThumbnailFromImageIfAbsent sometimes uses a
-    // significantly smaller pixel size than specified with kCGImageSourceThumbnailMaxPixelSize. For example, I have a
-    // copy of Mikuni Shimokaway's album "all the way" (https://musicbrainz.org/release/19a73c6d-8a11-4851-bb3b-632bcd6f1adc)
-    // with scanned images. Even though the first image's size is 800x677 and I set the max pixel size to 802 (since
-    // it's based on the view's size), it sometimes returns 160x135. This is made even worse by how the view refuses to
-    // update to the next created image. This behavior seems to be predicated on the given max pixel size, since a
-    // larger image did not trigger the behavior (but did in one odd case).
-    kCGImageSourceCreateThumbnailFromImageAlways: true,
-    kCGImageSourceThumbnailMaxPixelSize: size.length(),
-    kCGImageSourceCreateThumbnailWithTransform: true
-  ]
-
-  guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
-    return nil
-  }
-
-  let index = CGImageSourceGetPrimaryImageIndex(source)
-
-  guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, index, options as CFDictionary) else {
-    return nil
-  }
-
-  try Task.checkCancellation()
-
-  Logger.model.info("Created a resampled image from \"\(url)\" at dimensions \(thumbnail.width.description)x\(thumbnail.height.description) for size \(size.width) / \(size.height)")
-
-  return Image(nsImage: .init(cgImage: thumbnail, size: size))
-}
-
 enum URLError: Error {
   case inaccessibleSecurityScope
 }
@@ -300,6 +271,10 @@ struct Keys {
   static let margin = Item("margin", 1)
   static let sidebar = Item("sidebar", NavigationSplitViewVisibility.all)
   static let appearance = Item("appearance", nil as SettingsView.Scheme)
+  // I think enabling Live Text by default but disabling the icons strikes a nice compromise between convenience (e.g.
+  // being able to right click and copy an image) and UI simplicity (having the buttons not get in the way).
+  static let liveText = Item("liveText", true)
+  static let liveTextIcons = Item("liveTextIcons", false)
 
   struct Item<Key, Value> {
     let key: Key

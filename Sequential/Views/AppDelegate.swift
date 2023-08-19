@@ -28,5 +28,9 @@ func openFinder(for url: URL) {
 }
 
 func openFinder(for urls: [URL]) {
+  guard !urls.isEmpty else {
+    return
+  }
+
   NSWorkspace.shared.activateFileViewerSelecting(urls)
 }

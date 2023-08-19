@@ -22,14 +22,10 @@ extension URL {
   // like a generic file.
   static let blank = Self(string: "/")!
 
-  func fileRepresentation() -> String? {
-    guard var components = URLComponents(url: self, resolvingAgainstBaseURL: false) else {
-      return nil
-    }
+  var string: String {
+    let absolute = self.absoluteString
 
-    components.scheme = nil
-
-    return components.url?.absoluteString.removingPercentEncoding
+    return absolute.removingPercentEncoding ?? absolute
   }
 
   func scoped<T>(_ body: () throws -> T) throws -> T {

@@ -12,7 +12,7 @@ struct SequenceSidebarView: View {
   @Environment(\.prerendering) private var prerendering
 
   let sequence: Seq
-  @Binding var selection: Set<URL>
+  @Binding var selection: Set<SeqImage.ID>
 
   var body: some View {
     // We don't want the "Drop Images Here" button to appear while the view is pre-rendering since it may change to

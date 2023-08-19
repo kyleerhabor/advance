@@ -18,6 +18,8 @@
 		008EA2192A886C260005AB44 /* SequenceSidebarContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 008EA2172A886C260005AB44 /* SequenceSidebarContentView.swift */; };
 		008EA21A2A886C260005AB44 /* SequenceSidebarEmptyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 008EA2182A886C260005AB44 /* SequenceSidebarEmptyView.swift */; };
 		00C09BBF2A789D30006EB887 /* View.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00C09BBE2A789D30006EB887 /* View.swift */; };
+		00C127342A90927E00B5452C /* DisplayImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00C127332A90927E00B5452C /* DisplayImageView.swift */; };
+		00C127362A90CF7400B5452C /* LiveTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00C127352A90CF7400B5452C /* LiveTextView.swift */; };
 		00CE2C052A7373D90059F073 /* SequenceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00CE2C042A7373D90059F073 /* SequenceView.swift */; };
 		00E0ECC02A76A8000030A0DC /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E0ECBF2A76A8000030A0DC /* AppDelegate.swift */; };
 		00FC65412A845E67009982A1 /* SequenceDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00FC65402A845E67009982A1 /* SequenceDetailView.swift */; };
@@ -40,6 +42,8 @@
 		008EA2182A886C260005AB44 /* SequenceSidebarEmptyView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SequenceSidebarEmptyView.swift; sourceTree = "<group>"; };
 		00BC8FAA2A777D800094E0C4 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		00C09BBE2A789D30006EB887 /* View.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = View.swift; sourceTree = "<group>"; };
+		00C127332A90927E00B5452C /* DisplayImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayImageView.swift; sourceTree = "<group>"; };
+		00C127352A90CF7400B5452C /* LiveTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveTextView.swift; sourceTree = "<group>"; };
 		00C712512A7EAF7A009F1802 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
 		00CE2C042A7373D90059F073 /* SequenceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequenceView.swift; sourceTree = "<group>"; };
 		00DC498E2A75B92000161495 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -66,6 +70,7 @@
 				00E0ECBF2A76A8000030A0DC /* AppDelegate.swift */,
 				00E0ECBE2A7633100030A0DC /* Scenes */,
 				00FC653F2A845E50009982A1 /* Sequence */,
+				00C127322A90925800B5452C /* Legos */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -128,6 +133,15 @@
 				00BC8FAA2A777D800094E0C4 /* SwiftUI.framework */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		00C127322A90925800B5452C /* Legos */ = {
+			isa = PBXGroup;
+			children = (
+				00C127332A90927E00B5452C /* DisplayImageView.swift */,
+				00C127352A90CF7400B5452C /* LiveTextView.swift */,
+			);
+			path = Legos;
 			sourceTree = "<group>";
 		};
 		00E0ECBE2A7633100030A0DC /* Scenes */ = {
@@ -230,9 +244,11 @@
 				0008556E2A7306CB00309905 /* Standard.swift in Sources */,
 				007FDD492A76E1C800A1E42B /* WindowViewModifier.swift in Sources */,
 				00FC65412A845E67009982A1 /* SequenceDetailView.swift in Sources */,
+				00C127362A90CF7400B5452C /* LiveTextView.swift in Sources */,
 				00CE2C052A7373D90059F073 /* SequenceView.swift in Sources */,
 				00E0ECC02A76A8000030A0DC /* AppDelegate.swift in Sources */,
 				000855692A72FE2C00309905 /* SequentialApp.swift in Sources */,
+				00C127342A90927E00B5452C /* DisplayImageView.swift in Sources */,
 				00823A9B2A86CA050043B8BE /* SequenceScene.swift in Sources */,
 				008EA2192A886C260005AB44 /* SequenceSidebarContentView.swift in Sources */,
 				001483392A86D4C50040E5CB /* SequenceSidebarView.swift in Sources */,

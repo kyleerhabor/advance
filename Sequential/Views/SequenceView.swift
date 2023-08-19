@@ -5,165 +5,75 @@
 //  Created by Kyle Erhabor on 7/27/23.
 //
 
-import Combine
 import OSLog
-import QuickLook
 import SwiftUI
 
-struct SequenceImagePhaseErrorView: View {
-  let error: Error
-
-  var body: some View {
-    if error is CancellationError {
-      Color.clear
-    } else {
-      let noSuchFile = isNoSuchFileError()
-
-      Image(systemName: noSuchFile ? "questionmark.diamond" : "exclamationmark.triangle.fill")
-        .symbolRenderingMode(noSuchFile ? .hierarchical : .multicolor)
-    }
-  }
-
-  func isNoSuchFileError() -> Bool {
-    guard let err = error as? CocoaError else {
-      return false
-    }
-
-    return err.code == .fileReadNoSuchFile
-  }
-}
-
-struct SequenceImagePhaseView: View {
+struct SequenceImagePhaseView<Content>: View where Content: View {
   @State private var elapsed = false
 
   @Binding var phase: AsyncImagePhase
+  @ViewBuilder var content: (Image) -> Content
 
   var body: some View {
-    if let image = phase.image {
-      image
-        .resizable()
-        .onDisappear {
-          // This is necessary to slow down the memory creep SwiftUI creates when rendering images. It does not
-          // eliminate it, but severely halts it. As an example, I have a copy of the first volume of Mysterious
-          // Girlfriend X, which weights in at ~700 MBs. When the window size is the default and the sidebar is open
-          // but hasn't been scrolled through, by time I reach page 24, the memory has ballooned to ~600 MBs. With this
-          // little trick, however, it rests at about ~150-200 MBs. Note that I haven't profiled the app to see if the
-          // remaining memory comes from SwiftUI or Image I/O.
-          //
-          // I'd like to change this so one or more images are preloaded before they come into view and disappear as such.
-          phase = .empty
+    Color.tertiaryFill
+      .overlay {
+        switch phase {
+          case .success(let image):
+            content(image)
+          case .failure(let err):
+            if !(err is CancellationError) {
+              Image(systemName: "exclamationmark.triangle.fill")
+                .symbolRenderingMode(.multicolor)
+                .imageScale(.large)
+            }
+          default:
+            ProgressView().opacity(elapsed ? 1 : 0)
         }
-    } else {
-      Color.tertiaryFill
-        .overlay {
-          if case .failure(let err) = phase {
-            SequenceImagePhaseErrorView(error: err)
-              .imageScale(.large)
-          } else if elapsed {
-            ProgressView()
-          }
-        }.task {
-          guard (try? await Task.sleep(for: .seconds(1))) != nil else {
-            return
-          }
+      }.task {
+        guard (try? await Task.sleep(for: .seconds(1))) != nil else {
+          return
+        }
 
-          withAnimation {
-            elapsed = true
-          }
+        withAnimation {
+          elapsed = true
         }
-    }
+      }.onDisappear {
+        // This is necessary to slow down the memory creep SwiftUI creates when rendering images. It does not
+        // eliminate it, but severely halts it. As an example, I have a copy of the first volume of Mysterious
+        // Girlfriend X, which weights in at ~700 MBs. When the window size is the default and the sidebar is
+        // open but hasn't been scrolled through, by time I reach page 24, the memory has ballooned to ~600 MBs.
+        // With this little trick, however, it rests at about ~150-200 MBs. Note that I haven't profiled the app
+        // to see if the remaining memory comes from SwiftUI or Image I/O.
+        //
+        // I'd like to change this so one or more images are preloaded before they come into view and disappear
+        // as such.
+        phase = .empty
+      }
   }
 }
 
-struct SequenceImageCellView: View {
-  typealias Subject = CurrentValueSubject<CGSize, Never>
-
-  @Environment(\.pixelLength) private var pixel
+struct SequenceImageView<Content>: View where Content: View {
   @State private var phase = AsyncImagePhase.empty
-  @State private var size = CGSize()
-  private var sizeSubject: Subject
-  private var sizePublisher: AnyPublisher<CGSize, Never>
 
   let image: SeqImage
-
-  var body: some View {
-    GeometryReader { proxy in
-      SequenceImagePhaseView(phase: $phase)
-        .onChange(of: proxy.size, initial: true) {
-          sizeSubject.send(proxy.size)
-        }.onReceive(sizePublisher) { size in
-          self.size = size
-        }.task(id: size) {
-          // FIXME: This is a hack to prevent seeing the "failed to load" icon.
-          //
-          // For some reason, the initial call gets a frame size of zero, and then immediately updates with the proper
-          // value. This isn't caused by the default state value of `size` being zero, however. This task is, straight
-          // up, just called when there is presumably no frame to present the view.
-          guard size != .zero else {
-            return
-          }
-          
-          let size = CGSize(
-            width: size.width / pixel,
-            height: size.height / pixel
-          )
-          
-          do {
-            guard let image = try await resampleImage(at: image.url, forSize: size) else {
-              if let path = image.url.fileRepresentation(),
-                 !FileManager.default.fileExists(atPath: path) {
-                phase = .failure(CocoaError(.fileReadNoSuchFile))
-              } else {
-                phase = .failure(ImageError.undecodable)
-              }
-              
-              return
-            }
-            
-            // Only animate when transitioning from non-successful to successful.
-            if case .success = phase {
-              phase = .success(image)
-            } else {
-              withAnimation {
-                phase = .success(image)
-              }
-            }
-          } catch {
-            phase = .failure(error)
-          }
-        }
-    }
-  }
-
-  init(image: SeqImage) {
-    self.image = image
-
-    let size = Subject(.init())
-
-    self.sizeSubject = size
-    self.sizePublisher = size
-      .debounce(for: .milliseconds(200), scheduler: DispatchQueue.main)
-      .eraseToAnyPublisher()
-  }
-}
-
-struct SequenceImageView: View {
-  let image: SeqImage
+  @ViewBuilder var content: (Image) -> Content
 
   var body: some View {
     let url = image.url
 
-    SequenceImageCellView(image: image)
-      .id(url)
-      .aspectRatio(image.ratio, contentMode: .fit)
-      .frame(maxWidth: .infinity, maxHeight: .infinity)
-      .onAppear {
-        if !url.startAccessingSecurityScopedResource() {
-          Logger.ui.error("Could not access security scoped resource for \"\(url, privacy: .sensitive)\"")
-        }
-      }.onDisappear {
-        url.stopAccessingSecurityScopedResource()
+    DisplayImageView(url: url, phase: $phase, transaction: .init(animation: .default)) {
+      SequenceImagePhaseView(phase: $phase, content: content)
+    }
+    .id(image.id)
+    .aspectRatio(image.ratio, contentMode: .fit)
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .onAppear {
+      if !url.startAccessingSecurityScopedResource() {
+        Logger.ui.error("Could not access security scoped resource for \"\(url)\"")
       }
+    }.onDisappear {
+      url.stopAccessingSecurityScopedResource()
+    }
   }
 }
 
@@ -171,7 +81,7 @@ struct SequenceView: View {
   @Environment(\.fullScreen) private var fullScreen
   @Environment(\.window) private var window
   @SceneStorage(Keys.sidebar.key) private var columns = Keys.sidebar.value
-  @State private var selection = Set<URL>()
+  @State private var selection = Set<SeqImage.ID>()
 
   @Binding var sequence: Seq
 
@@ -206,12 +116,12 @@ struct SequenceView: View {
       ScrollViewReader { scroller in
         SequenceDetailView(images: sequence.images)
           .onChange(of: selection) { prior, selection in
-            guard let url = selection.subtracting(prior).first else {
+            guard let id = selection.subtracting(prior).first else {
               return
             }
 
             withAnimation {
-              scroller.scrollTo(url, anchor: .top)
+              scroller.scrollTo(id, anchor: .top)
             }
           }
       }
@@ -242,7 +152,7 @@ struct SequenceView: View {
   func selectionDescription() -> SequenceSelection {
     .init(
       enabled: columns == .all && !selection.isEmpty,
-      resolve: { sequence.images.map(\.url).filter(selection.contains) }
+      resolve: { sequence.urls(from: selection) }
     )
   }
 }

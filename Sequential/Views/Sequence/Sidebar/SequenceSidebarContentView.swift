@@ -5,6 +5,7 @@
 //  Created by Kyle Erhabor on 8/12/23.
 //
 
+import QuickLook
 import SwiftUI
 
 struct SequenceSidebarContentView: View {
@@ -13,7 +14,7 @@ struct SequenceSidebarContentView: View {
   @State private var previewItem: URL?
 
   let sequence: Seq
-  @Binding var selection: Set<URL>
+  @Binding var selection: Set<SeqImage.ID>
 
   var body: some View {
     // There's an uncomfortable amount of padding missing from the top when in full screen mode. If I try to add an
@@ -22,9 +23,11 @@ struct SequenceSidebarContentView: View {
     // since they'll all get it (which will create extra space when clicking, which is also why it can't just be applied
     // to the first child).
     List(selection: $selection) {
-      ForEach(sequence.images, id: \.url) { image in
+      ForEach(sequence.images) { image in
         VStack {
-          SequenceImageView(image: image)
+          SequenceImageView(image: image) { image in
+            image.resizable()
+          }
 
           let path = image.url.lastPathComponent
 
@@ -47,27 +50,31 @@ struct SequenceSidebarContentView: View {
       }
     }
     .quickLookPreview($previewItem, in: preview)
-    .contextMenu { urls in
+    .contextMenu { ids in
       Button("Show in Finder") {
-        openFinder(for: Array(urls))
+        open(ids)
       }
 
       Button("Quick Look") {
-        quicklook(urls: urls)
+        quicklook(ids)
       }
-    } primaryAction: { urls in
-      openFinder(for: Array(urls))
+    } primaryAction: { ids in
+      open(ids)
     }.focusedSceneValue(\.quicklook) {
       if previewItem == nil {
-        quicklook(urls: selection)
+        quicklook(selection)
       } else {
         previewItem = nil
       }
     }
   }
 
-  func quicklook(urls: Set<URL>) {
-    preview = sequence.images.map(\.url).filter(urls.contains)
+  func open(_ ids: Set<SeqImage.ID>) {
+    openFinder(for: sequence.urls(from: ids))
+  }
+
+  func quicklook(_ ids: Set<SeqImage.ID>) {
+    preview = sequence.urls(from: ids)
     previewItem = preview.first
   }
 }
