@@ -83,12 +83,14 @@ struct SeqBookmark: Codable, Hashable {
 
       let index = CGImageSourceGetPrimaryImageIndex(source)
 
-      guard let properties = CGImageSourceCopyPropertiesAtIndex(source, index, nil) as? Dictionary<CFString, Any> else {
+      guard let properties = CGImageSourceCopyPropertiesAtIndex(source, index, nil) as? Dictionary<CFString, Any>,
+            let pWidth = properties[kCGImagePropertyPixelWidth] as? Int,
+            let pHeight = properties[kCGImagePropertyPixelHeight] as? Int else {
         return nil
       }
 
-      let width = Double(properties[kCGImagePropertyPixelWidth] as! Int)
-      let height = Double(properties[kCGImagePropertyPixelHeight] as! Int)
+      let width = Double(pWidth)
+      let height = Double(pHeight)
       var this = self
 
       if let raw = properties[kCGImagePropertyOrientation] as? UInt32,
