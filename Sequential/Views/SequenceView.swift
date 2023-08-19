@@ -227,10 +227,20 @@ struct SequenceView: View {
     // the menu bar, but not all users may know this.
     .toolbar(fullScreen == true ? .hidden : .automatic)
     .task {
-      sequence.store(bookmarks: await sequence.load())
+      // While it is totally possible that the bookmarks that couldn't be loaded is only due to a temporary state (e.g.
+      // the files are on a separate volume that may have been disconnected), it is also possible that the file simply
+      // no longer exists or is no longer reasonably reachable. I personally think overwriting the bookmarks to only
+      // display ones that could be resolved is a better choice regardless, since it won't result in a blank sidebar
+      //
+      // ... or would it make more sense to just try and hide the bookmarks that aren't available and display them
+      // later? This would have the disadvantage of the unavailable bookmarks only being available on scene restoration.
+      // In addition, it may be confusing to see the images re-appear when changes to the scene have probably already
+      // been made.
+      sequence.bookmarks = await sequence.load()
+      sequence.update()
     }.onChange(of: fullScreen) {
-      guard let fullScreen,
-            let window else {
+      guard let window,
+            let fullScreen else {
         return
       }
 

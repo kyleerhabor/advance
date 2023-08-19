@@ -121,6 +121,24 @@ class Seq: Codable {
     self.bookmarks = try container.decode([SeqBookmark].self, forKey: .bookmarks)
   }
 
+  func load() async -> [SeqBookmark] {
+    var bookmarks = [SeqBookmark]()
+
+    await self.bookmarks.forEach(concurrently: 8) { bookmark in
+      do {
+        guard let bookmark = try bookmark.resolve().image() else {
+          return
+        }
+
+        bookmarks.append(bookmark)
+      } catch {
+        Logger.model.info("Could not resolve bookmark \"\(bookmark.data)\": \(error)")
+      }
+    }
+
+    return bookmarks.ordered(\.id, by: self.bookmarks)
+  }
+
   func update() {
     images = bookmarks.compactMap { bookmark in
       guard let url = bookmark.url,
@@ -138,24 +156,6 @@ class Seq: Codable {
     }
   }
 
-  func store(bookmarks: [SeqBookmark]) {
-    let index = self.bookmarks.enumerated().reduce(into: [:]) { partialResult, pair in
-      partialResult[pair.1.id] = pair.0
-    }
-
-    bookmarks.forEach { bookmark in
-      guard let key = index[bookmark.id] else {
-        self.bookmarks.append(bookmark)
-
-        return
-      }
-
-      self.bookmarks[key] = bookmark
-    }
-
-    update()
-  }
-
   func store(bookmarks: [SeqBookmark], at offset: Int) {
     self.bookmarks.insert(contentsOf: bookmarks, at: offset)
 
@@ -165,24 +165,6 @@ class Seq: Codable {
     }
 
     update()
-  }
-
-  func load() async -> [SeqBookmark] {
-    var bookmarks = [SeqBookmark]()
-
-    await self.bookmarks.forEach(concurrently: 8) { bookmark in
-      do {
-        guard let bookmark = try bookmark.resolve().image() else {
-          return
-        }
-
-        bookmarks.append(bookmark)
-      } catch {
-        Logger.model.info("Could not resolve bookmark \"\(bookmark.data)\": \(error)")
-      }
-    }
-
-    return bookmarks.ordered(\.id, by: self.bookmarks)
   }
 
   func move(from source: IndexSet, to destination: Int) {

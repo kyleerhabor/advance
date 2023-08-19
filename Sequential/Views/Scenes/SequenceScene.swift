@@ -43,6 +43,9 @@ struct SequenceScene: Scene {
 
   var body: some Scene {
     WindowGroup(for: Seq.self) { $sequence in
+      // FIXME: There is a noticeable delay in clicking UI elements when there are a lot of (large) images on screen.
+      //
+      // This seems to not be unique to Sequential, given I've experienced it in Finder as well.
       SequenceView(sequence: $sequence)
         .windowed()
     } defaultValue: {
