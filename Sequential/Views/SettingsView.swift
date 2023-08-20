@@ -43,52 +43,43 @@ struct SettingsView: View {
   @State private var margin = Double(Keys.margin.value)
 
   var body: some View {
-    Spacer()
+    Form {
+      Picker("Appearance:", selection: $appearance) {
+        Text("System")
+          .tag(nil as Scheme)
 
-    HStack {
-      Spacer()
+        Divider()
 
-      Form {
-        Picker("Appearance:", selection: $appearance) {
-          Text("System")
-            .tag(nil as Scheme)
-          
-          Divider()
-          
-          Text("Light").tag(.light as Scheme)
-          Text("Dark").tag(.dark as Scheme)
-        }.onChange(of: appearance) {
-          NSApp.appearance = appearance?.app()
+        Text("Light").tag(.light as Scheme)
+        Text("Dark").tag(.dark as Scheme)
+      }.onChange(of: appearance) {
+        NSApp.appearance = appearance?.app()
+      }
+
+      Slider(value: $margin, in: 0...4, step: 1) {
+        Text("Margins:")
+      } minimumValueLabel: {
+        Text("None")
+      } maximumValueLabel: {
+        Text("A lot")
+      }.padding(.vertical, 8)
+
+      LabeledContent("Live Text:") {
+        VStack(alignment: .leading) {
+          Toggle("Enable Live Text", isOn: $liveText)
+
+          Toggle("Show icons", isOn: $liveTextIcons)
+            .disabled(!liveText)
         }
-
-        Slider(value: $margin, in: 0...4, step: 1) {
-          Text("Margins:")
-        } minimumValueLabel: {
-          Text("None")
-        } maximumValueLabel: {
-          Text("A lot")
-        }
-
-        LabeledContent("Live Text:") {
-          VStack(alignment: .leading) {
-            Toggle("Enable Live Text", isOn: $liveText)
-
-            Toggle("Show icons", isOn: $liveTextIcons)
-              .disabled(!liveText)
-          }
-        }
-      }.frame(width: 384)
-
-      Spacer()
+      }
     }
+    .frame(width: 384)
     .scenePadding()
     .onAppear {
       margin = Double(appMargin)
     }.onChange(of: margin) {
       appMargin = Int(margin)
     }
-
-    Spacer()
   }
 }
 

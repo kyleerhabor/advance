@@ -83,20 +83,12 @@ struct DisplayImageView<Content>: View where Content: View {
     let options: [CFString : Any] = [
       // We're not going to use kCGImageSourceShouldAllowFloat since the sizes can get very precise.
       kCGImageSourceShouldCacheImmediately: true,
-      // For some reason, resizing images with kCGImageSourceCreateThumbnailFromImageIfAbsent sometimes uses a
-      // significantly smaller pixel size than specified with kCGImageSourceThumbnailMaxPixelSize. For example, I have
-      // a copy of Mikuni Shimokaway's album "all the way" (https://musicbrainz.org/release/19a73c6d-8a11-4851-bb3b-632bcd6f1adc)
-      // with scanned images. Even though the first image's size is 800x677 and I set the max pixel size to 802 (since
-      // it's based on the view's size), it sometimes returns 160x135. This is made even worse by how the view refuses
-      // to update to the next created image. This behavior seems to be predicated on the given max pixel size, since a
-      // larger image did not trigger the behavior (but did in one odd case).
       kCGImageSourceCreateThumbnailFromImageAlways: true,
       kCGImageSourceThumbnailMaxPixelSize: size.length(),
       kCGImageSourceCreateThumbnailWithTransform: true
     ]
 
     guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
-      // Is this really the right error?
       throw ImageError.undecodable
     }
 
@@ -110,10 +102,6 @@ struct DisplayImageView<Content>: View where Content: View {
 
     try Task.checkCancellation()
 
-    let image = NSImage(cgImage: thumbnail, size: size)
-    // I'm not sure if this actually improves performance, but it feels faster to me.
-    image.draw(in: .init(origin: .zero, size: size))
-
-    return Image(nsImage: image)
+    return Image(nsImage: .init(cgImage: thumbnail, size: size))
   }
 }

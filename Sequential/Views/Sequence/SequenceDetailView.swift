@@ -10,13 +10,20 @@ import SwiftUI
 struct SequenceDetailView: View {
   @AppStorage(Keys.margin.key) private var margins = Keys.margin.value
   @AppStorage(Keys.liveText.key) private var appLiveText = Keys.liveText.value
-  @AppStorage(Keys.liveTextIcons.key) private var liveTextIcons = Keys.liveTextIcons.value
-  @SceneStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
+  @AppStorage(Keys.liveTextIcons.key) private var appLiveTextIcons = Keys.liveTextIcons.value
+  @SceneStorage(Keys.liveText.key) private var liveText: Bool?
+  @SceneStorage(Keys.liveTextIcons.key) private var liveTextIcons: Bool?
 
   let images: [SeqImage]
 
   var body: some View {
     let margin = Double(margins)
+    let liveText = liveText ?? appLiveText
+    let liveTextIcons = Binding {
+      self.liveTextIcons ?? appLiveTextIcons
+    } set: { icons in
+      self.liveTextIcons = icons
+    }
 
     // A killer limitation in using List is it doesn't support magnification, like how an NSScrollView does. Maybe try
     // reimplementing an NSCollectionView / NSTableView again? I tried implementing a MagnifyGesture solution but ran
@@ -33,7 +40,7 @@ struct SequenceDetailView: View {
     //
     // TODO: Figure out how to remove that annoying ring when right clicking on an image.
     //
-    // . . .
+    // Ironically, the ring goes away when Live Text is enabled.
     //
     // I played around with adding a list item whose sole purpose was to capture the scrolling state, but couldn't get
     // it to not take up space and mess with the ForEach items.
@@ -50,7 +57,7 @@ struct SequenceDetailView: View {
               // solution. The fact the buttons slide from the top and to the bottom probably wouldn't allow for more
               // margins to make it look better. A nice solution would probably involve a fade animation as it scrolls
               // into and out of view.
-              LiveTextView(url: url, icons: liveTextIcons)
+              LiveTextView(url: url, icons: liveTextIcons.wrappedValue)
             }
           }
         }
@@ -66,16 +73,13 @@ struct SequenceDetailView: View {
     }
     .listStyle(.plain)
     .toolbar {
-      if appLiveText && !images.isEmpty {
-        Toggle("Live Text", systemImage: "text.viewfinder", isOn: $liveText)
-          .keyboardShortcut(.liveText)
-      }
-    }.onAppear {
-      liveText = appLiveText
-    }.onChange(of: appLiveText) {
-      if !appLiveText {
-        liveText = false
-      }
+      // A Toggle accomplishes what I want to represent here, but it doesn't seem possible with primaryAction.
+      Menu("Live Text", systemImage: liveText ? "dot.viewfinder" : "text.viewfinder") {
+        // I would like to add a keyboard shortcut for this, but the menu has to be open for .keyboardShortcut to work.
+        Toggle("Show icons", isOn: liveTextIcons)
+      } primaryAction: {
+        self.liveText = !liveText
+      }.keyboardShortcut(.liveText)
     }
   }
 }
