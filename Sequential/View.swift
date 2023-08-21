@@ -34,5 +34,4 @@ extension KeyboardShortcut {
   static let currentImage = Self("l")
   static let open = Self("o")
   static let quicklook = Self("y")
-  static let liveText = Self("t")
 }

@@ -29,8 +29,15 @@ struct LiveTextView: NSViewRepresentable {
 
     let analyzer = ImageAnalyzer()
 
-    // FIXME: VisionKit is still complaining about analyzing over 10 images sometimes.
+    // FIXME: VisionKit is still complaining about analyzing over 10 images at times.
+    //
+    // The analyze method doesn't seem to check for cancellations itself.
     context.coordinator.task = .init {
+      // The task may immediately be cancelled when e.g. scrolling very quickly through a SequenceView.
+      guard !Task.isCancelled else {
+        return
+      }
+
       do {
         let analysis = try await analyzer.analyze(imageAt: url, orientation: .up, configuration: .init(.text))
 
@@ -42,7 +49,7 @@ struct LiveTextView: NSViewRepresentable {
   }
 
   static func dismantleNSView(_ nsView: ImageAnalysisOverlayView, coordinator: Coordinator) {
-    coordinator.task = nil
+    coordinator.task?.cancel()
   }
 
   func makeCoordinator() -> Coordinator {
@@ -50,7 +57,9 @@ struct LiveTextView: NSViewRepresentable {
   }
 
   class Coordinator: NSObject, ImageAnalysisOverlayViewDelegate {
-    var task: Task<Void, Never>? = nil
+    typealias Tag = ImageAnalysisOverlayView.MenuTag
+
+    var task: Task<Void, Never>?
 
     func overlayView(_ overlayView: ImageAnalysisOverlayView, updatedMenuFor menu: NSMenu, for event: NSEvent, at point: CGPoint) -> NSMenu {
       // There better be a simpler way to do this.
@@ -58,9 +67,25 @@ struct LiveTextView: NSViewRepresentable {
         return menu
       }
 
+      // This (over "Share Image...") flows better with the existing "Copy" item.
+      menu.item(withTag: Tag.shareImage)?.title = "Share..."
+
+      let removal = [
+        // Already implemented.
+        menu.item(withTag: Tag.copyImage),
+        // This always opens in Safari, which is annoying.
+        //
+        // I wonder if other search engines are considered.
+        menu.item(withTitle: "Search With Google")
+      ].compactMap { $0 }
+
+      removal.forEach(menu.removeItem)
+
       let items = menu.items
 
       if !items.isEmpty {
+        // ... and this as well.
+        vMenu.addItem(.separator())
         items.forEach { item in
           menu.removeItem(item)
           vMenu.addItem(item)

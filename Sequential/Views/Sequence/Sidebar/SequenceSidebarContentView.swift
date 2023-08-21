@@ -5,6 +5,7 @@
 //  Created by Kyle Erhabor on 8/12/23.
 //
 
+import OSLog
 import QuickLook
 import SwiftUI
 
@@ -50,6 +51,8 @@ struct SequenceSidebarContentView: View {
       }
     }
     .quickLookPreview($previewItem, in: preview)
+    // TODO: Implement pasteDestination(for:action:validator:) and cuttable(for:action:).
+    .copyable(sequence.urls(from: selection))
     .contextMenu { ids in
       Button("Show in Finder") {
         open(ids)
@@ -57,6 +60,18 @@ struct SequenceSidebarContentView: View {
 
       Button("Quick Look") {
         quicklook(ids)
+      }
+
+      Divider()
+
+      let amount = ids.count
+
+      Button(amount == 1 ? "Copy" : "Copy \(amount) Images", systemImage: "doc.on.doc") {
+        let urls = sequence.urls(from: ids)
+
+        if !NSPasteboard.general.write(items: urls as [NSURL]) {
+          Logger.ui.error("Failed to write URLs to pasteboard: \(urls.map(\.string))")
+        }
       }
     } primaryAction: { ids in
       open(ids)

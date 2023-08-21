@@ -5,6 +5,7 @@
 //  Created by Kyle Erhabor on 7/27/23.
 //
 
+import AppKit
 import OSLog
 
 extension Bundle {
@@ -89,5 +90,13 @@ extension Sequence {
 extension CGSize {
   func length() -> Double {
     max(self.width, self.height)
+  }
+}
+
+extension NSPasteboard {
+  func write(items: [some NSPasteboardWriting]) -> Bool {
+    self.prepareForNewContents()
+
+    return self.writeObjects(items)
   }
 }

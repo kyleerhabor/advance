@@ -5,6 +5,7 @@
 //  Created by Kyle Erhabor on 8/9/23.
 //
 
+import OSLog
 import SwiftUI
 
 struct SequenceDetailView: View {
@@ -68,6 +69,12 @@ struct SequenceDetailView: View {
           Button("Show in Finder") {
             openFinder(for: url)
           }
+
+          Button("Copy", systemImage: "doc.on.doc") {
+            if !NSPasteboard.general.write(items: [url as NSURL]) {
+              Logger.ui.error("Failed to write URL \"\(url.string)\" to pasteboard")
+            }
+          }
         }
       }
     }
@@ -76,10 +83,12 @@ struct SequenceDetailView: View {
       // A Toggle accomplishes what I want to represent here, but it doesn't seem possible with primaryAction.
       Menu("Live Text", systemImage: liveText ? "dot.viewfinder" : "text.viewfinder") {
         // I would like to add a keyboard shortcut for this, but the menu has to be open for .keyboardShortcut to work.
+        // In addition, if a shortcut is applied to the menu and the disclosure is opened before the primary action is,
+        // this toggle takes on the shortcut, which may be problematic for future items added.
         Toggle("Show icons", isOn: liveTextIcons)
       } primaryAction: {
         self.liveText = !liveText
-      }.keyboardShortcut(.liveText)
+      }
     }
   }
 }
