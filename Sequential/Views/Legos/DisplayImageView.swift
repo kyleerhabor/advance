@@ -11,20 +11,21 @@ import SwiftUI
 
 struct DisplayImageView<Content>: View where Content: View {
   typealias Subject = CurrentValueSubject<CGSize, Never>
+  typealias PhaseContent = (Binding<AsyncImagePhase>) -> Content
 
   @Environment(\.pixelLength) private var pixel
+  @State private var phase = AsyncImagePhase.empty
   @State private var size = CGSize()
   private var sizeSubject: Subject
   private var sizePublisher: AnyPublisher<CGSize, Never>
 
   let url: URL
-  @Binding var phase: AsyncImagePhase
   let transaction: Transaction
-  let content: Content
+  let content: PhaseContent
 
   var body: some View {
     GeometryReader { proxy in
-      content
+      content($phase)
         .onChange(of: proxy.size, initial: true) {
           sizeSubject.send(proxy.size)
         }.onReceive(sizePublisher) { size in
@@ -65,11 +66,10 @@ struct DisplayImageView<Content>: View where Content: View {
     }
   }
 
-  init(url: URL, phase: Binding<AsyncImagePhase>, transaction: Transaction, @ViewBuilder content: () -> Content) {
+  init(url: URL, transaction: Transaction, @ViewBuilder content: @escaping PhaseContent) {
     self.url = url
-    self._phase = phase
     self.transaction = transaction
-    self.content = content()
+    self.content = content
 
     let size = Subject(.init())
 

@@ -20,14 +20,10 @@ struct SequenceImagePhaseView<Content>: View where Content: View {
         switch phase {
           case .success(let image):
             content(image)
-          case .failure(let err):
-            if !(err is CancellationError) {
-              Image(systemName: "exclamationmark.triangle.fill")
-                .symbolRenderingMode(.multicolor)
-                .imageScale(.large)
-            }
-          default:
+          case .empty:
             ProgressView().opacity(elapsed ? 1 : 0)
+          default:
+            EmptyView()
         }
       }.task {
         guard (try? await Task.sleep(for: .seconds(1))) != nil else {
@@ -61,7 +57,7 @@ struct SequenceImageView<Content>: View where Content: View {
   var body: some View {
     let url = image.url
 
-    DisplayImageView(url: url, phase: $phase, transaction: .init(animation: .default)) {
+    DisplayImageView(url: url, transaction: .init(animation: .default)) { $phase in
       SequenceImagePhaseView(phase: $phase, content: content)
     }
     .id(image.id)
@@ -73,6 +69,14 @@ struct SequenceImageView<Content>: View where Content: View {
       }
     }.onDisappear {
       url.stopAccessingSecurityScopedResource()
+    }
+  }
+}
+
+extension SequenceImageView where Content == Image {
+  init(image: SeqImage) {
+    self.init(image: image) { image in
+      image.resizable()
     }
   }
 }

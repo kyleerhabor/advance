@@ -10,20 +10,18 @@ import SwiftUI
 
 struct SequenceDetailView: View {
   @AppStorage(Keys.margin.key) private var margins = Keys.margin.value
-  @AppStorage(Keys.liveText.key) private var appLiveText = Keys.liveText.value
-  @AppStorage(Keys.liveTextIcons.key) private var appLiveTextIcons = Keys.liveTextIcons.value
-  @SceneStorage(Keys.liveText.key) private var liveText: Bool?
-  @SceneStorage(Keys.liveTextIcons.key) private var liveTextIcons: Bool?
+  @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
+  @AppStorage(Keys.liveTextIcon.key) private var appLiveTextIcon = Keys.liveTextIcon.value
+  @SceneStorage(Keys.liveTextIcon.key) private var liveTextIcon: Bool?
 
   let images: [SeqImage]
 
   var body: some View {
     let margin = Double(margins)
-    let liveText = liveText ?? appLiveText
-    let liveTextIcons = Binding {
-      self.liveTextIcons ?? appLiveTextIcons
+    let liveTextIcon = Binding {
+      self.liveTextIcon ?? appLiveTextIcon
     } set: { icons in
-      self.liveTextIcons = icons
+      self.liveTextIcon = icons
     }
 
     // A killer limitation in using List is it doesn't support magnification, like how an NSScrollView does. Maybe try
@@ -44,7 +42,7 @@ struct SequenceDetailView: View {
     // Ironically, the ring goes away when Live Text is enabled.
     //
     // I played around with adding a list item whose sole purpose was to capture the scrolling state, but couldn't get
-    // it to not take up space and mess with the ForEach items.
+    // it to not take up space and mess with the ForEach items. Maybe just apply it to the first element?
     List {
       ForEach(images) { image in
         let url = image.url
@@ -58,7 +56,8 @@ struct SequenceDetailView: View {
               // solution. The fact the buttons slide from the top and to the bottom probably wouldn't allow for more
               // margins to make it look better. A nice solution would probably involve a fade animation as it scrolls
               // into and out of view.
-              LiveTextView(url: url, icons: liveTextIcons.wrappedValue)
+              LiveTextView(url: url)
+                .supplementaryInterfaceHidden(!liveTextIcon.wrappedValue)
             }
           }
         }
@@ -70,6 +69,10 @@ struct SequenceDetailView: View {
             openFinder(for: url)
           }
 
+          // This divider is kind of awkward, given the minimal items; but having "Copy" grouped with "Show in Finder"
+          // is weirder, imo.
+          Divider()
+
           Button("Copy", systemImage: "doc.on.doc") {
             if !NSPasteboard.general.write(items: [url as NSURL]) {
               Logger.ui.error("Failed to write URL \"\(url.string)\" to pasteboard")
@@ -80,14 +83,9 @@ struct SequenceDetailView: View {
     }
     .listStyle(.plain)
     .toolbar {
-      // A Toggle accomplishes what I want to represent here, but it doesn't seem possible with primaryAction.
-      Menu("Live Text", systemImage: liveText ? "dot.viewfinder" : "text.viewfinder") {
-        // I would like to add a keyboard shortcut for this, but the menu has to be open for .keyboardShortcut to work.
-        // In addition, if a shortcut is applied to the menu and the disclosure is opened before the primary action is,
-        // this toggle takes on the shortcut, which may be problematic for future items added.
-        Toggle("Show icons", isOn: liveTextIcons)
-      } primaryAction: {
-        self.liveText = !liveText
+      if liveText {
+        Toggle("Live Text Icon", systemImage: "text.viewfinder", isOn: liveTextIcon)
+          .keyboardShortcut("t", modifiers: [.command, .control])
       }
     }
   }

@@ -276,7 +276,7 @@ struct Keys {
   // I think enabling Live Text by default but disabling the icons strikes a nice compromise between convenience (e.g.
   // being able to right click and copy an image) and UI simplicity (having the buttons not get in the way).
   static let liveText = Item("liveText", true)
-  static let liveTextIcons = Item("liveTextIcons", false)
+  static let liveTextIcon = Item("liveTextIcon", false)
 
   struct Item<Key, Value> {
     let key: Key

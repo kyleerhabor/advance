@@ -13,7 +13,12 @@ struct LiveTextView: NSViewRepresentable {
   typealias NSViewType = ImageAnalysisOverlayView
 
   let url: URL
-  let icons: Bool
+  private var supplementaryInterfaceHidden: Bool
+
+  init(url: URL) {
+    self.url = url
+    self.supplementaryInterfaceHidden = false
+  }
 
   func makeNSView(context: Context) -> NSViewType {
     let overlayView = ImageAnalysisOverlayView()
@@ -25,7 +30,7 @@ struct LiveTextView: NSViewRepresentable {
   }
 
   func updateNSView(_ nsView: NSViewType, context: Context) {
-    nsView.setSupplementaryInterfaceHidden(!icons, animated: true)
+    nsView.setSupplementaryInterfaceHidden(supplementaryInterfaceHidden, animated: true)
 
     let analyzer = ImageAnalyzer()
 
@@ -64,15 +69,16 @@ struct LiveTextView: NSViewRepresentable {
     func overlayView(_ overlayView: ImageAnalysisOverlayView, updatedMenuFor menu: NSMenu, for event: NSEvent, at point: CGPoint) -> NSMenu {
       // There better be a simpler way to do this.
       guard let vMenu = overlayView.superview?.superview?.superview?.menu else {
+        print(":(")
+
         return menu
       }
-
-      // This (over "Share Image...") flows better with the existing "Copy" item.
-      menu.item(withTag: Tag.shareImage)?.title = "Share..."
 
       let removal = [
         // Already implemented.
         menu.item(withTag: Tag.copyImage),
+        // Too unstable (and slow).
+        menu.item(withTag: Tag.shareImage),
         // This always opens in Safari, which is annoying.
         //
         // I wonder if other search engines are considered.
@@ -94,5 +100,12 @@ struct LiveTextView: NSViewRepresentable {
 
       return vMenu
     }
+  }
+
+  func supplementaryInterfaceHidden(_ hidden: Bool = true) -> Self {
+    var this = self
+    this.supplementaryInterfaceHidden = hidden
+
+    return this
   }
 }

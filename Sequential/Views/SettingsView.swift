@@ -36,13 +36,18 @@ extension ColorScheme: RawRepresentable {
 struct SettingsView: View {
   typealias Scheme = ColorScheme?
 
-  @AppStorage(Keys.margin.key) private var appMargin = Keys.margin.value
+  @AppStorage(Keys.margin.key) private var margin = Keys.margin.value
   @AppStorage(Keys.appearance.key) private var appearance: Scheme
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
-  @AppStorage(Keys.liveTextIcons.key) private var liveTextIcons = Keys.liveTextIcons.value
-  @State private var margin = Double(Keys.margin.value)
+  @AppStorage(Keys.liveTextIcon.key) private var liveTextIcons = Keys.liveTextIcon.value
 
   var body: some View {
+    let margin = Binding {
+      Double(self.margin)
+    } set: { margin in
+      self.margin = Int(margin)
+    }
+
     Form {
       Picker("Appearance:", selection: $appearance) {
         Text("System")
@@ -56,7 +61,7 @@ struct SettingsView: View {
         NSApp.appearance = appearance?.app()
       }
 
-      Slider(value: $margin, in: 0...4, step: 1) {
+      Slider(value: margin, in: 0...4, step: 1) {
         Text("Margins:")
       } minimumValueLabel: {
         Text("None")
@@ -75,11 +80,6 @@ struct SettingsView: View {
     }
     .frame(width: 384)
     .scenePadding()
-    .onAppear {
-      margin = Double(appMargin)
-    }.onChange(of: margin) {
-      appMargin = Int(margin)
-    }
   }
 }
 

@@ -26,9 +26,7 @@ struct SequenceSidebarContentView: View {
     List(selection: $selection) {
       ForEach(sequence.images) { image in
         VStack {
-          SequenceImageView(image: image) { image in
-            image.resizable()
-          }
+          SequenceImageView(image: image)
 
           let path = image.url.lastPathComponent
 
@@ -50,9 +48,8 @@ struct SequenceSidebarContentView: View {
         }
       }
     }
-    .quickLookPreview($previewItem, in: preview)
-    // TODO: Implement pasteDestination(for:action:validator:) and cuttable(for:action:).
     .copyable(sequence.urls(from: selection))
+    .quickLookPreview($previewItem, in: preview)
     .contextMenu { ids in
       Button("Show in Finder") {
         open(ids)
