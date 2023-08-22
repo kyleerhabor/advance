@@ -58,9 +58,13 @@ struct DisplayImageView<Content>: View where Content: View {
               }
             }
           } catch {
-            if !(error is CancellationError) {
-              Logger.ui.error("Failed to resample image at \"\(url.string)\": \(error)")
+            // We don't want a CancellationError to e.g. change the visible image to a blank one, or for it to slightly
+            // go blank then immediately come back.
+            guard !(error is CancellationError) else {
+              return
             }
+
+            Logger.ui.error("Failed to resample image at \"\(url.string)\": \(error)")
 
             withTransaction(transaction) {
               phase = .failure(error)
