@@ -44,13 +44,13 @@ struct LiveTextView: NSViewRepresentable {
       }
 
       do {
-        let analysis = try await time {
+        let exec = try await time {
           try await analyzer.analyze(imageAt: url, orientation: .up, configuration: .init(.text))
-        } result: { duration in
-          Logger.ui.info("Took \(duration) to analyze image at \"\(url.string)\"")
         }
 
-        nsView.analysis = analysis
+        Logger.ui.info("Took \(exec.duration) to analyze image at \"\(url.string)\"")
+
+        nsView.analysis = exec.value
       } catch {
         Logger.ui.error("Could not analyze image at \"\(url.string)\": \(error)")
       }

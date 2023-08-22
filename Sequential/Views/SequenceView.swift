@@ -8,6 +8,26 @@
 import OSLog
 import SwiftUI
 
+struct ScrollSidebarFocusedValueKey: FocusedValueKey {
+  typealias Value = () -> Void
+}
+
+struct ScrollDetailFocusedValueKey: FocusedValueKey {
+  typealias Value = () -> Void
+}
+
+extension FocusedValues {
+  var scrollSidebar: ScrollSidebarFocusedValueKey.Value? {
+    get { self[ScrollSidebarFocusedValueKey.self] }
+    set { self[ScrollSidebarFocusedValueKey.self] = newValue }
+  }
+
+  var scrollDetail: ScrollDetailFocusedValueKey.Value? {
+    get { self[ScrollDetailFocusedValueKey.self] }
+    set { self[ScrollDetailFocusedValueKey.self] = newValue }
+  }
+}
+
 struct SequenceImagePhaseView<Content>: View where Content: View {
   @State private var elapsed = false
 
@@ -20,6 +40,11 @@ struct SequenceImagePhaseView<Content>: View where Content: View {
         switch phase {
           case .success(let image):
             content(image)
+          case .failure:
+            // We can't really get away with not displaying a failure view.
+            Image(systemName: "exclamationmark.triangle.fill")
+              .symbolRenderingMode(.hierarchical)
+              .imageScale(.large)
           case .empty:
             ProgressView().opacity(elapsed ? 1 : 0)
           default:
@@ -85,12 +110,8 @@ struct SequenceView: View {
   @SceneStorage(Keys.sidebar.key) private var columns = Keys.sidebar.value
   // We have to use @FocusedValue up here since embedding it in subviews causes the UI to hang (for some reason). In fact,
   // there seems to be a significant performance degradation when closing the sidebar via the UI, which only goes away
-  // when the app loses focus or the sidebar is re-opened. It seems to specifically be caused by .focusedSceneValue
-  // with there being a selected image in the sidebar.
-  //
-  // This is a really interesting bug due to how niche it is. I wonder if implementing custom scene storage would
-  // resolve it, given that while the scene values involving the scroll reader could e.g. be replaced with @State
-  // bindings, the one for the app menu couldn't so easily.
+  // when the app loses "current" focus (the user switches away, the sidebar is re-opened, the user right clicks, etc.).
+  // It seems to specifically be caused by .focusedSceneValue.
   @FocusedValue(\.scrollSidebar) private var scrollSidebar
   @FocusedValue(\.scrollDetail) private var scrollDetail
   @State private var selection = Set<SeqImage.ID>()

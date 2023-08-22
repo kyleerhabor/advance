@@ -25,7 +25,7 @@ struct SeqResolvedBookmark {
   let stale: Bool
 }
 
-struct SeqBookmark: Codable, Hashable {
+struct SeqBookmark: Codable {
   let id: UUID
   var data: Data
   var url: URL?
@@ -108,6 +108,12 @@ struct SeqBookmark: Codable, Hashable {
 
   enum CodingKeys: CodingKey {
     case data
+  }
+}
+
+extension SeqBookmark: Hashable {
+  static func ==(lhs: SeqBookmark, rhs: SeqBookmark) -> Bool {
+    lhs.data == rhs.data
   }
 }
 

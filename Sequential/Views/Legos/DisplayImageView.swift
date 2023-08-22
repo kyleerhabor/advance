@@ -31,6 +31,8 @@ struct DisplayImageView<Content>: View where Content: View {
         }.onReceive(sizePublisher) { size in
           self.size = size
         }.task(id: size) {
+          // FIXME: Importing images from the sidebar causes the first image to not load (this doesn't seem to be called).
+          //
           // FIXME: This is a hack to prevent immediate failing.
           //
           // For some reason, the initial call gets a frame size of zero, and then immediately updates with the proper
@@ -48,8 +50,9 @@ struct DisplayImageView<Content>: View where Content: View {
           do {
             let image = try await resample(to: size)
 
-            // If an image is already present, don't perform an animation. Is it possible to just use
-            // .animation(_:value:) instead?
+            // If an image is already present, don't perform an animation.
+            //
+            // Is it possible to just use .animation(_:value:)?
             if case .success = phase {
               phase = .success(image)
             } else {

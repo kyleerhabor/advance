@@ -8,26 +8,6 @@
 import OSLog
 import SwiftUI
 
-struct ScrollSidebarFocusedValueKey: FocusedValueKey {
-  typealias Value = () -> Void
-}
-
-struct ScrollDetailFocusedValueKey: FocusedValueKey {
-  typealias Value = () -> Void
-}
-
-extension FocusedValues {
-  var scrollSidebar: ScrollSidebarFocusedValueKey.Value? {
-    get { self[ScrollSidebarFocusedValueKey.self] }
-    set { self[ScrollSidebarFocusedValueKey.self] = newValue }
-  }
-
-  var scrollDetail: ScrollDetailFocusedValueKey.Value? {
-    get { self[ScrollDetailFocusedValueKey.self] }
-    set { self[ScrollDetailFocusedValueKey.self] = newValue }
-  }
-}
-
 struct SequenceDetailView: View {
   @AppStorage(Keys.margin.key) private var margins = Keys.margin.value
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
@@ -71,8 +51,7 @@ struct SequenceDetailView: View {
       let url = image.url
 
       SequenceImageView(image: image) { image in
-        image.resizable()
-          .overlay {
+        image.resizable().overlay {
           if liveText {
             // FIXME: The overlayed buttons ("Live Text" and "Copy All") do not respect insets.
             //
@@ -88,7 +67,6 @@ struct SequenceDetailView: View {
       .listRowInsets(.listRow + .init(margin * 6))
       .listRowSeparator(.hidden)
       .shadow(radius: margin)
-      .frame(maxWidth: .infinity, maxHeight: .infinity)
       .contextMenu {
         Button("Show in Finder") {
           openFinder(for: url)
@@ -98,9 +76,7 @@ struct SequenceDetailView: View {
           selection = [image.id]
           scroll()
         }
-
-        // This divider is kind of awkward, given the minimal items; but having "Copy" grouped with "Show in Finder"
-        // is weirder, imo.
+        
         Divider()
 
         Button("Copy", systemImage: "doc.on.doc") {

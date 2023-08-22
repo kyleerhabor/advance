@@ -101,19 +101,25 @@ extension NSPasteboard {
   }
 }
 
+struct Execution<T> {
+  let duration: Duration
+  let value: T
+}
+
+// This should be used sparingly, given Instruments provides more insight.
 func time<T>(
-  _ body: () async throws -> T,
-  result log: (Duration) -> Void
-) async rethrows -> T {
+  _ body: () async throws -> T
+) async rethrows -> Execution<T> {
   var result: T?
 
   let duration = try await ContinuousClock.continuous.measure {
     result = try await body()
   }
 
-  log(duration)
-
-  return result!
+  return .init(
+    duration: duration,
+    value: result!
+  )
 }
 
 func noop() {}
