@@ -100,3 +100,20 @@ extension NSPasteboard {
     return self.writeObjects(items)
   }
 }
+
+func time<T>(
+  _ body: () async throws -> T,
+  result log: (Duration) -> Void
+) async rethrows -> T {
+  var result: T?
+
+  let duration = try await ContinuousClock.continuous.measure {
+    result = try await body()
+  }
+
+  log(duration)
+
+  return result!
+}
+
+func noop() {}

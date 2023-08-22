@@ -36,7 +36,7 @@ struct LiveTextView: NSViewRepresentable {
 
     // FIXME: VisionKit is still complaining about analyzing over 10 images at times.
     //
-    // The analyze method doesn't seem to check for cancellations itself.
+    // The analyze method doesn't seem to check for cancellation itself.
     context.coordinator.task = .init {
       // The task may immediately be cancelled when e.g. scrolling very quickly through a SequenceView.
       guard !Task.isCancelled else {
@@ -44,11 +44,15 @@ struct LiveTextView: NSViewRepresentable {
       }
 
       do {
-        let analysis = try await analyzer.analyze(imageAt: url, orientation: .up, configuration: .init(.text))
+        let analysis = try await time {
+          try await analyzer.analyze(imageAt: url, orientation: .up, configuration: .init(.text))
+        } result: { duration in
+          Logger.ui.info("Took \(duration) to analyze image at \"\(url.string)\"")
+        }
 
         nsView.analysis = analysis
       } catch {
-        Logger.ui.error("Could not analyze contents of \"\(url.string)\": \(error)")
+        Logger.ui.error("Could not analyze image at \"\(url.string)\": \(error)")
       }
     }
   }
@@ -81,7 +85,7 @@ struct LiveTextView: NSViewRepresentable {
         menu.item(withTag: Tag.shareImage),
         // This always opens in Safari, which is annoying.
         //
-        // I wonder if other search engines are considered.
+        // I wonder if other search engines are considered. How about other languages?
         menu.item(withTitle: "Search With Google")
       ].compactMap { $0 }
 
@@ -102,7 +106,7 @@ struct LiveTextView: NSViewRepresentable {
     }
   }
 
-  func supplementaryInterfaceHidden(_ hidden: Bool = true) -> Self {
+  func supplementaryInterfaceHidden(_ hidden: Bool) -> Self {
     var this = self
     this.supplementaryInterfaceHidden = hidden
 

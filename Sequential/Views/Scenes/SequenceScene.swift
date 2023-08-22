@@ -35,7 +35,6 @@ extension FocusedValues {
 
 struct SequenceScene: Scene {
   @EnvironmentObject private var delegate: AppDelegate
-  @Environment(\.dismissWindow) private var dismissWindow
   @Environment(\.openWindow) private var openWindow
   @AppStorage(Keys.appearance.key) private var appearance: SettingsView.Scheme
   @FocusedValue(\.quicklook) private var quicklook
@@ -133,6 +132,7 @@ struct SequenceScene: Scene {
       }
 
       do {
+        // TODO: Fill in the existing window when there are no bookmarks.
         openWindow(value: try Seq(urls: panel.urls))
       } catch {
         Logger.ui.error("\(error)")

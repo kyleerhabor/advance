@@ -58,6 +58,10 @@ struct DisplayImageView<Content>: View where Content: View {
               }
             }
           } catch {
+            if !(error is CancellationError) {
+              Logger.ui.error("Failed to resample image at \"\(url.string)\": \(error)")
+            }
+
             withTransaction(transaction) {
               phase = .failure(error)
             }

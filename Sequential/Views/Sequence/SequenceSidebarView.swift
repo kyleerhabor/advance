@@ -13,6 +13,7 @@ struct SequenceSidebarView: View {
 
   let sequence: Seq
   @Binding var selection: Set<SeqImage.ID>
+  let scroll: () -> Void
 
   var body: some View {
     // We don't want the "Drop Images Here" button to appear while the view is pre-rendering since it may change to
@@ -23,7 +24,7 @@ struct SequenceSidebarView: View {
       if empty {
         SequenceSidebarEmptyView(sequence: sequence)
       } else {
-        SequenceSidebarContentView(sequence: sequence, selection: $selection)
+        SequenceSidebarContentView(sequence: sequence, selection: $selection, scroll: scroll)
       }
     }
     .animation(.default, value: empty)
@@ -36,6 +37,7 @@ struct SequenceSidebarView: View {
 #Preview {
   SequenceSidebarView(
     sequence: try! .init(urls: []),
-    selection: .constant([])
+    selection: .constant([]),
+    scroll: {}
   ).padding()
 }

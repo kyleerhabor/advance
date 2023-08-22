@@ -16,14 +16,23 @@ struct SequenceSidebarContentView: View {
 
   let sequence: Seq
   @Binding var selection: Set<SeqImage.ID>
+  let scroll: () -> Void
 
   var body: some View {
+    let selection = Binding {
+      self.selection
+    } set: { selection in
+      self.selection = selection
+
+      scroll()
+    }
+
     // There's an uncomfortable amount of padding missing from the top when in full screen mode. If I try to add an
     // empty view when in full screen, toggling causes the images to go blank then immediately be restored, which looks
     // wack. I can't apply padding to the List, since it'll clip the contents, nor apply it to the ForEach / contents
     // since they'll all get it (which will create extra space when clicking, which is also why it can't just be applied
     // to the first child).
-    List(selection: $selection) {
+    List(selection: selection) {
       ForEach(sequence.images) { image in
         VStack {
           SequenceImageView(image: image)
@@ -48,7 +57,7 @@ struct SequenceSidebarContentView: View {
         }
       }
     }
-    .copyable(sequence.urls(from: selection))
+    .copyable(sequence.urls(from: self.selection))
     .quickLookPreview($previewItem, in: preview)
     .contextMenu { ids in
       Button("Show in Finder") {
@@ -74,7 +83,7 @@ struct SequenceSidebarContentView: View {
       open(ids)
     }.focusedSceneValue(\.quicklook) {
       if previewItem == nil {
-        quicklook(selection)
+        quicklook(self.selection)
       } else {
         previewItem = nil
       }
@@ -94,6 +103,7 @@ struct SequenceSidebarContentView: View {
 #Preview {
   SequenceSidebarContentView(
     sequence: try! .init(urls: []),
-    selection: .constant([])
+    selection: .constant([]),
+    scroll: {}
   )
 }

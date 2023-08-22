@@ -62,7 +62,6 @@ struct SequenceImageView<Content>: View where Content: View {
     }
     .id(image.id)
     .aspectRatio(image.ratio, contentMode: .fit)
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
     .onAppear {
       if !url.startAccessingSecurityScopedResource() {
         Logger.ui.error("Could not access security scoped resource for \"\(url)\"")
@@ -85,6 +84,16 @@ struct SequenceView: View {
   @Environment(\.fullScreen) private var fullScreen
   @Environment(\.window) private var window
   @SceneStorage(Keys.sidebar.key) private var columns = Keys.sidebar.value
+  // We have to use @FocusedValue up here since embedding it in subviews causes the UI to hang (for some reason). In fact,
+  // there seems to be a significant performance degradation when closing the sidebar via the UI, which only goes away
+  // when the app loses focus or the sidebar is re-opened. It seems to specifically be caused by .focusedSceneValue
+  // with there being a selected image in the sidebar.
+  //
+  // This is a really interesting bug due to how niche it is. I wonder if implementing custom scene storage would
+  // resolve it, given that while the scene values involving the scroll reader could e.g. be replaced with @State
+  // bindings, the one for the app menu couldn't so easily.
+  @FocusedValue(\.scrollSidebar) private var scrollSidebar
+  @FocusedValue(\.scrollDetail) private var scrollDetail
   @State private var selection = Set<SeqImage.ID>()
 
   @Binding var sequence: Seq
@@ -114,13 +123,24 @@ struct SequenceView: View {
     // Note that the title bar should only be faded while the sidebar is not visible.
     NavigationSplitView(columnVisibility: $columns) {
       ScrollViewReader { scroller in
-        SequenceSidebarView(sequence: sequence, selection: $selection)
+        SequenceSidebarView(sequence: sequence, selection: $selection, scroll: scrollDetail ?? noop)
+          .focusedSceneValue(\.scrollSidebar) { [selection] in
+            guard let id = subtracting(self.selection, selection) else {
+              return
+            }
+
+            withAnimation {
+              columns = .all
+
+              scroller.scrollTo(id, anchor: .center)
+            }
+          }
       }.navigationSplitViewColumnWidth(min: 128, ideal: 192, max: 256)
     } detail: {
       ScrollViewReader { scroller in
-        SequenceDetailView(images: sequence.images)
-          .onChange(of: selection) { prior, selection in
-            guard let id = selection.subtracting(prior).first else {
+        SequenceDetailView(images: sequence.images, selection: $selection, scroll: scrollSidebar ?? noop)
+          .focusedSceneValue(\.scrollDetail) { [selection] in
+            guard let id = subtracting(self.selection, selection) else {
               return
             }
 
@@ -128,10 +148,7 @@ struct SequenceView: View {
               scroller.scrollTo(id, anchor: .top)
             }
           }
-      }
-      // Interestingly, attaching this to the outer NavigationSplitView causes SwiftUI to repeatedly re-render the
-      // scene.
-      .focusedSceneValue(\.sequenceSelection, selectionDescription())
+      }.focusedSceneValue(\.sequenceSelection, selectionDescription())
     }
     // If the app is launched with a window already full screened, the toolbar bar is properly hidden (still accessible
     // by bringing the mouse to the top). If the app is full screened manually, however, the title bar remains visible,
@@ -158,5 +175,12 @@ struct SequenceView: View {
       enabled: columns == .all && !selection.isEmpty,
       resolve: { sequence.urls(from: selection) }
     )
+  }
+
+  func subtracting(_ a: Set<SeqImage.ID>, _ b: Set<SeqImage.ID>) -> SeqImage.ID? {
+    let subset = a.subtracting(b)
+    let result = sequence.images.filter({ subset.contains($0.id) })
+
+    return result.last?.id
   }
 }

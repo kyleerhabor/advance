@@ -8,6 +8,26 @@
 import OSLog
 import SwiftUI
 
+struct ScrollSidebarFocusedValueKey: FocusedValueKey {
+  typealias Value = () -> Void
+}
+
+struct ScrollDetailFocusedValueKey: FocusedValueKey {
+  typealias Value = () -> Void
+}
+
+extension FocusedValues {
+  var scrollSidebar: ScrollSidebarFocusedValueKey.Value? {
+    get { self[ScrollSidebarFocusedValueKey.self] }
+    set { self[ScrollSidebarFocusedValueKey.self] = newValue }
+  }
+
+  var scrollDetail: ScrollDetailFocusedValueKey.Value? {
+    get { self[ScrollDetailFocusedValueKey.self] }
+    set { self[ScrollDetailFocusedValueKey.self] = newValue }
+  }
+}
+
 struct SequenceDetailView: View {
   @AppStorage(Keys.margin.key) private var margins = Keys.margin.value
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
@@ -15,6 +35,8 @@ struct SequenceDetailView: View {
   @SceneStorage(Keys.liveTextIcon.key) private var liveTextIcon: Bool?
 
   let images: [SeqImage]
+  @Binding var selection: Set<SeqImage.ID>
+  let scroll: () -> Void
 
   var body: some View {
     let margin = Double(margins)
@@ -42,41 +64,48 @@ struct SequenceDetailView: View {
     // Ironically, the ring goes away when Live Text is enabled.
     //
     // I played around with adding a list item whose sole purpose was to capture the scrolling state, but couldn't get
-    // it to not take up space and mess with the ForEach items. Maybe just apply it to the first element?
-    List {
-      ForEach(images) { image in
-        let url = image.url
+    // it to not take up space and mess with the ForEach items. I also tried applying it only to the first element, but
+    // it would just go out of view and stop reporting changes. I'll likely just need to reimplement NSTableView or
+    // NSCollectionView.
+    List(images) { image in
+      let url = image.url
 
-        SequenceImageView(image: image) { image in
-          image.resizable().overlay {
-            if liveText {
-              // FIXME: The overlayed buttons ("Live Text" and "Copy All") do not respect insets.
-              //
-              // There is a supplementaryInterfaceContentInsets property, but I'm not sure if it'll be the best
-              // solution. The fact the buttons slide from the top and to the bottom probably wouldn't allow for more
-              // margins to make it look better. A nice solution would probably involve a fade animation as it scrolls
-              // into and out of view.
-              LiveTextView(url: url)
-                .supplementaryInterfaceHidden(!liveTextIcon.wrappedValue)
-            }
+      SequenceImageView(image: image) { image in
+        image.resizable()
+          .overlay {
+          if liveText {
+            // FIXME: The overlayed buttons ("Live Text" and "Copy All") do not respect insets.
+            //
+            // There is a supplementaryInterfaceContentInsets property, but I'm not sure if it'll be the best
+            // solution. The fact the buttons slide from the top and to the bottom probably wouldn't allow for more
+            // margins to make it look better. A nice solution would probably involve a fade animation as it scrolls
+            // into and out of view.
+            LiveTextView(url: url)
+              .supplementaryInterfaceHidden(!liveTextIcon.wrappedValue)
           }
         }
-        .listRowInsets(.listRow + .init(margin * 6))
-        .listRowSeparator(.hidden)
-        .shadow(radius: margin)
-        .contextMenu {
-          Button("Show in Finder") {
-            openFinder(for: url)
-          }
+      }
+      .listRowInsets(.listRow + .init(margin * 6))
+      .listRowSeparator(.hidden)
+      .shadow(radius: margin)
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
+      .contextMenu {
+        Button("Show in Finder") {
+          openFinder(for: url)
+        }
 
-          // This divider is kind of awkward, given the minimal items; but having "Copy" grouped with "Show in Finder"
-          // is weirder, imo.
-          Divider()
+        Button("Show in Sidebar", systemImage: "sidebar.squares.left") {
+          selection = [image.id]
+          scroll()
+        }
 
-          Button("Copy", systemImage: "doc.on.doc") {
-            if !NSPasteboard.general.write(items: [url as NSURL]) {
-              Logger.ui.error("Failed to write URL \"\(url.string)\" to pasteboard")
-            }
+        // This divider is kind of awkward, given the minimal items; but having "Copy" grouped with "Show in Finder"
+        // is weirder, imo.
+        Divider()
+
+        Button("Copy", systemImage: "doc.on.doc") {
+          if !NSPasteboard.general.write(items: [url as NSURL]) {
+            Logger.ui.error("Failed to write URL \"\(url.string)\" to pasteboard")
           }
         }
       }
@@ -92,5 +121,9 @@ struct SequenceDetailView: View {
 }
 
 #Preview {
-  SequenceDetailView(images: [])
+  SequenceDetailView(
+    images: [],
+    selection: .constant([]),
+    scroll: {}
+  )
 }
