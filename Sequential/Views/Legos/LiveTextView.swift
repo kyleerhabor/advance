@@ -73,8 +73,6 @@ struct LiveTextView: NSViewRepresentable {
     func overlayView(_ overlayView: ImageAnalysisOverlayView, updatedMenuFor menu: NSMenu, for event: NSEvent, at point: CGPoint) -> NSMenu {
       // There better be a simpler way to do this.
       guard let vMenu = overlayView.superview?.superview?.superview?.menu else {
-        print(":(")
-
         return menu
       }
 

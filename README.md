@@ -25,7 +25,7 @@ Sequential was created to provide an experience as simple as (or even simpler th
 - Configurable margins
 - Fast:
   - Only loads what is required up front, reducing initialization dramatically[^1]
-  - Performs downsampling on images to match their frame size on-screen, improving CPU and memory usage while not compromising image quality.[^2] You can drop hundreds of 4K+ images, and Sequential won't complain
+  - Performs downsampling on images to match the size on-screen, improving CPU and memory usage while not compromising image quality.[^2] You can drop hundreds of 4K+ images, and Sequential won't complain
 
 ## Screenshot
 
