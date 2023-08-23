@@ -36,6 +36,7 @@ Sequential was created to provide an experience as simple as (or even simpler th
 </details>
 
 [^1]: A local copy of the first volume of the manga [The Ancient Magus' Bride][the-ancient-magus-bride] (~350 MB) loads in a little under 2 seconds on my 2019 MacBook Pro. To compare, Preview loads the same set of images in 7 seconds, and continues to heavily utilize the CPU in the background for much longer.
-[^2]: Downsampling involves processing an image to create a representation at a lower resolution. For Sequential, it's important to support displaying many images at many different sizes without sacrificing image quality. Before an image appears on-screen, it is downsampled at the size of the frame it's given with respect to how many pixels can fit in the frame. The result is that, at smaller frame sizes (e.g. in the sidebar), images appear roughly how they would at larger frame sizes (e.g. in the main canvas) while not introducing effects like high pixelation. 
+[^2]: Downsampling involves processing an image to create a representation at a lower resolution. For Sequential, it's important to support displaying many images at many different sizes without sacrificing image quality. Before an image appears on-screen, it is downsampled at the size of the frame it's given with respect to how many pixels can fit in the frame. The result is that, at smaller frame sizes (e.g. in the sidebar), images appear roughly how they would at larger frame sizes (e.g. in the main canvas) while not introducing effects like high pixelation.
+ 
 [shortcut]: https://kyleerhabor.com/convert-images-to-same-width-pdf.shortcut
 [the-ancient-magus-bride]: https://en.wikipedia.org/wiki/The_Ancient_Magus%27_Bride

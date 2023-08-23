@@ -75,6 +75,8 @@ struct LiveTextView: NSViewRepresentable {
 
     do {
       let exec = try await time {
+        // I presume it's possible the image's orientation is not up (e.g. some images in Photos have are labeled right),
+        // so it may be necessary to provide an orientation with this view. It would be simple, I just haven't tested it.
         try await analyzer.analyze(imageAt: url, orientation: .up, configuration: .init(.text))
       }
 
