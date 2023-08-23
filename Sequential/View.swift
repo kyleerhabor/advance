@@ -35,3 +35,24 @@ extension KeyboardShortcut {
   static let open = Self("o")
   static let quicklook = Self("y")
 }
+
+@resultBuilder
+struct TextBuilder {
+  static let blank = Text(verbatim: "")
+  static let spacer = Text(verbatim: " ")
+
+  static func buildBlock(_ components: Text...) -> Text {
+    components
+      .map { [$0] }
+      .joined(separator: [spacer])
+      .reduce(blank, +)
+  }
+
+  static func buildEither(first component: Text) -> Text {
+    component
+  }
+
+  static func buildEither(second component: Text) -> Text {
+    component
+  }
+}

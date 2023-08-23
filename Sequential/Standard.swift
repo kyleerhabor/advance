@@ -7,6 +7,7 @@
 
 import AppKit
 import OSLog
+import UniformTypeIdentifiers
 
 extension Bundle {
   static let identifier = Bundle.main.bundleIdentifier!
@@ -22,6 +23,7 @@ extension URL {
   // represent the root directory, but we're using this in SwiftUI's .navigationDocument(_:) modifier, so it just looks
   // like a generic file.
   static let blank = Self(string: "/")!
+  static let nullDevice = Self(string: "file:/dev/null")!
 
   var string: String {
     let absolute = self.absoluteString
@@ -85,6 +87,20 @@ extension Sequence {
       }
     }
   }
+
+  func removingDuplicates() -> [Element] where Element: Hashable {
+    var seen = Set<Element>()
+
+    return self.filter { element in
+      if seen.contains(element) {
+        return false
+      }
+
+      seen.insert(element)
+
+      return true
+    }
+  }
 }
 
 extension CGSize {
@@ -123,3 +139,7 @@ func time<T>(
 }
 
 func noop() {}
+
+extension UTType {
+  static let avif = Self(importedAs: "public.avif")
+}

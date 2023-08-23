@@ -15,6 +15,7 @@
 		004D8FC02A76C1C900C0303E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 004D8FBF2A76C1C900C0303E /* SettingsView.swift */; };
 		007FDD492A76E1C800A1E42B /* WindowViewModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 007FDD482A76E1C800A1E42B /* WindowViewModifier.swift */; };
 		00823A9B2A86CA050043B8BE /* SequenceScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00823A9A2A86CA050043B8BE /* SequenceScene.swift */; };
+		008C3CE82A952E7A00119707 /* SequenceInspectorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 008C3CE72A952E7A00119707 /* SequenceInspectorView.swift */; };
 		008EA2192A886C260005AB44 /* SequenceSidebarContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 008EA2172A886C260005AB44 /* SequenceSidebarContentView.swift */; };
 		008EA21A2A886C260005AB44 /* SequenceSidebarEmptyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 008EA2182A886C260005AB44 /* SequenceSidebarEmptyView.swift */; };
 		00C09BBF2A789D30006EB887 /* View.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00C09BBE2A789D30006EB887 /* View.swift */; };
@@ -38,9 +39,9 @@
 		005B45052A90051400699AF0 /* Screenshot.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Screenshot.png; sourceTree = "<group>"; };
 		007FDD482A76E1C800A1E42B /* WindowViewModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowViewModifier.swift; sourceTree = "<group>"; };
 		00823A9A2A86CA050043B8BE /* SequenceScene.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SequenceScene.swift; sourceTree = "<group>"; };
+		008C3CE72A952E7A00119707 /* SequenceInspectorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequenceInspectorView.swift; sourceTree = "<group>"; };
 		008EA2172A886C260005AB44 /* SequenceSidebarContentView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SequenceSidebarContentView.swift; sourceTree = "<group>"; };
 		008EA2182A886C260005AB44 /* SequenceSidebarEmptyView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SequenceSidebarEmptyView.swift; sourceTree = "<group>"; };
-		00BC8FAA2A777D800094E0C4 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		00C09BBE2A789D30006EB887 /* View.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = View.swift; sourceTree = "<group>"; };
 		00C127332A90927E00B5452C /* DisplayImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayImageView.swift; sourceTree = "<group>"; };
 		00C127352A90CF7400B5452C /* LiveTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveTextView.swift; sourceTree = "<group>"; };
@@ -92,7 +93,6 @@
 				001CB51A2A718D3C00DBB6FA /* Sequential */,
 				005B45022A8FFE1F00699AF0 /* Documentation */,
 				001CB5192A718D3C00DBB6FA /* Products */,
-				00BC8FA92A777D7F0094E0C4 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -127,14 +127,6 @@
 			path = Documentation;
 			sourceTree = "<group>";
 		};
-		00BC8FA92A777D7F0094E0C4 /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-				00BC8FAA2A777D800094E0C4 /* SwiftUI.framework */,
-			);
-			name = Frameworks;
-			sourceTree = "<group>";
-		};
 		00C127322A90925800B5452C /* Legos */ = {
 			isa = PBXGroup;
 			children = (
@@ -158,6 +150,7 @@
 			children = (
 				00FC65402A845E67009982A1 /* SequenceDetailView.swift */,
 				001483382A86D4C50040E5CB /* SequenceSidebarView.swift */,
+				008C3CE72A952E7A00119707 /* SequenceInspectorView.swift */,
 				000A43BE2A885E99001DAC0A /* Sidebar */,
 			);
 			path = Sequence;
@@ -238,6 +231,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				001D8D0E2A74AC5400B58790 /* Model.swift in Sources */,
+				008C3CE82A952E7A00119707 /* SequenceInspectorView.swift in Sources */,
 				004D8FC02A76C1C900C0303E /* SettingsView.swift in Sources */,
 				008EA21A2A886C260005AB44 /* SequenceSidebarEmptyView.swift in Sources */,
 				00C09BBF2A789D30006EB887 /* View.swift in Sources */,

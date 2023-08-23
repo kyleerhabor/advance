@@ -85,7 +85,7 @@ struct SequenceImageView<Content>: View where Content: View {
       SequenceImagePhaseView(phase: $phase, content: content)
     }
     .id(image.id)
-    .aspectRatio(image.ratio, contentMode: .fit)
+    .aspectRatio(image.size.aspectRatio(), contentMode: .fit)
     .onAppear {
       if !url.startAccessingSecurityScopedResource() {
         Logger.ui.error("Could not access security scoped resource for \"\(url)\"")
@@ -115,6 +115,7 @@ struct SequenceView: View {
   @FocusedValue(\.scrollSidebar) private var scrollSidebar
   @FocusedValue(\.scrollDetail) private var scrollDetail
   @State private var selection = Set<SeqImage.ID>()
+  @State private var inspecting = false
 
   @Binding var sequence: Seq
 
@@ -169,6 +170,25 @@ struct SequenceView: View {
             }
           }
       }.focusedSceneValue(\.sequenceSelection, selectionDescription())
+    }.inspector(isPresented: $inspecting) {
+      let images = selection.isEmpty
+        ? sequence.images
+        : sequence.images.filter { selection.contains($0.id) }
+
+      VStack {
+        if !images.isEmpty {
+          SequenceInspectorView(images: images)
+        }
+      }
+      .inspectorColumnWidth(min: 200, ideal: 250, max: 300)
+      .toolbar {
+        Spacer()
+
+        // There's unfortunately no way to hide the toolbar icon while the inspector is not open.
+        Button("Toggle Inspector", systemImage: "info.circle") {
+          inspecting.toggle()
+        }
+      }
     }
     // If the app is launched with a window already full screened, the toolbar bar is properly hidden (still accessible
     // by bringing the mouse to the top). If the app is full screened manually, however, the title bar remains visible,

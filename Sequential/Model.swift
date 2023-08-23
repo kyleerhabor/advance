@@ -8,16 +8,35 @@
 import ImageIO
 import OSLog
 import SwiftUI
+import UniformTypeIdentifiers
 
 enum ImageError: Error {
   case undecodable
+}
+
+struct Size: Hashable {
+  let width: Int
+  let height: Int
+
+  func aspectRatio() -> Double {
+    let width = Double(width)
+    let height = Double(height)
+
+    return width / height
+  }
+
+  func field() -> Int {
+    width * height
+  }
 }
 
 // For some reason, conforming to Transferable and declaring the support for UTType.image is not enough to support .dropDestination(...)
 struct SeqImage: Identifiable {
   let id: UUID
   var url: URL
-  var ratio: Double
+  let size: Size
+  var type: UTType?
+  var fileSize: Int?
 }
 
 struct SeqResolvedBookmark {
@@ -25,22 +44,38 @@ struct SeqResolvedBookmark {
   let stale: Bool
 }
 
+func reversedImage(properties: Dictionary<CFString, Any>) -> Bool? {
+  guard let raw = properties[kCGImagePropertyOrientation] as? UInt32,
+        let orientation = CGImagePropertyOrientation(rawValue: raw) else {
+    return nil
+  }
+
+  // TODO: Cover other orientations.
+  return orientation == .right
+}
+
 struct SeqBookmark: Codable {
   let id: UUID
   var data: Data
   var url: URL?
-  var ratio: Double?
+  var size: Size?
+  var type: UTType?
+  var fileSize: Int?
 
   init(
     id: UUID = .init(),
     data: Data,
     url: URL? = nil,
-    ratio: Double? = nil
+    size: Size? = nil,
+    type: UTType? = nil,
+    fileSize: Int? = nil
   ) {
     self.id = id
     self.data = data
     self.url = url
-    self.ratio = ratio
+    self.size = size
+    self.type = type
+    self.fileSize = fileSize
   }
 
   init(from decoder: Decoder) throws {
@@ -84,22 +119,29 @@ struct SeqBookmark: Codable {
       let index = CGImageSourceGetPrimaryImageIndex(source)
 
       guard let properties = CGImageSourceCopyPropertiesAtIndex(source, index, nil) as? Dictionary<CFString, Any>,
-            let pWidth = properties[kCGImagePropertyPixelWidth] as? Int,
-            let pHeight = properties[kCGImagePropertyPixelHeight] as? Int else {
+            let width = properties[kCGImagePropertyPixelWidth] as? Int,
+            let height = properties[kCGImagePropertyPixelHeight] as? Int else {
         return nil
       }
 
-      let width = Double(pWidth)
-      let height = Double(pHeight)
-      var this = self
+      let reversed = reversedImage(properties: properties) == true
 
-      if let raw = properties[kCGImagePropertyOrientation] as? UInt32,
-         let orientation = CGImagePropertyOrientation(rawValue: raw),
-         // TODO: Cover other orientations.
-         orientation == .right {
-        this.ratio = height / width
-      } else {
-        this.ratio = width / height
+      var this = self
+      this.size = .init(
+        width: reversed ? height : width,
+        height: reversed ? width : height
+      )
+
+      // These are not necessary to perform immediately, but are still useful for later.
+
+      if let type = CGImageSourceGetType(source),
+         let type = UTType(type as String) {
+        this.type = type
+      }
+
+      if let container = CGImageSourceCopyProperties(source, nil) as? Dictionary<CFString, Any>,
+         let size = container[kCGImagePropertyFileSize] as? Int {
+        this.fileSize = size
       }
 
       return this
@@ -155,14 +197,16 @@ class Seq: Codable {
   func update() {
     images = bookmarks.compactMap { bookmark in
       guard let url = bookmark.url,
-            let ratio = bookmark.ratio else {
+            let size = bookmark.size else {
         return nil
       }
 
       return .init(
         id: bookmark.id,
         url: url,
-        ratio: ratio
+        size: size,
+        type: bookmark.type,
+        fileSize: bookmark.fileSize
       )
     }
   }

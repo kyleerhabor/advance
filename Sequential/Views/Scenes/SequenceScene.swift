@@ -59,6 +59,8 @@ struct SequenceScene: Scene {
     .commands {
       SidebarCommands()
 
+      InspectorCommands()
+
       let enabled = selection?.enabled == true
 
       CommandGroup(after: .newItem) {
