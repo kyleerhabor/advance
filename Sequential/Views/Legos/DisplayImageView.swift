@@ -90,7 +90,7 @@ struct DisplayImageView<Content>: View where Content: View {
       .eraseToAnyPublisher()
   }
 
-  nonisolated func resample(to size: CGSize) async throws -> Image {
+  func resample(to size: CGSize) async throws -> Image {
     let options: [CFString : Any] = [
       // We're not going to use kCGImageSourceShouldAllowFloat since the sizes can get very precise.
       kCGImageSourceShouldCacheImmediately: true,

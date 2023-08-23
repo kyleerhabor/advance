@@ -12,6 +12,8 @@ import VisionKit
 struct LiveTextView: NSViewRepresentable {
   typealias NSViewType = ImageAnalysisOverlayView
 
+  private let analyzer = ImageAnalyzer()
+
   let url: URL
   private var supplementaryInterfaceHidden: Bool
 
@@ -25,6 +27,9 @@ struct LiveTextView: NSViewRepresentable {
     overlayView.delegate = context.coordinator
     // .imageSubject seems to be very unreliable, so I'm limiting it to text only.
     overlayView.preferredInteractionTypes = .automaticTextOnly
+    overlayView.setSupplementaryInterfaceHidden(supplementaryInterfaceHidden, animated: false)
+
+    analyze(view: overlayView, coordinator: context.coordinator)
 
     return overlayView
   }
@@ -32,29 +37,15 @@ struct LiveTextView: NSViewRepresentable {
   func updateNSView(_ nsView: NSViewType, context: Context) {
     nsView.setSupplementaryInterfaceHidden(supplementaryInterfaceHidden, animated: true)
 
-    let analyzer = ImageAnalyzer()
+    let coord = context.coordinator
 
-    // FIXME: VisionKit is still complaining about analyzing over 10 images at times.
-    //
-    // The analyze method doesn't seem to check for cancellation itself.
-    context.coordinator.task = .init {
-      // The task may immediately be cancelled when e.g. scrolling very quickly through a SequenceView.
-      guard !Task.isCancelled else {
-        return
-      }
-
-      do {
-        let exec = try await time {
-          try await analyzer.analyze(imageAt: url, orientation: .up, configuration: .init(.text))
-        }
-
-        Logger.ui.info("Took \(exec.duration) to analyze image at \"\(url.string)\"")
-
-        nsView.analysis = exec.value
-      } catch {
-        Logger.ui.error("Could not analyze image at \"\(url.string)\": \(error)")
-      }
+    guard coord.url != url || nsView.analysis == nil else {
+      return
     }
+
+    coord.url = url
+
+    analyze(view: nsView, coordinator: coord)
   }
 
   static func dismantleNSView(_ nsView: ImageAnalysisOverlayView, coordinator: Coordinator) {
@@ -62,13 +53,51 @@ struct LiveTextView: NSViewRepresentable {
   }
 
   func makeCoordinator() -> Coordinator {
-    Coordinator()
+    Coordinator(url: url)
+  }
+
+  @MainActor
+  func analyze(view: NSViewType, coordinator: Coordinator) {
+    coordinator.task = .init {
+      view.analysis = await analyze()
+    }
+  }
+
+  func analyze() async -> ImageAnalysis? {
+    // FIXME: VisionKit complains about analyzing over 10 images at times.
+    //
+    // The analyze method doesn't seem to check for cancellation itself. If we wanted to fix this, we'd need a handle
+    // from users, but it would be difficult to schedule, given we'd need to know when a slot becomes available and
+    // which view on-screen is most relevant to be given the priority.
+    guard !Task.isCancelled else {
+      return nil
+    }
+
+    do {
+      let exec = try await time {
+        try await analyzer.analyze(imageAt: url, orientation: .up, configuration: .init(.text))
+      }
+
+      Logger.ui.info("Took \(exec.duration) to analyze image at \"\(url.string)\"")
+
+      return exec.value
+    } catch {
+      Logger.ui.error("Could not analyze image at \"\(url.string)\": \(error)")
+
+      return nil
+    }
   }
 
   class Coordinator: NSObject, ImageAnalysisOverlayViewDelegate {
     typealias Tag = ImageAnalysisOverlayView.MenuTag
 
+    var url: URL
     var task: Task<Void, Never>?
+
+    init(url: URL) {
+      self.url = url
+      self.task = nil
+    }
 
     func overlayView(_ overlayView: ImageAnalysisOverlayView, updatedMenuFor menu: NSMenu, for event: NSEvent, at point: CGPoint) -> NSMenu {
       // There better be a simpler way to do this.
