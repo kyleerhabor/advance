@@ -15,19 +15,23 @@ struct LiveTextView: NSViewRepresentable {
   private let analyzer = ImageAnalyzer()
 
   let url: URL
-  private var supplementaryInterfaceHidden: Bool
+  // FIXME: This is buggy / not always respected by ImageAnalysisOverlayView.
+  @Binding var highlight: Bool
+  private var supplementaryInterfaceHidden: Bool = false
 
-  init(url: URL) {
+  init(url: URL, highlight: Binding<Bool>) {
     self.url = url
+    self._highlight = highlight
     self.supplementaryInterfaceHidden = false
   }
 
   func makeNSView(context: Context) -> NSViewType {
     let overlayView = ImageAnalysisOverlayView()
-    overlayView.delegate = context.coordinator
+    overlayView.delegate = context.coordinator.delegate
     // .imageSubject seems to be very unreliable, so I'm limiting it to text only.
     overlayView.preferredInteractionTypes = .automaticTextOnly
     overlayView.setSupplementaryInterfaceHidden(supplementaryInterfaceHidden, animated: false)
+    overlayView.selectableItemsHighlighted = highlight
 
     analyze(view: overlayView, coordinator: context.coordinator)
 
@@ -35,6 +39,7 @@ struct LiveTextView: NSViewRepresentable {
   }
 
   func updateNSView(_ nsView: NSViewType, context: Context) {
+    nsView.selectableItemsHighlighted = highlight
     nsView.setSupplementaryInterfaceHidden(supplementaryInterfaceHidden, animated: true)
 
     let coord = context.coordinator
@@ -53,7 +58,7 @@ struct LiveTextView: NSViewRepresentable {
   }
 
   func makeCoordinator() -> Coordinator {
-    Coordinator(url: url)
+    Coordinator(url: url, highlight: $highlight)
   }
 
   @MainActor
@@ -90,15 +95,26 @@ struct LiveTextView: NSViewRepresentable {
     }
   }
 
-  class Coordinator: NSObject, ImageAnalysisOverlayViewDelegate {
-    typealias Tag = ImageAnalysisOverlayView.MenuTag
-
+  class Coordinator {
+    var delegate: Delegate
     var url: URL
     var task: Task<Void, Never>?
 
-    init(url: URL) {
+    @MainActor
+    init(url: URL, highlight: Binding<Bool>) {
+      self.delegate = .init(highlight: highlight)
       self.url = url
       self.task = nil
+    }
+  }
+
+  class Delegate: NSObject, ImageAnalysisOverlayViewDelegate {
+    typealias Tag = ImageAnalysisOverlayView.MenuTag
+
+    @Binding var highlight: Bool
+
+    init(highlight: Binding<Bool>) {
+      self._highlight = highlight
     }
 
     func overlayView(_ overlayView: ImageAnalysisOverlayView, updatedMenuFor menu: NSMenu, for event: NSEvent, at point: CGPoint) -> NSMenu {
@@ -133,8 +149,15 @@ struct LiveTextView: NSViewRepresentable {
 
       return vMenu
     }
-  }
 
+    func overlayView(_ overlayView: ImageAnalysisOverlayView, highlightSelectedItemsDidChange highlightSelectedItems: Bool) {
+      highlight = highlightSelectedItems
+    }
+  }
+}
+
+// View modifiers.
+extension LiveTextView {
   func supplementaryInterfaceHidden(_ hidden: Bool) -> Self {
     var this = self
     this.supplementaryInterfaceHidden = hidden

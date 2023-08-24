@@ -16,7 +16,7 @@ struct SequenceSidebarContentView: View {
 
   let sequence: Seq
   @Binding var selection: Set<SeqImage.ID>
-  let scroll: () -> Void
+  let scrollDetail: () -> Void
 
   var body: some View {
     let selection = Binding {
@@ -24,7 +24,7 @@ struct SequenceSidebarContentView: View {
     } set: { selection in
       self.selection = selection
 
-      scroll()
+      scrollDetail()
     }
 
     // There's an uncomfortable amount of padding missing from the top when in full screen mode. If I try to add an
@@ -104,6 +104,6 @@ struct SequenceSidebarContentView: View {
   SequenceSidebarContentView(
     sequence: try! .init(urls: []),
     selection: .constant([]),
-    scroll: {}
+    scrollDetail: {}
   )
 }

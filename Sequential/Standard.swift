@@ -143,3 +143,9 @@ func noop() {}
 extension UTType {
   static let avif = Self(importedAs: "public.avif")
 }
+
+extension Double {
+  public init(_ source: Bool) {
+    self.init(source ? 1 : 0)
+  }
+}

@@ -56,3 +56,7 @@ struct TextBuilder {
     component
   }
 }
+
+extension NSEvent.ModifierFlags {
+  static let primary: Self = [.command, .shift, .option, .control]
+}

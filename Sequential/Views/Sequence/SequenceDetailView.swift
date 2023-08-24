@@ -13,10 +13,11 @@ struct SequenceDetailView: View {
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
   @AppStorage(Keys.liveTextIcon.key) private var appLiveTextIcon = Keys.liveTextIcon.value
   @SceneStorage(Keys.liveTextIcon.key) private var liveTextIcon: Bool?
+  @FocusedValue(\.scrollSidebar) private var scrollSidebar
+  @State private var highlight = false
 
   let images: [SeqImage]
   @Binding var selection: Set<SeqImage.ID>
-  let scroll: () -> Void
 
   var body: some View {
     let margin = Double(margins)
@@ -53,13 +54,7 @@ struct SequenceDetailView: View {
       SequenceImageView(image: image) { image in
         image.resizable().overlay {
           if liveText {
-            // FIXME: The overlayed buttons ("Live Text" and "Copy All") do not respect insets.
-            //
-            // There is a supplementaryInterfaceContentInsets property, but I'm not sure if it'll be the best
-            // solution. The fact the buttons slide from the top and to the bottom probably wouldn't allow for more
-            // margins to make it look better. A nice solution would probably involve a fade animation as it scrolls
-            // into and out of view.
-            LiveTextView(url: url)
+            LiveTextView(url: url, highlight: $highlight)
               .supplementaryInterfaceHidden(!liveTextIcon.wrappedValue)
           }
         }
@@ -74,7 +69,7 @@ struct SequenceDetailView: View {
 
         Button("Show in Sidebar", systemImage: "sidebar.squares.left") {
           selection = [image.id]
-          scroll()
+          scrollSidebar?()
         }
         
         Divider()
@@ -89,9 +84,14 @@ struct SequenceDetailView: View {
     .listStyle(.plain)
     .toolbar {
       if liveText {
-        Toggle("Live Text Icon", systemImage: "text.viewfinder", isOn: liveTextIcon)
-          .keyboardShortcut("t", modifiers: [.command, .control])
+        Toggle("Show Live Text icons", systemImage: "text.viewfinder", isOn: liveTextIcon)
       }
+    }
+    // Since the toolbar disappears in full screen mode, we can't use .keyboardShortcut(_:modifiers:).
+    .onKey("t", modifiers: [.command], repeating: true) {
+      liveTextIcon.wrappedValue.toggle()
+    }.onKey("t", modifiers: [.command, .shift]) {
+      highlight.toggle()
     }
   }
 }
@@ -99,7 +99,6 @@ struct SequenceDetailView: View {
 #Preview {
   SequenceDetailView(
     images: [],
-    selection: .constant([]),
-    scroll: {}
+    selection: .constant([])
   )
 }

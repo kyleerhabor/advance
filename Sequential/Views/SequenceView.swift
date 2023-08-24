@@ -46,7 +46,7 @@ struct SequenceImagePhaseView<Content>: View where Content: View {
               .symbolRenderingMode(.hierarchical)
               .imageScale(.large)
           case .empty:
-            ProgressView().opacity(elapsed ? 1 : 0)
+            ProgressView().opacity(Double(elapsed))
           default:
             EmptyView()
         }
@@ -108,11 +108,7 @@ struct SequenceView: View {
   @Environment(\.fullScreen) private var fullScreen
   @Environment(\.window) private var window
   @SceneStorage(Keys.sidebar.key) private var columns = Keys.sidebar.value
-  // We have to use @FocusedValue up here since embedding it in subviews causes the UI to hang (for some reason). In fact,
-  // there seems to be a significant performance degradation when closing the sidebar via the UI, which only goes away
-  // when the app loses "current" focus (the user switches away, the sidebar is re-opened, the user right clicks, etc.).
-  // It seems to specifically be caused by .focusedSceneValue.
-  @FocusedValue(\.scrollSidebar) private var scrollSidebar
+  // Embedding this in SequenceSidebarContentView causes a crash from the underlying AppKit, for some reason.
   @FocusedValue(\.scrollDetail) private var scrollDetail
   @State private var selection = Set<SeqImage.ID>()
   @State private var inspecting = false
@@ -144,9 +140,9 @@ struct SequenceView: View {
     // Note that the title bar should only be faded while the sidebar is not visible.
     NavigationSplitView(columnVisibility: $columns) {
       ScrollViewReader { scroller in
-        SequenceSidebarView(sequence: sequence, selection: $selection, scroll: scrollDetail ?? noop)
+        SequenceSidebarView(sequence: sequence, selection: $selection, scrollDetail: scrollDetail ?? noop)
           .focusedSceneValue(\.scrollSidebar) { [selection] in
-            guard let id = subtracting(self.selection, selection) else {
+            guard let id = last(in: self.selection.subtracting(selection)) else {
               return
             }
 
@@ -159,9 +155,9 @@ struct SequenceView: View {
       }.navigationSplitViewColumnWidth(min: 128, ideal: 192, max: 256)
     } detail: {
       ScrollViewReader { scroller in
-        SequenceDetailView(images: sequence.images, selection: $selection, scroll: scrollSidebar ?? noop)
+        SequenceDetailView(images: sequence.images, selection: $selection)
           .focusedSceneValue(\.scrollDetail) { [selection] in
-            guard let id = subtracting(self.selection, selection) else {
+            guard let id = last(in: self.selection.subtracting(selection)) else {
               return
             }
 
@@ -217,9 +213,8 @@ struct SequenceView: View {
     )
   }
 
-  func subtracting(_ a: Set<SeqImage.ID>, _ b: Set<SeqImage.ID>) -> SeqImage.ID? {
-    let subset = a.subtracting(b)
-    let result = sequence.images.filter({ subset.contains($0.id) })
+  func last(in set: Set<SeqImage.ID>) -> SeqImage.ID? {
+    let result = sequence.images.filter { set.contains($0.id) }
 
     return result.last?.id
   }
