@@ -19,6 +19,8 @@ struct LiveTextView: NSViewRepresentable {
   @Binding var highlight: Bool
   private var supplementaryInterfaceHidden: Bool = false
 
+  var hidden: Bool { !highlight && supplementaryInterfaceHidden }
+
   init(url: URL, highlight: Binding<Bool>) {
     self.url = url
     self._highlight = highlight
@@ -30,7 +32,7 @@ struct LiveTextView: NSViewRepresentable {
     overlayView.delegate = context.coordinator.delegate
     // .imageSubject seems to be very unreliable, so I'm limiting it to text only.
     overlayView.preferredInteractionTypes = .automaticTextOnly
-    overlayView.setSupplementaryInterfaceHidden(supplementaryInterfaceHidden, animated: false)
+    overlayView.setSupplementaryInterfaceHidden(hidden, animated: false)
     overlayView.selectableItemsHighlighted = highlight
 
     analyze(view: overlayView, coordinator: context.coordinator)
@@ -40,7 +42,7 @@ struct LiveTextView: NSViewRepresentable {
 
   func updateNSView(_ nsView: NSViewType, context: Context) {
     nsView.selectableItemsHighlighted = highlight
-    nsView.setSupplementaryInterfaceHidden(supplementaryInterfaceHidden, animated: true)
+    nsView.setSupplementaryInterfaceHidden(hidden, animated: true)
 
     let coord = context.coordinator
 
