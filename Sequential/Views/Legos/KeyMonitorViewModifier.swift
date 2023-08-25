@@ -22,7 +22,7 @@ struct KeyMonitorViewModifier: ViewModifier {
           // Returning `nil` does the opposite.
           //
           // We need to intersect the set since AppKit, for some reason, likes adding flags like 0x10A to the set
-          // (which I'm not sure what it represents).
+          // (which I'm not sure what represents).
           guard event.characters == key && event.modifierFlags.intersection(.primary) == modifiers else {
             return event
           }

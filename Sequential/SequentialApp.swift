@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import OSLog
 
 @main
 struct SequentialApp: App {

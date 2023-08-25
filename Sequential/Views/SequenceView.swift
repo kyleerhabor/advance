@@ -43,11 +43,11 @@ struct SequenceImagePhaseView<Content>: View where Content: View {
           case .failure:
             // We can't really get away with not displaying a failure view.
             Image(systemName: "exclamationmark.triangle.fill")
-              .symbolRenderingMode(.hierarchical)
+              .symbolRenderingMode(.multicolor)
               .imageScale(.large)
           case .empty:
             ProgressView().opacity(Double(elapsed))
-          default:
+          @unknown default:
             EmptyView()
         }
       }.task {
@@ -73,8 +73,6 @@ struct SequenceImagePhaseView<Content>: View where Content: View {
 }
 
 struct SequenceImageView<Content>: View where Content: View {
-  @State private var phase = AsyncImagePhase.empty
-
   let image: SeqImage
   @ViewBuilder var content: (Image) -> Content
 

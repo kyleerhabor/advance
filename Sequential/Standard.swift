@@ -6,6 +6,7 @@
 //
 
 import AppKit
+import ImageIO
 import OSLog
 import UniformTypeIdentifiers
 

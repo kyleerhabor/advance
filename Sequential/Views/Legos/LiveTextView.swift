@@ -15,9 +15,8 @@ struct LiveTextView: NSViewRepresentable {
   private let analyzer = ImageAnalyzer()
 
   let url: URL
-  // FIXME: This is buggy / not always respected by ImageAnalysisOverlayView.
   @Binding var highlight: Bool
-  private var supplementaryInterfaceHidden: Bool = false
+  private var supplementaryInterfaceHidden: Bool
 
   var hidden: Bool { !highlight && supplementaryInterfaceHidden }
 
@@ -29,7 +28,7 @@ struct LiveTextView: NSViewRepresentable {
 
   func makeNSView(context: Context) -> NSViewType {
     let overlayView = ImageAnalysisOverlayView()
-    overlayView.delegate = context.coordinator.delegate
+    overlayView.delegate = context.coordinator
     // .imageSubject seems to be very unreliable, so I'm limiting it to text only.
     overlayView.preferredInteractionTypes = .automaticTextOnly
     overlayView.setSupplementaryInterfaceHidden(hidden, animated: false)
@@ -41,10 +40,11 @@ struct LiveTextView: NSViewRepresentable {
   }
 
   func updateNSView(_ nsView: NSViewType, context: Context) {
+    let coord = context.coordinator
+    coord.parent = self
+
     nsView.selectableItemsHighlighted = highlight
     nsView.setSupplementaryInterfaceHidden(hidden, animated: true)
-
-    let coord = context.coordinator
 
     guard coord.url != url || nsView.analysis == nil else {
       return
@@ -60,13 +60,18 @@ struct LiveTextView: NSViewRepresentable {
   }
 
   func makeCoordinator() -> Coordinator {
-    Coordinator(url: url, highlight: $highlight)
+    Coordinator(self)
   }
 
   @MainActor
   func analyze(view: NSViewType, coordinator: Coordinator) {
+    guard coordinator.task == nil else {
+      return
+    }
+
     coordinator.task = .init {
       view.analysis = await analyze()
+      coordinator.task = nil
     }
   }
 
@@ -75,7 +80,8 @@ struct LiveTextView: NSViewRepresentable {
     //
     // The analyze method doesn't seem to check for cancellation itself. If we wanted to fix this, we'd need a handle
     // from users, but it would be difficult to schedule, given we'd need to know when a slot becomes available and
-    // which view on-screen is most relevant to be given the priority.
+    // which view on-screen is most relevant to be given the priority (assuming we don't want to leave the user in a
+    // weird state).
     guard !Task.isCancelled else {
       return nil
     }
@@ -97,26 +103,17 @@ struct LiveTextView: NSViewRepresentable {
     }
   }
 
-  class Coordinator {
-    var delegate: Delegate
+  class Coordinator: NSObject, ImageAnalysisOverlayViewDelegate {
+    typealias Tag = ImageAnalysisOverlayView.MenuTag
+
+    var parent: LiveTextView
     var url: URL
     var task: Task<Void, Never>?
 
-    @MainActor
-    init(url: URL, highlight: Binding<Bool>) {
-      self.delegate = .init(highlight: highlight)
-      self.url = url
+    init(_ parent: LiveTextView) {
+      self.parent = parent
+      self.url = parent.url
       self.task = nil
-    }
-  }
-
-  class Delegate: NSObject, ImageAnalysisOverlayViewDelegate {
-    typealias Tag = ImageAnalysisOverlayView.MenuTag
-
-    @Binding var highlight: Bool
-
-    init(highlight: Binding<Bool>) {
-      self._highlight = highlight
     }
 
     func overlayView(_ overlayView: ImageAnalysisOverlayView, updatedMenuFor menu: NSMenu, for event: NSEvent, at point: CGPoint) -> NSMenu {
@@ -153,7 +150,7 @@ struct LiveTextView: NSViewRepresentable {
     }
 
     func overlayView(_ overlayView: ImageAnalysisOverlayView, highlightSelectedItemsDidChange highlightSelectedItems: Bool) {
-      highlight = highlightSelectedItems
+      parent.highlight = highlightSelectedItems
     }
   }
 }

@@ -36,18 +36,34 @@ extension EnvironmentValues {
   }
 }
 
+class AppearanceView: NSView {
+  @Binding var win: NSWindow?
+
+  init(window: Binding<NSWindow?>) {
+    self._win = window
+
+    super.init(frame: .zero)
+  }
+
+  required init?(coder: NSCoder) {
+    fatalError("init(coder:) has not been implemented")
+  }
+  
+  override func viewDidMoveToWindow() {
+    super.viewDidMoveToWindow()
+
+    win = self.window
+  }
+}
+
 // https://stackoverflow.com/a/65401530/14695788
 struct WindowView: NSViewRepresentable {
   @Binding var window: NSWindow?
 
-  func makeNSView(context: Context) -> some NSView {
-    let view = NSView()
+  typealias NSViewType = AppearanceView
 
-    Task {
-      window = view.window
-    }
-
-    return view
+  func makeNSView(context: Context) -> NSViewType {
+    .init(window: $window)
   }
 
   func updateNSView(_ nsView: NSViewType, context: Context) {}

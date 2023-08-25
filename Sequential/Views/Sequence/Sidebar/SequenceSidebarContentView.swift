@@ -44,6 +44,9 @@ struct SequenceSidebarContentView: View {
             .padding(.init(top: 4, leading: 8, bottom: 4, trailing: 8))
             .background(Color.secondaryFill)
             .clipShape(.rect(cornerRadius: 4))
+            // TODO: Replace this for an expansion tooltip (like how NSTableView has it)
+            //
+            // I tried this before, but couldn't get sizing or the trailing ellipsis to work properly.
             .help(path)
         }
       }.onMove { source, destination in
@@ -72,11 +75,13 @@ struct SequenceSidebarContentView: View {
 
       let amount = ids.count
 
-      Button(amount == 1 ? "Copy" : "Copy \(amount) Images", systemImage: "doc.on.doc") {
-        let urls = sequence.urls(from: ids)
-
-        if !NSPasteboard.general.write(items: urls as [NSURL]) {
-          Logger.ui.error("Failed to write URLs to pasteboard: \(urls.map(\.string))")
+      if amount != 0 {
+        Button(amount == 1 ? "Copy" : "Copy \(amount) Images", systemImage: "doc.on.doc") {
+          let urls = sequence.urls(from: ids)
+          
+          if !NSPasteboard.general.write(items: urls as [NSURL]) {
+            Logger.ui.error("Failed to write URLs to pasteboard: \(urls.map(\.string))")
+          }
         }
       }
     } primaryAction: { ids in

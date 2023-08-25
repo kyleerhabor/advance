@@ -19,6 +19,7 @@
 		008C3CE82A952E7A00119707 /* SequenceInspectorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 008C3CE72A952E7A00119707 /* SequenceInspectorView.swift */; };
 		008EA2192A886C260005AB44 /* SequenceSidebarContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 008EA2172A886C260005AB44 /* SequenceSidebarContentView.swift */; };
 		008EA21A2A886C260005AB44 /* SequenceSidebarEmptyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 008EA2182A886C260005AB44 /* SequenceSidebarEmptyView.swift */; };
+		00BE70C82A97BAE600315808 /* Seq.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00BE70C72A97BAE600315808 /* Seq.swift */; };
 		00C09BBF2A789D30006EB887 /* View.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00C09BBE2A789D30006EB887 /* View.swift */; };
 		00C127342A90927E00B5452C /* DisplayImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00C127332A90927E00B5452C /* DisplayImageView.swift */; };
 		00C127362A90CF7400B5452C /* LiveTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00C127352A90CF7400B5452C /* LiveTextView.swift */; };
@@ -44,6 +45,7 @@
 		008C3CE72A952E7A00119707 /* SequenceInspectorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequenceInspectorView.swift; sourceTree = "<group>"; };
 		008EA2172A886C260005AB44 /* SequenceSidebarContentView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SequenceSidebarContentView.swift; sourceTree = "<group>"; };
 		008EA2182A886C260005AB44 /* SequenceSidebarEmptyView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SequenceSidebarEmptyView.swift; sourceTree = "<group>"; };
+		00BE70C72A97BAE600315808 /* Seq.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Seq.swift; sourceTree = "<group>"; };
 		00C09BBE2A789D30006EB887 /* View.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = View.swift; sourceTree = "<group>"; };
 		00C127332A90927E00B5452C /* DisplayImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayImageView.swift; sourceTree = "<group>"; };
 		00C127352A90CF7400B5452C /* LiveTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveTextView.swift; sourceTree = "<group>"; };
@@ -114,6 +116,7 @@
 				00C09BBE2A789D30006EB887 /* View.swift */,
 				001D8D0D2A74AC5400B58790 /* Model.swift */,
 				0008556A2A72FECF00309905 /* Views */,
+				00BE70C62A97BAD800315808 /* Models */,
 				00DC498E2A75B92000161495 /* Info.plist */,
 				001CB51F2A718D4200DBB6FA /* Assets.xcassets */,
 				001CB5242A718D4200DBB6FA /* Sequential.entitlements */,
@@ -127,6 +130,14 @@
 				005B45052A90051400699AF0 /* Screenshot.png */,
 			);
 			path = Documentation;
+			sourceTree = "<group>";
+		};
+		00BE70C62A97BAD800315808 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				00BE70C72A97BAE600315808 /* Seq.swift */,
+			);
+			path = Models;
 			sourceTree = "<group>";
 		};
 		00C127322A90925800B5452C /* Legos */ = {
@@ -250,6 +261,7 @@
 				00823A9B2A86CA050043B8BE /* SequenceScene.swift in Sources */,
 				008EA2192A886C260005AB44 /* SequenceSidebarContentView.swift in Sources */,
 				001483392A86D4C50040E5CB /* SequenceSidebarView.swift in Sources */,
+				00BE70C82A97BAE600315808 /* Seq.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

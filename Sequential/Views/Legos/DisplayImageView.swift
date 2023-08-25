@@ -8,6 +8,7 @@
 import Combine
 import OSLog
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct DisplayImageView<Content>: View where Content: View {
   typealias Subject = CurrentValueSubject<CGSize, Never>
@@ -48,6 +49,10 @@ struct DisplayImageView<Content>: View where Content: View {
           )
 
           do {
+            // TODO: Support animated images
+            //
+            // Image I/O has CGAnimateImageAtURLWithBlock, which helps. I tried implementing this once, but it came out
+            // poorly due to performance.
             let image = try await resample(to: size)
 
             // If an image is already present, don't perform an animation.
@@ -103,9 +108,9 @@ struct DisplayImageView<Content>: View where Content: View {
       throw ImageError.undecodable
     }
 
-    let index = CGImageSourceGetPrimaryImageIndex(source)
+    let primary = CGImageSourceGetPrimaryImageIndex(source)
 
-    guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, index, options as CFDictionary) else {
+    guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, primary, options as CFDictionary) else {
       throw ImageError.undecodable
     }
 
@@ -113,6 +118,6 @@ struct DisplayImageView<Content>: View where Content: View {
 
     try Task.checkCancellation()
 
-    return Image(nsImage: .init(cgImage: thumbnail, size: size))
+    return .init(nsImage: .init(cgImage: thumbnail, size: size))
   }
 }
