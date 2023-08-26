@@ -10,9 +10,11 @@ import SwiftUI
 @main
 struct SequentialApp: App {
   @NSApplicationDelegateAdaptor private var delegate: AppDelegate
+  @State private var destinations = Depot()
 
   var body: some Scene {
     SequenceScene()
+      .environment(destinations)
       // For some reason, the delegate is not being placed in the environment (even though the property wrapper says it
       // will). Maybe it only applies to views and not scenes?
       .environmentObject(delegate)
@@ -22,6 +24,7 @@ struct SequentialApp: App {
 
     Settings {
       SettingsView()
+        .environment(destinations)
     }.windowResizability(.contentMinSize)
   }
 }

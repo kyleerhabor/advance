@@ -30,11 +30,6 @@ struct Size: Hashable {
   }
 }
 
-struct SeqResolvedBookmark {
-  let url: URL
-  let stale: Bool
-}
-
 func reversedImage(properties: Dictionary<CFString, Any>) -> Bool? {
   guard let raw = properties[kCGImagePropertyOrientation] as? UInt32,
         let orientation = CGImagePropertyOrientation(rawValue: raw) else {
@@ -75,21 +70,14 @@ struct SeqBookmark: Codable {
     self.init(data: try container.decode(Data.self, forKey: .data))
   }
 
-  func resolved() throws -> SeqResolvedBookmark {
-    var stale = false
-    let url = try URL(resolvingBookmarkData: data, options: .withSecurityScope, bookmarkDataIsStale: &stale)
-
-    return .init(url: url, stale: stale)
-  }
-
   func resolve() throws -> Self {
     var this = self
-    var resolved = try this.resolved()
+    var resolved = try ResolvedBookmark(from: data)
 
     if resolved.stale {
       let url = resolved.url
       this.data = try url.scoped { try url.bookmark() }
-      resolved = try this.resolved()
+      resolved = try ResolvedBookmark(from: data)
     }
 
     this.url = resolved.url
@@ -318,6 +306,8 @@ struct Keys {
   // being able to right click and copy an image) and UI simplicity (having the buttons not get in the way).
   static let liveText = Item("liveText", true)
   static let liveTextIcon = Item("liveTextIcon", false)
+  // I'll probably spill this out into an Observable.
+//  static let destinations = Item("destinations", try! JSONEncoder().encode([Data]()))
 
   struct Item<Key, Value> {
     let key: Key
@@ -327,5 +317,58 @@ struct Keys {
       self.key = key
       self.value = value
     }
+  }
+}
+
+struct Destination {
+  var bookmark: Data
+  var url: URL? = nil
+
+  func resolve() throws -> Self {
+    var data = bookmark
+    var resolved = try ResolvedBookmark(from: bookmark)
+
+    if resolved.stale {
+      let url = resolved.url
+      data = try url.scoped { try url.bookmark(options: .withSecurityScope) }
+      resolved = try ResolvedBookmark(from: bookmark)
+    }
+
+    return .init(bookmark: data, url: resolved.url)
+  }
+}
+
+extension Destination {
+  init(bookmark: Data) {
+    self.bookmark = bookmark
+  }
+}
+
+@Observable
+class Depot {
+  var destinations: [Destination]
+
+  init() {
+    let bookmarks = UserDefaults.standard.array(forKey: "destinations") as? [Data] ?? []
+
+    self.destinations = bookmarks.map { bookmark in
+      .init(bookmark: bookmark)
+    }
+  }
+
+  func resolve() {
+    destinations = destinations.map { dest in
+      do {
+        return try dest.resolve()
+      } catch {
+        Logger.ui.error("\(error)")
+
+        return dest
+      }
+    }
+  }
+
+  func store() {
+    UserDefaults.standard.set(destinations.map(\.bookmark), forKey: "destinations")
   }
 }

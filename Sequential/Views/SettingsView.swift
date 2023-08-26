@@ -40,6 +40,7 @@ struct SettingsView: View {
   @AppStorage(Keys.appearance.key) private var appearance: Scheme
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
   @AppStorage(Keys.liveTextIcon.key) private var liveTextIcons = Keys.liveTextIcon.value
+  @State private var showingFolders = false
 
   var body: some View {
     let margin = Binding {
@@ -67,7 +68,7 @@ struct SettingsView: View {
         Text("None")
       } maximumValueLabel: {
         Text("A lot")
-      }.padding(.vertical, 8)
+      }
 
       LabeledContent("Live Text:") {
         VStack(alignment: .leading) {
@@ -75,6 +76,14 @@ struct SettingsView: View {
 
           Toggle("Show icons", isOn: $liveTextIcons)
             .disabled(!liveText)
+        }
+      }
+
+      LabeledContent("Copying:") {
+        Button("Show Destinations") {
+          showingFolders = true
+        }.sheet(isPresented: $showingFolders) {
+          SettingsDestinationsView()
         }
       }
     }

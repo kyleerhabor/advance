@@ -30,3 +30,7 @@ func openFinder(for url: URL) {
 func openFinder(for urls: [URL]) {
   NSWorkspace.shared.activateFileViewerSelecting(urls)
 }
+
+func showInFinder(directory url: URL) -> Bool {
+  NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: url.path())
+}

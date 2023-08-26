@@ -26,6 +26,7 @@
 		00CE2C052A7373D90059F073 /* SequenceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00CE2C042A7373D90059F073 /* SequenceView.swift */; };
 		00E0ECC02A76A8000030A0DC /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E0ECBF2A76A8000030A0DC /* AppDelegate.swift */; };
 		00FC65412A845E67009982A1 /* SequenceDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00FC65402A845E67009982A1 /* SequenceDetailView.swift */; };
+		00FF849A2A995BBB007A4C69 /* SettingsDestinationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00FF84992A995BBB007A4C69 /* SettingsDestinationsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -54,6 +55,7 @@
 		00DC498E2A75B92000161495 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		00E0ECBF2A76A8000030A0DC /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		00FC65402A845E67009982A1 /* SequenceDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequenceDetailView.swift; sourceTree = "<group>"; };
+		00FF84992A995BBB007A4C69 /* SettingsDestinationsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsDestinationsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -75,6 +77,7 @@
 				00E0ECBF2A76A8000030A0DC /* AppDelegate.swift */,
 				00E0ECBE2A7633100030A0DC /* Scenes */,
 				00FC653F2A845E50009982A1 /* Sequence */,
+				00FF84982A995B9D007A4C69 /* Settings */,
 				00C127322A90925800B5452C /* Legos */,
 			);
 			path = Views;
@@ -170,6 +173,14 @@
 			path = Sequence;
 			sourceTree = "<group>";
 		};
+		00FF84982A995B9D007A4C69 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				00FF84992A995BBB007A4C69 /* SettingsDestinationsView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -251,6 +262,7 @@
 				00C09BBF2A789D30006EB887 /* View.swift in Sources */,
 				0008556E2A7306CB00309905 /* Standard.swift in Sources */,
 				005040402A96FCCD001C66B9 /* KeyMonitorViewModifier.swift in Sources */,
+				00FF849A2A995BBB007A4C69 /* SettingsDestinationsView.swift in Sources */,
 				007FDD492A76E1C800A1E42B /* WindowViewModifier.swift in Sources */,
 				00FC65412A845E67009982A1 /* SequenceDetailView.swift in Sources */,
 				00C127362A90CF7400B5452C /* LiveTextView.swift in Sources */,

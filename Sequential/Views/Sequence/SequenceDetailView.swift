@@ -8,8 +8,88 @@
 import OSLog
 import SwiftUI
 
-struct SequenceDetailView: View {
+struct SequenceDetailItemView: View {
   @AppStorage(Keys.margin.key) private var margins = Keys.margin.value
+  @FocusedValue(\.scrollSidebar) private var scrollSidebar
+  @State private var error: String?
+
+  let image: SeqImage
+  @Binding var selection: Set<SeqImage.ID>
+  let liveText: Bool
+  @Binding var liveTextIcon: Bool
+  @Binding var highlight: Bool
+  let folders: [URL]
+
+  var body: some View {
+    let url = image.url
+    let margin = Double(margins)
+    let error = Binding {
+      self.error != nil
+    } set: { present in
+      if !present {
+        self.error = nil
+      }
+    }
+
+    SequenceImageView(image: image) { image in
+      image.resizable().overlay {
+        if liveText {
+          LiveTextView(url: url, highlight: $highlight)
+            .supplementaryInterfaceHidden(!liveTextIcon)
+        }
+      }
+    }
+    .listRowInsets(.listRow + .init(margin * 6))
+    .listRowSeparator(.hidden)
+    .shadow(radius: margin)
+    .contextMenu {
+      Button("Show in Finder") {
+        openFinder(for: url)
+      }
+
+      Button("Show in Sidebar", systemImage: "sidebar.squares.left") {
+        selection = [image.id]
+        scrollSidebar?()
+      }
+
+      Divider()
+
+      Button("Copy", systemImage: "doc.on.doc") {
+        if !NSPasteboard.general.write(items: [url as NSURL]) {
+          Logger.ui.error("Failed to write URL \"\(url.string)\" to pasteboard")
+        }
+      }
+
+      if !folders.isEmpty {
+        Menu("Copy to Folder") {
+          ForEach(folders, id: \.self) { folder in
+            Button(folder.lastPathComponent) {
+              do {
+                try folder.scoped {
+                  do {
+                    try FileManager.default.copyItem(at: url, to: folder.appending(component: url.lastPathComponent))
+                  } catch {
+                    guard let err = error as? CocoaError,
+                          err.code == .fileWriteFileExists else {
+                      throw error
+                    }
+
+                    self.error = error.localizedDescription
+                  }
+                }
+              } catch {
+                Logger.ui.info("Failed to copy image at \"\(url.string)\" to destination \"\(folder.string)\": \(error)")
+              }
+            }
+          }
+        }
+      }
+    }.alert(self.error ?? "", isPresented: error) {}
+  }
+}
+
+struct SequenceDetailView: View {
+  @Environment(Depot.self) private var depot
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
   @AppStorage(Keys.liveTextIcon.key) private var appLiveTextIcon = Keys.liveTextIcon.value
   @SceneStorage(Keys.liveTextIcon.key) private var liveTextIcon: Bool?
@@ -20,7 +100,7 @@ struct SequenceDetailView: View {
   @Binding var selection: Set<SeqImage.ID>
 
   var body: some View {
-    let margin = Double(margins)
+    let folders = depot.destinations.compactMap(\.url)
     let liveTextIcon = Binding {
       self.liveTextIcon ?? appLiveTextIcon
     } set: { icons in
@@ -49,37 +129,14 @@ struct SequenceDetailView: View {
     // it would just go out of view and stop reporting changes. I'll likely just need to reimplement NSTableView or
     // NSCollectionView.
     List(images) { image in
-      let url = image.url
-
-      SequenceImageView(image: image) { image in
-        image.resizable().overlay {
-          if liveText {
-            LiveTextView(url: url, highlight: $highlight)
-              .supplementaryInterfaceHidden(!liveTextIcon.wrappedValue)
-          }
-        }
-      }
-      .listRowInsets(.listRow + .init(margin * 6))
-      .listRowSeparator(.hidden)
-      .shadow(radius: margin)
-      .contextMenu {
-        Button("Show in Finder") {
-          openFinder(for: url)
-        }
-
-        Button("Show in Sidebar", systemImage: "sidebar.squares.left") {
-          selection = [image.id]
-          scrollSidebar?()
-        }
-        
-        Divider()
-
-        Button("Copy", systemImage: "doc.on.doc") {
-          if !NSPasteboard.general.write(items: [url as NSURL]) {
-            Logger.ui.error("Failed to write URL \"\(url.string)\" to pasteboard")
-          }
-        }
-      }
+      SequenceDetailItemView(
+        image: image,
+        selection: $selection,
+        liveText: liveText,
+        liveTextIcon: liveTextIcon,
+        highlight: $highlight,
+        folders: folders
+      )
     }
     .listStyle(.plain)
     .toolbar {
@@ -92,6 +149,8 @@ struct SequenceDetailView: View {
       liveTextIcon.wrappedValue.toggle()
     }.onKey("t", modifiers: [.command, .shift]) {
       highlight.toggle()
+    }.onAppear {
+      depot.resolve()
     }
   }
 }

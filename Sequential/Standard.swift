@@ -24,12 +24,9 @@ extension URL {
   // represent the root directory, but we're using this in SwiftUI's .navigationDocument(_:) modifier, so it just looks
   // like a generic file.
   static let blank = Self(string: "/")!
-  static let nullDevice = Self(string: "file:/dev/null")!
 
   var string: String {
-    let absolute = self.absoluteString
-
-    return absolute.removingPercentEncoding ?? absolute
+    self.path(percentEncoded: false)
   }
 
   func scoped<T>(_ body: () throws -> T) throws -> T {
@@ -44,8 +41,8 @@ extension URL {
     return try body()
   }
 
-  func bookmark() throws -> Data {
-    try self.bookmarkData(options: [.withSecurityScope, .securityScopeAllowOnlyReadAccess])
+  func bookmark(options: Self.BookmarkCreationOptions = [.withSecurityScope, .securityScopeAllowOnlyReadAccess]) throws -> Data {
+    try self.bookmarkData(options: options)
   }
 }
 
@@ -148,5 +145,19 @@ extension UTType {
 extension Double {
   public init(_ source: Bool) {
     self.init(source ? 1 : 0)
+  }
+}
+
+struct ResolvedBookmark {
+  let url: URL
+  let stale: Bool
+}
+
+extension ResolvedBookmark {
+  init(from data: Data) throws {
+    var stale = false
+
+    self.url = try URL(resolvingBookmarkData: data, options: .withSecurityScope, bookmarkDataIsStale: &stale)
+    self.stale = stale
   }
 }
