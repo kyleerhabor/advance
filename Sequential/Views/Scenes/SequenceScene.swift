@@ -21,7 +21,16 @@ struct QuickLookFocusedValueKey: FocusedValueKey {
   typealias Value = () -> Void
 }
 
+struct SeqFocusedValueKey: FocusedValueKey {
+  typealias Value = Binding<Seq>
+}
+
 extension FocusedValues {
+  var seq: SeqFocusedValueKey.Value? {
+    get { self[SeqFocusedValueKey.self] }
+    set { self[SeqFocusedValueKey.self] = newValue }
+  }
+
   var sequenceSelection: SequenceSelectionFocusedValueKey.Value? {
     get { self[SequenceSelectionFocusedValueKey.self] }
     set { self[SequenceSelectionFocusedValueKey.self] = newValue }
@@ -38,6 +47,7 @@ struct SequenceScene: Scene {
   @Environment(\.openWindow) private var openWindow
   @AppStorage(Keys.appearance.key) private var appearance: SettingsView.Scheme
   @FocusedValue(\.quicklook) private var quicklook
+  @FocusedValue(\.seq) private var sequence
   @FocusedValue(\.sequenceSelection) private var selection
 
   var body: some Scene {
@@ -46,15 +56,12 @@ struct SequenceScene: Scene {
       //
       // This seems to not be unique to Sequential, given I've experienced it in Finder as well.
       SequenceView(sequence: $sequence)
+        .focusedSceneValue(\.seq, $sequence)
         .windowed()
     } defaultValue: {
       try! .init(urls: [])
     }
     .windowToolbarStyle(.unifiedCompact)
-    // TODO: Figure out how to add a "Go to Current Image" item.
-    //
-    // I tried this prior with a callback, but ScrollViewProxy wouldn't scroll when called.
-    //
     // FIXME: The "Enter/Exit Full Screen" option sometimes disappears.
     .commands {
       SidebarCommands()
@@ -90,14 +97,6 @@ struct SequenceScene: Scene {
       }
 
       CommandGroup(after: .sidebar) {
-//        Divider()
-//
-//        Button("Go to Current Image") {
-//
-//        }
-//        .keyboardShortcut(.currentImage)
-//        .disabled(empty)
-
         // The "Enter Full Screen" item is usually in its own space.
         Divider()
       }
@@ -134,8 +133,17 @@ struct SequenceScene: Scene {
       }
 
       do {
-        // TODO: Fill in the existing window when there are no bookmarks.
-        openWindow(value: try Seq(urls: panel.urls))
+        let seq = try Seq(urls: panel.urls)
+
+        if let sequence, sequence.bookmarks.isEmpty == true {
+          seq.bookmarks = await seq.load()
+          seq.update()
+
+          sequence.wrappedValue = seq
+        } else {
+          // TODO: Fill in the existing window when there are no bookmarks.
+          openWindow(value: seq)
+        }
       } catch {
         Logger.ui.error("\(error)")
       }

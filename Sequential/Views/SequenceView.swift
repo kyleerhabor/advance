@@ -35,40 +35,41 @@ struct SequenceImagePhaseView<Content>: View where Content: View {
   @ViewBuilder var content: (Image) -> Content
 
   var body: some View {
-    Color.tertiaryFill
-      .overlay {
-        switch phase {
-          case .success(let image):
-            content(image)
-          case .failure:
+    VStack {
+      if let image = phase.image {
+        // We can't simply overlay the view on the fill since transparent images will have it as a background.
+        content(image)
+      } else {
+        Color.tertiaryFill.overlay {
+          if phase.error == nil {
+            ProgressView().opacity(Double(elapsed))
+          } else {
             // We can't really get away with not displaying a failure view.
             Image(systemName: "exclamationmark.triangle.fill")
               .symbolRenderingMode(.multicolor)
               .imageScale(.large)
-          case .empty:
-            ProgressView().opacity(Double(elapsed))
-          @unknown default:
-            EmptyView()
+          }
         }
-      }.task {
-        guard (try? await Task.sleep(for: .seconds(1))) != nil else {
-          return
-        }
-
-        withAnimation {
-          elapsed = true
-        }
-      }.onDisappear {
-        // This is necessary to slow down the memory creep SwiftUI creates when rendering images. It does not eliminate
-        // it, but severely halts it. As an example, I have a copy of the first volume of Mysterious Girlfriend X (~700 MBs).
-        // When the window size is the default and the sidebar is open but hasn't been scrolled through, by time I reach page 24,
-        // the memory has ballooned to ~600 MBs. With this little trick, however, it rests at about ~150-200 MBs. Note
-        // that I haven't profiled the app to see if the remaining memory comes from SwiftUI or Image I/O.
-        //
-        // I'd like to change this so one or more images are preloaded before they come into view and disappear
-        // as such.
-        phase = .empty
       }
+    }.task {
+      guard (try? await Task.sleep(for: .seconds(1))) != nil else {
+        return
+      }
+
+      withAnimation {
+        elapsed = true
+      }
+    }.onDisappear {
+      // This is necessary to slow down the memory creep SwiftUI creates when rendering images. It does not eliminate
+      // it, but severely halts it. As an example, I have a copy of the first volume of Mysterious Girlfriend X (~700 MBs).
+      // When the window size is the default and the sidebar is open but hasn't been scrolled through, by time I reach page 24,
+      // the memory has ballooned to ~600 MBs. With this little trick, however, it rests at about ~150-200 MBs. Note
+      // that I haven't profiled the app to see if the remaining memory comes from SwiftUI or Image I/O.
+      //
+      // I'd like to change this so one or more images are preloaded before they come into view and disappear
+      // as such.
+      phase = .empty
+    }
   }
 }
 

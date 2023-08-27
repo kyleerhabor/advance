@@ -61,7 +61,7 @@ struct SettingsDestinationsView: View {
                 throw err
             }
           } catch {
-            Logger.ui.error("\(error)")
+            Logger.ui.error("Failed to import copy destination: \(error)")
           }
         }
       }

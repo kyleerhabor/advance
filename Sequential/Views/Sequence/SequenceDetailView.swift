@@ -140,7 +140,7 @@ struct SequenceDetailView: View {
     }
     .listStyle(.plain)
     .toolbar {
-      if liveText {
+      if liveText && !images.isEmpty {
         Toggle("Show Live Text icons", systemImage: "text.viewfinder", isOn: liveTextIcon)
       }
     }

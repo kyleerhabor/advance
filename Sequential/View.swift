@@ -31,7 +31,6 @@ extension Color {
 
 extension KeyboardShortcut {
   static let finder = Self("r")
-  static let currentImage = Self("l")
   static let open = Self("o")
   static let quicklook = Self("y")
 }
