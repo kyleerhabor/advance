@@ -306,8 +306,6 @@ struct Keys {
   // being able to right click and copy an image) and UI simplicity (having the buttons not get in the way).
   static let liveText = Item("liveText", true)
   static let liveTextIcon = Item("liveTextIcon", false)
-  // I'll probably spill this out into an Observable.
-//  static let destinations = Item("destinations", try! JSONEncoder().encode([Data]()))
 
   struct Item<Key, Value> {
     let key: Key
@@ -320,6 +318,7 @@ struct Keys {
   }
 }
 
+// This could be generalized out into use for SeqBookmark.
 struct Destination {
   var bookmark: Data
   var url: URL? = nil

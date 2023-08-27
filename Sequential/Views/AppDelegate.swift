@@ -23,14 +23,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
   }
 }
 
-func openFinder(for url: URL) {
-  openFinder(for: [url])
+func openFinder(selecting url: URL) {
+  openFinder(selecting: [url])
 }
 
-func openFinder(for urls: [URL]) {
+func openFinder(selecting urls: [URL]) {
   NSWorkspace.shared.activateFileViewerSelecting(urls)
 }
 
-func showInFinder(directory url: URL) -> Bool {
+func openFinder(in url: URL) -> Bool {
   NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: url.path())
 }

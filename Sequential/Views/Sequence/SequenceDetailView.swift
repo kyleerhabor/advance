@@ -44,7 +44,7 @@ struct SequenceDetailItemView: View {
     .shadow(radius: margin)
     .contextMenu {
       Button("Show in Finder") {
-        openFinder(for: url)
+        openFinder(selecting: url)
       }
 
       Button("Show in Sidebar", systemImage: "sidebar.squares.left") {

@@ -96,7 +96,7 @@ struct SequenceSidebarContentView: View {
   }
 
   func open(_ ids: Set<SeqImage.ID>) {
-    openFinder(for: sequence.urls(from: ids))
+    openFinder(selecting: sequence.urls(from: ids))
   }
 
   func quicklook(_ ids: Set<SeqImage.ID>) {

@@ -15,8 +15,6 @@ struct SettingsDestinationsView: View {
 
   var body: some View {
     // I can't get selection working on this, for some reason.
-    //
-    // TODO: Display something when there are no items.
     List(depot.destinations.compactMap(\.url), id: \.self) { url in
       Link(destination: url) {
         Label {
@@ -69,10 +67,12 @@ struct SettingsDestinationsView: View {
       }
     }.environment(\.openURL, .init { url in
       do {
-        try url.scoped {
-          if !showInFinder(directory: url) {
-            openFinder(for: url)
-          }
+        // Surprisingly, scoping the URL is required for opening the actual folder in Finder (and not just selecting it
+        // in its parent directory).
+        let opened = try url.scoped { openFinder(in: url) }
+
+        if !opened {
+          openFinder(selecting: url)
         }
       } catch {
         Logger.ui.error("\(error)")

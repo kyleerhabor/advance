@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		000855692A72FE2C00309905 /* SequentialApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000855682A72FE2C00309905 /* SequentialApp.swift */; };
 		0008556E2A7306CB00309905 /* Standard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0008556D2A7306CB00309905 /* Standard.swift */; };
+		000B78B92A9BC16C00573895 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 000B78B82A9BBF2400573895 /* PrivacyInfo.xcprivacy */; };
 		001483392A86D4C50040E5CB /* SequenceSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001483382A86D4C50040E5CB /* SequenceSidebarView.swift */; };
 		001CB5202A718D4200DBB6FA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 001CB51F2A718D4200DBB6FA /* Assets.xcassets */; };
 		001D8D0E2A74AC5400B58790 /* Model.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001D8D0D2A74AC5400B58790 /* Model.swift */; };
@@ -32,6 +33,7 @@
 /* Begin PBXFileReference section */
 		000855682A72FE2C00309905 /* SequentialApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequentialApp.swift; sourceTree = "<group>"; };
 		0008556D2A7306CB00309905 /* Standard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Standard.swift; sourceTree = "<group>"; };
+		000B78B82A9BBF2400573895 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = file; name = PrivacyInfo.xcprivacy; path = Sequential/PrivacyInfo.xcprivacy; sourceTree = SOURCE_ROOT; };
 		001483382A86D4C50040E5CB /* SequenceSidebarView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SequenceSidebarView.swift; sourceTree = "<group>"; };
 		001CB5182A718D3C00DBB6FA /* Sequential.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Sequential.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		001CB51F2A718D4200DBB6FA /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -123,6 +125,7 @@
 				00DC498E2A75B92000161495 /* Info.plist */,
 				001CB51F2A718D4200DBB6FA /* Assets.xcassets */,
 				001CB5242A718D4200DBB6FA /* Sequential.entitlements */,
+				000B78B82A9BBF2400573895 /* PrivacyInfo.xcprivacy */,
 			);
 			path = Sequential;
 			sourceTree = "<group>";
@@ -244,6 +247,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				000B78B92A9BC16C00573895 /* PrivacyInfo.xcprivacy in Resources */,
 				001CB5202A718D4200DBB6FA /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -32,18 +32,19 @@ struct DisplayImageView<Content>: View where Content: View {
         }.onReceive(sizePublisher) { size in
           self.size = size
         }.task(id: size) {
-          // FIXME: Importing images from the sidebar causes the first image to not load (this doesn't seem to be called).
-          //
+          // Using `size` may result in the first image in the main canvas not being loaded.
+          var size = proxy.size
+
           // FIXME: This is a hack to prevent immediate failing.
           //
-          // For some reason, the initial call gets a frame size of zero, and then immediately updates with the proper
-          // value. This isn't caused by the default state value of `size` being zero, however. This task is, straight
-          // up, just called when there is presumably no frame to present the view.
+          // For some reason, this closure is sometimes called when there is presumably no space to render it. It gets
+          // a frame size of zero and may immediately update later to reflect a real value. The issue is, in some
+          // instances, this can result in the user seeing the failure icon for a brief moment.
           guard size != .zero else {
             return
           }
 
-          let size = CGSize(
+          size = CGSize(
             width: size.width / pixel,
             height: size.height / pixel
           )

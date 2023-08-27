@@ -20,11 +20,6 @@ extension Logger {
 }
 
 extension URL {
-  // "/", without a scheme, doesn't represent anything, in of itself. In the context of a file system, it does
-  // represent the root directory, but we're using this in SwiftUI's .navigationDocument(_:) modifier, so it just looks
-  // like a generic file.
-  static let blank = Self(string: "/")!
-
   var string: String {
     self.path(percentEncoded: false)
   }

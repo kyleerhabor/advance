@@ -75,7 +75,7 @@ struct SequenceScene: Scene {
             return
           }
 
-          openFinder(for: urls)
+          openFinder(selecting: urls)
         }
         .keyboardShortcut(.finder)
         .disabled(!enabled)
