@@ -250,7 +250,7 @@ class Seq: Codable {
   }
 
   func urls(from ids: Set<SeqImage.ID>) -> [URL] {
-    images.filter { ids.contains($0.id) }.map(\.url)
+    images.filter(in: ids, by: \.id).map(\.url)
   }
 
   func encode(to encoder: Encoder) throws {
@@ -346,6 +346,9 @@ extension Destination {
 @Observable
 class Depot {
   var destinations: [Destination]
+  var urls: [URL] {
+    destinations.compactMap(\.url)
+  }
 
   init() {
     let bookmarks = UserDefaults.standard.array(forKey: "destinations") as? [Data] ?? []
@@ -370,4 +373,8 @@ class Depot {
   func store() {
     UserDefaults.standard.set(destinations.map(\.bookmark), forKey: "destinations")
   }
+}
+
+enum ExecutionError: Error {
+  case interrupt
 }

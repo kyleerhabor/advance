@@ -10,7 +10,6 @@ import SwiftUI
 
 struct SequenceDetailItemView: View {
   @AppStorage(Keys.margin.key) private var margins = Keys.margin.value
-  @FocusedValue(\.scrollSidebar) private var scrollSidebar
   @State private var error: String?
 
   let image: SeqImage
@@ -18,7 +17,8 @@ struct SequenceDetailItemView: View {
   let liveText: Bool
   @Binding var liveTextIcon: Bool
   @Binding var highlight: Bool
-  let folders: [URL]
+  let copyDestinations: [URL]
+  let scrollSidebar: () -> Void
 
   var body: some View {
     let url = image.url
@@ -49,7 +49,7 @@ struct SequenceDetailItemView: View {
 
       Button("Show in Sidebar", systemImage: "sidebar.squares.left") {
         selection = [image.id]
-        scrollSidebar?()
+        scrollSidebar()
       }
 
       Divider()
@@ -60,27 +60,23 @@ struct SequenceDetailItemView: View {
         }
       }
 
-      if !folders.isEmpty {
-        Menu("Copy to Folder") {
-          ForEach(folders, id: \.self) { folder in
-            Button(folder.lastPathComponent) {
+      if !copyDestinations.isEmpty {
+        SequenceCopyDestinationView(destinations: copyDestinations) { destination in
+          do {
+            try destination.scoped {
               do {
-                try folder.scoped {
-                  do {
-                    try FileManager.default.copyItem(at: url, to: folder.appending(component: url.lastPathComponent))
-                  } catch {
-                    guard let err = error as? CocoaError,
-                          err.code == .fileWriteFileExists else {
-                      throw error
-                    }
-
-                    self.error = error.localizedDescription
-                  }
-                }
+                try FileManager.default.copyItem(at: url, to: destination.appending(component: url.lastPathComponent))
               } catch {
-                Logger.ui.info("Failed to copy image at \"\(url.string)\" to destination \"\(folder.string)\": \(error)")
+                guard let err = error as? CocoaError,
+                      err.code == .fileWriteFileExists else {
+                  throw error
+                }
+
+                self.error = error.localizedDescription
               }
             }
+          } catch {
+            Logger.ui.info("Failed to copy image at \"\(url.string)\" to destination \"\(destination.string)\": \(error)")
           }
         }
       }
@@ -93,14 +89,14 @@ struct SequenceDetailView: View {
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
   @AppStorage(Keys.liveTextIcon.key) private var appLiveTextIcon = Keys.liveTextIcon.value
   @SceneStorage(Keys.liveTextIcon.key) private var liveTextIcon: Bool?
-  @FocusedValue(\.scrollSidebar) private var scrollSidebar
   @State private var highlight = false
 
   let images: [SeqImage]
   @Binding var selection: Set<SeqImage.ID>
+  let scrollSidebar: () -> Void
 
   var body: some View {
-    let folders = depot.destinations.compactMap(\.url)
+    let folders = depot.urls
     let liveTextIcon = Binding {
       self.liveTextIcon ?? appLiveTextIcon
     } set: { icons in
@@ -135,7 +131,8 @@ struct SequenceDetailView: View {
         liveText: liveText,
         liveTextIcon: liveTextIcon,
         highlight: $highlight,
-        folders: folders
+        copyDestinations: folders,
+        scrollSidebar: scrollSidebar
       )
     }
     .listStyle(.plain)
@@ -158,6 +155,7 @@ struct SequenceDetailView: View {
 #Preview {
   SequenceDetailView(
     images: [],
-    selection: .constant([])
+    selection: .constant([]),
+    scrollSidebar: {}
   )
 }

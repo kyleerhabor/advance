@@ -35,41 +35,43 @@ struct SequenceImagePhaseView<Content>: View where Content: View {
   @ViewBuilder var content: (Image) -> Content
 
   var body: some View {
-    VStack {
-      if let image = phase.image {
-        // We can't simply overlay the view on the fill since transparent images will have it as a background.
-        content(image)
-      } else {
-        Color.tertiaryFill.overlay {
-          if phase.error == nil {
-            ProgressView().opacity(Double(elapsed))
-          } else {
-            // We can't really get away with not displaying a failure view.
-            Image(systemName: "exclamationmark.triangle.fill")
-              .symbolRenderingMode(.multicolor)
-              .imageScale(.large)
-          }
+    // For transparent images, the fill is still useful to know that an image is supposed to be in the frame, but when
+    // the view's image has been cleared (see the .onDisappear), it's kind of weird to see the fill again. Maybe try
+    // and determine if the image is transparent and, if so, only display the fill on its first appearance? This would
+    // kind of be weird for collections that mix transparent and non-transparent images, however (since there's no
+    // clear separator).
+    Color.tertiaryFill
+      .opacity(Double(phase.image == nil))
+      .overlay {
+        if let image = phase.image {
+          content(image)
+        } else if case .failure = phase {
+          // We can't really get away with not displaying a failure view.
+          Image(systemName: "exclamationmark.triangle.fill")
+            .symbolRenderingMode(.multicolor)
+            .imageScale(.large)
+        } else {
+          ProgressView().opacity(Double(elapsed))
         }
-      }
-    }.task {
-      guard (try? await Task.sleep(for: .seconds(1))) != nil else {
-        return
-      }
+      }.task {
+        guard (try? await Task.sleep(for: .seconds(1))) != nil else {
+          return
+        }
 
-      withAnimation {
-        elapsed = true
+        withAnimation {
+          elapsed = true
+        }
+      }.onDisappear {
+        // This is necessary to slow down the memory creep SwiftUI creates when rendering images. It does not eliminate
+        // it, but severely halts it. As an example, I have a copy of the first volume of Mysterious Girlfriend X (~700 MBs).
+        // When the window size is the default and the sidebar is open but hasn't been scrolled through, by time I reach page 24,
+        // the memory has ballooned to ~600 MBs. With this little trick, however, it rests at about ~150-200 MBs. Note
+        // that I haven't profiled the app to see if the remaining memory comes from SwiftUI or Image I/O.
+        //
+        // I'd like to change this so one or more images are preloaded before they come into view and disappear
+        // as such.
+        phase = .empty
       }
-    }.onDisappear {
-      // This is necessary to slow down the memory creep SwiftUI creates when rendering images. It does not eliminate
-      // it, but severely halts it. As an example, I have a copy of the first volume of Mysterious Girlfriend X (~700 MBs).
-      // When the window size is the default and the sidebar is open but hasn't been scrolled through, by time I reach page 24,
-      // the memory has ballooned to ~600 MBs. With this little trick, however, it rests at about ~150-200 MBs. Note
-      // that I haven't profiled the app to see if the remaining memory comes from SwiftUI or Image I/O.
-      //
-      // I'd like to change this so one or more images are preloaded before they come into view and disappear
-      // as such.
-      phase = .empty
-    }
   }
 }
 
@@ -87,7 +89,7 @@ struct SequenceImageView<Content>: View where Content: View {
     .aspectRatio(image.size.aspectRatio(), contentMode: .fit)
     .onAppear {
       if !url.startAccessingSecurityScopedResource() {
-        Logger.ui.error("Could not access security scoped resource for \"\(url)\"")
+        Logger.ui.error("Could not access security scoped resource for \"\(url.string)\"")
       }
     }.onDisappear {
       url.stopAccessingSecurityScopedResource()
@@ -107,6 +109,7 @@ struct SequenceView: View {
   @Environment(\.fullScreen) private var fullScreen
   @Environment(\.window) private var window
   @SceneStorage(Keys.sidebar.key) private var columns = Keys.sidebar.value
+  @FocusedValue(\.scrollSidebar) private var scrollSidebar
   // Embedding this in SequenceSidebarContentView causes a crash from the underlying AppKit, for some reason.
   @FocusedValue(\.scrollDetail) private var scrollDetail
   @State private var selection = Set<SeqImage.ID>()
@@ -154,12 +157,13 @@ struct SequenceView: View {
       }.navigationSplitViewColumnWidth(min: 128, ideal: 192, max: 256)
     } detail: {
       ScrollViewReader { scroller in
-        SequenceDetailView(images: sequence.images, selection: $selection)
+        SequenceDetailView(images: sequence.images, selection: $selection, scrollSidebar: scrollSidebar ?? noop)
           .focusedSceneValue(\.scrollDetail) { [selection] in
             guard let id = last(in: self.selection.subtracting(selection)) else {
               return
             }
 
+            // For some reason, this animation is very jagged. It wasn't always this way, which is interesting.
             withAnimation {
               scroller.scrollTo(id, anchor: .top)
             }
@@ -168,7 +172,7 @@ struct SequenceView: View {
     }.inspector(isPresented: $inspecting) {
       let images = selection.isEmpty
         ? sequence.images
-        : sequence.images.filter { selection.contains($0.id) }
+        : sequence.images.filter(in: selection, by: \.id)
 
       VStack {
         if !images.isEmpty {
@@ -213,8 +217,6 @@ struct SequenceView: View {
   }
 
   func last(in set: Set<SeqImage.ID>) -> SeqImage.ID? {
-    let result = sequence.images.filter { set.contains($0.id) }
-
-    return result.last?.id
+    sequence.images.filter(in: set, by: \.id).last?.id
   }
 }

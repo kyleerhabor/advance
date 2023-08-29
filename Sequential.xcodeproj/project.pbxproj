@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		000855692A72FE2C00309905 /* SequentialApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000855682A72FE2C00309905 /* SequentialApp.swift */; };
 		0008556E2A7306CB00309905 /* Standard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0008556D2A7306CB00309905 /* Standard.swift */; };
+		0009F1CC2A9D924A00BE51E3 /* SequenceCopyDestinationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0009F1CB2A9D924A00BE51E3 /* SequenceCopyDestinationView.swift */; };
 		000B78B92A9BC16C00573895 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 000B78B82A9BBF2400573895 /* PrivacyInfo.xcprivacy */; };
 		001483392A86D4C50040E5CB /* SequenceSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001483382A86D4C50040E5CB /* SequenceSidebarView.swift */; };
 		001CB5202A718D4200DBB6FA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 001CB51F2A718D4200DBB6FA /* Assets.xcassets */; };
@@ -33,7 +34,8 @@
 /* Begin PBXFileReference section */
 		000855682A72FE2C00309905 /* SequentialApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequentialApp.swift; sourceTree = "<group>"; };
 		0008556D2A7306CB00309905 /* Standard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Standard.swift; sourceTree = "<group>"; };
-		000B78B82A9BBF2400573895 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = file; name = PrivacyInfo.xcprivacy; path = Sequential/PrivacyInfo.xcprivacy; sourceTree = SOURCE_ROOT; };
+		0009F1CB2A9D924A00BE51E3 /* SequenceCopyDestinationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequenceCopyDestinationView.swift; sourceTree = "<group>"; };
+		000B78B82A9BBF2400573895 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = Sequential/PrivacyInfo.xcprivacy; sourceTree = SOURCE_ROOT; };
 		001483382A86D4C50040E5CB /* SequenceSidebarView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SequenceSidebarView.swift; sourceTree = "<group>"; };
 		001CB5182A718D3C00DBB6FA /* Sequential.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Sequential.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		001CB51F2A718D4200DBB6FA /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -171,6 +173,7 @@
 				00FC65402A845E67009982A1 /* SequenceDetailView.swift */,
 				008C3CE72A952E7A00119707 /* SequenceInspectorView.swift */,
 				001483382A86D4C50040E5CB /* SequenceSidebarView.swift */,
+				0009F1CB2A9D924A00BE51E3 /* SequenceCopyDestinationView.swift */,
 				000A43BE2A885E99001DAC0A /* Sidebar */,
 			);
 			path = Sequence;
@@ -270,6 +273,7 @@
 				007FDD492A76E1C800A1E42B /* WindowViewModifier.swift in Sources */,
 				00FC65412A845E67009982A1 /* SequenceDetailView.swift in Sources */,
 				00C127362A90CF7400B5452C /* LiveTextView.swift in Sources */,
+				0009F1CC2A9D924A00BE51E3 /* SequenceCopyDestinationView.swift in Sources */,
 				00CE2C052A7373D90059F073 /* SequenceView.swift in Sources */,
 				00E0ECC02A76A8000030A0DC /* AppDelegate.swift in Sources */,
 				000855692A72FE2C00309905 /* SequentialApp.swift in Sources */,

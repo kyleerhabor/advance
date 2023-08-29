@@ -94,6 +94,10 @@ extension Sequence {
       return true
     }
   }
+
+  func filter<T>(in set: Set<T>, by value: (Element) -> T) -> [Element] {
+    self.filter { set.contains(value($0)) }
+  }
 }
 
 extension CGSize {

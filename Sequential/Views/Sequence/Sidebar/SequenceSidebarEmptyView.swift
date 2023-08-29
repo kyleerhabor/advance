@@ -42,7 +42,10 @@ struct SequenceSidebarEmptyView: View {
           }
         case .failure(let err): Logger.ui.error("Could not import images from sidebar: \(err)")
       }
-    }.dropDestination(for: URL.self) { urls, _ in
+    }
+    // This doesn't seem to work for temporary images dropped on to the app (e.g. after taking a screenshot).
+    // Interestingly, it seems to work for SequenceSidebarContentView.
+    .dropDestination(for: URL.self) { urls, _ in
       Task {
         sequence.store(
           bookmarks: await sequence.insert(urls, scoped: false),

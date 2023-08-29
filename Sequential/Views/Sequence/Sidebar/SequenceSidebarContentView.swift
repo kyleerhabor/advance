@@ -10,21 +10,31 @@ import QuickLook
 import SwiftUI
 
 struct SequenceSidebarContentView: View {
+  @Environment(Depot.self) private var depot
   @Environment(\.fullScreen) private var fullScreen
   @State private var preview = [URL]()
   @State private var previewItem: URL?
+  @State private var error: String?
 
   let sequence: Seq
   @Binding var selection: Set<SeqImage.ID>
   let scrollDetail: () -> Void
 
   var body: some View {
+    let copyDestinations = depot.urls
     let selection = Binding {
       self.selection
     } set: { selection in
       self.selection = selection
 
       scrollDetail()
+    }
+    let error = Binding {
+      self.error != nil
+    } set: { present in
+      if !present {
+        self.error = nil
+      }
     }
 
     // There's an uncomfortable amount of padding missing from the top when in full screen mode. If I try to add an
@@ -75,18 +85,50 @@ struct SequenceSidebarContentView: View {
 
       let amount = ids.count
 
-      if amount != 0 {
-        Button(amount == 1 ? "Copy" : "Copy \(amount) Images", systemImage: "doc.on.doc") {
+      Button(amount == 1 ? "Copy" : "Copy \(amount) Images", systemImage: "doc.on.doc") {
+        let urls = sequence.urls(from: ids)
+
+        if !NSPasteboard.general.write(items: urls as [NSURL]) {
+          Logger.ui.error("Failed to write URLs to pasteboard: \(urls.map(\.string))")
+        }
+      }
+
+      if !copyDestinations.isEmpty {
+        SequenceCopyDestinationView(destinations: copyDestinations) { destination in
           let urls = sequence.urls(from: ids)
-          
-          if !NSPasteboard.general.write(items: urls as [NSURL]) {
-            Logger.ui.error("Failed to write URLs to pasteboard: \(urls.map(\.string))")
+
+          do {
+            // Oh god.
+            try destination.scoped {
+              try urls.forEach { url in
+                try url.scoped {
+                  do {
+                    // I doubt this batch file copying could be atomic.
+                    try FileManager.default.copyItem(at: url, to: destination.appending(component: url.lastPathComponent))
+                  } catch {
+                    guard let err = error as? CocoaError, err.code == .fileWriteFileExists else {
+                      throw error
+                    }
+
+                    self.error = error.localizedDescription
+
+                    throw ExecutionError.interrupt
+                  }
+                }
+              }
+            }
+          } catch {
+            if let err = error as? ExecutionError, err == .interrupt {
+              return
+            }
+
+            Logger.ui.error("Failed to copy all images in \(urls.map(\.string)) to destination \"\(destination.string)\": \(error)")
           }
         }
       }
-    } primaryAction: { ids in
-      open(ids)
-    }.focusedSceneValue(\.quicklook) {
+    }
+    .alert(self.error ?? "", isPresented: error) {}
+    .focusedSceneValue(\.quicklook) {
       if previewItem == nil {
         quicklook(self.selection)
       } else {

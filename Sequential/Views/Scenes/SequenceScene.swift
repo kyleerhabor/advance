@@ -135,6 +135,7 @@ struct SequenceScene: Scene {
       do {
         let seq = try Seq(urls: panel.urls)
 
+        // We could really do better than this...
         if let sequence, sequence.bookmarks.isEmpty == true {
           seq.bookmarks = await seq.load()
           seq.update()

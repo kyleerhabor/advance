@@ -15,7 +15,7 @@ struct SettingsDestinationsView: View {
 
   var body: some View {
     // I can't get selection working on this, for some reason.
-    List(depot.destinations.compactMap(\.url), id: \.self) { url in
+    List(depot.urls, id: \.self) { url in
       Link(destination: url) {
         Label {
           Text(url.lastPathComponent)
