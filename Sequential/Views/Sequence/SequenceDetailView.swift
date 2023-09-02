@@ -85,7 +85,7 @@ struct SequenceDetailItemView: View {
 }
 
 struct SequenceDetailView: View {
-  @Environment(Depot.self) private var depot
+  @Environment(CopyDepot.self) private var copyDepot
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
   @AppStorage(Keys.liveTextIcon.key) private var appLiveTextIcon = Keys.liveTextIcon.value
   @SceneStorage(Keys.liveTextIcon.key) private var liveTextIcon: Bool?
@@ -96,7 +96,6 @@ struct SequenceDetailView: View {
   let scrollSidebar: () -> Void
 
   var body: some View {
-    let folders = depot.urls
     let liveTextIcon = Binding {
       self.liveTextIcon ?? appLiveTextIcon
     } set: { icons in
@@ -131,7 +130,7 @@ struct SequenceDetailView: View {
         liveText: liveText,
         liveTextIcon: liveTextIcon,
         highlight: $highlight,
-        copyDestinations: folders,
+        copyDestinations: copyDepot.resolved,
         scrollSidebar: scrollSidebar
       )
     }
@@ -147,7 +146,7 @@ struct SequenceDetailView: View {
     }.onKey("t", modifiers: [.command, .shift]) {
       highlight.toggle()
     }.onAppear {
-      depot.resolve()
+      copyDepot.resolve()
     }
   }
 }

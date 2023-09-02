@@ -10,7 +10,7 @@ import QuickLook
 import SwiftUI
 
 struct SequenceSidebarContentView: View {
-  @Environment(Depot.self) private var depot
+  @Environment(CopyDepot.self) private var copyDepot
   @Environment(\.fullScreen) private var fullScreen
   @State private var preview = [URL]()
   @State private var previewItem: URL?
@@ -21,7 +21,6 @@ struct SequenceSidebarContentView: View {
   let scrollDetail: () -> Void
 
   var body: some View {
-    let copyDestinations = depot.urls
     let selection = Binding {
       self.selection
     } set: { selection in
@@ -93,8 +92,10 @@ struct SequenceSidebarContentView: View {
         }
       }
 
-      if !copyDestinations.isEmpty {
-        SequenceCopyDestinationView(destinations: copyDestinations) { destination in
+      let resolved = copyDepot.resolved
+
+      if !resolved.isEmpty {
+        SequenceCopyDestinationView(destinations: resolved) { destination in
           let urls = sequence.urls(from: ids)
 
           do {
@@ -134,6 +135,8 @@ struct SequenceSidebarContentView: View {
       } else {
         previewItem = nil
       }
+    }.onAppear {
+      copyDepot.resolve()
     }
   }
 

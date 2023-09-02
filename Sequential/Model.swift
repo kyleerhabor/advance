@@ -318,63 +318,6 @@ struct Keys {
   }
 }
 
-// This could be generalized out into use for SeqBookmark.
-struct Destination {
-  var bookmark: Data
-  var url: URL? = nil
-
-  func resolve() throws -> Self {
-    var data = bookmark
-    var resolved = try ResolvedBookmark(from: bookmark)
-
-    if resolved.stale {
-      let url = resolved.url
-      data = try url.scoped { try url.bookmark(options: .withSecurityScope) }
-      resolved = try ResolvedBookmark(from: bookmark)
-    }
-
-    return .init(bookmark: data, url: resolved.url)
-  }
-}
-
-extension Destination {
-  init(bookmark: Data) {
-    self.bookmark = bookmark
-  }
-}
-
-@Observable
-class Depot {
-  var destinations: [Destination]
-  var urls: [URL] {
-    destinations.compactMap(\.url)
-  }
-
-  init() {
-    let bookmarks = UserDefaults.standard.array(forKey: "destinations") as? [Data] ?? []
-
-    self.destinations = bookmarks.map { bookmark in
-      .init(bookmark: bookmark)
-    }
-  }
-
-  func resolve() {
-    destinations = destinations.map { dest in
-      do {
-        return try dest.resolve()
-      } catch {
-        Logger.ui.error("\(error)")
-
-        return dest
-      }
-    }
-  }
-
-  func store() {
-    UserDefaults.standard.set(destinations.map(\.bookmark), forKey: "destinations")
-  }
-}
-
 enum ExecutionError: Error {
   case interrupt
 }
