@@ -32,5 +32,13 @@ func openFinder(selecting urls: [URL]) {
 }
 
 func openFinder(in url: URL) -> Bool {
-  NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: url.path())
+  NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: url.string)
+}
+
+func openFinder(at url: URL) {
+  if !openFinder(in: url) {
+    Logger.ui.info("Failed to open Finder in folder \"\(url.string)\". Fallbacking to selection...")
+
+    openFinder(selecting: url)
+  }
 }

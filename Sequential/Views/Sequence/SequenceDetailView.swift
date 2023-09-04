@@ -13,12 +13,11 @@ struct SequenceDetailItemView: View {
   @State private var error: String?
 
   let image: SeqImage
-  @Binding var selection: Set<SeqImage.ID>
   let liveText: Bool
-  @Binding var liveTextIcon: Bool
+  var liveTextIcon: Bool
   @Binding var highlight: Bool
-  let copyDestinations: [URL]
-  let scrollSidebar: () -> Void
+  let copyDestinations: [CopyDepotURL]
+  let scroll: (SeqImage.ID) -> Void
 
   var body: some View {
     let url = image.url
@@ -48,8 +47,7 @@ struct SequenceDetailItemView: View {
       }
 
       Button("Show in Sidebar", systemImage: "sidebar.squares.left") {
-        selection = [image.id]
-        scrollSidebar()
+        scroll(image.id)
       }
 
       Divider()
@@ -123,16 +121,19 @@ struct SequenceDetailView: View {
     // it to not take up space and mess with the ForEach items. I also tried applying it only to the first element, but
     // it would just go out of view and stop reporting changes. I'll likely just need to reimplement NSTableView or
     // NSCollectionView.
+    //
+    // FIXME: Leaving Sequential, switching back, and immediately trying to scroll may result in unstable positioning.
     List(images) { image in
       SequenceDetailItemView(
         image: image,
-        selection: $selection,
         liveText: liveText,
-        liveTextIcon: liveTextIcon,
+        liveTextIcon: liveTextIcon.wrappedValue,
         highlight: $highlight,
-        copyDestinations: copyDepot.resolved,
-        scrollSidebar: scrollSidebar
-      )
+        copyDestinations: copyDepot.resolved
+      ) { id in
+        selection = [id]
+        scrollSidebar()
+      }
     }
     .listStyle(.plain)
     .toolbar {

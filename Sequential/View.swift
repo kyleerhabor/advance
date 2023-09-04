@@ -27,8 +27,9 @@ extension EdgeInsets {
 }
 
 extension Color {
-  static let tertiaryFill = Self(nsColor: .tertiarySystemFill)
   static let secondaryFill = Self(nsColor: .secondarySystemFill)
+  static let tertiaryLabel = Self(nsColor: .tertiaryLabelColor)
+  static let tertiaryFill = Self(nsColor: .tertiarySystemFill)
 }
 
 extension KeyboardShortcut {

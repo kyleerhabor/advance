@@ -26,6 +26,7 @@ struct SequenceSidebarContentView: View {
     } set: { selection in
       self.selection = selection
 
+      // FIXME: Scrolling re-evaluates the SwiftUI view hierarchy in SequenceDetailView.
       scrollDetail()
     }
     let error = Binding {

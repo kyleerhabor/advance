@@ -9,7 +9,7 @@ import OSLog
 import SwiftUI
 
 struct SequenceCopyDestinationView: View {
-  let destinations: [URL]
+  let destinations: [CopyDepotURL]
   let action: (URL) -> Void
 
   var body: some View {
@@ -17,14 +17,16 @@ struct SequenceCopyDestinationView: View {
     //
     // I haven't been able to get permission to write to the folder, for some reason.
     Menu("Copy to Folder") {
-      ForEach(destinations, id: \.self) { destination in
-        Button(destination.lastPathComponent) {
+      ForEach(destinations, id: \.url) { destination in
+        Button {
           // TODO: Support replacing.
           //
           // See the above TODO.
           //
           // TODO: Extract the duplicated alert.
-          action(destination)
+          action(destination.url)
+        } label: {
+          Text(destination.path)
         }
       }
     }

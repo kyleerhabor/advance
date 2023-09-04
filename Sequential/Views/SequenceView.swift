@@ -143,10 +143,9 @@ struct SequenceView: View {
     NavigationSplitView(columnVisibility: $columns) {
       ScrollViewReader { scroller in
         SequenceSidebarView(sequence: sequence, selection: $selection, scrollDetail: scrollDetail ?? noop)
-          .focusedSceneValue(\.scrollSidebar) { [selection] in
-            guard let id = last(in: self.selection.subtracting(selection)) else {
-              return
-            }
+          .focusedSceneValue(\.scrollSidebar) {
+            // The only place we're calling this is in SequenceDetailItemView with a single item.
+            let id = self.selection.first!
 
             withAnimation {
               columns = .all
@@ -159,7 +158,10 @@ struct SequenceView: View {
       ScrollViewReader { scroller in
         SequenceDetailView(images: sequence.images, selection: $selection, scrollSidebar: scrollSidebar ?? noop)
           .focusedSceneValue(\.scrollDetail) { [selection] in
-            guard let id = last(in: self.selection.subtracting(selection)) else {
+            guard let id = sequence.images.filter(
+              in: self.selection.subtracting(selection),
+              by: \.id
+            ).last?.id else {
               return
             }
 
@@ -214,9 +216,5 @@ struct SequenceView: View {
       enabled: columns == .all && !selection.isEmpty,
       resolve: { sequence.urls(from: selection) }
     )
-  }
-
-  func last(in set: Set<SeqImage.ID>) -> SeqImage.ID? {
-    sequence.images.filter(in: set, by: \.id).last?.id
   }
 }
