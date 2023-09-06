@@ -11,7 +11,6 @@ import SwiftUI
 
 struct SequenceSidebarContentView: View {
   @Environment(CopyDepot.self) private var copyDepot
-  @Environment(\.fullScreen) private var fullScreen
   @State private var preview = [URL]()
   @State private var previewItem: URL?
   @State private var error: String?

@@ -17,6 +17,8 @@ struct KeyMonitorViewModifier: ViewModifier {
   func body(content: Content) -> some View {
     content
       .onAppear {
+        print("[Appearance] Creating monitor!")
+
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
           // Returning `event` symbolizes that the event was not handled, producing the "unknown command" sound people hear.
           // Returning `nil` does the opposite.
@@ -31,9 +33,13 @@ struct KeyMonitorViewModifier: ViewModifier {
             body()
           }
 
-          return nil
+          // This should return nil, but if the user has multiple windows, it'll only be reflected in the oldest window.
+          // Since it doesn't, the user hears the "unknown command" sound, which is not ideal.
+          return event
         }
       }.onDisappear {
+        print("[Appearance] Releasing monitor!")
+
         guard let monitor else {
           return
         }

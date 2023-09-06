@@ -7,6 +7,11 @@
 
 import SwiftUI
 
+@Observable
+class Window {
+  weak var window: NSWindow?
+}
+
 struct WindowEnvironmentKey: EnvironmentKey {
   static var defaultValue: NSWindow?
 }
@@ -37,9 +42,9 @@ extension EnvironmentValues {
 }
 
 class AppearanceView: NSView {
-  @Binding var win: NSWindow?
+  @Bindable var win: Window
 
-  init(window: Binding<NSWindow?>) {
+  init(window: Bindable<Window>) {
     self._win = window
 
     super.init(frame: .zero)
@@ -48,48 +53,45 @@ class AppearanceView: NSView {
   required init?(coder: NSCoder) {
     fatalError("init(coder:) has not been implemented")
   }
-  
+
   override func viewDidMoveToWindow() {
     super.viewDidMoveToWindow()
 
-    win = self.window
+    win.window = self.window
   }
 }
 
-// https://stackoverflow.com/a/65401530/14695788
-struct WindowView: NSViewRepresentable {
-  @Binding var window: NSWindow?
+struct WindowCaptureView: NSViewRepresentable {
+  @Bindable var window: Window
 
-  typealias NSViewType = AppearanceView
-
-  func makeNSView(context: Context) -> NSViewType {
+  func makeNSView(context: Context) -> AppearanceView {
     .init(window: $window)
   }
 
-  func updateNSView(_ nsView: NSViewType, context: Context) {}
+  func updateNSView(_ nsView: AppearanceView, context: Context) {}
 }
 
 struct WindowViewModifier: ViewModifier {
-  @State private var window: NSWindow?
+  @State private var window = Window()
 
   func body(content: Content) -> some View {
     content
-      .environment(\.window, window)
+      .environment(window)
       .background {
-        WindowView(window: $window)
+        WindowCaptureView(window: window)
       }
   }
 }
 
 struct WindowFullScreenViewModifier: ViewModifier {
-  @Environment(\.window) private var window
+  @Environment(Window.self) private var window
   @State private var fullScreen: Bool?
 
   func body(content: Content) -> some View {
     content
       .environment(\.fullScreen, fullScreen)
-      .onChange(of: window) {
-        fullScreen = window?.isFullScreened()
+      .onChange(of: window.window == nil) {
+        fullScreen = window.window?.isFullScreened()
       }.onReceive(NotificationCenter.default.publisher(for: NSWindow.willEnterFullScreenNotification)) { notification in
         guard isCurrentWindow(notification) else {
           return
@@ -108,7 +110,7 @@ struct WindowFullScreenViewModifier: ViewModifier {
   func isCurrentWindow(_ notification: Notification) -> Bool {
     let window = notification.object as! NSWindow
 
-    return window == self.window
+    return window == self.window.window
   }
 }
 

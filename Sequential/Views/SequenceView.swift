@@ -61,16 +61,6 @@ struct SequenceImagePhaseView<Content>: View where Content: View {
         withAnimation {
           elapsed = true
         }
-      }.onDisappear {
-        // This is necessary to slow down the memory creep SwiftUI creates when rendering images. It does not eliminate
-        // it, but severely halts it. As an example, I have a copy of the first volume of Mysterious Girlfriend X (~700 MBs).
-        // When the window size is the default and the sidebar is open but hasn't been scrolled through, by time I reach page 24,
-        // the memory has ballooned to ~600 MBs. With this little trick, however, it rests at about ~150-200 MBs. Note
-        // that I haven't profiled the app to see if the remaining memory comes from SwiftUI or Image I/O.
-        //
-        // I'd like to change this so one or more images are preloaded before they come into view and disappear
-        // as such.
-        phase = .empty
       }
   }
 }

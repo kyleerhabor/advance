@@ -15,11 +15,11 @@ struct SettingsDestinationView: View {
     Label {
       Text(url.path)
     } icon: {
-      let image = NSWorkspace.shared.icon(forFile: url.url.string)
-
-      Image(nsImage: image)
+      url.icon
         .resizable()
         .scaledToFit()
+    }.transaction { transaction in
+      transaction.animation = nil
     }
   }
 }
@@ -31,7 +31,6 @@ struct SettingsDestinationsView: View {
 
   var body: some View {
     List {
-      // TODO: Use resolved directly.
       ForEach(copyDepot.resolved, id: \.url) { url in
         Link(destination: url.url) {
           SettingsDestinationView(url: url)
@@ -46,18 +45,16 @@ struct SettingsDestinationsView: View {
 
       let unresolved = copyDepot.unresolved
 
-      if !unresolved.isEmpty {
-        Section("Unresolved") {
-          ForEach(unresolved, id: \.url) { url in
-            SettingsDestinationView(url: url)
-              .contextMenu {
-                Button("Remove") {
-                  remove(url: url.url)
-                }
+      Section("Unresolved") {
+        ForEach(unresolved, id: \.url) { url in
+          SettingsDestinationView(url: url)
+            .contextMenu {
+              Button("Remove") {
+                remove(url: url.url)
               }
-          }
+            }
         }
-      }
+      }.opacity(unresolved.isEmpty ? 0 : 1)
     }
     .frame(minWidth: 384, minHeight: 160)
     .toolbar {

@@ -40,7 +40,7 @@ struct SettingsView: View {
   @AppStorage(Keys.appearance.key) private var appearance: Scheme
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
   @AppStorage(Keys.liveTextIcon.key) private var liveTextIcons = Keys.liveTextIcon.value
-  @State private var showingFolders = false
+  @State private var showingDestinations = false
 
   var body: some View {
     let margin = Binding {
@@ -81,8 +81,9 @@ struct SettingsView: View {
 
       LabeledContent("Copying:") {
         Button("Show Destinations") {
-          showingFolders = true
-        }.sheet(isPresented: $showingFolders) {
+          showingDestinations = true
+        }.sheet(isPresented: $showingDestinations) {
+          // FIXME: This can take a while to appear.
           SettingsDestinationsView()
         }
       }
