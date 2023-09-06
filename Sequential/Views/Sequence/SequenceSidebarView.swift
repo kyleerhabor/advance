@@ -10,9 +10,9 @@ import SwiftUI
 
 struct SequenceSidebarView: View {
   @Environment(\.prerendering) private var prerendering
+  @Environment(\.selection) private var selection
 
   let sequence: Seq
-  @Binding var selection: Set<SeqImage.ID>
   let scrollDetail: () -> Void
 
   var body: some View {
@@ -24,12 +24,12 @@ struct SequenceSidebarView: View {
       if empty {
         SequenceSidebarEmptyView(sequence: sequence)
       } else {
-        SequenceSidebarContentView(sequence: sequence, selection: $selection, scrollDetail: scrollDetail)
+        SequenceSidebarContentView(sequence: sequence, scrollDetail: scrollDetail)
       }
     }
     .animation(.default, value: empty)
     .onDeleteCommand { // onDelete(perform:) doesn't seem to work.
-      sequence.delete(selection)
+      sequence.delete(selection.wrappedValue)
     }
   }
 }
@@ -37,7 +37,6 @@ struct SequenceSidebarView: View {
 #Preview {
   SequenceSidebarView(
     sequence: try! .init(urls: []),
-    selection: .constant([]),
     scrollDetail: {}
   ).padding()
 }

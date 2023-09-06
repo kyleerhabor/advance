@@ -11,19 +11,21 @@ import SwiftUI
 
 struct SequenceSidebarContentView: View {
   @Environment(CopyDepot.self) private var copyDepot
+  @Environment(\.selection) private var selection
+  @Environment(\.seqInspection) private var inspection
   @State private var preview = [URL]()
   @State private var previewItem: URL?
   @State private var error: String?
 
   let sequence: Seq
-  @Binding var selection: Set<SeqImage.ID>
   let scrollDetail: () -> Void
 
   var body: some View {
     let selection = Binding {
-      self.selection
+      self.selection.wrappedValue
     } set: { selection in
-      self.selection = selection
+      self.selection.wrappedValue = selection
+      self.inspection.wrappedValue = selection
 
       // FIXME: Scrolling re-evaluates the SwiftUI view hierarchy in SequenceDetailView.
       scrollDetail()
@@ -69,7 +71,7 @@ struct SequenceSidebarContentView: View {
         }
       }
     }
-    .copyable(sequence.urls(from: self.selection))
+    .copyable(sequence.urls(from: self.selection.wrappedValue))
     .quickLookPreview($previewItem, in: preview)
     .contextMenu { ids in
       Button("Show in Finder") {
@@ -127,11 +129,15 @@ struct SequenceSidebarContentView: View {
           }
         }
       }
+
+      Divider()
+
+      SequenceInfoButtonView(ids: ids)
     }
     .alert(self.error ?? "", isPresented: error) {}
     .focusedSceneValue(\.quicklook) {
       if previewItem == nil {
-        quicklook(self.selection)
+        quicklook(self.selection.wrappedValue)
       } else {
         previewItem = nil
       }
@@ -140,11 +146,11 @@ struct SequenceSidebarContentView: View {
     }
   }
 
-  func open(_ ids: Set<SeqImage.ID>) {
+  func open(_ ids: SequenceView.Selection) {
     openFinder(selecting: sequence.urls(from: ids))
   }
 
-  func quicklook(_ ids: Set<SeqImage.ID>) {
+  func quicklook(_ ids: SequenceView.Selection) {
     preview = sequence.urls(from: ids)
     previewItem = preview.first
   }
@@ -153,7 +159,6 @@ struct SequenceSidebarContentView: View {
 #Preview {
   SequenceSidebarContentView(
     sequence: try! .init(urls: []),
-    selection: .constant([]),
     scrollDetail: {}
   )
 }

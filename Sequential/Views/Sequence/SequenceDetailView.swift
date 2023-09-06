@@ -78,19 +78,23 @@ struct SequenceDetailItemView: View {
           }
         }
       }
+
+      Divider()
+
+      SequenceInfoButtonView(ids: [image.id])
     }.alert(self.error ?? "", isPresented: error) {}
   }
 }
 
 struct SequenceDetailView: View {
   @Environment(CopyDepot.self) private var copyDepot
+  @Environment(\.selection) private var selection
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
   @AppStorage(Keys.liveTextIcon.key) private var appLiveTextIcon = Keys.liveTextIcon.value
   @SceneStorage(Keys.liveTextIcon.key) private var liveTextIcon: Bool?
   @State private var highlight = false
 
   let images: [SeqImage]
-  @Binding var selection: Set<SeqImage.ID>
   let scrollSidebar: () -> Void
 
   var body: some View {
@@ -131,7 +135,7 @@ struct SequenceDetailView: View {
         highlight: $highlight,
         copyDestinations: copyDepot.resolved
       ) { id in
-        selection = [id]
+        selection.wrappedValue = [id]
         scrollSidebar()
       }
     }
@@ -155,7 +159,6 @@ struct SequenceDetailView: View {
 #Preview {
   SequenceDetailView(
     images: [],
-    selection: .constant([]),
     scrollSidebar: {}
   )
 }

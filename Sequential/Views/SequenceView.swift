@@ -8,6 +8,35 @@
 import OSLog
 import SwiftUI
 
+struct SelectionEnvironmentKey: EnvironmentKey {
+  static var defaultValue = Binding.constant(SequenceView.Selection())
+}
+
+struct SeqInspectingEnvironmentKey: EnvironmentKey {
+  static var defaultValue = Binding.constant(false)
+}
+
+struct SeqInspectionEnvironmentKey: EnvironmentKey {
+  static var defaultValue = Binding.constant(SequenceView.Selection())
+}
+
+extension EnvironmentValues {
+  var selection: SelectionEnvironmentKey.Value {
+    get { self[SelectionEnvironmentKey.self] }
+    set { self[SelectionEnvironmentKey.self] = newValue }
+  }
+
+  var seqInspecting: SeqInspectingEnvironmentKey.Value {
+    get { self[SeqInspectingEnvironmentKey.self] }
+    set { self[SeqInspectingEnvironmentKey.self] = newValue }
+  }
+
+  var seqInspection: SeqInspectionEnvironmentKey.Value {
+    get { self[SeqInspectionEnvironmentKey.self] }
+    set { self[SeqInspectionEnvironmentKey.self] = newValue }
+  }
+}
+
 struct ScrollSidebarFocusedValueKey: FocusedValueKey {
   typealias Value = () -> Void
 }
@@ -96,14 +125,17 @@ extension SequenceImageView where Content == Image {
 }
 
 struct SequenceView: View {
+  typealias Selection = Set<SeqImage.ID>
+
   @Environment(\.fullScreen) private var fullScreen
   @Environment(\.window) private var window
   @SceneStorage(Keys.sidebar.key) private var columns = Keys.sidebar.value
   @FocusedValue(\.scrollSidebar) private var scrollSidebar
   // Embedding this in SequenceSidebarContentView causes a crash from the underlying AppKit, for some reason.
   @FocusedValue(\.scrollDetail) private var scrollDetail
-  @State private var selection = Set<SeqImage.ID>()
+  @State private var selection = Selection()
   @State private var inspecting = false
+  @State private var inspection = Selection()
 
   @Binding var sequence: Seq
 
@@ -132,7 +164,7 @@ struct SequenceView: View {
     // Note that the title bar should only be faded while the sidebar is not visible.
     NavigationSplitView(columnVisibility: $columns) {
       ScrollViewReader { scroller in
-        SequenceSidebarView(sequence: sequence, selection: $selection, scrollDetail: scrollDetail ?? noop)
+        SequenceSidebarView(sequence: sequence, scrollDetail: scrollDetail ?? noop)
           .focusedSceneValue(\.scrollSidebar) {
             // The only place we're calling this is in SequenceDetailItemView with a single item.
             let id = self.selection.first!
@@ -146,7 +178,7 @@ struct SequenceView: View {
       }.navigationSplitViewColumnWidth(min: 128, ideal: 192, max: 256)
     } detail: {
       ScrollViewReader { scroller in
-        SequenceDetailView(images: sequence.images, selection: $selection, scrollSidebar: scrollSidebar ?? noop)
+        SequenceDetailView(images: sequence.images, scrollSidebar: scrollSidebar ?? noop)
           .focusedSceneValue(\.scrollDetail) { [selection] in
             guard let id = sequence.images.filter(
               in: self.selection.subtracting(selection),
@@ -162,9 +194,7 @@ struct SequenceView: View {
           }
       }.focusedSceneValue(\.sequenceSelection, selectionDescription())
     }.inspector(isPresented: $inspecting) {
-      let images = selection.isEmpty
-        ? sequence.images
-        : sequence.images.filter(in: selection, by: \.id)
+      let images = sequence.images.filter(in: inspection, by: \.id)
 
       VStack {
         if !images.isEmpty {
@@ -199,6 +229,9 @@ struct SequenceView: View {
       // With the toolbar visibility logic gone, would it potentially make more sense to extract this into a modifier?
       window.animator().titlebarSeparatorStyle = fullScreen ? .none : .automatic
     }
+    .environment(\.selection, $selection)
+    .environment(\.seqInspecting, $inspecting)
+    .environment(\.seqInspection, $inspection)
   }
 
   func selectionDescription() -> SequenceSelection {

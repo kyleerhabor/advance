@@ -222,12 +222,12 @@ class Seq: Codable {
     }
   }
 
-  func delete(_ urls: Set<SeqImage.ID>) {
+  func delete(_ urls: SequenceView.Selection) {
     bookmarks.removeAll { urls.contains($0.id) }
     update()
   }
 
-  func urls(from ids: Set<SeqImage.ID>) -> [URL] {
+  func urls(from ids: SequenceView.Selection) -> [URL] {
     images.filter(in: ids, by: \.id).map(\.url)
   }
 

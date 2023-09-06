@@ -17,12 +17,7 @@ struct KeyMonitorViewModifier: ViewModifier {
   func body(content: Content) -> some View {
     content
       .onAppear {
-        print("[Appearance] Creating monitor!")
-
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-          // Returning `event` symbolizes that the event was not handled, producing the "unknown command" sound people hear.
-          // Returning `nil` does the opposite.
-          //
           // We need to intersect the set since AppKit, for some reason, likes adding flags like 0x10A to the set
           // (which I'm not sure what represents).
           guard event.characters == key && event.modifierFlags.intersection(.primary) == modifiers else {
@@ -38,8 +33,6 @@ struct KeyMonitorViewModifier: ViewModifier {
           return event
         }
       }.onDisappear {
-        print("[Appearance] Releasing monitor!")
-
         guard let monitor else {
           return
         }
