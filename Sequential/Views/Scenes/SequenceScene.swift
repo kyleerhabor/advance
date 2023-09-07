@@ -54,7 +54,7 @@ struct SequenceScene: Scene {
     WindowGroup(for: Seq.self) { $sequence in
       // FIXME: There is a noticeable delay in clicking UI elements when there are a lot of (large) images on screen.
       //
-      // This seems to not be unique to Sequential, given I've experienced it in Finder as well.
+      // This doesn't seems to be unique to Sequential, given I've experienced it in Finder as well.
       SequenceView(sequence: $sequence)
         .focusedSceneValue(\.seq, $sequence)
         .windowed()
@@ -142,7 +142,6 @@ struct SequenceScene: Scene {
 
           sequence.wrappedValue = seq
         } else {
-          // TODO: Fill in the existing window when there are no bookmarks.
           openWindow(value: seq)
         }
       } catch {

@@ -58,8 +58,8 @@ struct SequenceInspectorMixedImageSizeView: View {
 
   @TextBuilder
   var text: Text {
-    let min = sizes.min { $0.field() < $1.field() }!
-    let max = sizes.max { $0.field() < $1.field() }!
+    let min = sizes.min { $0.area < $1.area }!
+    let max = sizes.max { $0.area < $1.area }!
 
     if min == max {
       Text(inspectSize(min, with: style))

@@ -15,7 +15,7 @@ struct SequentialApp: App {
   var body: some Scene {
     Group {
       SequenceScene()
-        // For some reason, the delegate is not being placed in the environment (even though the property wrapper says
+        // For some reason, the delegate is not being placed in the environment by default (the property wrapper says
         // it will). Maybe it only applies to views and not scenes?
         .environmentObject(delegate)
         // This is required for imports using the document types feature (e.g. dropping a set of images on to the dock

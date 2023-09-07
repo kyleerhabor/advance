@@ -16,14 +16,14 @@ struct Size: Hashable {
   let width: Int
   let height: Int
 
-  func aspectRatio() -> Double {
+  var aspectRatio: Double {
     let width = Double(width)
     let height = Double(height)
 
     return width / height
   }
 
-  func field() -> Int {
+  var area: Int {
     width * height
   }
 }

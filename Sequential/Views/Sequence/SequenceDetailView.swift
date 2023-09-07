@@ -119,7 +119,7 @@ struct SequenceDetailView: View {
     //
     // TODO: Figure out how to remove that annoying ring when right clicking on an image.
     //
-    // Ironically, the ring goes away when Live Text is enabled.
+    // Ironically, the ring goes away for most of the frame when Live Text is enabled.
     //
     // I played around with adding a list item whose sole purpose was to capture the scrolling state, but couldn't get
     // it to not take up space and mess with the ForEach items. I also tried applying it only to the first element, but
