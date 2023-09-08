@@ -142,6 +142,15 @@
 			path = Documentation;
 			sourceTree = "<group>";
 		};
+		00A642492AAA0D2C004F10AC /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				0009F1CB2A9D924A00BE51E3 /* SequenceCopyDestinationView.swift */,
+				00CF5EEF2AA913AF0067D6DE /* SequenceInfoButtonView.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
 		00BE70C62A97BAD800315808 /* Models */ = {
 			isa = PBXGroup;
 			children = (
@@ -173,11 +182,10 @@
 			isa = PBXGroup;
 			children = (
 				00FC65402A845E67009982A1 /* SequenceDetailView.swift */,
-				008C3CE72A952E7A00119707 /* SequenceInspectorView.swift */,
 				001483382A86D4C50040E5CB /* SequenceSidebarView.swift */,
-				0009F1CB2A9D924A00BE51E3 /* SequenceCopyDestinationView.swift */,
-				00CF5EEF2AA913AF0067D6DE /* SequenceInfoButtonView.swift */,
+				008C3CE72A952E7A00119707 /* SequenceInspectorView.swift */,
 				000A43BE2A885E99001DAC0A /* Sidebar */,
+				00A642492AAA0D2C004F10AC /* Shared */,
 			);
 			path = Sequence;
 			sourceTree = "<group>";

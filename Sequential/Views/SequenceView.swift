@@ -60,7 +60,7 @@ extension FocusedValues {
 struct SequenceImagePhaseView<Content>: View where Content: View {
   @State private var elapsed = false
 
-  var phase: AsyncImagePhase
+  @Binding var phase: AsyncImagePhase
   @ViewBuilder var content: (Image) -> Content
 
   var body: some View {
@@ -90,6 +90,17 @@ struct SequenceImagePhaseView<Content>: View where Content: View {
         withAnimation {
           elapsed = true
         }
+      }.onDisappear {
+        // This is necessary to slow down the memory creep SwiftUI creates when rendering images. It does not
+        // eliminate it, but severely halts it. As an example, I have a copy of the first volume of Soloist in a Cage (~700 MBs).
+        // When the window size is the default and the sidebar is open but hasn't been scrolled through, by time I
+        // reach page 24, the memory has ballooned to ~600 MBs. With this little trick, however, it rests at about ~150-200 MBs,
+        // and is nearly eliminated by the window being closed. Note that the memory creep is mostly applicable to
+        // regular memory and not so much real memory.
+        //
+        // In the future, I'd like to improve image loading so images are preloaded before they appear on screen (at
+        // least one image beforehand).
+        phase = .empty
       }
   }
 }
@@ -102,19 +113,7 @@ struct SequenceImageView<Content>: View where Content: View {
     let url = image.url
 
     DisplayImageView(url: url, transaction: .init(animation: .default)) { $phase in
-      SequenceImagePhaseView(phase: phase, content: content)
-        .onDisappear {
-          // This is necessary to slow down the memory creep SwiftUI creates when rendering images. It does not
-          // eliminate it, but severely halts it. As an example, I have a copy of the first volume of Soloist in a Cage (~700 MBs).
-          // When the window size is the default and the sidebar is open but hasn't been scrolled through, by time I
-          // reach page 24, the memory has ballooned to ~600 MBs. With this little trick, however, it rests at about ~150-200 MBs,
-          // and is nearly eliminated by the window being closed. Note that the memory creep is mostly applicable to
-          // regular memory and not so much real memory.
-          //
-          // In the future, I'd like to improve image loading so images are preloaded before they appear on screen (at
-          // least one image beforehand).
-          phase = .empty
-        }
+      SequenceImagePhaseView(phase: $phase, content: content)
     }
     .id(image.id)
     .aspectRatio(image.size.aspectRatio, contentMode: .fit)

@@ -128,7 +128,6 @@ struct SequenceInspectorView: View {
           if count == 1 {
             let image = images.first!
 
-            // An interesting symbol Apple seems to apply.
             Text(inspectSize(image.size, with: style))
           } else {
             SequenceInspectorMixedImageSizeView(sizes: images.map(\.size), style: style)
