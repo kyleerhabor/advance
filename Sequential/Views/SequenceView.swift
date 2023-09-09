@@ -139,7 +139,7 @@ struct SequenceView: View {
   typealias Selection = Set<SeqImage.ID>
 
   @Environment(\.fullScreen) private var fullScreen
-  @Environment(\.window) private var window
+  @Environment(Window.self) private var window
   @AppStorage(Keys.hideWindowSidebar.key) private var hideWindowSidebar = Keys.hideWindowSidebar.value
   @SceneStorage("sidebar") private var columns: NavigationSplitViewVisibility?
   @FocusedValue(\.scrollSidebar) private var scrollSidebar
@@ -256,7 +256,7 @@ struct SequenceView: View {
       // persisted.
       columns.wrappedValue = .detailOnly
     }.onChange(of: fullScreen) {
-      guard let window,
+      guard let window = window.window,
             let fullScreen else {
         return
       }

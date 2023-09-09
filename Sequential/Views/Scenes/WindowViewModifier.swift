@@ -12,10 +12,6 @@ class Window {
   weak var window: NSWindow?
 }
 
-struct WindowEnvironmentKey: EnvironmentKey {
-  static var defaultValue: NSWindow?
-}
-
 struct FullScreenEnvironmentKey: EnvironmentKey {
   static var defaultValue: Bool?
 }
@@ -25,11 +21,6 @@ struct PrerenderEnvironmentKey: EnvironmentKey {
 }
 
 extension EnvironmentValues {
-  var window: WindowEnvironmentKey.Value {
-    get { self[WindowEnvironmentKey.self] }
-    set { self[WindowEnvironmentKey.self] = newValue }
-  }
-
   var fullScreen: FullScreenEnvironmentKey.Value {
     get { self[FullScreenEnvironmentKey.self] }
     set { self[FullScreenEnvironmentKey.self] = newValue }
