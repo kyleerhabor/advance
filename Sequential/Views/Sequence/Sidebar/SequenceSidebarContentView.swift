@@ -11,7 +11,7 @@ import SwiftUI
 
 struct SequenceSidebarContentView: View {
   @Environment(CopyDepot.self) private var copyDepot
-  @Environment(\.selection) private var selection
+  @Environment(\.seqSelection) private var selection
   @Environment(\.seqInspection) private var inspection
   @State private var preview = [URL]()
   @State private var previewItem: URL?

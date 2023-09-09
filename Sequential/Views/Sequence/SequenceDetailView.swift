@@ -88,7 +88,7 @@ struct SequenceDetailItemView: View {
 
 struct SequenceDetailView: View {
   @Environment(CopyDepot.self) private var copyDepot
-  @Environment(\.selection) private var selection
+  @Environment(\.seqSelection) private var selection
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
   @AppStorage(Keys.liveTextIcon.key) private var appLiveTextIcon = Keys.liveTextIcon.value
   @SceneStorage(Keys.liveTextIcon.key) private var liveTextIcon: Bool?

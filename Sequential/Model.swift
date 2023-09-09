@@ -64,12 +64,12 @@ enum URLError: Error {
 
 struct Keys {
   static let margin = Item("margin", 1)
-  static let sidebar = Item("sidebar", NavigationSplitViewVisibility.all)
   static let appearance = Item("appearance", nil as SettingsView.Scheme)
   // I think enabling Live Text by default but disabling the icons strikes a nice compromise between convenience (e.g.
-  // being able to right click and copy an image) and UI simplicity (having the buttons not get in the way).
+  // being able to select text) and UI simplicity (i.e. not having the buttons get in the way).
   static let liveText = Item("liveText", true)
   static let liveTextIcon = Item("liveTextIcon", false)
+  static let hideWindowSidebar = Item("hideWindowSidebar", false)
 
   struct Item<Key, Value> {
     let key: Key

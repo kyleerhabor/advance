@@ -8,7 +8,7 @@
 import OSLog
 import SwiftUI
 
-struct SelectionEnvironmentKey: EnvironmentKey {
+struct SeqSelectionEnvironmentKey: EnvironmentKey {
   static var defaultValue = Binding.constant(SequenceView.Selection())
 }
 
@@ -21,9 +21,9 @@ struct SeqInspectionEnvironmentKey: EnvironmentKey {
 }
 
 extension EnvironmentValues {
-  var selection: SelectionEnvironmentKey.Value {
-    get { self[SelectionEnvironmentKey.self] }
-    set { self[SelectionEnvironmentKey.self] = newValue }
+  var seqSelection: SeqSelectionEnvironmentKey.Value {
+    get { self[SeqSelectionEnvironmentKey.self] }
+    set { self[SeqSelectionEnvironmentKey.self] = newValue }
   }
 
   var seqInspecting: SeqInspectingEnvironmentKey.Value {
@@ -140,7 +140,8 @@ struct SequenceView: View {
 
   @Environment(\.fullScreen) private var fullScreen
   @Environment(\.window) private var window
-  @SceneStorage(Keys.sidebar.key) private var columns = Keys.sidebar.value
+  @AppStorage(Keys.hideWindowSidebar.key) private var hideWindowSidebar = Keys.hideWindowSidebar.value
+  @SceneStorage("sidebar") private var columns: NavigationSplitViewVisibility?
   @FocusedValue(\.scrollSidebar) private var scrollSidebar
   // Embedding this in SequenceSidebarContentView causes a crash from the underlying AppKit, for some reason.
   @FocusedValue(\.scrollDetail) private var scrollDetail
@@ -151,6 +152,10 @@ struct SequenceView: View {
   @Binding var sequence: Seq
 
   var body: some View {
+    let columns = Binding {
+      self.columns ?? .all
+    } set: { self.columns = $0 }
+
     // TODO: On scene restoration, scroll to the last image the user viewed.
     //
     // ScrollView supports scrolling to a specific view, but makes scrolling to its *exact* position possible through
@@ -173,17 +178,20 @@ struct SequenceView: View {
     // This used to be a feature, but it was removed due to issues with capturing the scrolling position in List. The
     // implementation can't use .toolbar since it'd remove itself from the view hierarchy, messing with the scroll.
     // Note that the title bar should only be faded while the sidebar is not visible.
-    NavigationSplitView(columnVisibility: $columns) {
+    NavigationSplitView(columnVisibility: columns) {
       ScrollViewReader { scroller in
         SequenceSidebarView(sequence: sequence, scrollDetail: scrollDetail ?? noop)
           .focusedSceneValue(\.scrollSidebar) {
             // The only place we're calling this is in SequenceDetailItemView with a single item.
             let id = self.selection.first!
 
-            withAnimation {
-              columns = .all
+            // https://stackoverflow.com/a/72808733/14695788
+            Task {
+              withAnimation {
+                scroller.scrollTo(id, anchor: .center)
 
-              scroller.scrollTo(id, anchor: .center)
+                columns.wrappedValue = .all
+              }
             }
           }
       }.navigationSplitViewColumnWidth(min: 128, ideal: 192, max: 256)
@@ -198,15 +206,20 @@ struct SequenceView: View {
               return
             }
 
-            // For some reason, this animation is very jagged. It wasn't always this way, which is interesting.
-            withAnimation {
-              scroller.scrollTo(id, anchor: .top)
+            Task {
+              withAnimation {
+                scroller.scrollTo(id, anchor: .top)
+              }
             }
           }
       }.focusedSceneValue(\.sequenceSelection, selectionDescription())
     }.inspector(isPresented: $inspecting) {
       let images = inspection.isEmpty
         ? sequence.images
+        // If we really don't want to filter on the view body, we'd need to filter in the model whenever it changes
+        // (i.e. in update(_:)). I *really* want a property wrapper that updates when a data dependency does. In other
+        // words, I want the benefit of computed properties (no synchronization required) without the cost of unnecessary
+        // evaluation.
         : sequence.images.filter(in: inspection, by: \.id)
 
       VStack {
@@ -232,6 +245,16 @@ struct SequenceView: View {
     .task {
       sequence.bookmarks = await sequence.load()
       sequence.update()
+    }.onAppear {
+      guard hideWindowSidebar, self.columns == nil,
+            !sequence.bookmarks.isEmpty else {
+        return
+      }
+
+      // It's fine that this will only work once (due to the columns check) as the rationale is to capture user intent.
+      // Not resetting the sidebar visibility on every relaunch allows the user's action of opening the sidebar to be
+      // persisted.
+      columns.wrappedValue = .detailOnly
     }.onChange(of: fullScreen) {
       guard let window,
             let fullScreen else {
@@ -241,7 +264,7 @@ struct SequenceView: View {
       // With the toolbar visibility logic gone, would it potentially make more sense to extract this into a modifier?
       window.animator().titlebarSeparatorStyle = fullScreen ? .none : .automatic
     }
-    .environment(\.selection, $selection)
+    .environment(\.seqSelection, $selection)
     .environment(\.seqInspecting, $inspecting)
     .environment(\.seqInspection, $inspection)
   }

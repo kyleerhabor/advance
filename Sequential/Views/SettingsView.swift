@@ -33,6 +33,47 @@ extension ColorScheme: RawRepresentable {
   }
 }
 
+struct SettingsLabeledContentStyle: LabeledContentStyle {
+  func makeBody(configuration: Configuration) -> some View {
+    HStack(alignment: .firstTextBaseline) {
+      configuration.label
+        .alignmentGuide(.keyed) { dimensions in
+          dimensions[HorizontalAlignment.trailing]
+        }
+
+      configuration.content
+        .fixedSize(horizontal: false, vertical: true)
+    }
+  }
+}
+
+extension LabeledContentStyle where Self == SettingsLabeledContentStyle {
+  static var settings: SettingsLabeledContentStyle { .init() }
+}
+
+struct KeyedHorizontalAlignment: AlignmentID {
+  static func defaultValue(in context: ViewDimensions) -> CGFloat {
+    context[HorizontalAlignment.center]
+  }
+}
+
+extension HorizontalAlignment {
+  static let keyed = HorizontalAlignment(KeyedHorizontalAlignment.self)
+}
+
+struct SettingsFormStyle: FormStyle {
+  func makeBody(configuration: Configuration) -> some View {
+    VStack(alignment: .keyed, spacing: 16) {
+      configuration.content
+        .labeledContentStyle(.settings)
+    }
+  }
+}
+
+extension FormStyle where Self == SettingsFormStyle {
+  static var settings: SettingsFormStyle { .init() }
+}
+
 struct SettingsView: View {
   typealias Scheme = ColorScheme?
 
@@ -40,34 +81,66 @@ struct SettingsView: View {
   @AppStorage(Keys.appearance.key) private var appearance: Scheme
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
   @AppStorage(Keys.liveTextIcon.key) private var liveTextIcons = Keys.liveTextIcon.value
+  @AppStorage(Keys.hideWindowSidebar.key) private var hideWindowSidebar = Keys.hideWindowSidebar.value
   @State private var showingDestinations = false
+  private let range = 0.0...4.0
 
   var body: some View {
-    let margin = Binding {
-      Double(self.margin)
-    } set: { margin in
-      self.margin = Int(margin)
-    }
-
+    // TODO: Constrain the width of Picker and Slider
+    //
+    // Picker is already constrained, but by its ideal size (rather than a standard size).
     Form {
-      Picker("Appearance:", selection: $appearance) {
-        Text("System")
-          .tag(nil as Scheme)
+      LabeledContent("Appearance:") {
+        Picker("Theme:", selection: $appearance) {
+          Text("System")
+            .tag(nil as Scheme)
 
-        Divider()
+          Divider()
 
-        Text("Light").tag(.light as Scheme)
-        Text("Dark").tag(.dark as Scheme)
-      }.onChange(of: appearance) {
-        NSApp.appearance = appearance?.app()
+          Text("Light").tag(.light as Scheme)
+          Text("Dark").tag(.dark as Scheme)
+        }
+        .labelsHidden()
+        .frame(width: 160) // 128 - 192
+        .onChange(of: appearance) {
+          NSApp.appearance = appearance?.app()
+        }
       }
 
-      Slider(value: margin, in: 0...4, step: 1) {
-        Text("Margins:")
-      } minimumValueLabel: {
-        Text("None")
-      } maximumValueLabel: {
-        Text("A lot")
+      let margin = Binding {
+        Double(self.margin)
+      } set: { margin in
+        self.margin = Int(margin)
+      }
+
+      LabeledContent("Margins:") {
+        Slider(value: margin, in: range, step: 1)
+          // Let's not ask how I came up with this number :)
+          .frame(width: 215)
+          .overlay(alignment: .bottomLeading) {
+            Button("None") {
+              margin.wrappedValue = max(range.lowerBound, margin.wrappedValue - 1)
+            }
+            .alignmentGuide(.bottom) { $0.height / 24 }
+          }.overlay(alignment: .bottomTrailing) {
+            Button("A lot") {
+              margin.wrappedValue = min(range.upperBound, margin.wrappedValue + 1)
+            }
+            .buttonStyle(.plain)
+            .alignmentGuide(.bottom) { $0.height / 24 }
+          }
+          .buttonStyle(.plain)
+          .font(.caption)
+          .foregroundStyle(.secondary)
+          .padding(.bottom, 4)
+      }
+
+      LabeledContent("Sidebar:") {
+        Toggle(isOn: $hideWindowSidebar) {
+          Text("Hide sidebar when opening a window with images")
+
+          Text("Only relevant when opening a new window.")
+        }
       }
 
       LabeledContent("Live Text:") {
@@ -80,7 +153,7 @@ struct SettingsView: View {
       }
 
       LabeledContent("Copying:") {
-        Button("Show Destinations") {
+        Button("Show Destinations...") {
           showingDestinations = true
         }.sheet(isPresented: $showingDestinations) {
           // FIXME: This can take a while to appear.
@@ -88,8 +161,10 @@ struct SettingsView: View {
         }
       }
     }
-    .frame(width: 384)
+    .formStyle(.settings)
+    .frame(width: 384) // 256 - 512
     .scenePadding()
+    .frame(width: 576) // 512 - 640
   }
 }
 

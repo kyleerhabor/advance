@@ -10,7 +10,7 @@ import SwiftUI
 
 struct SequenceSidebarView: View {
   @Environment(\.prerendering) private var prerendering
-  @Environment(\.selection) private var selection
+  @Environment(\.seqSelection) private var selection
 
   let sequence: Seq
   let scrollDetail: () -> Void
