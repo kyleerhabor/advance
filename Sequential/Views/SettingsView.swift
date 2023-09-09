@@ -41,8 +41,13 @@ struct SettingsLabeledContentStyle: LabeledContentStyle {
           dimensions[HorizontalAlignment.trailing]
         }
 
-      configuration.content
-        .fixedSize(horizontal: false, vertical: true)
+      // On my system, this creates 8 pixels of spacing between toggles, matching the system standard. I mostly used
+      // Safari's interface to gauge it, but funny enough, Xcode's General > Issues uses 10 (the default provided by
+      // SwiftUI) while Text Editing > Display > Show uses 8.
+      VStack(alignment: .leading, spacing: 6) {
+        configuration.content
+          .fixedSize(horizontal: false, vertical: true)
+      }
     }
   }
 }
@@ -86,9 +91,6 @@ struct SettingsView: View {
   private let range = 0.0...4.0
 
   var body: some View {
-    // TODO: Constrain the width of Picker and Slider
-    //
-    // Picker is already constrained, but by its ideal size (rather than a standard size).
     Form {
       LabeledContent("Appearance:") {
         Picker("Theme:", selection: $appearance) {
@@ -120,20 +122,16 @@ struct SettingsView: View {
           .overlay(alignment: .bottomLeading) {
             Button("None") {
               margin.wrappedValue = max(range.lowerBound, margin.wrappedValue - 1)
-            }
-            .alignmentGuide(.bottom) { $0.height / 24 }
+            }.alignmentGuide(.bottom) { $0.height / 24 }
           }.overlay(alignment: .bottomTrailing) {
             Button("A lot") {
               margin.wrappedValue = min(range.upperBound, margin.wrappedValue + 1)
-            }
-            .buttonStyle(.plain)
-            .alignmentGuide(.bottom) { $0.height / 24 }
+            }.alignmentGuide(.bottom) { $0.height / 24 }
           }
           .buttonStyle(.plain)
           .font(.caption)
           .foregroundStyle(.secondary)
-          .padding(.bottom, 4)
-      }
+      }.padding(.bottom, 4)
 
       LabeledContent("Sidebar:") {
         Toggle(isOn: $hideWindowSidebar) {
@@ -144,12 +142,10 @@ struct SettingsView: View {
       }
 
       LabeledContent("Live Text:") {
-        VStack(alignment: .leading) {
-          Toggle("Enable Live Text", isOn: $liveText)
+        Toggle("Enable Live Text", isOn: $liveText)
 
-          Toggle("Show icons", isOn: $liveTextIcons)
-            .disabled(!liveText)
-        }
+        Toggle("Show icons", isOn: $liveTextIcons)
+          .disabled(!liveText)
       }
 
       LabeledContent("Copying:") {
