@@ -41,10 +41,7 @@ struct SettingsLabeledContentStyle: LabeledContentStyle {
           dimensions[HorizontalAlignment.trailing]
         }
 
-      // On my system, this creates 8 pixels of spacing between toggles, matching the system standard. I mostly used
-      // Safari's interface to gauge it, but funny enough, Xcode's General > Issues uses 10 (the default provided by
-      // SwiftUI) while Text Editing > Display > Show uses 8.
-      VStack(alignment: .leading, spacing: 6) {
+      VStack(alignment: .leading) {
         configuration.content
           .fixedSize(horizontal: false, vertical: true)
       }
@@ -87,6 +84,7 @@ struct SettingsView: View {
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
   @AppStorage(Keys.liveTextIcon.key) private var liveTextIcons = Keys.liveTextIcon.value
   @AppStorage(Keys.hideWindowSidebar.key) private var hideWindowSidebar = Keys.hideWindowSidebar.value
+  @AppStorage(Keys.collapseMargins.key) private var collapseMargins = Keys.collapseMargins.value
   @State private var showingDestinations = false
   private let range = 0.0...4.0
 
@@ -116,22 +114,31 @@ struct SettingsView: View {
       }
 
       LabeledContent("Margins:") {
-        Slider(value: margin, in: range, step: 1)
-          // Let's not ask how I came up with this number :)
-          .frame(width: 215)
-          .overlay(alignment: .bottomLeading) {
+        VStack(spacing: 0) {
+          Slider(value: margin, in: range, step: 1)
+
+          HStack {
             Button("None") {
               margin.wrappedValue = max(range.lowerBound, margin.wrappedValue - 1)
-            }.alignmentGuide(.bottom) { $0.height / 24 }
-          }.overlay(alignment: .bottomTrailing) {
+            }
+
+            Spacer()
+
             Button("A lot") {
               margin.wrappedValue = min(range.upperBound, margin.wrappedValue + 1)
-            }.alignmentGuide(.bottom) { $0.height / 24 }
+            }
           }
-          .buttonStyle(.plain)
           .font(.caption)
           .foregroundStyle(.secondary)
-      }.padding(.bottom, 4)
+          .buttonStyle(.plain)
+        }.frame(width: 215)
+
+        Toggle(isOn: $collapseMargins) {
+          Text("Collapse margins")
+
+          Text("Images with adjacent borders will have their margins flattened into a single value.")
+        }.disabled(margin.wrappedValue == 0)
+      }
 
       LabeledContent("Sidebar:") {
         Toggle(isOn: $hideWindowSidebar) {
@@ -142,10 +149,12 @@ struct SettingsView: View {
       }
 
       LabeledContent("Live Text:") {
-        Toggle("Enable Live Text", isOn: $liveText)
+        VStack(alignment: .leading, spacing: 6) {
+          Toggle("Enable Live Text", isOn: $liveText)
 
-        Toggle("Show icons", isOn: $liveTextIcons)
-          .disabled(!liveText)
+          Toggle("Show icons", isOn: $liveTextIcons)
+            .disabled(!liveText)
+        }
       }
 
       LabeledContent("Copying:") {

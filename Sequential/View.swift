@@ -10,7 +10,7 @@ import OSLog
 import SwiftUI
 
 extension NSWindow {
-  func isFullScreened() -> Bool {
+  func isFullScreen() -> Bool {
     self.styleMask.contains(.fullScreen)
   }
 }
@@ -23,6 +23,10 @@ extension EdgeInsets {
 
   init(_ insets: Double) {
     self.init(top: insets, leading: insets, bottom: insets, trailing: insets)
+  }
+
+  init(horizontal: Double, top: Double, bottom: Double) {
+    self.init(top: top, leading: horizontal, bottom: bottom, trailing: horizontal)
   }
 }
 

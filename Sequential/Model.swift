@@ -70,6 +70,7 @@ struct Keys {
   static let liveText = Item("liveText", true)
   static let liveTextIcon = Item("liveTextIcon", false)
   static let hideWindowSidebar = Item("hideWindowSidebar", false)
+  static let collapseMargins = Item("collapseMargins", true)
 
   struct Item<Key, Value> {
     let key: Key

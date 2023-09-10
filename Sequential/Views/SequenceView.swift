@@ -5,6 +5,7 @@
 //  Created by Kyle Erhabor on 7/27/23.
 //
 
+import Combine
 import OSLog
 import SwiftUI
 
@@ -138,8 +139,8 @@ extension SequenceImageView where Content == Image {
 struct SequenceView: View {
   typealias Selection = Set<SeqImage.ID>
 
+  @Environment(Window.self) private var win
   @Environment(\.fullScreen) private var fullScreen
-  @Environment(Window.self) private var window
   @AppStorage(Keys.hideWindowSidebar.key) private var hideWindowSidebar = Keys.hideWindowSidebar.value
   @SceneStorage("sidebar") private var columns: NavigationSplitViewVisibility?
   @FocusedValue(\.scrollSidebar) private var scrollSidebar
@@ -148,6 +149,7 @@ struct SequenceView: View {
   @State private var selection = Selection()
   @State private var inspecting = false
   @State private var inspection = Selection()
+  var window: NSWindow? { win.window }
 
   @Binding var sequence: Seq
 
@@ -207,6 +209,7 @@ struct SequenceView: View {
             }
 
             Task {
+              // TODO: Figure out a way to change the animation (withAnimation(...) {...} doesn't work).
               withAnimation {
                 scroller.scrollTo(id, anchor: .top)
               }
@@ -256,13 +259,7 @@ struct SequenceView: View {
       // persisted.
       columns.wrappedValue = .detailOnly
     }.onChange(of: fullScreen) {
-      guard let window = window.window,
-            let fullScreen else {
-        return
-      }
-
-      // With the toolbar visibility logic gone, would it potentially make more sense to extract this into a modifier?
-      window.animator().titlebarSeparatorStyle = fullScreen ? .none : .automatic
+      window?.titlebarSeparatorStyle = fullScreen! ? .none : .automatic
     }
     .environment(\.seqSelection, $selection)
     .environment(\.seqInspecting, $inspecting)

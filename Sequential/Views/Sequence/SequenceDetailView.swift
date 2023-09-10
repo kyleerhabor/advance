@@ -5,15 +5,15 @@
 //  Created by Kyle Erhabor on 8/9/23.
 //
 
+import Combine
 import OSLog
 import SwiftUI
 
 struct SequenceDetailItemView: View {
-  @AppStorage(Keys.margin.key) private var margins = Keys.margin.value
+  @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
   @State private var error: String?
 
   let image: SeqImage
-  let liveText: Bool
   var liveTextIcon: Bool
   @Binding var highlight: Bool
   let copyDestinations: [CopyDepotURL]
@@ -21,7 +21,6 @@ struct SequenceDetailItemView: View {
 
   var body: some View {
     let url = image.url
-    let margin = Double(margins)
     let error = Binding {
       self.error != nil
     } set: { present in
@@ -37,11 +36,7 @@ struct SequenceDetailItemView: View {
             .supplementaryInterfaceHidden(!liveTextIcon)
         }
       }
-    }
-    .listRowInsets(.listRow + .init(margin * 6))
-    .listRowSeparator(.hidden)
-    .shadow(radius: margin)
-    .contextMenu {
+    }.contextMenu {
       Button("Show in Finder") {
         openFinder(selecting: url)
       }
@@ -86,11 +81,35 @@ struct SequenceDetailItemView: View {
   }
 }
 
+struct SequenceDetailContentView: View {
+  @Environment(\.seqSelection) private var selection
+
+  let image: SeqImage
+  let liveTextIcon: Bool
+  @Binding var highlight: Bool
+  let copyDestinations: [CopyDepotURL]
+  let scrollSidebar: () -> Void
+
+  var body: some View {
+    SequenceDetailItemView(
+      image: image,
+      liveTextIcon: liveTextIcon,
+      highlight: $highlight,
+      copyDestinations: copyDestinations
+    ) { id in
+      selection.wrappedValue = [id]
+      scrollSidebar()
+    }
+  }
+}
+
 struct SequenceDetailView: View {
   @Environment(CopyDepot.self) private var copyDepot
   @Environment(\.seqSelection) private var selection
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
   @AppStorage(Keys.liveTextIcon.key) private var appLiveTextIcon = Keys.liveTextIcon.value
+  @AppStorage(Keys.margin.key) private var margins = Keys.margin.value
+  @AppStorage(Keys.collapseMargins.key) private var collapse = Keys.collapseMargins.value
   @SceneStorage(Keys.liveTextIcon.key) private var liveTextIcon: Bool?
   @State private var highlight = false
 
@@ -127,17 +146,51 @@ struct SequenceDetailView: View {
     // NSCollectionView.
     //
     // FIXME: Leaving Sequential, switching back, and immediately trying to scroll may result in unstable positioning.
-    List(images) { image in
-      SequenceDetailItemView(
-        image: image,
-        liveText: liveText,
-        liveTextIcon: liveTextIcon.wrappedValue,
-        highlight: $highlight,
-        copyDestinations: copyDepot.resolved
-      ) { id in
-        selection.wrappedValue = [id]
-        scrollSidebar()
+    List {
+      let margin = Double(margins)
+
+      Group {
+        let half = margin * 3
+        let full = half * 2
+        let inset = EdgeInsets(full)
+        let top = EdgeInsets(horizontal: full, top: full, bottom: half)
+        let between = EdgeInsets(horizontal: full, top: half, bottom: half)
+        let bottom = EdgeInsets(horizontal: full, top: half, bottom: full)
+
+        let mid = images.dropFirst().dropLast()
+
+        if let begin = images.first {
+          SequenceDetailContentView(
+            image: begin,
+            liveTextIcon: liveTextIcon.wrappedValue,
+            highlight: $highlight,
+            copyDestinations: copyDepot.resolved,
+            scrollSidebar: scrollSidebar
+          ).listRowInsets(.listRow + (collapse ? top : inset))
+        }
+
+        ForEach(mid) { image in
+          SequenceDetailContentView(
+            image: image,
+            liveTextIcon: liveTextIcon.wrappedValue,
+            highlight: $highlight,
+            copyDestinations: copyDepot.resolved,
+            scrollSidebar: scrollSidebar
+          ).listRowInsets(.listRow + (collapse ? between : inset))
+        }
+
+        if let end = images.last {
+          SequenceDetailContentView(
+            image: end,
+            liveTextIcon: liveTextIcon.wrappedValue,
+            highlight: $highlight,
+            copyDestinations: copyDepot.resolved,
+            scrollSidebar: scrollSidebar
+          ).listRowInsets(.listRow + (collapse ? bottom : inset))
+        }
       }
+      .listRowSeparator(.hidden)
+      .shadow(radius: margin)
     }
     .listStyle(.plain)
     .toolbar {
@@ -145,7 +198,8 @@ struct SequenceDetailView: View {
         Toggle("Show Live Text icons", systemImage: "text.viewfinder", isOn: liveTextIcon)
       }
     }
-    // Since the toolbar disappears in full screen mode, we can't use .keyboardShortcut(_:modifiers:).
+    // Since the toolbar disappears in full screen mode, we can't use .keyboardShortcut(_:modifiers:). However, we'll
+    // need to fix the implementation so it's part of the responder chain.
     .onKey("t", modifiers: [.command], repeating: true) {
       liveTextIcon.wrappedValue.toggle()
     }.onKey("t", modifiers: [.command, .shift]) {
