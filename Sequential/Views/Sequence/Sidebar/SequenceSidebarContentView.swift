@@ -11,7 +11,7 @@ import SwiftUI
 
 struct SequenceSidebarContentView: View {
   @Environment(CopyDepot.self) private var copyDepot
-  @Environment(\.seqSelection) private var selection
+//  @Environment(\.seqSelection) private var selection
   @Environment(\.seqInspection) private var inspection
   @State private var preview = [URL]()
   @State private var previewItem: URL?
@@ -21,15 +21,15 @@ struct SequenceSidebarContentView: View {
   let scrollDetail: () -> Void
 
   var body: some View {
-    let selection = Binding {
-      self.selection.wrappedValue
-    } set: { selection in
-      self.selection.wrappedValue = selection
-      self.inspection.wrappedValue = selection
-
-      // FIXME: Scrolling re-evaluates the SwiftUI view hierarchy in SequenceDetailView.
-      scrollDetail()
-    }
+//    let selection = Binding {
+//      self.selection.wrappedValue
+//    } set: { selection in
+//      self.selection.wrappedValue = selection
+//      self.inspection.wrappedValue = selection
+//
+//      // FIXME: Scrolling re-evaluates the SwiftUI view hierarchy in SequenceDetailView.
+//      scrollDetail()
+//    }
     let error = Binding {
       self.error != nil
     } set: { present in
@@ -43,7 +43,7 @@ struct SequenceSidebarContentView: View {
     // wack. I can't apply padding to the List, since it'll clip the contents, nor apply it to the ForEach / contents
     // since they'll all get it (which will create extra space when clicking, which is also why it can't just be applied
     // to the first child).
-    List(selection: selection) {
+    List/*(selection: selection)*/ {
       ForEach(sequence.images) { image in
         VStack {
           SequenceImageView(image: image)
@@ -71,7 +71,7 @@ struct SequenceSidebarContentView: View {
         }
       }
     }
-    .copyable(sequence.urls(from: self.selection.wrappedValue))
+//    .copyable(sequence.urls(from: self.selection.wrappedValue))
     .quickLookPreview($previewItem, in: preview)
     .contextMenu { ids in
       Button("Show in Finder") {
@@ -135,13 +135,14 @@ struct SequenceSidebarContentView: View {
       SequenceInfoButtonView(ids: ids)
     }
     .alert(self.error ?? "", isPresented: error) {}
-    .focusedSceneValue(\.quicklook) {
-      if previewItem == nil {
-        quicklook(self.selection.wrappedValue)
-      } else {
-        previewItem = nil
-      }
-    }.onAppear {
+//    .focusedSceneValue(\.quicklook) {
+//      if previewItem == nil {
+//        quicklook(self.selection.wrappedValue)
+//      } else {
+//        previewItem = nil
+//      }
+//    }
+    .onAppear {
       copyDepot.resolve()
     }
   }

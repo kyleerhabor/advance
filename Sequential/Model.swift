@@ -10,6 +10,7 @@ import SwiftUI
 
 enum ImageError: Error {
   case undecodable
+  case thumbnail
 }
 
 struct Size: Hashable {
@@ -60,27 +61,6 @@ extension NavigationSplitViewVisibility: RawRepresentable {
 
 enum URLError: Error {
   case inaccessibleSecurityScope
-}
-
-struct Keys {
-  static let margin = Item("margin", 1)
-  static let appearance = Item("appearance", nil as SettingsView.Scheme)
-  // I think enabling Live Text by default but disabling the icons strikes a nice compromise between convenience (e.g.
-  // being able to select text) and UI simplicity (i.e. not having the buttons get in the way).
-  static let liveText = Item("liveText", true)
-  static let liveTextIcon = Item("liveTextIcon", false)
-  static let hideWindowSidebar = Item("hideWindowSidebar", false)
-  static let collapseMargins = Item("collapseMargins", true)
-
-  struct Item<Key, Value> {
-    let key: Key
-    let value: Value
-
-    init(_ key: Key, _ value: Value) {
-      self.key = key
-      self.value = value
-    }
-  }
 }
 
 enum ExecutionError: Error {
@@ -158,12 +138,12 @@ class CopyDepot {
           } catch {
             guard let err = error as? CocoaError,
                   err.code == .fileNoSuchFile || err.code == .fileReadCorruptFile else {
-              Logger.model.error("Bookmark for copy destination \"\(bookmark.url)\" (\(bookmark.data)) could not be resolved: \(error)")
+              Logger.model.error("Bookmark for copy destination \"\(bookmark.url.string)\" (\(bookmark.data)) could not be resolved: \(error)")
 
               return bookmark
             }
 
-            Logger.model.info("Bookmark for copy destination \"\(bookmark.url)\" (\(bookmark.data)) could not be resolved. Is it temporarily unavailable?")
+            Logger.model.info("Bookmark for copy destination \"\(bookmark.url.string)\" (\(bookmark.data)) could not be resolved. Is it temporarily unavailable?")
 
             return bookmark
           }
@@ -247,5 +227,25 @@ class CopyDepot {
     }
 
     return result.reversed()
+  }
+}
+
+struct Keys {
+  static let appearance = Item("appearance", nil as SettingsView.Scheme)
+  static let margin = Item("margin", 1)
+  static let collapseMargins = Item("collapseMargins", true)
+  // I think enabling Live Text by default but disabling the icons strikes a nice compromise between convenience (e.g.
+  // being able to select text) and UI simplicity (i.e. not having the buttons get in the way).
+  static let liveText = Item("liveText", true)
+  static let liveTextIcon = Item("liveTextIcon", false)
+
+  struct Item<Key, Value> {
+    let key: Key
+    let value: Value
+
+    init(_ key: Key, _ value: Value) {
+      self.key = key
+      self.value = value
+    }
   }
 }

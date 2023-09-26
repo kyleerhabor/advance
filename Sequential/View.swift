@@ -25,6 +25,10 @@ extension EdgeInsets {
     self.init(top: insets, leading: insets, bottom: insets, trailing: insets)
   }
 
+  init(vertical: Double, horizontal: Double) {
+    self.init(top: vertical, leading: horizontal, bottom: vertical, trailing: horizontal)
+  }
+
   init(horizontal: Double, top: Double, bottom: Double) {
     self.init(top: top, leading: horizontal, bottom: bottom, trailing: horizontal)
   }
@@ -37,8 +41,8 @@ extension Color {
 }
 
 extension KeyboardShortcut {
-  static let finder = Self("r")
   static let open = Self("o")
+  static let finder = Self("r")
   static let quicklook = Self("y")
 }
 

@@ -79,12 +79,11 @@ extension FormStyle where Self == SettingsFormStyle {
 struct SettingsView: View {
   typealias Scheme = ColorScheme?
 
-  @AppStorage(Keys.margin.key) private var margin = Keys.margin.value
   @AppStorage(Keys.appearance.key) private var appearance: Scheme
+  @AppStorage(Keys.margin.key) private var margin = Keys.margin.value
+  @AppStorage(Keys.collapseMargins.key) private var collapseMargins = Keys.collapseMargins.value
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
   @AppStorage(Keys.liveTextIcon.key) private var liveTextIcons = Keys.liveTextIcon.value
-  @AppStorage(Keys.hideWindowSidebar.key) private var hideWindowSidebar = Keys.hideWindowSidebar.value
-  @AppStorage(Keys.collapseMargins.key) private var collapseMargins = Keys.collapseMargins.value
   @State private var showingDestinations = false
   private let range = 0.0...4.0
 
@@ -138,14 +137,6 @@ struct SettingsView: View {
 
           Text("Images with adjacent borders will have their margins flattened into a single value.")
         }.disabled(margin.wrappedValue == 0)
-      }
-
-      LabeledContent("Sidebar:") {
-        Toggle(isOn: $hideWindowSidebar) {
-          Text("Hide sidebar when opening a window with images")
-
-          Text("Only relevant when opening a new window.")
-        }
       }
 
       LabeledContent("Live Text:") {

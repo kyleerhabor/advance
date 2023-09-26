@@ -45,16 +45,19 @@ struct SettingsDestinationsView: View {
 
       let unresolved = copyDepot.unresolved
 
-      Section("Unresolved") {
-        ForEach(unresolved, id: \.url) { url in
-          SettingsDestinationView(url: url)
-            .contextMenu {
-              Button("Remove") {
-                remove(url: url.url)
+      // We can't just set the opacity to 0 since the user will still see a divider.
+      if !unresolved.isEmpty {
+        Section("Unresolved") {
+          ForEach(unresolved, id: \.url) { url in
+            SettingsDestinationView(url: url)
+              .contextMenu {
+                Button("Remove") {
+                  remove(url: url.url)
+                }
               }
-            }
+          }
         }
-      }.opacity(unresolved.isEmpty ? 0 : 1)
+      }
     }
     .frame(minWidth: 384, minHeight: 160)
     .toolbar {

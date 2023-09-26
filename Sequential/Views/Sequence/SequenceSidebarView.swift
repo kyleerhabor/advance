@@ -10,7 +10,7 @@ import SwiftUI
 
 struct SequenceSidebarView: View {
   @Environment(\.prerendering) private var prerendering
-  @Environment(\.seqSelection) private var selection
+//  @Environment(\.seqSelection) private var selection
 
   let sequence: Seq
   let scrollDetail: () -> Void
@@ -28,9 +28,9 @@ struct SequenceSidebarView: View {
       }
     }
     .animation(.default, value: empty)
-    .onDeleteCommand { // onDelete(perform:) doesn't seem to work.
-      sequence.delete(selection.wrappedValue)
-    }
+//    .onDeleteCommand { // onDelete(perform:) doesn't seem to work.
+//      sequence.delete(selection.wrappedValue)
+//    }
   }
 }
 

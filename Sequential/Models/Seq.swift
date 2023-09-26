@@ -5,14 +5,22 @@
 //  Created by Kyle Erhabor on 8/24/23.
 //
 
-import OSLog
-import SwiftUI
+import ImageIO
 import UniformTypeIdentifiers
+
+struct SeqInspection {
+  let url: URL
+  let size: Size
+  let type: UTType?
+  let fileSize: Int?
+  let bookmark: SeqBookmark
+}
 
 // For some reason, conforming to Transferable and declaring the support for UTType.image is not enough to support .dropDestination(...)
 struct SeqImage: Identifiable {
   let id: UUID
   var url: URL
+  // These three are only relevant for SeqInspection
   let size: Size
   var type: UTType?
   var fileSize: Int?
@@ -119,11 +127,12 @@ extension SeqBookmark: Hashable {
 @Observable
 class Seq: Codable {
   var images = [SeqImage]()
+  var inspecting = [SeqInspection]()
   var bookmarks: [SeqBookmark]
 
   init(urls: [URL]) throws {
     self.bookmarks = try urls.map { url in
-        .init(data: try url.bookmark())
+      .init(data: try url.bookmark())
     }
   }
 
@@ -134,21 +143,7 @@ class Seq: Codable {
   }
 
   func load() async -> [SeqBookmark] {
-    var bookmarks = [SeqBookmark]()
-
-    await self.bookmarks.perform { bookmark in
-      do {
-        guard let bookmark = try bookmark.resolve().image() else {
-          return
-        }
-
-        bookmarks.append(bookmark)
-      } catch {
-        Logger.model.info("Could not resolve bookmark \"\(bookmark.data)\": \(error)")
-      }
-    }
-
-    return bookmarks.ordered(by: self.bookmarks, for: \.id)
+    return []
   }
 
   func update() {
@@ -192,34 +187,7 @@ class Seq: Codable {
   }
 
   func insert(_ urls: [URL], scoped: Bool) async -> [SeqBookmark] {
-    // Note that the data property gets replaced later.
-    let bookmarks = urls.map { SeqBookmark(id: .init(), data: .init(), url: $0) }
-
-    do {
-      var results = [SeqBookmark]()
-
-      try await bookmarks.perform { bookmark in
-        let url = bookmark.url!
-
-        let bookmark = try if scoped {
-          url.scoped { try self.inserted(bookmark: bookmark, url: url) }
-        } else {
-          self.inserted(bookmark: bookmark, url: url)
-        }
-
-        guard let bookmark else {
-          return
-        }
-
-        results.append(bookmark)
-      }
-
-      return results.ordered(by: bookmarks, for: \.id)
-    } catch {
-      Logger.ui.error("Could not insert bookmarks: \(error)")
-
-      return []
-    }
+    return []
   }
 
   func delete(_ urls: SequenceView.Selection) {
@@ -230,6 +198,8 @@ class Seq: Codable {
   func urls(from ids: SequenceView.Selection) -> [URL] {
     images.filter(in: ids, by: \.id).map(\.url)
   }
+
+  // Codable conformance
 
   func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)

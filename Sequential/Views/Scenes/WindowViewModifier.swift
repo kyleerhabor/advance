@@ -12,6 +12,12 @@ class Window {
   weak var window: NSWindow?
 }
 
+extension Window: Equatable {
+  static func == (lhs: Window, rhs: Window) -> Bool {
+    lhs.window == rhs.window
+  }
+}
+
 struct FullScreenEnvironmentKey: EnvironmentKey {
   static var defaultValue: Bool?
 }
@@ -68,6 +74,7 @@ struct WindowViewModifier: ViewModifier {
   func body(content: Content) -> some View {
     content
       .environment(window)
+      .focusedSceneValue(\.window, window)
       .background {
         WindowCaptureView(window: window)
       }
@@ -81,6 +88,7 @@ struct WindowFullScreenViewModifier: ViewModifier {
   func body(content: Content) -> some View {
     content
       .environment(\.fullScreen, fullScreen)
+      .focusedSceneValue(\.fullScreen, fullScreen)
       .onChange(of: window.window == nil) {
         fullScreen = window.window?.isFullScreen()
       }.onReceive(NotificationCenter.default.publisher(for: NSWindow.willEnterFullScreenNotification)) { notification in
@@ -118,8 +126,8 @@ struct PrerenderViewModifier: ViewModifier {
 extension View {
   func windowed() -> some View {
     self
+      .modifier(PrerenderViewModifier())
       .modifier(WindowFullScreenViewModifier())
       .modifier(WindowViewModifier())
-      .modifier(PrerenderViewModifier())
   }
 }

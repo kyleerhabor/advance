@@ -9,10 +9,6 @@ import Combine
 import OSLog
 import SwiftUI
 
-struct SeqSelectionEnvironmentKey: EnvironmentKey {
-  static var defaultValue = Binding.constant(SequenceView.Selection())
-}
-
 struct SeqInspectingEnvironmentKey: EnvironmentKey {
   static var defaultValue = Binding.constant(false)
 }
@@ -22,11 +18,6 @@ struct SeqInspectionEnvironmentKey: EnvironmentKey {
 }
 
 extension EnvironmentValues {
-  var seqSelection: SeqSelectionEnvironmentKey.Value {
-    get { self[SeqSelectionEnvironmentKey.self] }
-    set { self[SeqSelectionEnvironmentKey.self] = newValue }
-  }
-
   var seqInspecting: SeqInspectingEnvironmentKey.Value {
     get { self[SeqInspectingEnvironmentKey.self] }
     set { self[SeqInspectingEnvironmentKey.self] = newValue }
@@ -35,26 +26,6 @@ extension EnvironmentValues {
   var seqInspection: SeqInspectionEnvironmentKey.Value {
     get { self[SeqInspectionEnvironmentKey.self] }
     set { self[SeqInspectionEnvironmentKey.self] = newValue }
-  }
-}
-
-struct ScrollSidebarFocusedValueKey: FocusedValueKey {
-  typealias Value = () -> Void
-}
-
-struct ScrollDetailFocusedValueKey: FocusedValueKey {
-  typealias Value = () -> Void
-}
-
-extension FocusedValues {
-  var scrollSidebar: ScrollSidebarFocusedValueKey.Value? {
-    get { self[ScrollSidebarFocusedValueKey.self] }
-    set { self[ScrollSidebarFocusedValueKey.self] = newValue }
-  }
-
-  var scrollDetail: ScrollDetailFocusedValueKey.Value? {
-    get { self[ScrollDetailFocusedValueKey.self] }
-    set { self[ScrollDetailFocusedValueKey.self] = newValue }
   }
 }
 
@@ -95,7 +66,7 @@ struct SequenceImagePhaseView<Content>: View where Content: View {
         // This is necessary to slow down the memory creep SwiftUI creates when rendering images. It does not
         // eliminate it, but severely halts it. As an example, I have a copy of the first volume of Soloist in a Cage (~700 MBs).
         // When the window size is the default and the sidebar is open but hasn't been scrolled through, by time I
-        // reach page 24, the memory has ballooned to ~600 MBs. With this little trick, however, it rests at about ~150-200 MBs,
+        // reach page 24, the memory has ballooned to ~600 MB. With this little trick, however, it rests at about ~150-200 MBs,
         // and is nearly eliminated by the window being closed. Note that the memory creep is mostly applicable to
         // regular memory and not so much real memory.
         //
@@ -111,20 +82,12 @@ struct SequenceImageView<Content>: View where Content: View {
   @ViewBuilder var content: (Image) -> Content
 
   var body: some View {
-    let url = image.url
-
-    DisplayImageView(url: url, transaction: .init(animation: .default)) { $phase in
-      SequenceImagePhaseView(phase: $phase, content: content)
-    }
+//    DisplayImageView(url: url, transaction: .init(animation: .default)) { $phase in
+//      SequenceImagePhaseView(phase: $phase, content: content)
+//    }
+    Text("...")
     .id(image.id)
     .aspectRatio(image.size.aspectRatio, contentMode: .fit)
-    .onAppear {
-      if !url.startAccessingSecurityScopedResource() {
-        Logger.ui.error("Could not access security scoped resource for \"\(url.string)\"")
-      }
-    }.onDisappear {
-      url.stopAccessingSecurityScopedResource()
-    }
   }
 }
 
@@ -141,11 +104,7 @@ struct SequenceView: View {
 
   @Environment(Window.self) private var win
   @Environment(\.fullScreen) private var fullScreen
-  @AppStorage(Keys.hideWindowSidebar.key) private var hideWindowSidebar = Keys.hideWindowSidebar.value
   @SceneStorage("sidebar") private var columns: NavigationSplitViewVisibility?
-  @FocusedValue(\.scrollSidebar) private var scrollSidebar
-  // Embedding this in SequenceSidebarContentView causes a crash from the underlying AppKit, for some reason.
-  @FocusedValue(\.scrollDetail) private var scrollDetail
   @State private var selection = Selection()
   @State private var inspecting = false
   @State private var inspection = Selection()
@@ -182,63 +141,36 @@ struct SequenceView: View {
     // Note that the title bar should only be faded while the sidebar is not visible.
     NavigationSplitView(columnVisibility: columns) {
       ScrollViewReader { scroller in
-        SequenceSidebarView(sequence: sequence, scrollDetail: scrollDetail ?? noop)
-          .focusedSceneValue(\.scrollSidebar) {
-            // The only place we're calling this is in SequenceDetailItemView with a single item.
-            let id = self.selection.first!
-
-            // https://stackoverflow.com/a/72808733/14695788
-            Task {
-              withAnimation {
-                scroller.scrollTo(id, anchor: .center)
-
-                columns.wrappedValue = .all
-              }
-            }
-          }
+        SequenceSidebarView(sequence: sequence, scrollDetail: noop)
       }.navigationSplitViewColumnWidth(min: 128, ideal: 192, max: 256)
     } detail: {
       ScrollViewReader { scroller in
-        SequenceDetailView(images: sequence.images, scrollSidebar: scrollSidebar ?? noop)
-          .focusedSceneValue(\.scrollDetail) { [selection] in
-            guard let id = sequence.images.filter(
-              in: self.selection.subtracting(selection),
-              by: \.id
-            ).last?.id else {
-              return
-            }
-
-            Task {
-              // TODO: Figure out a way to change the animation (withAnimation(...) {...} doesn't work).
-              withAnimation {
-                scroller.scrollTo(id, anchor: .top)
-              }
-            }
-          }
-      }.focusedSceneValue(\.sequenceSelection, selectionDescription())
-    }.inspector(isPresented: $inspecting) {
-      let images = inspection.isEmpty
-        ? sequence.images
-        // If we really don't want to filter on the view body, we'd need to filter in the model whenever it changes
-        // (i.e. in update(_:)). I *really* want a property wrapper that updates when a data dependency does. In other
-        // words, I want the benefit of computed properties (no synchronization required) without the cost of unnecessary
-        // evaluation.
-        : sequence.images.filter(in: inspection, by: \.id)
-
-      VStack {
-        if !images.isEmpty {
-          SequenceInspectorView(images: images)
-        }
-      }
-      .inspectorColumnWidth(min: 200, ideal: 250, max: 300)
-      .toolbar {
-        Spacer()
-
-        Button("Toggle Inspector", systemImage: "info.circle") {
-          inspecting.toggle()
-        }
+        SequenceDetailView(images: sequence.images, scrollSidebar: noop)
       }
     }
+//    .inspector(isPresented: $inspecting) {
+//      let images = inspection.isEmpty
+//        ? sequence.images
+//        // If we really don't want to filter on the view body, we'd need to filter in the model whenever it changes
+//        // (i.e. in update(_:)). I *really* want a property wrapper that updates when a data dependency does. In other
+//        // words, I want the benefit of computed properties (no synchronization required) without the cost of unnecessary
+//        // evaluation.
+//        : sequence.images.filter(in: inspection, by: \.id)
+//
+//      VStack {
+//        if !images.isEmpty {
+//          SequenceInspectorView(images: images)
+//        }
+//      }
+//      .inspectorColumnWidth(min: 200, ideal: 250, max: 300)
+//      .toolbar {
+//        Spacer()
+//
+//        Button("Toggle Inspector", systemImage: "info.circle") {
+//          inspecting.toggle()
+//        }
+//      }
+//    }
     // If the app is launched with a window already full screened, the toolbar bar is properly hidden (still accessible
     // by bringing the mouse to the top). If the app is full screened manually, however, the title bar remains visible,
     // which ruins the purpose of full screen mode. Until I find a fix, the toolbar is explicitly disabled. Users can
@@ -248,28 +180,10 @@ struct SequenceView: View {
     .task {
       sequence.bookmarks = await sequence.load()
       sequence.update()
-    }.onAppear {
-      guard hideWindowSidebar, self.columns == nil,
-            !sequence.bookmarks.isEmpty else {
-        return
-      }
-
-      // It's fine that this will only work once (due to the columns check) as the rationale is to capture user intent.
-      // Not resetting the sidebar visibility on every relaunch allows the user's action of opening the sidebar to be
-      // persisted.
-      columns.wrappedValue = .detailOnly
     }.onChange(of: fullScreen) {
       window?.titlebarSeparatorStyle = fullScreen! ? .none : .automatic
     }
-    .environment(\.seqSelection, $selection)
     .environment(\.seqInspecting, $inspecting)
     .environment(\.seqInspection, $inspection)
-  }
-
-  func selectionDescription() -> SequenceSelection {
-    .init(
-      enabled: columns == .all && !selection.isEmpty,
-      resolve: { sequence.urls(from: selection) }
-    )
   }
 }

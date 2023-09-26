@@ -23,6 +23,7 @@ struct DisplayImageView<Content>: View where Content: View {
   let url: URL
   let transaction: Transaction
   let content: PhaseContent
+  let failure: () async -> Void
 
   var body: some View {
     GeometryReader { proxy in
@@ -32,6 +33,13 @@ struct DisplayImageView<Content>: View where Content: View {
         }.onReceive(sizePublisher) { size in
           self.size = size
         }.task(id: size) {
+          // In very limited circumstances (though, I'm not sure what the cause is), full screening can cause this
+          // modifier to be triggered for practically all images. This is also relevant for LiveTextView, so it seems
+          // the whole view thinks it's active.
+          guard !Task.isCancelled else {
+            return
+          }
+
           // Using `size` may result in the first image in the main canvas not being loaded.
           var size = proxy.size
 
@@ -54,25 +62,26 @@ struct DisplayImageView<Content>: View where Content: View {
             //
             // Image I/O has CGAnimateImageAtURLWithBlock, which helps. I tried implementing this once, but it came out
             // poorly due to performance.
-            let image = try await resample(to: size)
+            do {
+              let image = try await resample(to: size)
 
-            // If an image is already present, don't perform an animation.
-            //
-            // Is it possible to just use .animation(_:value:)?
-            if case .success = phase {
-              phase = .success(image)
-            } else {
-              withTransaction(transaction) {
+              // If an image is already present, don't perform an animation.
+              //
+              // Is it possible to just use .animation(_:value:)?
+              if case .success = phase {
                 phase = .success(image)
+              } else {
+                withTransaction(transaction) {
+                  phase = .success(image)
+                }
               }
+            } catch ImageError.thumbnail {
+              await failure()
             }
-          } catch {
+          } catch is CancellationError {
             // We don't want a CancellationError to e.g. change the visible image to a blank one, or for it to slightly
             // go blank then immediately come back.
-            guard !(error is CancellationError) else {
-              return
-            }
-
+          } catch {
             Logger.ui.error("Failed to resample image at \"\(url.string)\": \(error)")
 
             withTransaction(transaction) {
@@ -83,10 +92,11 @@ struct DisplayImageView<Content>: View where Content: View {
     }
   }
 
-  init(url: URL, transaction: Transaction, @ViewBuilder content: @escaping PhaseContent) {
+  init(url: URL, transaction: Transaction, @ViewBuilder content: @escaping PhaseContent, failure: @escaping () async -> Void) {
     self.url = url
     self.transaction = transaction
     self.content = content
+    self.failure = failure
 
     let size = Subject(.init())
 
@@ -97,28 +107,20 @@ struct DisplayImageView<Content>: View where Content: View {
   }
 
   func resample(to size: CGSize) async throws -> Image {
-    let options: [CFString : Any] = [
-      // We're not going to use kCGImageSourceShouldAllowFloat since the sizes can get very precise.
-      kCGImageSourceShouldCacheImmediately: true,
-      kCGImageSourceCreateThumbnailFromImageAlways: true,
-      kCGImageSourceThumbnailMaxPixelSize: size.length(),
-      kCGImageSourceCreateThumbnailWithTransform: true
-    ]
-
     guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
       throw ImageError.undecodable
     }
 
-    let primary = CGImageSourceGetPrimaryImageIndex(source)
-
-    guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, primary, options as CFDictionary) else {
-      throw ImageError.undecodable
-    }
-
+    let thumbnail = try source.resample(to: size.length())
+    
     Logger.ui.info("Created a resampled image from \"\(url.string)\" at dimensions \(thumbnail.width.description)x\(thumbnail.height.description) for size \(size.width) / \(size.height)")
 
     try Task.checkCancellation()
 
-    return .init(nsImage: .init(cgImage: thumbnail, size: size))
+    let image = NSImage(cgImage: thumbnail, size: size)
+    // I'm not exactly sure if this does anything.
+    image.cacheMode = .never
+
+    return .init(nsImage: image)
   }
 }

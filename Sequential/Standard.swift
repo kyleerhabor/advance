@@ -15,17 +15,23 @@ extension Bundle {
 }
 
 extension Logger {
-  static let ui = Self(subsystem: Bundle.identifier, category: "ui")
-  static let model = Self(subsystem: Bundle.identifier, category: "model")
+  static let ui = Self(subsystem: Bundle.identifier, category: "UI")
+  static let model = Self(subsystem: Bundle.identifier, category: "Model")
+  static let startup = Self(subsystem: Bundle.identifier, category: "Initialization")
+  static let livetext = Self(subsystem: Bundle.identifier, category: "LiveText")
 }
 
 extension URL {
+  static let liveTextDownsampledDirectory = Self.temporaryDirectory.appending(component: "Live Text Downsampled")
+
   var string: String {
     self.path(percentEncoded: false)
   }
 
   func scoped<T>(_ body: () throws -> T) throws -> T {
     guard self.startAccessingSecurityScopedResource() else {
+      Logger.model.info("Could not access security scope for URL \"\(self.string)\"")
+
       throw URLError.inaccessibleSecurityScope
     }
 
@@ -36,48 +42,39 @@ extension URL {
     return try body()
   }
 
-  func bookmark(options: Self.BookmarkCreationOptions = [.withSecurityScope, .securityScopeAllowOnlyReadAccess]) throws -> Data {
+  func scoped<T>(_ body: () async throws -> T) async throws -> T {
+    guard self.startAccessingSecurityScopedResource() else {
+      throw URLError.inaccessibleSecurityScope
+    }
+
+    defer {
+      self.stopAccessingSecurityScopedResource()
+    }
+
+    return try await body()
+  }
+
+  func bookmark(options: BookmarkCreationOptions = [.withSecurityScope, .securityScopeAllowOnlyReadAccess]) throws -> Data {
     try self.bookmarkData(options: options)
   }
 }
 
 extension Sequence {
-  func ordered(by array: [Element], for keyPath: KeyPath<Element, some Hashable>) -> [Element] where Element: Hashable {
-    let index = array.enumerated().reduce(into: [:]) { partialResult, pair in
-      partialResult[pair.1[keyPath: keyPath]] = pair.0
+  func sorted<T>(byOrderOf source: some Sequence<T>, transform: (Element) -> T) -> [Element] where T: Hashable {
+    let index = source.enumerated().reduce(into: [:]) { partialResult, pair in
+      partialResult[pair.element] = pair.offset
     }
 
     return self.sorted { a, b in
-      guard let ai = index[a[keyPath: keyPath]] else {
+      guard let ai = index[transform(a)] else {
         return false
       }
 
-      guard let bi = index[b[keyPath: keyPath]] else {
+      guard let bi = index[transform(b)] else {
         return true
       }
+
       return ai < bi
-    }
-  }
-
-  // These functions should only be used for bodies that execute very quickly (to prevent task explosion).
-
-  func perform(_ body: @escaping (Element) async -> Void) async {
-    await withDiscardingTaskGroup { group in
-      self.forEach { element in
-        group.addTask {
-          await body(element)
-        }
-      }
-    }
-  }
-
-  func perform(_ body: @escaping (Element) async throws -> Void) async throws {
-    try await withThrowingDiscardingTaskGroup { group in
-      self.forEach { element in
-        group.addTask {
-          try await body(element)
-        }
-      }
     }
   }
 
@@ -137,10 +134,6 @@ func time<T>(
 
 func noop() {}
 
-extension UTType {
-  static let avif = Self(importedAs: "public.avif")
-}
-
 extension Double {
   public init(_ source: Bool) {
     self.init(source ? 1 : 0)
@@ -160,3 +153,11 @@ extension ResolvedBookmark {
     self.stale = stale
   }
 }
+
+extension RandomAccessCollection {
+  var isMany: Bool {
+    self.count > 1
+  }
+}
+
+

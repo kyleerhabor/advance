@@ -5,6 +5,7 @@
 //  Created by Kyle Erhabor on 7/27/23.
 //
 
+import OSLog
 import SwiftUI
 
 @main
@@ -14,17 +15,32 @@ struct SequentialApp: App {
 
   var body: some Scene {
     Group {
-      SequenceScene()
-        // For some reason, the delegate is not being placed in the environment by default (the property wrapper says
-        // it will). Maybe it only applies to views and not scenes?
-        .environmentObject(delegate)
-        // This is required for imports using the document types feature (e.g. dropping a set of images on to the dock
-        // icon) to not create additional windows for each import (even when only one actually receives the content).
+      ImageCollectionScene()
         .handlesExternalEvents(matching: [])
-
+      
       Settings {
         SettingsView()
       }.windowResizability(.contentMinSize)
-    }.environment(copyDepot)
+    }
+    .environment(copyDepot)
+    .environmentObject(delegate)
+  }
+
+  init() {
+    Task(priority: .background) {
+      await Self.initialize()
+    }
+  }
+
+  static func initialize() async {
+    do {
+      try FileManager.default.removeItem(at: .liveTextDownsampledDirectory)
+    } catch {
+      if let err = error as? CocoaError, err.code == .fileNoSuchFile {
+        return
+      }
+
+      Logger.startup.error("Could not delete Live Text downsampled directory: \(error)")
+    }
   }
 }

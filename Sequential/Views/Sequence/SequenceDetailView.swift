@@ -10,8 +10,11 @@ import OSLog
 import SwiftUI
 
 struct SequenceDetailItemView: View {
+  @Environment(\.seqInspecting) @Binding private var inspecting
+  @Environment(\.seqInspection) @Binding private var inspection
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
   @State private var error: String?
+//  @State private var showingDetails = false
 
   let image: SeqImage
   var liveTextIcon: Bool
@@ -30,12 +33,13 @@ struct SequenceDetailItemView: View {
     }
 
     SequenceImageView(image: image) { image in
-      image.resizable().overlay {
-        if liveText {
-          LiveTextView(url: url, highlight: $highlight)
-            .supplementaryInterfaceHidden(!liveTextIcon)
-        }
-      }
+      image.resizable()
+//        .overlay {
+//        if liveText {
+//          LiveTextView(url: url, highlight: $highlight)
+//            .supplementaryInterfaceHidden(!liveTextIcon)
+//        }
+//      }
     }.contextMenu {
       Button("Show in Finder") {
         openFinder(selecting: url)
@@ -82,7 +86,7 @@ struct SequenceDetailItemView: View {
 }
 
 struct SequenceDetailContentView: View {
-  @Environment(\.seqSelection) private var selection
+//  @Environment(\.seqSelection) @Binding private var selection
 
   let image: SeqImage
   let liveTextIcon: Bool
@@ -97,15 +101,17 @@ struct SequenceDetailContentView: View {
       highlight: $highlight,
       copyDestinations: copyDestinations
     ) { id in
-      selection.wrappedValue = [id]
-      scrollSidebar()
+//      selection = [id]
+//      scrollSidebar()
     }
   }
 }
 
 struct SequenceDetailView: View {
   @Environment(CopyDepot.self) private var copyDepot
-  @Environment(\.seqSelection) private var selection
+  @Environment(\.seqInspecting) @Binding private var inspecting
+  @Environment(\.seqInspection) @Binding private var inspection
+//  @Environment(\.seqSelection) @Binding private var selection
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
   @AppStorage(Keys.liveTextIcon.key) private var appLiveTextIcon = Keys.liveTextIcon.value
   @AppStorage(Keys.margin.key) private var margins = Keys.margin.value
@@ -117,6 +123,9 @@ struct SequenceDetailView: View {
   let scrollSidebar: () -> Void
 
   var body: some View {
+    let margin = Double(margins)
+    let half = margin * 3
+    let full = half * 2
     let liveTextIcon = Binding {
       self.liveTextIcon ?? appLiveTextIcon
     } set: { icons in
@@ -147,11 +156,7 @@ struct SequenceDetailView: View {
     //
     // FIXME: Leaving Sequential, switching back, and immediately trying to scroll may result in unstable positioning.
     List {
-      let margin = Double(margins)
-
       Group {
-        let half = margin * 3
-        let full = half * 2
         let inset = EdgeInsets(full)
         let top = EdgeInsets(horizontal: full, top: full, bottom: half)
         let between = EdgeInsets(horizontal: full, top: half, bottom: half)
@@ -193,17 +198,14 @@ struct SequenceDetailView: View {
       .shadow(radius: margin)
     }
     .listStyle(.plain)
+//    .overlay {
+//      SequenceDetailInfoView(images: images)
+//        .frame(minWidth: 128, maxWidth: 512)
+//    }
     .toolbar {
       if liveText && !images.isEmpty {
         Toggle("Show Live Text icons", systemImage: "text.viewfinder", isOn: liveTextIcon)
       }
-    }
-    // Since the toolbar disappears in full screen mode, we can't use .keyboardShortcut(_:modifiers:). However, we'll
-    // need to fix the implementation so it's part of the responder chain.
-    .onKey("t", modifiers: [.command], repeating: true) {
-      liveTextIcon.wrappedValue.toggle()
-    }.onKey("t", modifiers: [.command, .shift]) {
-      highlight.toggle()
     }.onAppear {
       copyDepot.resolve()
     }

@@ -192,7 +192,7 @@ struct SequenceInspectorPreviewView: View {
     images: [
       chapter(numbered: 2, type: .png, fileSize: 2_200_000),
       chapter(numbered: 3, type: .jpeg, fileSize: 1_900_000),
-      chapter(numbered: 4, type: .avif, fileSize: 2_600_000)
+      chapter(numbered: 4, type: .gif, fileSize: 2_600_000)
     ]
   )
 }
