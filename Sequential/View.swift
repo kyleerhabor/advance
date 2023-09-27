@@ -70,3 +70,9 @@ struct TextBuilder {
 extension NSEvent.ModifierFlags {
   static let primary: Self = [.command, .shift, .option, .control]
 }
+
+extension View {
+  func visible(_ visible: Bool) -> some View {
+    self.opacity(visible ? 1 : 0)
+  }
+}

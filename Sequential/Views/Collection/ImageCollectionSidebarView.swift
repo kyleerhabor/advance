@@ -6,6 +6,7 @@
 //
 
 import OSLog
+import QuickLook
 import SwiftUI
 
 struct ImageCollectionSidebarItemView: View {
