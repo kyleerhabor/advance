@@ -17,10 +17,12 @@ struct SequentialApp: App {
     Group {
       ImageCollectionScene()
         .handlesExternalEvents(matching: [])
-      
+
       Settings {
         SettingsView()
-      }.windowResizability(.contentMinSize)
+      }
+      // FIXME: This isn't giving it a default size of its minimum (the first time).
+      .windowResizability(.contentMinSize)
     }
     .environment(copyDepot)
     .environmentObject(delegate)

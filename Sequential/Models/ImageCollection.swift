@@ -121,11 +121,12 @@ class ImageCollectionBookmark: Codable {
   }
 
   func resolve() async throws -> Bookmark {
+    var data = data
     var stale = false
     var url = try URL(resolvingBookmarkData: data, options: .withSecurityScope, bookmarkDataIsStale: &stale)
 
     if stale {
-      let data = try bookmark(url: url)
+      data = try bookmark(url: url)
       url = try URL(resolvingBookmarkData: data, options: .withSecurityScope, bookmarkDataIsStale: &stale)
     }
 
@@ -174,6 +175,7 @@ class ImageCollection: Codable {
   // The materialized state useful for the UI.
   var images = [ImageCollectionItem]()
   var bookmarked = [ImageCollectionItem]()
+  var bookmarkedIndex = ImageCollectionView.Selection()
   var inspections = [ImageCollectionItemInspection]()
 
   init() {
@@ -240,11 +242,13 @@ class ImageCollection: Codable {
     }
   }
 
-  func update() {
-    let images = bookmarks.compactMap(\.image)
+  func updateImages() {
+    images = bookmarks.compactMap(\.image)
+  }
 
-    self.images = images
-    self.bookmarked = images.filter(\.bookmark.bookmarked)
+  func updateBookmarks() {
+    bookmarked = images.filter { $0.bookmark.bookmarked }
+    bookmarkedIndex = Set(bookmarked.map(\.id))
   }
 
   // Codable conformance

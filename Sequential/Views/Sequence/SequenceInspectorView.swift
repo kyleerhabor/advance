@@ -91,7 +91,7 @@ struct SequenceInspectorView: View {
         }
 
         LabeledContent("File type:") {
-          let list: [String] = images.compactMap(\.type).removingDuplicates().map { type in
+          let list: [String] = images.compactMap(\.type).map { type in
             type.localizedDescription ?? type.preferredFilenameExtension?.capitalized ?? type.description
           }
 

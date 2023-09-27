@@ -298,7 +298,8 @@ struct ImageCollectionView: View {
     .toolbar(fullScreen == true ? .hidden : .automatic)
     .task {
       collection.wrappedValue.bookmarks = await collection.wrappedValue.load()
-      collection.wrappedValue.update()
+      collection.wrappedValue.updateImages()
+      collection.wrappedValue.updateBookmarks()
     }.environment(\.selection, $selection)
   }
 }

@@ -25,13 +25,13 @@ struct SettingsDestinationView: View {
 }
 
 struct SettingsDestinationsView: View {
+  @Environment(CopyDepot.self) private var depot
   @Environment(\.dismiss) private var dismiss
-  @Environment(CopyDepot.self) private var copyDepot
-  @State private var file = false
+  @State private var showingFilePicker = false
 
   var body: some View {
     List {
-      ForEach(copyDepot.resolved, id: \.url) { url in
+      ForEach(depot.resolved) { url in
         Link(destination: url.url) {
           SettingsDestinationView(url: url)
         }
@@ -43,12 +43,12 @@ struct SettingsDestinationsView: View {
         }
       }
 
-      let unresolved = copyDepot.unresolved
+      let unresolved = depot.unresolved
 
       // We can't just set the opacity to 0 since the user will still see a divider.
       if !unresolved.isEmpty {
         Section("Unresolved") {
-          ForEach(unresolved, id: \.url) { url in
+          ForEach(unresolved) { url in
             SettingsDestinationView(url: url)
               .contextMenu {
                 Button("Remove") {
@@ -69,26 +69,49 @@ struct SettingsDestinationsView: View {
 
       ToolbarItem(placement: .primaryAction) {
         Button("Add...", systemImage: "plus") {
-          file = true
+          showingFilePicker = true
         }
         .labelStyle(.titleOnly)
-        .fileImporter(isPresented: $file, allowedContentTypes: [.folder]) { result in
-          do {
-            switch result {
-              case .success(let url):
-                let bookmark = try url.scoped { try url.bookmark(options: .withSecurityScope) }
+        .fileImporter(
+          isPresented: $showingFilePicker,
+          allowedContentTypes: [.folder],
+          allowsMultipleSelection: true
+        ) { result in
+          switch result {
+            case .success(let urls):
+              do {
+                let imported = try urls.map { url in
+                  let bookmark = try url.scoped {
+                    try url.bookmark(options: .withSecurityScope)
+                  }
 
-                copyDepot.bookmarks.removeAll { $0.data == bookmark }
-                copyDepot.bookmarks.append(.init(data: bookmark, url: url, resolved: true))
-                copyDepot.update()
-                copyDepot.store()
-              case .failure(let err):
-                throw err
-            }
-          } catch {
-            Logger.ui.error("Failed to import copy destination: \(error)")
+                  return (bookmark, url)
+                }
+
+                let index = Set(imported.map(\.0))
+
+                depot.bookmarks.removeAll { index.contains($0.data) }
+
+                let bookmarks = imported.map { item in
+                  CopyDepotBookmark(data: item.0, url: item.1, resolved: true)
+                }
+
+                depot.bookmarks.append(contentsOf: bookmarks)
+                depot.update()
+                depot.store()
+              } catch {
+                Logger.ui.error("Could not import copy destinations \"\(urls)\": \(error)")
+              }
+            case .failure(let err):
+              Logger.ui.error("Could not import copy destinations: \(err)")
           }
         }
+      }
+    }.task {
+      depot.bookmarks = await depot.resolve()
+
+      withAnimation {
+        depot.update()
       }
     }.environment(\.openURL, .init { url in
       do {
@@ -100,16 +123,14 @@ struct SettingsDestinationsView: View {
       }
 
       return .handled
-    }).onAppear {
-      copyDepot.resolve()
-    }
+    })
   }
 
   func remove(url: URL) {
     withAnimation {
-      copyDepot.bookmarks.removeAll { $0.url == url }
-      copyDepot.update()
-      copyDepot.store()
+      depot.bookmarks.removeAll { $0.url == url }
+      depot.update()
+      depot.store()
     }
   }
 }

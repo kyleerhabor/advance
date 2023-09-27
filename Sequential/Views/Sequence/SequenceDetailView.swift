@@ -206,8 +206,6 @@ struct SequenceDetailView: View {
       if liveText && !images.isEmpty {
         Toggle("Show Live Text icons", systemImage: "text.viewfinder", isOn: liveTextIcon)
       }
-    }.onAppear {
-      copyDepot.resolve()
     }
   }
 }

@@ -6,9 +6,7 @@
 //
 
 import AppKit
-import ImageIO
 import OSLog
-import UniformTypeIdentifiers
 
 extension Bundle {
   static let identifier = Bundle.main.bundleIdentifier!
@@ -78,22 +76,19 @@ extension Sequence {
     }
   }
 
-  func removingDuplicates() -> [Element] where Element: Hashable {
-    var seen = Set<Element>()
-
-    return self.filter { element in
-      if seen.contains(element) {
-        return false
-      }
-
-      seen.insert(element)
-
-      return true
-    }
-  }
-
   func filter<T>(in set: Set<T>, by value: (Element) -> T) -> [Element] {
     self.filter { set.contains(value($0)) }
+  }
+
+  func mapAsync<T>(_ transform: (Element) async throws -> T) async rethrows -> [T] {
+    var result = [T]()
+    result.reserveCapacity(self.underestimatedCount)
+
+    for element in self {
+      result.append(try await transform(element))
+    }
+
+    return result
   }
 }
 
@@ -134,12 +129,6 @@ func time<T>(
 
 func noop() {}
 
-extension Double {
-  public init(_ source: Bool) {
-    self.init(source ? 1 : 0)
-  }
-}
-
 struct ResolvedBookmark {
   let url: URL
   let stale: Bool
@@ -160,4 +149,8 @@ extension RandomAccessCollection {
   }
 }
 
-
+extension Set {
+  var isMany: Bool {
+    self.count > 1
+  }
+}

@@ -54,7 +54,8 @@ struct ImageCollectionSidebarEmptyView: View {
                 .map(\.value)
 
               collection.bookmarks = bookmarks
-              collection.update()
+              collection.updateImages()
+              collection.updateBookmarks()
             } catch {
               Logger.ui.error("\(error)")
             }
@@ -87,7 +88,8 @@ struct ImageCollectionSidebarEmptyView: View {
             .map(\.value)
 
           collection.bookmarks = bookmarks
-          collection.update()
+          collection.updateImages()
+          collection.updateBookmarks()
         } catch {
           Logger.ui.error("Could not load URLs of dropped images from providers \"\(providers)\": \(error)")
         }
@@ -124,7 +126,7 @@ struct ImageCollectionSidebarEmptyView: View {
     }
   }
 
-  func resolveBookmarkImage(_ bookmark: ImageCollectionBookmark, url: URL) async throws {
+  func resolve(_ bookmark: ImageCollectionBookmark, url: URL) async throws {
     guard let properties = await ImageProperties(at: url) else {
       throw ImageError.undecodable
     }
@@ -145,7 +147,7 @@ struct ImageCollectionSidebarEmptyView: View {
               bookmarked: false
             )
 
-            try await resolveBookmarkImage(bookmark, url: url)
+            try await resolve(bookmark, url: url)
 
             return bookmark
           }
@@ -175,7 +177,7 @@ struct ImageCollectionSidebarEmptyView: View {
             bookmarked: false
           )
 
-          try await resolveBookmarkImage(bookmark, url: url)
+          try await resolve(bookmark, url: url)
 
           return (offset, bookmark)
         }

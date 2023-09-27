@@ -42,7 +42,6 @@ struct SequenceImagePhaseView<Content>: View where Content: View {
     // kind of be weird for collections that mix transparent and non-transparent images, however (since there's no
     // clear separator).
     Color.tertiaryFill
-      .opacity(Double(phase.image == nil))
       .overlay {
         if let image = phase.image {
           content(image)
@@ -51,8 +50,6 @@ struct SequenceImagePhaseView<Content>: View where Content: View {
           Image(systemName: "exclamationmark.triangle.fill")
             .symbolRenderingMode(.multicolor)
             .imageScale(.large)
-        } else {
-          ProgressView().opacity(Double(elapsed))
         }
       }.task {
         guard (try? await Task.sleep(for: .seconds(1))) != nil else {

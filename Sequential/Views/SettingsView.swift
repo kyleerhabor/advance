@@ -152,7 +152,6 @@ struct SettingsView: View {
         Button("Show Destinations...") {
           showingDestinations = true
         }.sheet(isPresented: $showingDestinations) {
-          // FIXME: This can take a while to appear.
           SettingsDestinationsView()
         }
       }

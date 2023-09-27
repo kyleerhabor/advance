@@ -8,13 +8,68 @@
 import OSLog
 import SwiftUI
 
+struct ImageCollectionSidebarItemView: View {
+  let image: ImageCollectionItem
+
+  var body: some View {
+    VStack {
+      ImageCollectionItemView(image: image)
+        // Would it look better if this transitioned with the image? I think it would still be sueful to show in
+        // cases of errors.
+        .overlay(alignment: .topTrailing) {
+          Image(systemName: "bookmark")
+            .symbolVariant(.fill)
+            .symbolRenderingMode(.multicolor)
+            .opacity(0.8)
+            .imageScale(.large)
+            .shadow(radius: 0.5)
+            .padding(4)
+            .visible(image.bookmark.bookmarked)
+        }
+
+      // Interestingly, this can be slightly expensive.
+      let path = image.url.lastPathComponent
+
+      Text(path)
+        .font(.subheadline)
+        .padding(.init(vertical: 4, horizontal: 8))
+        .background(Color.secondaryFill)
+        .clipShape(.rect(cornerRadius: 4))
+        // TODO: Replace this for an expansion tooltip (like how NSTableView has it)
+        //
+        // I tried this before, but couldn't get sizing or the trailing ellipsis to work properly.
+        .help(path)
+    }
+    // This is not an image editor, but I don't mind some functionality that's associated with image editors. Being
+    // able to drag images out of the app and drop them elsewhere just feels natural.
+    .draggable(image.url) {
+      ImageCollectionItemView(image: image)
+    }
+  }
+}
+
+struct ImageCollectionSidebarBookmarkButtonView: View {
+  @Binding var bookmarks: Bool
+
+  var body: some View {
+    Toggle("\(bookmarks ? "Hide" : "Show") Bookmarks", systemImage: "bookmark", isOn: $bookmarks)
+      .labelStyle(.iconOnly)
+      .buttonStyle(.plain)
+      .toggleStyle(.button)
+      .symbolVariant(bookmarks ? .fill : .none)
+      .foregroundStyle(Color(bookmarks ? .controlAccentColor : .secondaryLabelColor))
+  }
+}
+
 struct ImageCollectionSidebarView: View {
+  @Environment(CopyDepot.self) private var copyDepot
   @Environment(\.prerendering) private var prerendering
   @Environment(\.collection) @Binding private var collection
   @Environment(\.selection) @Binding private var selection
   @State private var bookmarks = false
   @State private var quicklook = [URL]()
   @State private var quicklookItem: URL?
+  @State private var error: String?
 
   let scrollDetail: () -> Void
 
@@ -26,39 +81,17 @@ struct ImageCollectionSidebarView: View {
 
       scrollDetail()
     }
+    let error = Binding {
+      self.error != nil
+    } set: { present in
+      if !present {
+        self.error = nil
+      }
+    }
 
     List(selection: selection) {
       ForEach(bookmarks ? collection.bookmarked : collection.images, id: \.id) { image in
-        VStack {
-          ImageCollectionItemView(image: image)
-            .overlay(alignment: .topTrailing) {
-              Image(systemName: "bookmark")
-                .symbolVariant(.fill)
-                .foregroundStyle(.red.opacity(0.8))
-                .imageScale(.large)
-                .shadow(radius: 0.5)
-                .padding(4)
-                .visible(image.bookmark.bookmarked)
-            }
-
-          // Interestingly, this can be slightly expensive.
-          let path = image.url.lastPathComponent
-
-          Text(path)
-            .font(.subheadline)
-            .padding(.init(vertical: 4, horizontal: 8))
-            .background(Color.secondaryFill)
-            .clipShape(.rect(cornerRadius: 4))
-            // TODO: Replace this for an expansion tooltip (like how NSTableView has it)
-            //
-            // I tried this before, but couldn't get sizing or the trailing ellipsis to work properly.
-            .help(path)
-        }
-        // This is not an image editor, but I don't mind some functionality that's associated with image editors. Being
-        // able to drag images out of the app and drop them elsewhere just feels natural.
-        .draggable(image.url) {
-          ImageCollectionItemView(image: image)
-        }
+        ImageCollectionSidebarItemView(image: image)
       }.onMove { source, destination in
         collection.bookmarks.move(fromOffsets: source, toOffset: destination)
         collection.images.move(fromOffsets: source, toOffset: destination)
@@ -66,13 +99,8 @@ struct ImageCollectionSidebarView: View {
     }.safeAreaInset(edge: .bottom, spacing: 0) {
       VStack(alignment: .trailing, spacing: 0) {
         Divider()
-        
-        Toggle("Show Bookmarks", systemImage: "bookmark", isOn: $bookmarks)
-          .labelStyle(.iconOnly)
-          .buttonStyle(.plain)
-          .toggleStyle(.button)
-          .symbolVariant(bookmarks ? .fill : .none)
-          .foregroundStyle(Color(bookmarks ? .controlAccentColor : .secondaryLabelColor))
+
+        ImageCollectionSidebarBookmarkButtonView(bookmarks: $bookmarks)
           .padding(8)
       }
     }
@@ -106,27 +134,39 @@ struct ImageCollectionSidebarView: View {
         }
       }
 
+      if !copyDepot.resolved.isEmpty {
+        ImageCollectionCopyFolderView(error: $error) { urls(from: ids) }
+      }
+
       // TODO: Implement "Copy to Folder"
 
       Divider()
 
-      // TODO: Apply bookmarks based on state.
-      //
-      // If A and B aren't bookmarked, bookmark. If A is bookmarked and B isn't, bookmark. If A and B are bookmarked, remove bookmark.
-      Button {
-        let images = collection.images.filter(in: ids, by: \.id)
-        let bookmark = images.allSatisfy { !$0.bookmark.bookmarked }
+      let bookmarked = ids.isSubset(of: collection.bookmarkedIndex)
 
-        images.forEach { image in
-          image.bookmark.bookmarked = bookmark
+      Button {
+        // If we wanted to efficiently modify the label based on the selection state, we'd need to compute it whenever
+        // the selection changes.
+        collection.images.filter(in: ids, by: \.id).forEach { image in
+          image.bookmark.bookmarked = !bookmarked
         }
 
-//        withAnimation {
-          collection.bookmarked = collection.images.filter { $0.bookmark.bookmarked }
-//        }
+        collection.updateBookmarks()
       } label: {
-        Label("Bookmark", systemImage: "bookmark")
+        let title = if bookmarked {
+          if ids.isMany {
+            "Remove Bookmarks"
+          } else {
+            "Remove Bookmark"
+          }
+        } else {
+          "Bookmark"
+        }
+
+        Label(title, systemImage: "bookmark")
       }
+
+      Divider()
 
       Button("Get Info", systemImage: "info.circle") {
         // TODO: Implement.
@@ -139,6 +179,11 @@ struct ImageCollectionSidebarView: View {
           ImageCollectionSidebarEmptyView()
         }
       }.animation(.default, value: visible)
+    }
+    .alert(self.error ?? "", isPresented: error) {}
+    .task {
+      copyDepot.bookmarks = await copyDepot.resolve()
+      copyDepot.update()
     }.onKeyPress(.space, phases: .down) { event in
       quicklook(urls: urls(from: self.selection))
 

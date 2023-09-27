@@ -14,6 +14,8 @@
 		001483392A86D4C50040E5CB /* SequenceSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001483382A86D4C50040E5CB /* SequenceSidebarView.swift */; };
 		001CB5202A718D4200DBB6FA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 001CB51F2A718D4200DBB6FA /* Assets.xcassets */; };
 		001D8D0E2A74AC5400B58790 /* Model.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001D8D0D2A74AC5400B58790 /* Model.swift */; };
+		001E1E672AC4DD79005EE188 /* CopyDepot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001E1E662AC4DD79005EE188 /* CopyDepot.swift */; };
+		001E1E692AC4DEC8005EE188 /* ImageCollectionCopyFolderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001E1E682AC4DEC8005EE188 /* ImageCollectionCopyFolderView.swift */; };
 		003763C92AB4068700D53F2E /* ImageCollectionSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003763C82AB4068700D53F2E /* ImageCollectionSidebarView.swift */; };
 		003763CC2AB40FD800D53F2E /* ImageCollectionSidebarEmptyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003763CB2AB40FD800D53F2E /* ImageCollectionSidebarEmptyView.swift */; };
 		0042B5DB2AB8C450009F251B /* ImageCollectionCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0042B5DA2AB8C450009F251B /* ImageCollectionCommands.swift */; };
@@ -51,6 +53,8 @@
 		001CB51F2A718D4200DBB6FA /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		001CB5242A718D4200DBB6FA /* Sequential.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Sequential.entitlements; sourceTree = "<group>"; };
 		001D8D0D2A74AC5400B58790 /* Model.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Model.swift; sourceTree = "<group>"; };
+		001E1E662AC4DD79005EE188 /* CopyDepot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopyDepot.swift; sourceTree = "<group>"; };
+		001E1E682AC4DEC8005EE188 /* ImageCollectionCopyFolderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionCopyFolderView.swift; sourceTree = "<group>"; };
 		003763C82AB4068700D53F2E /* ImageCollectionSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionSidebarView.swift; sourceTree = "<group>"; };
 		003763CB2AB40FD800D53F2E /* ImageCollectionSidebarEmptyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionSidebarEmptyView.swift; sourceTree = "<group>"; };
 		0042B5DA2AB8C450009F251B /* ImageCollectionCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionCommands.swift; sourceTree = "<group>"; };
@@ -201,6 +205,7 @@
 			children = (
 				00BE70C72A97BAE600315808 /* Seq.swift */,
 				00C369522AB766DC0033F10A /* ImageCollection.swift */,
+				001E1E662AC4DD79005EE188 /* CopyDepot.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -221,6 +226,7 @@
 				00CBAB5B2AB2470C0045FF83 /* ImageCollectionDetailView.swift */,
 				003763C82AB4068700D53F2E /* ImageCollectionSidebarView.swift */,
 				003763CA2AB40FC200D53F2E /* Sidebar */,
+				001E1E682AC4DEC8005EE188 /* ImageCollectionCopyFolderView.swift */,
 			);
 			path = Collection;
 			sourceTree = "<group>";
@@ -355,8 +361,10 @@
 				000855692A72FE2C00309905 /* SequentialApp.swift in Sources */,
 				003763CC2AB40FD800D53F2E /* ImageCollectionSidebarEmptyView.swift in Sources */,
 				00C127342A90927E00B5452C /* DisplayImageView.swift in Sources */,
+				001E1E692AC4DEC8005EE188 /* ImageCollectionCopyFolderView.swift in Sources */,
 				00CBAB5C2AB2470C0045FF83 /* ImageCollectionDetailView.swift in Sources */,
 				0042B5DB2AB8C450009F251B /* ImageCollectionCommands.swift in Sources */,
+				001E1E672AC4DD79005EE188 /* CopyDepot.swift in Sources */,
 				008EA2192A886C260005AB44 /* SequenceSidebarContentView.swift in Sources */,
 				001483392A86D4C50040E5CB /* SequenceSidebarView.swift in Sources */,
 				00CBAB572AB23E1F0045FF83 /* ImageCollectionView.swift in Sources */,

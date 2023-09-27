@@ -133,18 +133,7 @@ struct SequenceSidebarContentView: View {
       Divider()
 
       SequenceInfoButtonView(ids: ids)
-    }
-    .alert(self.error ?? "", isPresented: error) {}
-//    .focusedSceneValue(\.quicklook) {
-//      if previewItem == nil {
-//        quicklook(self.selection.wrappedValue)
-//      } else {
-//        previewItem = nil
-//      }
-//    }
-    .onAppear {
-      copyDepot.resolve()
-    }
+    }.alert(self.error ?? "", isPresented: error) {}
   }
 
   func open(_ ids: SequenceView.Selection) {

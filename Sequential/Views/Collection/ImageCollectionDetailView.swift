@@ -7,32 +7,30 @@
 
 import OSLog
 import SwiftUI
-import UniformTypeIdentifiers
 
-struct ImageCollectionInfoButtonView: View {
+struct ImageCollectionDetailItemBookmarkView: View {
   @Environment(\.collection) @Binding private var collection
 
+  let image: ImageCollectionItem
+
   var body: some View {
-    Button("Get Info", systemImage: "info.circle") {
-//      collection.inspections.append(.init(
-//        // It would be simpler to mark an inspection as unowning an image, then extracting the extra info we need.
-//        url: <#T##URL#>,
-//        width: <#T##Double#>,
-//        height: <#T##Double#>,
-//        // CGImageSourceGetType
-//        type: <#T##UTType#>,
-//        // kCGImagePropertyFileSize
-//        fileSize: <#T##Int#>
-//      ))
-      // TODO: Implement.
+    let bookmarked = image.bookmark.bookmarked
+
+    Button {
+      image.bookmark.bookmarked = !bookmarked
+      collection.updateBookmarks()
+    } label: {
+      Label(bookmarked ? "Remove Bookmark" : "Bookmark", systemImage: "bookmark")
     }
   }
 }
 
 struct ImageCollectionDetailItemView: View {
+  @Environment(CopyDepot.self) private var copyDepot
   @Environment(\.selection) @Binding private var selection
   @AppStorage(Keys.collapseMargins.key) private var collapse = Keys.collapseMargins.value
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
+  @State private var error: String?
 
   let image: ImageCollectionItem
   let margin: Double
@@ -44,7 +42,14 @@ struct ImageCollectionDetailItemView: View {
     let url = image.url
     let insets = collapse
       ? insets
-      : .init(margin)
+      : .init(margin * 6)
+    let error = Binding {
+      self.error != nil
+    } set: { present in
+      if !present {
+        self.error = nil
+      }
+    }
 
     ImageCollectionItemView(image: image) { image in
       image.resizable().overlay {
@@ -80,18 +85,27 @@ struct ImageCollectionDetailItemView: View {
         }
       }
 
+      if !copyDepot.resolved.isEmpty {
+        ImageCollectionCopyFolderView(error: $error) { [url] }
+      }
+
       // TODO: Implement "Copy to Folder"
+
+      Divider()
+
+      ImageCollectionDetailItemBookmarkView(image: image)
 
       Divider()
 
       Button("Get Info", systemImage: "info.circle") {
         // TODO: Implement.
       }
-    }
+    }.alert(self.error ?? "", isPresented: error) {}
   }
 }
 
 struct ImageCollectionDetailView: View {
+  @Environment(CopyDepot.self) private var copyDepot
   @AppStorage(Keys.margin.key) private var margins = Keys.margin.value
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
   @AppStorage(Keys.liveTextIcon.key) private var appLiveTextIcon = Keys.liveTextIcon.value
@@ -186,6 +200,9 @@ struct ImageCollectionDetailView: View {
 //          .keyboardShortcut("i", modifiers: .command)
 //          .help("Show Image Details")
 //      }
+    }.task {
+      copyDepot.bookmarks = await copyDepot.resolve()
+      copyDepot.update()
     }
   }
 }
