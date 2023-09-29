@@ -140,7 +140,7 @@ class CopyDepot {
     } else if inVolume {
       3
     } else {
-      1
+      1 // We don't want the root /.
     }
 
     let paths = components.dropFirst(dropping)

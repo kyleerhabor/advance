@@ -117,10 +117,6 @@ struct DisplayImageView<Content>: View where Content: View {
 
     try Task.checkCancellation()
 
-    let image = NSImage(cgImage: thumbnail, size: size)
-    // I'm not exactly sure if this does anything.
-    image.cacheMode = .never
-
-    return .init(nsImage: image)
+    return .init(nsImage: .init(cgImage: thumbnail, size: size))
   }
 }

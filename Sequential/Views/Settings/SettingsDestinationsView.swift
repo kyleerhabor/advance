@@ -58,9 +58,7 @@ struct SettingsDestinationsView: View {
           }
         }
       }
-    }
-    .frame(minWidth: 384, minHeight: 160)
-    .toolbar {
+    }.toolbar {
       ToolbarItem(placement: .cancellationAction) {
         Button("Close") {
           dismiss()

@@ -84,6 +84,7 @@ struct SettingsView: View {
   @AppStorage(Keys.collapseMargins.key) private var collapseMargins = Keys.collapseMargins.value
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
   @AppStorage(Keys.liveTextIcon.key) private var liveTextIcons = Keys.liveTextIcon.value
+  @AppStorage(Keys.displayTitleBarImage.key) private var displayTitleBarImage = Keys.displayTitleBarImage.value
   @State private var showingDestinations = false
   private let range = 0.0...4.0
 
@@ -148,11 +149,16 @@ struct SettingsView: View {
         }
       }
 
+      LabeledContent("Window:") {
+        Toggle("Display the current image in the title", isOn: $displayTitleBarImage)
+      }
+
       LabeledContent("Copying:") {
         Button("Show Destinations...") {
           showingDestinations = true
         }.sheet(isPresented: $showingDestinations) {
           SettingsDestinationsView()
+            .frame(minWidth: 512, minHeight: 160)
         }
       }
     }

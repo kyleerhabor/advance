@@ -8,11 +8,11 @@
 import OSLog
 import SwiftUI
 
-struct ImageCollectionItemPhaseView<Content>: View where Content: View {
+struct ImageCollectionItemPhaseView<Overlay>: View where Overlay: View {
   @State private var elapsed = false
 
   @Binding var phase: AsyncImagePhase
-  @ViewBuilder var content: (Image) -> Content
+  @ViewBuilder var overlay: (Binding<AsyncImagePhase>) -> Overlay
 
   var body: some View {
     // For transparent images, the fill is still useful to know that an image is supposed to be in the frame, but when
@@ -24,7 +24,7 @@ struct ImageCollectionItemPhaseView<Content>: View where Content: View {
       .visible(phase.image == nil)
       .overlay {
         if let image = phase.image {
-          content(image)
+          image.resizable()
         } else if case .failure = phase {
           // We can't really get away with not displaying a failure view.
           Image(systemName: "exclamationmark.triangle.fill")
@@ -33,6 +33,8 @@ struct ImageCollectionItemPhaseView<Content>: View where Content: View {
         } else {
           ProgressView().visible(elapsed)
         }
+      }.overlay {
+        overlay($phase)
       }.task {
         guard (try? await Task.sleep(for: .seconds(1))) != nil else {
           return
@@ -41,32 +43,20 @@ struct ImageCollectionItemPhaseView<Content>: View where Content: View {
         withAnimation {
           elapsed = true
         }
-      }.onDisappear {
-        // This is necessary to slow down the memory creep SwiftUI creates when rendering some images. It does not
-        // eliminate it, but severely halts it. As an example, I have a copy of the first volume of Soloist in a Cage (~700 MBs).
-        // When the window size is the default and the sidebar is open but hasn't been scrolled through, by time I
-        // reach page 24, the memory has ballooned to ~600 MB. With this little trick, however, it rests at about ~150-200 MBs,
-        // and is nearly eliminated by the window being closed. Note that the memory creep is mostly applicable to
-        // regular memory and not so much real memory. In addition, not all image collections need it, since there are
-        // some which (magically) handle their own memory while not destroying the image (in other words, it rests at a
-        // good average, like ~150 MB).
-        //
-        // In the future, I'd like to improve image loading so images are preloaded before they appear on-screen.
-        phase = .empty
       }
   }
 }
 
-struct ImageCollectionItemView<Content>: View where Content: View {
+struct ImageCollectionItemView<Overlay>: View where Overlay: View {
   @State private var accessingSecurityScope = false
   @State private var phase = AsyncImagePhase.empty
 
   var image: ImageCollectionItem
-  @ViewBuilder var content: (Image) -> Content
+  @ViewBuilder var overlay: (Binding<AsyncImagePhase>) -> Overlay
 
   var body: some View {
     DisplayImageView(url: image.url, transaction: .init(animation: .default)) { $phase in
-      ImageCollectionItemPhaseView(phase: $phase, content: content)
+      ImageCollectionItemPhaseView(phase: $phase, overlay: overlay)
         .task { await check() }
     } failure: {
       // This unfortunately produces a "flash" due to the URL change, but it's not the end of the world.
@@ -151,11 +141,9 @@ struct ImageCollectionItemView<Content>: View where Content: View {
   }
 }
 
-extension ImageCollectionItemView where Content == Image {
+extension ImageCollectionItemView where Overlay == EmptyView {
   init(image: ImageCollectionItem) {
-    self.init(image: image) { img in
-      img.resizable()
-    }
+    self.init(image: image) { _ in }
   }
 }
 
@@ -227,26 +215,41 @@ extension FocusedValues {
 }
 
 struct ImageCollectionNavigationSidebarView: View {
+  @Environment(\.collection) @Binding private var collection
   @Environment(\.selection) @Binding private var selection
   @FocusedValue(\.detailScroller) private var detailScroller
   @Binding var columns: NavigationSplitViewVisibility
 
   var body: some View {
     ScrollViewReader { proxy in
-      ImageCollectionSidebarView(scrollDetail: detailScroller?.scroll ?? noop)
-        .focusedSceneValue(\.sidebarScroller, .init(selection: selection) {
-          // The only place we're calling this is in ImageCollectionDetailItemView with a single item.
-          let id = selection.first!
+      ImageCollectionSidebarView(
+        scrollDetail: detailScroller?.scroll ?? noop,
+        columns: columns
+      ).focusedSceneValue(\.jumpToCurrentImage, .init(enabled: collection.visible.last != nil) {
+        let id = collection.visible.last!.id
 
-          // https://stackoverflow.com/a/72808733/14695788
-          Task {
-            withAnimation {
-              proxy.scrollTo(id, anchor: .center)
+        selection = [id]
 
-              columns = .all
-            }
+        Task {
+          withAnimation {
+            proxy.scrollTo(id, anchor: .center)
+            
+            columns = .all
           }
-        })
+        }
+      }).focusedSceneValue(\.sidebarScroller, .init(selection: selection) {
+        // The only place we're calling this is in ImageCollectionDetailItemView with a single item.
+        let id = selection.first!
+
+        // https://stackoverflow.com/a/72808733/14695788
+        Task {
+          withAnimation {
+            proxy.scrollTo(id, anchor: .center)
+
+            columns = .all
+          }
+        }
+      })
     }
   }
 }
@@ -285,10 +288,15 @@ struct ImageCollectionView: View {
 
   @Environment(\.collection) private var collection
   @Environment(\.fullScreen) private var fullScreen
+  @AppStorage(Keys.displayTitleBarImage.key) private var displayTitleBarImage = Keys.displayTitleBarImage.value
   @SceneStorage("sidebar") private var columns = NavigationSplitViewVisibility.all
   @State private var selection = Selection()
 
   var body: some View {
+    // Interestingly, using @State causes the app to hang whenever the list of URLs is changed. I presume this has to
+    // do with how changes are propagated.
+    let visible = displayTitleBarImage ? collection.wrappedValue.visible.last?.url : nil
+
     NavigationSplitView(columnVisibility: $columns) {
       ImageCollectionNavigationSidebarView(columns: $columns)
         .navigationSplitViewColumnWidth(min: 128, ideal: 192, max: 256)
@@ -296,6 +304,10 @@ struct ImageCollectionView: View {
       ImageCollectionNavigationDetailView(images: collection.images)
     }
     .toolbar(fullScreen == true ? .hidden : .automatic)
+    .navigationTitle(Text(visible?.deletingPathExtension().lastPathComponent ?? "Sequential"))
+    // I wish it were possible to pass nil to not use this modifier. This workaround displays a blank file that doesn't
+    // point anywhere (the system decides to just use "the computer").
+    .navigationDocument(visible ?? .none)
     .task {
       collection.wrappedValue.bookmarks = await collection.wrappedValue.load()
       collection.wrappedValue.updateImages()

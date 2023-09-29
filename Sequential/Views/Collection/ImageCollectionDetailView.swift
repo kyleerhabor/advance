@@ -25,6 +25,44 @@ struct ImageCollectionDetailItemBookmarkView: View {
   }
 }
 
+struct VisiblePreferenceKey: PreferenceKey {
+  static var defaultValue = false
+
+  static func reduce(value: inout Bool, nextValue: () -> Bool) {}
+}
+
+struct ImageCollectionDetailItemVisibilityView: View {
+  @Environment(\.collection) @Binding private var collection
+
+  let image: ImageCollectionItem
+
+  var body: some View {
+    GeometryReader { proxy in
+      let container = proxy.frame(in: .scrollView)
+      let frame = proxy.frame(in: .local)
+
+      Color.clear
+        .preference(key: VisiblePreferenceKey.self, value: frame.intersects(container))
+        // If the user scrolls fast enough where the image hasn't been rendered into the UI yet, they may see the
+        // default title instead. A solution would be to work in an append-only mode (which would make for good use in
+        // an ordered set)
+        .onPreferenceChange(VisiblePreferenceKey.self) { visible in
+          guard visible else {
+            guard let index = collection.visible.firstIndex(of: image) else {
+              return
+            }
+
+            collection.visible.remove(at: index)
+
+            return
+          }
+
+          collection.visible.append(image)
+        }
+    }
+  }
+}
+
 struct ImageCollectionDetailItemView: View {
   @Environment(CopyDepot.self) private var copyDepot
   @Environment(\.selection) @Binding private var selection
@@ -40,9 +78,7 @@ struct ImageCollectionDetailItemView: View {
 
   var body: some View {
     let url = image.url
-    let insets = collapse
-      ? insets
-      : .init(margin * 6)
+    let insets = collapse ? insets : .init(margin * 6)
     let error = Binding {
       self.error != nil
     } set: { present in
@@ -51,18 +87,31 @@ struct ImageCollectionDetailItemView: View {
       }
     }
 
-    ImageCollectionItemView(image: image) { image in
-      image.resizable().overlay {
-        if liveText {
-          @Bindable var image = self.image
+    ImageCollectionItemView(image: image) { $phase in
+      VStack {
+        if phase.image != nil && liveText {
+          @Bindable var image = image
 
-          // I tried using a (CG/NS)Image instead of a URL, but that lead to a memory leak.
           LiveTextView(
             url: image.url,
             orientation: image.orientation,
             analysis: $image.analysis
           ).supplementaryInterfaceHidden(!liveTextIcon)
         }
+      }.background {
+        ImageCollectionDetailItemVisibilityView(image: image)
+      }.onDisappear {
+        // This is necessary to slow down the memory creep SwiftUI creates when rendering some images. It does not
+        // eliminate it, but severely halts it. As an example, I have a copy of the first volume of Soloist in a Cage (~750 MBs).
+        // When the window size is the default and the sidebar is open but hasn't been scrolled through, by time I
+        // reach page 24, the memory has ballooned to ~600 MB. With this little trick, however, it rests at about ~150-200 MBs,
+        // and is nearly eliminated by the window being closed. Note that the memory creep is mostly applicable to
+        // regular memory and not so much real memory. In addition, not all image collections need it, since there are
+        // some which (magically) handle their own memory while not destroying the image (in other words, it rests at a
+        // good average, like ~150 MB).
+        //
+        // In the future, I'd like to improve image loading so images are preloaded before they appear on-screen.
+        phase = .empty
       }
     }
     .shadow(radius: margin)
@@ -86,20 +135,12 @@ struct ImageCollectionDetailItemView: View {
       }
 
       if !copyDepot.resolved.isEmpty {
-        ImageCollectionCopyFolderView(error: $error) { [url] }
+        ImageCollectionCopyDestinationView(error: $error) { [url] }
       }
-
-      // TODO: Implement "Copy to Folder"
 
       Divider()
 
       ImageCollectionDetailItemBookmarkView(image: image)
-
-      Divider()
-
-      Button("Get Info", systemImage: "info.circle") {
-        // TODO: Implement.
-      }
     }.alert(self.error ?? "", isPresented: error) {}
   }
 }
@@ -161,28 +202,7 @@ struct ImageCollectionDetailView: View {
       }.listRowSeparator(.hidden)
     }
     .listStyle(.plain)
-    .overlay(alignment: .bottomTrailing) {
-      // TODO: Replace !images.isEmpty for !inspections.isEmpty
-      let visible = showingDetails && !images.isEmpty
-
-      Form {
-        LabeledContent {
-          Text("Screenshot 2023-09-10 at 4.26.56 PM.png")
-        } label: {
-          Image(systemName: "tag")
-        }
-      }
-      .padding()
-      .background(.thickMaterial.shadow(.drop(radius: 2)), in: .rect(cornerRadius: 8))
-      .padding()
-      .padding(.trailing, full)
-      .visible(visible)
-      // TODO: Come up with an animation I like.
-      //
-      // Because the toggle button in the toolbar changes instantly, this feels too slow. However, passing a duration
-      // parameter throws away interrupted animations.
-      .animation(.default.speed(3), value: visible)
-    }.toolbar {
+    .toolbar {
       let icons = Binding {
         icon
       } set: {
@@ -191,15 +211,9 @@ struct ImageCollectionDetailView: View {
 
       if liveText && !images.isEmpty {
         Toggle("Show Live Text icon", systemImage: "text.viewfinder", isOn: icons)
-          .keyboardShortcut("t", modifiers: .command)
+          .keyboardShortcut(.liveTextIcon)
           .help("Show Live Text icon")
       }
-
-//      if !images.isEmpty {
-//        Toggle("Show Image Details", systemImage: "info.circle", isOn: $showingDetails)
-//          .keyboardShortcut("i", modifiers: .command)
-//          .help("Show Image Details")
-//      }
     }.task {
       copyDepot.bookmarks = await copyDepot.resolve()
       copyDepot.update()

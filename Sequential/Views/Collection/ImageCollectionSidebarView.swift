@@ -15,8 +15,6 @@ struct ImageCollectionSidebarItemView: View {
   var body: some View {
     VStack {
       ImageCollectionItemView(image: image)
-        // Would it look better if this transitioned with the image? I think it would still be sueful to show in
-        // cases of errors.
         .overlay(alignment: .topTrailing) {
           Image(systemName: "bookmark")
             .symbolVariant(.fill)
@@ -73,6 +71,7 @@ struct ImageCollectionSidebarView: View {
   @State private var error: String?
 
   let scrollDetail: () -> Void
+  let columns: NavigationSplitViewVisibility
 
   var body: some View {
     let selection = Binding {
@@ -95,7 +94,7 @@ struct ImageCollectionSidebarView: View {
         ImageCollectionSidebarItemView(image: image)
       }.onMove { source, destination in
         collection.bookmarks.move(fromOffsets: source, toOffset: destination)
-        collection.images.move(fromOffsets: source, toOffset: destination)
+        collection.updateImages()
       }
     }.safeAreaInset(edge: .bottom, spacing: 0) {
       VStack(alignment: .trailing, spacing: 0) {
@@ -136,41 +135,17 @@ struct ImageCollectionSidebarView: View {
       }
 
       if !copyDepot.resolved.isEmpty {
-        ImageCollectionCopyFolderView(error: $error) { urls(from: ids) }
+        ImageCollectionCopyDestinationView(error: $error) { urls(from: ids) }
       }
-
-      // TODO: Implement "Copy to Folder"
-
+      
       Divider()
 
-      let bookmarked = ids.isSubset(of: collection.bookmarkedIndex)
+      let mark: Bool = bookmark(selection: ids)
 
       Button {
-        // If we wanted to efficiently modify the label based on the selection state, we'd need to compute it whenever
-        // the selection changes.
-        collection.images.filter(in: ids, by: \.id).forEach { image in
-          image.bookmark.bookmarked = !bookmarked
-        }
-
-        collection.updateBookmarks()
+        bookmark(mark, selection: ids)
       } label: {
-        let title = if bookmarked {
-          if ids.isMany {
-            "Remove Bookmarks"
-          } else {
-            "Remove Bookmark"
-          }
-        } else {
-          "Bookmark"
-        }
-
-        Label(title, systemImage: "bookmark")
-      }
-
-      Divider()
-
-      Button("Get Info", systemImage: "info.circle") {
-        // TODO: Implement.
+        Label(mark ? "Bookmark" : "Remove Bookmark", systemImage: "bookmark")
       }
     }.overlay {
       let visible = collection.bookmarks.isEmpty && !prerendering
@@ -190,11 +165,11 @@ struct ImageCollectionSidebarView: View {
 
       return .handled
     }.focusedSceneValue(\.sidebarFinder,
-      .init(enabled: !self.selection.isEmpty) {
+      .init(enabled: columns == .all && !self.selection.isEmpty) {
         openFinder(selecting: urls(from: self.selection))
       }
     ).focusedSceneValue(\.sidebarQuicklook,
-      .init(enabled: !self.selection.isEmpty || quicklookItem != nil) {
+      .init(enabled: columns == .all && (!self.selection.isEmpty || quicklookItem != nil)) {
         guard quicklookItem == nil else {
           quicklookItem = nil
 
@@ -203,7 +178,11 @@ struct ImageCollectionSidebarView: View {
 
         quicklook(urls: urls(from: self.selection))
       }
-    )
+    ).focusedSceneValue(\.sidebarBookmark,
+      .init(enabled: columns == .all && !self.selection.isEmpty) {
+        bookmark(selection: self.selection)
+      }
+    ).focusedSceneValue(\.sidebarBookmarkState, columns != .all || bookmark(selection: self.selection) ? .add : .remove)
   }
 
   func urls(from selection: ImageCollectionView.Selection) -> [URL] {
@@ -215,5 +194,25 @@ struct ImageCollectionSidebarView: View {
     // flipping through the app menu or context menus).
     quicklook = urls
     quicklookItem = urls.first
+  }
+
+  func bookmark(selection: ImageCollectionView.Selection) -> Bool {
+    guard selection.isEmpty else {
+      return !selection.isSubset(of: collection.bookmarkedIndex)
+    }
+
+    return true
+  }
+
+  func bookmark(selection: ImageCollectionView.Selection) {
+    bookmark(bookmark(selection: selection), selection: selection)
+  }
+
+  func bookmark(_ value: Bool, selection: ImageCollectionView.Selection) {
+    collection.images.filter(in: selection, by: \.id).forEach { image in
+      image.bookmark.bookmarked = value
+    }
+
+    collection.updateBookmarks()
   }
 }

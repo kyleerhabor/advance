@@ -19,6 +19,10 @@ struct FullScreenFocusedValueKey: FocusedValueKey {
 struct AppMenuAction {
   let enabled: Bool
   let action: () -> Void
+
+  func callAsFunction() {
+    action()
+  }
 }
 
 extension AppMenuAction: Equatable {
@@ -32,6 +36,22 @@ struct AppMenuFinderFocusedValueKey: FocusedValueKey {
 }
 
 struct AppMenuQuickLookFocusedValueKey: FocusedValueKey {
+  typealias Value = AppMenuAction
+}
+
+enum AppMenuBookmarkState: Equatable {
+  case add, remove
+}
+
+struct AppMenuBookmarkFocusedValueKey: FocusedValueKey {
+  typealias Value = AppMenuAction
+}
+
+struct AppMenuBookmarkStateFocusedValueKey: FocusedValueKey {
+  typealias Value = AppMenuBookmarkState
+}
+
+struct AppMenuJumpToCurrentImageFocusedValueKey: FocusedValueKey {
   typealias Value = AppMenuAction
 }
 
@@ -56,6 +76,21 @@ extension FocusedValues {
     get { self[AppMenuQuickLookFocusedValueKey.self] }
     set { self[AppMenuQuickLookFocusedValueKey.self] = newValue }
   }
+
+  var sidebarBookmark: AppMenuBookmarkFocusedValueKey.Value? {
+    get { self[AppMenuBookmarkFocusedValueKey.self] }
+    set { self[AppMenuBookmarkFocusedValueKey.self] = newValue }
+  }
+
+  var sidebarBookmarkState: AppMenuBookmarkStateFocusedValueKey.Value? {
+    get { self[AppMenuBookmarkStateFocusedValueKey.self] }
+    set { self[AppMenuBookmarkStateFocusedValueKey.self] = newValue }
+  }
+
+  var jumpToCurrentImage: AppMenuJumpToCurrentImageFocusedValueKey.Value? {
+    get { self[AppMenuJumpToCurrentImageFocusedValueKey.self] }
+    set { self[AppMenuJumpToCurrentImageFocusedValueKey.self] = newValue }
+  }
 }
 
 struct ImageCollectionCommands: Commands {
@@ -66,6 +101,9 @@ struct ImageCollectionCommands: Commands {
   @FocusedValue(\.fullScreen) private var fullScreen
   @FocusedValue(\.sidebarFinder) private var finder
   @FocusedValue(\.sidebarQuicklook) private var quicklook
+  @FocusedValue(\.sidebarBookmark) private var bookmark
+  @FocusedValue(\.sidebarBookmarkState) private var bookmarkState
+  @FocusedValue(\.jumpToCurrentImage) private var jumpToCurrentImage
   private var window: NSWindow? { win?.window }
 
   var body: some Commands {
@@ -94,16 +132,24 @@ struct ImageCollectionCommands: Commands {
       Divider()
 
       Button("Show in Finder") {
-        finder?.action()
+        finder?()
       }
       .keyboardShortcut(.finder)
       .disabled(finder?.enabled != true)
 
       Button("Quick Look", systemImage: "eye") {
-        quicklook?.action()
+        quicklook?()
       }
       .keyboardShortcut(.quicklook)
       .disabled(quicklook?.enabled != true)
+    }
+
+    CommandGroup(after: .textEditing) {
+      Button(bookmarkState == .remove ? "Remove Bookmark" : "Bookmark") {
+        bookmark?()
+      }
+      .keyboardShortcut(.bookmark)
+      .disabled(bookmark?.enabled != true)
     }
 
     CommandGroup(after: .sidebar) {
@@ -117,8 +163,16 @@ struct ImageCollectionCommands: Commands {
       Button("\(fullScreen == true ? "Exit" : "Enter") Full Screen") {
         window?.toggleFullScreen(nil)
       }
-      .keyboardShortcut("f", modifiers: [.command, .control])
+      .keyboardShortcut(.fullScreen)
       .disabled(fullScreen == nil || window == nil)
+    }
+
+    CommandMenu("Navigate") {
+      Button("Go to Current Image") {
+        jumpToCurrentImage?()
+      }
+      .keyboardShortcut(.jumpToCurrentImage)
+      .disabled(jumpToCurrentImage?.enabled != true)
     }
 
     CommandGroup(after: .windowArrangement) {

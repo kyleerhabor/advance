@@ -44,6 +44,10 @@ extension KeyboardShortcut {
   static let open = Self("o")
   static let finder = Self("r")
   static let quicklook = Self("y")
+  static let bookmark = Self("d")
+  static let liveTextIcon = Self("t")
+  static let fullScreen = Self("f", modifiers: [.command, .control])
+  static let jumpToCurrentImage = Self("l")
 }
 
 @resultBuilder

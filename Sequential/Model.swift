@@ -75,6 +75,7 @@ struct Keys {
   // being able to select text) and UI simplicity (i.e. not having the buttons get in the way).
   static let liveText = Item("liveText", true)
   static let liveTextIcon = Item("liveTextIcon", false)
+  static let displayTitleBarImage = Item("displayTitleBarImage", true)
 
   struct Item<Key, Value> {
     let key: Key

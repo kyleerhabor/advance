@@ -1,5 +1,5 @@
 //
-//  ImageCollectionCopyFolderView.swift
+//  ImageCollectionCopyDestinationView.swift
 //  Sequential
 //
 //  Created by Kyle Erhabor on 9/27/23.
@@ -8,7 +8,7 @@
 import OSLog
 import SwiftUI
 
-struct ImageCollectionCopyFolderView: View {
+struct ImageCollectionCopyDestinationView: View {
   @Environment(CopyDepot.self) private var depot
   @Binding var error: String?
 

@@ -20,6 +20,7 @@ extension Logger {
 }
 
 extension URL {
+  static let none = Self(string: "file:")!
   static let liveTextDownsampledDirectory = Self.temporaryDirectory.appending(component: "Live Text Downsampled")
 
   var string: String {

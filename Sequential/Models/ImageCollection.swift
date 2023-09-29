@@ -8,16 +8,7 @@
 import Foundation
 import ImageIO
 import OSLog
-import UniformTypeIdentifiers
 import VisionKit
-
-struct ImageCollectionItemInspection {
-  let url: URL
-  let width: Double
-  let height: Double
-  let type: UTType
-  let fileSize: Int
-}
 
 struct ImageProperties {
   let width: Double
@@ -86,9 +77,13 @@ class ImageCollectionItem {
   }
 }
 
-extension ImageCollectionItem: Identifiable {
+extension ImageCollectionItem: Identifiable, Equatable {
   var id: URL {
     url
+  }
+
+  static func ==(lhs: ImageCollectionItem, rhs: ImageCollectionItem) -> Bool {
+    lhs.url == rhs.url
   }
 }
 
@@ -176,7 +171,7 @@ class ImageCollection: Codable {
   var images = [ImageCollectionItem]()
   var bookmarked = [ImageCollectionItem]()
   var bookmarkedIndex = ImageCollectionView.Selection()
-  var inspections = [ImageCollectionItemInspection]()
+  var visible = [ImageCollectionItem]()
 
   init() {
     self.bookmarks = []
