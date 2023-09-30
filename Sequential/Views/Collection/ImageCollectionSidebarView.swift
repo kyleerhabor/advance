@@ -71,7 +71,6 @@ struct ImageCollectionSidebarView: View {
   @State private var error: String?
 
   let scrollDetail: () -> Void
-  let columns: NavigationSplitViewVisibility
 
   var body: some View {
     let selection = Binding {
@@ -164,12 +163,11 @@ struct ImageCollectionSidebarView: View {
       quicklook(urls: urls(from: self.selection))
 
       return .handled
-    }.focusedSceneValue(\.sidebarFinder,
-      .init(enabled: columns == .all && !self.selection.isEmpty) {
+    }.focusedValue(\.sidebarFinder,
+      .init(enabled: !self.selection.isEmpty) {
         openFinder(selecting: urls(from: self.selection))
       }
-    ).focusedSceneValue(\.sidebarQuicklook,
-      .init(enabled: columns == .all && (!self.selection.isEmpty || quicklookItem != nil)) {
+    ).focusedValue(\.sidebarQuicklook, .init(enabled: !self.selection.isEmpty || quicklookItem != nil) {
         guard quicklookItem == nil else {
           quicklookItem = nil
 
@@ -178,11 +176,9 @@ struct ImageCollectionSidebarView: View {
 
         quicklook(urls: urls(from: self.selection))
       }
-    ).focusedSceneValue(\.sidebarBookmark,
-      .init(enabled: columns == .all && !self.selection.isEmpty) {
+    ).focusedValue(\.sidebarBookmark, .init(enabled: !self.selection.isEmpty) {
         bookmark(selection: self.selection)
-      }
-    ).focusedSceneValue(\.sidebarBookmarkState, columns != .all || bookmark(selection: self.selection) ? .add : .remove)
+    }).focusedValue(\.sidebarBookmarkState, bookmark(selection: self.selection) ? .add : .remove)
   }
 
   func urls(from selection: ImageCollectionView.Selection) -> [URL] {

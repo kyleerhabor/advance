@@ -39,10 +39,10 @@ extension EnvironmentValues {
 }
 
 class AppearanceView: NSView {
-  @Bindable var win: Window
+  var win: Window
 
-  init(window: Bindable<Window>) {
-    self._win = window
+  init(window: Window) {
+    self.win = window
 
     super.init(frame: .zero)
   }
@@ -59,13 +59,15 @@ class AppearanceView: NSView {
 }
 
 struct WindowCaptureView: NSViewRepresentable {
-  @Bindable var window: Window
+  let window: Window
 
   func makeNSView(context: Context) -> AppearanceView {
-    .init(window: $window)
+    .init(window: window)
   }
 
-  func updateNSView(_ nsView: AppearanceView, context: Context) {}
+  func updateNSView(_ appearanceView: AppearanceView, context: Context) {
+    appearanceView.win = window
+  }
 }
 
 struct WindowViewModifier: ViewModifier {
@@ -129,5 +131,15 @@ extension View {
       .modifier(PrerenderViewModifier())
       .modifier(WindowFullScreenViewModifier())
       .modifier(WindowViewModifier())
+  }
+}
+
+class WindowDelegate {
+  @MainActor
+  @objc static func window(
+    _ window: NSWindow,
+    willUseFullScreenPresentationOptions proposedOptions: NSApplication.PresentationOptions = []
+  ) -> NSApplication.PresentationOptions {
+    return proposedOptions.union(.autoHideToolbar)
   }
 }

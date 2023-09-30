@@ -172,6 +172,9 @@ class ImageCollection: Codable {
   var bookmarked = [ImageCollectionItem]()
   var bookmarkedIndex = ImageCollectionView.Selection()
   var visible = [ImageCollectionItem]()
+  var currentImage: ImageCollectionItem? {
+    visible.last
+  }
 
   init() {
     self.bookmarks = []
@@ -249,9 +252,15 @@ class ImageCollection: Codable {
   // Codable conformance
 
   required init(from decoder: Decoder) throws {
-    let container = try decoder.singleValueContainer()
+    do {
+      let container = try decoder.singleValueContainer()
 
-    self.bookmarks = try container.decode([ImageCollectionBookmark].self)
+      self.bookmarks = try container.decode([ImageCollectionBookmark].self)
+    } catch {
+      Logger.model.info("Could not decode image collection for scene restoration.")
+
+      self.bookmarks = []
+    }
   }
 
   func encode(to encoder: Encoder) throws {

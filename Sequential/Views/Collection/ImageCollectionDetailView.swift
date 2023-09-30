@@ -41,24 +41,21 @@ struct ImageCollectionDetailItemVisibilityView: View {
       let container = proxy.frame(in: .scrollView)
       let frame = proxy.frame(in: .local)
 
-      Color.clear
-        .preference(key: VisiblePreferenceKey.self, value: frame.intersects(container))
-        // If the user scrolls fast enough where the image hasn't been rendered into the UI yet, they may see the
-        // default title instead. A solution would be to work in an append-only mode (which would make for good use in
-        // an ordered set)
-        .onPreferenceChange(VisiblePreferenceKey.self) { visible in
-          guard visible else {
-            guard let index = collection.visible.firstIndex(of: image) else {
-              return
-            }
-
-            collection.visible.remove(at: index)
-
-            return
-          }
-
-          collection.visible.append(image)
+      Color.clear.preference(key: VisiblePreferenceKey.self, value: frame.intersects(container))
+    }
+    // If the user scrolls fast enough where the image hasn't been rendered into the UI yet, they may see the
+    // default title instead. A solution would be to work in an append-only mode (which would make for good use in
+    // an ordered set)
+    .onPreferenceChange(VisiblePreferenceKey.self) { visible in
+      guard visible else {
+        if let index = collection.visible.firstIndex(of: image) {
+          collection.visible.remove(at: index)
         }
+
+        return
+      }
+
+      collection.visible.append(image)
     }
   }
 }

@@ -144,14 +144,6 @@ struct ImageCollectionCommands: Commands {
       .disabled(quicklook?.enabled != true)
     }
 
-    CommandGroup(after: .textEditing) {
-      Button(bookmarkState == .remove ? "Remove Bookmark" : "Bookmark") {
-        bookmark?()
-      }
-      .keyboardShortcut(.bookmark)
-      .disabled(bookmark?.enabled != true)
-    }
-
     CommandGroup(after: .sidebar) {
       // The "Enter Full Screen" item is usually in its own space.
       Divider()
@@ -167,7 +159,15 @@ struct ImageCollectionCommands: Commands {
       .disabled(fullScreen == nil || window == nil)
     }
 
-    CommandMenu("Navigate") {
+    CommandMenu("Image") {
+      Button(bookmarkState == .remove ? "Remove Bookmark" : "Bookmark") {
+        bookmark?()
+      }
+      .keyboardShortcut(.bookmark)
+      .disabled(bookmark?.enabled != true)
+
+      Divider()
+
       Button("Go to Current Image") {
         jumpToCurrentImage?()
       }

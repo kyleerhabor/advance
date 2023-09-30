@@ -14,6 +14,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
   // off not worrying about what other side effects it may entail.
   var onOpen: ([URL]) -> Void = { _ in }
 
+  func applicationDidFinishLaunching(_ notification: Notification) {
+    // I personally think the context switch one needs to perform mentally when switching tabs outweights the benefit
+    // of (potentially) having less windows. The lack of animation is the largest contributing factor, but also, imo,
+    // Sequential is not meant to be used with a lot of windows, unlike e.g. Finder where it's easy to get a dozen
+    // windows where the UI is similar enough.
+    NSWindow.allowsAutomaticWindowTabbing = false
+  }
+
   func application(_ application: NSApplication, open urls: [URL]) {
     // TODO: Support opening folders.
     //

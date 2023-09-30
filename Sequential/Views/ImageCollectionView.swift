@@ -59,7 +59,7 @@ struct ImageCollectionItemView<Overlay>: View where Overlay: View {
       ImageCollectionItemPhaseView(phase: $phase, overlay: overlay)
         .task { await check() }
     } failure: {
-      // This unfortunately produces a "flash" due to the URL change, but it's not the end of the world.
+      // TODO: See if failure from the URL changing can be handled better.
       await check()
     }
     .aspectRatio(image.aspectRatio, contentMode: .fit)
@@ -215,40 +215,46 @@ extension FocusedValues {
 }
 
 struct ImageCollectionNavigationSidebarView: View {
+  @Environment(\.prerendering) private var prerendering
   @Environment(\.collection) @Binding private var collection
   @Environment(\.selection) @Binding private var selection
+  @AppStorage(Keys.offScreenScrolling.key) private var offScreenScrolling = Keys.offScreenScrolling.value
   @FocusedValue(\.detailScroller) private var detailScroller
   @Binding var columns: NavigationSplitViewVisibility
 
   var body: some View {
     ScrollViewReader { proxy in
-      ImageCollectionSidebarView(
-        scrollDetail: detailScroller?.scroll ?? noop,
-        columns: columns
-      ).focusedSceneValue(\.jumpToCurrentImage, .init(enabled: collection.visible.last != nil) {
-        let id = collection.visible.last!.id
-
-        selection = [id]
-
-        Task {
-          withAnimation {
-            proxy.scrollTo(id, anchor: .center)
-            
-            columns = .all
+      ImageCollectionSidebarView(scrollDetail: detailScroller?.scroll ?? noop)
+        .onChange(of: collection.currentImage) {
+          guard offScreenScrolling, columns == .detailOnly,
+                let id = collection.currentImage?.id else {
+            return
           }
-        }
-      }).focusedSceneValue(\.sidebarScroller, .init(selection: selection) {
-        // The only place we're calling this is in ImageCollectionDetailItemView with a single item.
-        let id = selection.first!
 
-        // https://stackoverflow.com/a/72808733/14695788
-        Task {
-          withAnimation {
-            proxy.scrollTo(id, anchor: .center)
+          proxy.scrollTo(id, anchor: .center)
+        }.focusedSceneValue(\.jumpToCurrentImage, .init(enabled: collection.currentImage != nil) {
+          let id = collection.currentImage!.id
 
-            columns = .all
+          selection = [id]
+
+          Task {
+            withAnimation {
+              proxy.scrollTo(id, anchor: .center)
+
+              columns = .all
+            }
           }
-        }
+        }).focusedSceneValue(\.sidebarScroller, .init(selection: selection) {
+          // The only place we're calling this is in ImageCollectionDetailItemView with a single item.
+          let id = selection.first!
+
+          Task {
+            withAnimation {
+              proxy.scrollTo(id, anchor: .center)
+
+              columns = .all
+            }
+          }
       })
     }
   }
@@ -286,16 +292,17 @@ struct ImageCollectionNavigationDetailView: View {
 struct ImageCollectionView: View {
   typealias Selection = Set<ImageCollectionItem.ID>
 
+  @Environment(Window.self) private var win
   @Environment(\.collection) private var collection
-  @Environment(\.fullScreen) private var fullScreen
   @AppStorage(Keys.displayTitleBarImage.key) private var displayTitleBarImage = Keys.displayTitleBarImage.value
   @SceneStorage("sidebar") private var columns = NavigationSplitViewVisibility.all
   @State private var selection = Selection()
+  private var window: NSWindow? { win.window }
 
   var body: some View {
     // Interestingly, using @State causes the app to hang whenever the list of URLs is changed. I presume this has to
     // do with how changes are propagated.
-    let visible = displayTitleBarImage ? collection.wrappedValue.visible.last?.url : nil
+    let visible = displayTitleBarImage ? collection.wrappedValue.currentImage?.url : nil
 
     NavigationSplitView(columnVisibility: $columns) {
       ImageCollectionNavigationSidebarView(columns: $columns)
@@ -303,7 +310,6 @@ struct ImageCollectionView: View {
     } detail: {
       ImageCollectionNavigationDetailView(images: collection.images)
     }
-    .toolbar(fullScreen == true ? .hidden : .automatic)
     .navigationTitle(Text(visible?.deletingPathExtension().lastPathComponent ?? "Sequential"))
     // I wish it were possible to pass nil to not use this modifier. This workaround displays a blank file that doesn't
     // point anywhere (the system decides to just use "the computer").
@@ -312,10 +318,18 @@ struct ImageCollectionView: View {
       collection.wrappedValue.bookmarks = await collection.wrappedValue.load()
       collection.wrappedValue.updateImages()
       collection.wrappedValue.updateBookmarks()
+
+      // FIXME: This does not work when the window is restored in full screen mode.
+      guard let delegate = window?.delegate else {
+        return
+      }
+
+      let prior = #selector(NSWindowDelegate.window(_:willUseFullScreenPresentationOptions:))
+      let selector = #selector(WindowDelegate.window(_:willUseFullScreenPresentationOptions:))
+      let method = class_getClassMethod(WindowDelegate.self, selector)!
+      let impl = method_getImplementation(method)
+
+      class_addMethod(delegate.superclass, prior, impl, nil)
     }.environment(\.selection, $selection)
   }
-}
-
-#Preview {
-  ImageCollectionView()
 }

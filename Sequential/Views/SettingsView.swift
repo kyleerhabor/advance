@@ -82,6 +82,7 @@ struct SettingsView: View {
   @AppStorage(Keys.appearance.key) private var appearance: Scheme
   @AppStorage(Keys.margin.key) private var margin = Keys.margin.value
   @AppStorage(Keys.collapseMargins.key) private var collapseMargins = Keys.collapseMargins.value
+  @AppStorage(Keys.offScreenScrolling.key) private var offScreenScrolling = Keys.offScreenScrolling.value
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
   @AppStorage(Keys.liveTextIcon.key) private var liveTextIcons = Keys.liveTextIcon.value
   @AppStorage(Keys.displayTitleBarImage.key) private var displayTitleBarImage = Keys.displayTitleBarImage.value
@@ -138,6 +139,14 @@ struct SettingsView: View {
 
           Text("Images with adjacent borders will have their margins flattened into a single value.")
         }.disabled(margin.wrappedValue == 0)
+      }
+
+      LabeledContent("Sidebar:") {
+        Toggle(isOn: $offScreenScrolling) {
+          Text("Perform off-screen scrolling")
+
+          Text("The sidebar will track and scroll to the current image while in the background.")
+        }
       }
 
       LabeledContent("Live Text:") {
