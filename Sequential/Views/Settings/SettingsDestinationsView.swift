@@ -9,7 +9,7 @@ import OSLog
 import SwiftUI
 
 struct SettingsDestinationView: View {
-  let url: CopyDepotURL
+  let url: CopyDepotDestination
 
   var body: some View {
     Label {
@@ -112,13 +112,9 @@ struct SettingsDestinationsView: View {
         depot.update()
       }
     }.environment(\.openURL, .init { url in
-      do {
-        // Surprisingly, scoping the URL is required for opening the actual folder in Finder (and not just selecting it
-        // in its parent directory). It doesn't always work, however.
-        try url.scoped { openFinder(at: url) }
-      } catch {
-        Logger.ui.error("\(error)")
-      }
+      // Surprisingly, scoping the URL is required for opening the actual folder in Finder (and not just selecting it
+      // in its parent directory). It doesn't always work, however.
+      url.scoped { openFinder(at: url) }
 
       return .handled
     })

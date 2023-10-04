@@ -107,6 +107,9 @@ struct ImageCollectionCommands: Commands {
   private var window: NSWindow? { win?.window }
 
   var body: some Commands {
+    // TODO: Figure out how to remove the "Show/Hide Toolbar" item.
+    ToolbarCommands()
+
     SidebarCommands()
 
     CommandGroup(after: .newItem) {

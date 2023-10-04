@@ -5,6 +5,7 @@
 //  Created by Kyle Erhabor on 9/13/23.
 //
 
+import Combine
 import OSLog
 import SwiftUI
 
@@ -61,33 +62,14 @@ struct ImageCollectionItemView<Overlay>: View where Overlay: View {
     } failure: {
       // TODO: See if failure from the URL changing can be handled better.
       await check()
-    }
-    .aspectRatio(image.aspectRatio, contentMode: .fit)
-    .onDisappear {
-      closeSecurityScope()
-    }
+    }.aspectRatio(image.aspectRatio, contentMode: .fit)
   }
 
-  // This is a mess. Is there a better way we could handle this?
-
-  func openSecurityScope() -> Bool {
-    accessingSecurityScope = image.url.startAccessingSecurityScopedResource()
-
-    return accessingSecurityScope
-  }
-
-  func closeSecurityScope() {
-    if accessingSecurityScope {
-      image.url.stopAccessingSecurityScopedResource()
-
-      accessingSecurityScope = false
-    }
-  }
-
+  // TODO: Make this nicer.
   func resolve() async throws -> (Bookmark, ImageProperties) {
-    let bookmark = try await image.bookmark.resolve()
+    let bookmark = try image.bookmark.resolve()
 
-    guard let properties = await ImageProperties(at: bookmark.url) else {
+    guard let properties = ImageProperties(at: bookmark.url) else {
       throw ImageError.undecodable
     }
 
@@ -103,7 +85,7 @@ struct ImageCollectionItemView<Overlay>: View where Overlay: View {
         return false
       }
 
-      Logger.ui.error("\(error)")
+      Logger.model.error("Checking URL \"\(url.string)\" for reachable status resulted in an error: \(error)")
 
       return false
     }
@@ -120,9 +102,7 @@ struct ImageCollectionItemView<Overlay>: View where Overlay: View {
     // To do this properly, I need a way to plug into DisplayImageView at the point of CGImageSourceCreateThumbnailAtIndex
     // so I can run this check.
     if !reachable(url: url) {
-      Logger.ui.info("Image at URL \"\(url.string)\" is unreachable. Attempting to update...")
-
-      closeSecurityScope()
+      Logger.ui.error("Image at URL \"\(url.string)\" is unreachable. Attempting to update...")
 
       do {
         let resolved = try await resolve()
@@ -133,10 +113,6 @@ struct ImageCollectionItemView<Overlay>: View where Overlay: View {
 
         return
       }
-    }
-
-    if image.bookmark.scoped && !openSecurityScope() {
-      Logger.ui.error("Could not access security scope for \"\(url.string)\"")
     }
   }
 }
@@ -216,25 +192,21 @@ extension FocusedValues {
 
 struct ImageCollectionNavigationSidebarView: View {
   @Environment(\.prerendering) private var prerendering
-  @Environment(\.collection) @Binding private var collection
+  @Environment(\.collection) private var collection
   @Environment(\.selection) @Binding private var selection
-  @AppStorage(Keys.offScreenScrolling.key) private var offScreenScrolling = Keys.offScreenScrolling.value
   @FocusedValue(\.detailScroller) private var detailScroller
+  @FocusState private var focused: Bool
+
   @Binding var columns: NavigationSplitViewVisibility
 
   var body: some View {
     ScrollViewReader { proxy in
       ImageCollectionSidebarView(scrollDetail: detailScroller?.scroll ?? noop)
-        .onChange(of: collection.currentImage) {
-          guard offScreenScrolling, columns == .detailOnly,
-                let id = collection.currentImage?.id else {
-            return
-          }
+        .focused($focused)
+        .focusedSceneValue(\.jumpToCurrentImage, .init(enabled: collection.wrappedValue.currentImage != nil) {
+          let id = collection.wrappedValue.currentImage!.id
 
-          proxy.scrollTo(id, anchor: .center)
-        }.focusedSceneValue(\.jumpToCurrentImage, .init(enabled: collection.currentImage != nil) {
-          let id = collection.currentImage!.id
-
+          focused = true
           selection = [id]
 
           Task {
@@ -264,7 +236,7 @@ struct ImageCollectionNavigationDetailView: View {
   @Environment(\.selection) @Binding private var selection
   @FocusedValue(\.sidebarScroller) private var sidebarScroller
 
-  @Binding var images: [ImageCollectionItem]
+  var images: [ImageCollectionItem]
 
   var body: some View {
     ScrollViewReader { proxy in
@@ -293,10 +265,15 @@ struct ImageCollectionView: View {
   typealias Selection = Set<ImageCollectionItem.ID>
 
   @Environment(Window.self) private var win
+  @Environment(\.prerendering) private var prerendering
   @Environment(\.collection) private var collection
+  @Environment(\.fullScreen) private var fullScreen
+  @AppStorage(Keys.windowless.key) private var windowless = Keys.windowless.value
   @AppStorage(Keys.displayTitleBarImage.key) private var displayTitleBarImage = Keys.displayTitleBarImage.value
   @SceneStorage("sidebar") private var columns = NavigationSplitViewVisibility.all
   @State private var selection = Selection()
+  private let subject = PassthroughSubject<CGPoint, Never>()
+  private let publisher: AnyPublisher<Void, Never>
   private var window: NSWindow? { win.window }
 
   var body: some View {
@@ -308,28 +285,52 @@ struct ImageCollectionView: View {
       ImageCollectionNavigationSidebarView(columns: $columns)
         .navigationSplitViewColumnWidth(min: 128, ideal: 192, max: 256)
     } detail: {
-      ImageCollectionNavigationDetailView(images: collection.images)
+      ImageCollectionNavigationDetailView(images: collection.wrappedValue.images)
     }
     .navigationTitle(Text(visible?.deletingPathExtension().lastPathComponent ?? "Sequential"))
     // I wish it were possible to pass nil to not use this modifier. This workaround displays a blank file that doesn't
-    // point anywhere (the system decides to just use "the computer").
+    // point anywhere.
     .navigationDocument(visible ?? .none)
     .task {
       collection.wrappedValue.bookmarks = await collection.wrappedValue.load()
       collection.wrappedValue.updateImages()
       collection.wrappedValue.updateBookmarks()
-
-      // FIXME: This does not work when the window is restored in full screen mode.
-      guard let delegate = window?.delegate else {
+    }.onPreferenceChange(ScrollPositionPreferenceKey.self) { origin in
+      subject.send(origin)
+    }.onReceive(publisher) {
+      guard columns == .detailOnly && fullScreen == false else {
         return
       }
 
-      let prior = #selector(NSWindowDelegate.window(_:willUseFullScreenPresentationOptions:))
-      let selector = #selector(WindowDelegate.window(_:willUseFullScreenPresentationOptions:))
-      let method = class_getClassMethod(WindowDelegate.self, selector)!
-      let impl = method_getImplementation(method)
-
-      class_addMethod(delegate.superclass, prior, impl, nil)
+      setTitleBarVisibility(false)
+    }.onContinuousHover { _ in
+      setTitleBarVisibility(true)
+    }.onChange(of: columns) {
+      setTitleBarVisibility(true)
     }.environment(\.selection, $selection)
+  }
+
+  init() {
+    // When the user toggles the sidebar, I don't want the title bar to be hidden.
+    self.publisher = subject
+      .collect(6)
+      .filter { origins in
+        origins.dropFirst().allSatisfy { $0.x == origins.first?.x }
+      }
+      .map { _ in }
+      .eraseToAnyPublisher()
+  }
+
+  func setTitleBarVisibility(_ visible: Bool) {
+    guard windowless, let window else {
+      return
+    }
+
+    let opacity: CGFloat = visible ? 1 : 0
+
+    if window.standardWindowButton(.closeButton)?.superview?.alphaValue != opacity {
+      window.standardWindowButton(.closeButton)?.superview?.animator().alphaValue = opacity
+      window.animator().titlebarSeparatorStyle = visible ? .automatic : .none
+    }
   }
 }

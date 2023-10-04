@@ -74,15 +74,13 @@ struct LiveTextView: NSViewRepresentable {
         let frame = overlayView.frame
         let size = max(frame.width, frame.height) / context.environment.pixelLength
 
-        // On very rare occasions, Sequential may ask for permission to access the folder/volume of the URL. In my last
-        // experience, this happened during the resampling phase, making me presume the view disappeared but the task
-        // was still running. Unfortunately, the only solution would be to pass a signal indicating if a security scope
-        // is supported, which would be annoying.
-        let url = try await analysisURL(size: size)
-        let analysis = try await analyze(url: url)
+        try await url.scoped {
+          let url = try await analysisURL(size: size)
+          let analysis = try await analyze(url: url)
 
-        self.analysis = analysis
-        overlayView.analysis = analysis
+          self.analysis = analysis
+          overlayView.analysis = analysis
+        }
       } catch is CancellationError {
         Logger.ui.info("Tried to analyze image, but Task was cancelled.")
       } catch {
@@ -134,7 +132,9 @@ struct LiveTextView: NSViewRepresentable {
 
     try FileManager.default.createDirectory(at: .liveTextDownsampledDirectory, withIntermediateDirectories: true)
 
-    guard let destination = CGImageDestinationCreateWithURL(url as CFURL, type, 1, nil) else {
+    let count = 1
+
+    guard let destination = CGImageDestinationCreateWithURL(url as CFURL, type, count, nil) else {
       throw ImageError.thumbnail
     }
 

@@ -9,19 +9,31 @@ import OSLog
 import SwiftUI
 
 struct ImageCollectionDetailItemBookmarkView: View {
-  @Environment(\.collection) @Binding private var collection
+  @Environment(\.collection) private var collection
 
   let image: ImageCollectionItem
 
   var body: some View {
-    let bookmarked = image.bookmark.bookmarked
-
     Button {
-      image.bookmark.bookmarked = !bookmarked
-      collection.updateBookmarks()
+      image.bookmarked.toggle()
+      collection.wrappedValue.updateBookmarks()
     } label: {
-      Label(bookmarked ? "Remove Bookmark" : "Bookmark", systemImage: "bookmark")
+      Label(image.bookmarked ? "Remove Bookmark" : "Bookmark", systemImage: "bookmark")
     }
+  }
+}
+
+struct ScrollPositionPreferenceKey: PreferenceKey {
+  static var defaultValue = CGPoint.zero
+
+  static func reduce(value: inout CGPoint, nextValue: () -> CGPoint) {
+    let next = nextValue()
+
+    guard next != .zero else {
+      return
+    }
+
+    value = next
   }
 }
 
@@ -32,7 +44,7 @@ struct VisiblePreferenceKey: PreferenceKey {
 }
 
 struct ImageCollectionDetailItemVisibilityView: View {
-  @Environment(\.collection) @Binding private var collection
+  @Environment(\.collection) private var collection
 
   let image: ImageCollectionItem
 
@@ -40,22 +52,24 @@ struct ImageCollectionDetailItemVisibilityView: View {
     GeometryReader { proxy in
       let container = proxy.frame(in: .scrollView)
       let frame = proxy.frame(in: .local)
-
-      Color.clear.preference(key: VisiblePreferenceKey.self, value: frame.intersects(container))
+      
+      Color.clear
+        .preference(key: ScrollPositionPreferenceKey.self, value: container.origin)
+        .preference(key: VisiblePreferenceKey.self, value: frame.intersects(container))
     }
     // If the user scrolls fast enough where the image hasn't been rendered into the UI yet, they may see the
     // default title instead. A solution would be to work in an append-only mode (which would make for good use in
     // an ordered set)
     .onPreferenceChange(VisiblePreferenceKey.self) { visible in
       guard visible else {
-        if let index = collection.visible.firstIndex(of: image) {
-          collection.visible.remove(at: index)
+        if let index = collection.wrappedValue.visible.firstIndex(of: image) {
+          collection.wrappedValue.visible.remove(at: index)
         }
 
         return
       }
 
-      collection.visible.append(image)
+      collection.wrappedValue.visible.append(image)
     }
   }
 }
@@ -174,7 +188,7 @@ struct ImageCollectionDetailView: View {
             insets: top,
             liveTextIcon: icon,
             scrollSidebar: scrollSidebar
-          )
+          ).id(first.id)
         }
 
         ForEach(images.dropFirst().dropLast()) { image in
@@ -194,22 +208,24 @@ struct ImageCollectionDetailView: View {
             insets: bottom,
             liveTextIcon: icon,
             scrollSidebar: scrollSidebar
-          )
+          ).id(last.id)
         }
       }.listRowSeparator(.hidden)
     }
     .listStyle(.plain)
-    .toolbar {
-      let icons = Binding {
-        icon
-      } set: {
-        liveTextIcon = $0
-      }
+    .toolbar(id: "Canvas") {
+      ToolbarItem(id: "Live Text Icon") {
+        let icons = Binding {
+          icon
+        } set: {
+          liveTextIcon = $0
+        }
 
-      if liveText && !images.isEmpty {
-        Toggle("Show Live Text icon", systemImage: "text.viewfinder", isOn: icons)
+        let title = "\(icon ? "Hide" : "Show") Live Text icon"
+
+        Toggle(title, systemImage: "text.viewfinder", isOn: icons)
           .keyboardShortcut(.liveTextIcon)
-          .help("Show Live Text icon")
+          .help(title)
       }
     }.task {
       copyDepot.bookmarks = await copyDepot.resolve()

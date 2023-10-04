@@ -9,8 +9,6 @@ import OSLog
 import SwiftUI
 import UniformTypeIdentifiers
 
-typealias Offset<T> = (offset: Int, value: T)
-
 struct ImageCollectionEmptySidebarLabelStyle: LabelStyle {
   func makeBody(configuration: Configuration) -> some View {
     VStack(spacing: 8) {
@@ -25,7 +23,7 @@ struct ImageCollectionEmptySidebarLabelStyle: LabelStyle {
 }
 
 struct ImageCollectionSidebarEmptyView: View {
-  @Environment(\.collection) @Binding private var collection
+  @Environment(\.collection) private var collection
 
   @State private var fileDialog = false
 
@@ -49,13 +47,11 @@ struct ImageCollectionSidebarEmptyView: View {
         case .success(let urls):
           Task {
             do {
-              let bookmarks = try await resolveImported(urls: urls)
-                .sorted { $0.offset < $1.offset }
-                .map(\.value)
+              let bookmarks = try await resolve(urls: urls.enumerated()).ordered()
 
-              collection.bookmarks = bookmarks
-              collection.updateImages()
-              collection.updateBookmarks()
+              collection.wrappedValue.bookmarks = bookmarks
+              collection.wrappedValue.updateImages()
+              collection.wrappedValue.updateBookmarks()
             } catch {
               Logger.ui.error("\(error)")
             }
@@ -83,13 +79,11 @@ struct ImageCollectionSidebarEmptyView: View {
             }
           }
 
-          let bookmarks = try await resolveDragged(urls: urls)
-            .sorted { $0.offset < $1.offset }
-            .map(\.value)
+          let bookmarks = try await resolve(urls: urls).ordered()
 
-          collection.bookmarks = bookmarks
-          collection.updateImages()
-          collection.updateBookmarks()
+          collection.wrappedValue.bookmarks = bookmarks
+          collection.wrappedValue.updateImages()
+          collection.wrappedValue.updateBookmarks()
         } catch {
           Logger.ui.error("Could not load URLs of dropped images from providers \"\(providers)\": \(error)")
         }
@@ -126,68 +120,33 @@ struct ImageCollectionSidebarEmptyView: View {
     }
   }
 
-  func resolve(_ bookmark: ImageCollectionBookmark, url: URL) async throws {
-    guard let properties = await ImageProperties(at: url) else {
-      throw ImageError.undecodable
-    }
-
-    bookmark.image = .init(url: url, bookmark: bookmark, properties: properties)
-  }
-
-  func resolveImported(urls: [URL]) async throws -> [Offset<ImageCollectionBookmark>] {
-    try await withThrowingTaskGroup(of: Offset<ImageCollectionBookmark>.self) { group in
-      for (offset, url) in urls.enumerated() {
-        group.addTask {
-          let bookmark = try await url.scoped {
-            let data = try url.bookmark()
-            let bookmark = ImageCollectionBookmark(
-              data: data,
-              url: url,
-              scoped: true,
-              bookmarked: false
-            )
-
-            try await resolve(bookmark, url: url)
-
-            return bookmark
-          }
-
-          return (offset, bookmark)
-        }
-      }
-
-      var results = [Offset<ImageCollectionBookmark>]()
-      results.reserveCapacity(urls.count)
-
-      return try await group.reduce(into: results) { partialResult, pair in
-        partialResult.append(pair)
-      }
-    }
-  }
-
-  func resolveDragged(urls: [Offset<URL>]) async throws -> [Offset<ImageCollectionBookmark>] {
+  func resolve(urls: some Sequence<Offset<URL>>) async throws -> [Offset<ImageCollectionBookmark>] {
     try await withThrowingTaskGroup(of: Offset<ImageCollectionBookmark>.self) { group in
       for (offset, url) in urls {
         group.addTask {
-          let data = try url.bookmark()
-          let bookmark = ImageCollectionBookmark(
-            data: data,
-            url: url,
-            scoped: false,
-            bookmarked: false
-          )
+          try url.scoped {
+            let bookmark = ImageCollectionBookmark(
+              data: try url.bookmark(),
+              url: url,
+              item: .init()
+            )
 
-          try await resolve(bookmark, url: url)
+            guard let properties = ImageProperties(at: url) else {
+              throw ImageError.undecodable
+            }
 
-          return (offset, bookmark)
+            bookmark.image = .init(url: url, bookmark: bookmark, properties: properties)
+
+            return (offset, bookmark)
+          }
         }
       }
 
-      var results = [Offset<ImageCollectionBookmark>]()
-      results.reserveCapacity(urls.count)
+      var results: [Offset<ImageCollectionBookmark>] = []
+      results.reserveCapacity(urls.underestimatedCount)
 
-      return try await group.reduce(into: results) { partialResult, pair in
-        partialResult.append(pair)
+      return try await group.reduce(into: results) { partialResult, offset in
+        partialResult.append(offset)
       }
     }
   }

@@ -8,25 +8,54 @@
 import OSLog
 import SwiftUI
 
+struct ResolvedBookmark {
+  let url: URL
+  let stale: Bool
+
+  init(
+    data: Data,
+    options: URL.BookmarkResolutionOptions,
+    relativeTo document: URL? = nil
+  ) throws {
+    var stale = false
+
+    self.url = try URL(resolvingBookmarkData: data, options: options, relativeTo: document, bookmarkDataIsStale: &stale)
+    self.stale = stale
+  }
+}
+
+struct Bookmark {
+  let data: Data
+  let url: URL
+}
+
+extension Bookmark {
+  init(
+    data: Data,
+    resolving: URL.BookmarkResolutionOptions,
+    relativeTo document: URL? = nil,
+    create: (URL) throws -> Data
+  ) throws {
+    var data = data
+    var resolved = try ResolvedBookmark(data: data, options: resolving, relativeTo: document)
+
+    if resolved.stale {
+      // From the resolution options, we can infer that if it includes .withSecurityScope, wrapping URL in the method
+      // with the same name would theoretically be valid, but we still wouldn't exactly know *how* to create the
+      // bookmark. Personally, I think accepting a closure and having the caller handle the case maintains simplicity.
+      // If we did check for the security scope and implicity wrap create in one, the user would need to implicitly
+      // track it, which would be more complex.
+      data = try create(resolved.url)
+      resolved = try ResolvedBookmark(data: data, options: resolving, relativeTo: document)
+    }
+
+    self.init(data: data, url: resolved.url)
+  }
+}
+
 enum ImageError: Error {
   case undecodable
   case thumbnail
-}
-
-struct Size: Hashable {
-  let width: Int
-  let height: Int
-
-  var aspectRatio: Double {
-    let width = Double(width)
-    let height = Double(height)
-
-    return width / height
-  }
-
-  var area: Int {
-    width * height
-  }
 }
 
 func reversedImage(properties: Dictionary<CFString, Any>) -> Bool? {
@@ -59,10 +88,6 @@ extension NavigationSplitViewVisibility: RawRepresentable {
   }
 }
 
-enum URLError: Error {
-  case inaccessibleSecurityScope
-}
-
 enum ExecutionError: Error {
   case interrupt
 }
@@ -71,12 +96,12 @@ struct Keys {
   static let appearance = Item("appearance", nil as SettingsView.Scheme)
   static let margin = Item("margin", 1)
   static let collapseMargins = Item("collapseMargins", true)
-  static let offScreenScrolling = Item("offScreenScrolling", true)
+  static let windowless = Item("windowless", false)
+  static let displayTitleBarImage = Item("displayTitleBarImage", true)
   // I think enabling Live Text by default but disabling the icons strikes a nice compromise between convenience (e.g.
   // being able to select text) and UI simplicity (i.e. not having the buttons get in the way).
   static let liveText = Item("liveText", true)
   static let liveTextIcon = Item("liveTextIcon", false)
-  static let displayTitleBarImage = Item("displayTitleBarImage", true)
 
   struct Item<Key, Value> {
     let key: Key

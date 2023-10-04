@@ -79,13 +79,14 @@ extension FormStyle where Self == SettingsFormStyle {
 struct SettingsView: View {
   typealias Scheme = ColorScheme?
 
+  @Environment(CopyDepot.self) private var copyDepot
   @AppStorage(Keys.appearance.key) private var appearance: Scheme
   @AppStorage(Keys.margin.key) private var margin = Keys.margin.value
   @AppStorage(Keys.collapseMargins.key) private var collapseMargins = Keys.collapseMargins.value
-  @AppStorage(Keys.offScreenScrolling.key) private var offScreenScrolling = Keys.offScreenScrolling.value
+  @AppStorage(Keys.windowless.key) private var windowless = Keys.windowless.value
+  @AppStorage(Keys.displayTitleBarImage.key) private var displayTitleBarImage = Keys.displayTitleBarImage.value
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
   @AppStorage(Keys.liveTextIcon.key) private var liveTextIcons = Keys.liveTextIcon.value
-  @AppStorage(Keys.displayTitleBarImage.key) private var displayTitleBarImage = Keys.displayTitleBarImage.value
   @State private var showingDestinations = false
   private let range = 0.0...4.0
 
@@ -141,14 +142,6 @@ struct SettingsView: View {
         }.disabled(margin.wrappedValue == 0)
       }
 
-      LabeledContent("Sidebar:") {
-        Toggle(isOn: $offScreenScrolling) {
-          Text("Perform off-screen scrolling")
-
-          Text("The sidebar will track and scroll to the current image while in the background.")
-        }
-      }
-
       LabeledContent("Live Text:") {
         VStack(alignment: .leading, spacing: 6) {
           Toggle("Enable Live Text", isOn: $liveText)
@@ -159,6 +152,12 @@ struct SettingsView: View {
       }
 
       LabeledContent("Window:") {
+        Toggle(isOn: $windowless) {
+          Text("Enable windowless mode")
+
+          Text("The title bar will be hidden when scrolling to allow images to cover the full window. Only relevant when the sidebar is not open.")
+        }
+
         Toggle("Display the current image in the title", isOn: $displayTitleBarImage)
       }
 
@@ -166,6 +165,13 @@ struct SettingsView: View {
         Button("Show Destinations...") {
           showingDestinations = true
         }.sheet(isPresented: $showingDestinations) {
+          // We want the destinations to be sorted off-screen to not disrupt the user. The action is in a Task so it's
+          // not remotely visible to the user while the sheet is dismissing.
+          Task {
+            copyDepot.bookmarks.sort { $0.url.dataRepresentation.lexicographicallyPrecedes($1.url.dataRepresentation) }
+            copyDepot.update()
+          }
+        } content: {
           SettingsDestinationsView()
             .frame(minWidth: 512, minHeight: 160)
         }

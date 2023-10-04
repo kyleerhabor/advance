@@ -8,6 +8,8 @@
 import AppKit
 import OSLog
 
+typealias Offset<T> = (offset: Int, element: T)
+
 extension Bundle {
   static let identifier = Bundle.main.bundleIdentifier!
 }
@@ -17,6 +19,7 @@ extension Logger {
   static let model = Self(subsystem: Bundle.identifier, category: "Model")
   static let startup = Self(subsystem: Bundle.identifier, category: "Initialization")
   static let livetext = Self(subsystem: Bundle.identifier, category: "LiveText")
+  static let sandbox = Self(subsystem: Bundle.identifier, category: "Sandbox")
 }
 
 extension URL {
@@ -27,38 +30,58 @@ extension URL {
     self.path(percentEncoded: false)
   }
 
-  func scoped<T>(_ body: () throws -> T) throws -> T {
-    guard self.startAccessingSecurityScopedResource() else {
-      Logger.model.info("Could not access security scope for URL \"\(self.string)\"")
+  func bookmark(options: BookmarkCreationOptions = [.withSecurityScope, .securityScopeAllowOnlyReadAccess]) throws -> Data {
+    try self.bookmarkData(options: options)
+  }
 
-      throw URLError.inaccessibleSecurityScope
+  func scoped<T>(_ body: () throws -> T) rethrows -> T {
+    let accessing = self.startAccessingSecurityScopedResource()
+
+    if accessing {
+      Logger.sandbox.debug("Started security scope for URL \"\(self.string)\"")
+    } else {
+      Logger.sandbox.info("Tried to start security scope for URL \"\(self.string)\", but scope was inaccessible")
     }
 
     defer {
-      self.stopAccessingSecurityScopedResource()
+      if accessing {
+        self.stopAccessingSecurityScopedResource()
+
+        Logger.sandbox.debug("Ended security scope for URL \"\(self.string)\"")
+      }
     }
 
     return try body()
   }
 
-  func scoped<T>(_ body: () async throws -> T) async throws -> T {
-    guard self.startAccessingSecurityScopedResource() else {
-      throw URLError.inaccessibleSecurityScope
+  func scoped<T>(_ body: () async throws -> T) async rethrows -> T {
+    let accessing = self.startAccessingSecurityScopedResource()
+
+    if accessing {
+      Logger.sandbox.debug("Started security scope for URL \"\(self.string)\"")
+    } else {
+      Logger.sandbox.info("Tried to start security scope for URL \"\(self.string)\", but scope was inaccessible")
     }
 
     defer {
-      self.stopAccessingSecurityScopedResource()
+      if accessing {
+        self.stopAccessingSecurityScopedResource()
+
+        Logger.sandbox.debug("Ended security scope for URL \"\(self.string)\"")
+      }
     }
 
     return try await body()
   }
-
-  func bookmark(options: BookmarkCreationOptions = [.withSecurityScope, .securityScopeAllowOnlyReadAccess]) throws -> Data {
-    try self.bookmarkData(options: options)
-  }
 }
 
 extension Sequence {
+  func ordered<T>() -> [T] where Element == Offset<T> {
+    self
+      .sorted { $0.offset < $1.offset }
+      .map(\.element)
+  }
+
   func sorted<T>(byOrderOf source: some Sequence<T>, transform: (Element) -> T) -> [Element] where T: Hashable {
     let index = source.enumerated().reduce(into: [:]) { partialResult, pair in
       partialResult[pair.element] = pair.offset
@@ -79,17 +102,6 @@ extension Sequence {
 
   func filter<T>(in set: Set<T>, by value: (Element) -> T) -> [Element] {
     self.filter { set.contains(value($0)) }
-  }
-
-  func mapAsync<T>(_ transform: (Element) async throws -> T) async rethrows -> [T] {
-    var result = [T]()
-    result.reserveCapacity(self.underestimatedCount)
-
-    for element in self {
-      result.append(try await transform(element))
-    }
-
-    return result
   }
 }
 
@@ -129,20 +141,6 @@ func time<T>(
 }
 
 func noop() {}
-
-struct ResolvedBookmark {
-  let url: URL
-  let stale: Bool
-}
-
-extension ResolvedBookmark {
-  init(from data: Data) throws {
-    var stale = false
-
-    self.url = try URL(resolvingBookmarkData: data, options: .withSecurityScope, bookmarkDataIsStale: &stale)
-    self.stale = stale
-  }
-}
 
 extension RandomAccessCollection {
   var isMany: Bool {

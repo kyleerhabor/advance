@@ -23,7 +23,7 @@ struct ImageCollectionSidebarItemView: View {
             .imageScale(.large)
             .shadow(radius: 0.5)
             .padding(4)
-            .visible(image.bookmark.bookmarked)
+            .visible(image.bookmarked)
         }
 
       // Interestingly, this can be slightly expensive.
@@ -63,7 +63,7 @@ struct ImageCollectionSidebarBookmarkButtonView: View {
 struct ImageCollectionSidebarView: View {
   @Environment(CopyDepot.self) private var copyDepot
   @Environment(\.prerendering) private var prerendering
-  @Environment(\.collection) @Binding private var collection
+  @Environment(\.collection) private var collection
   @Environment(\.selection) @Binding private var selection
   @State private var bookmarks = false
   @State private var quicklook = [URL]()
@@ -89,13 +89,14 @@ struct ImageCollectionSidebarView: View {
     }
 
     List(selection: selection) {
-      ForEach(bookmarks ? collection.bookmarked : collection.images, id: \.id) { image in
+      ForEach(bookmarks ? collection.wrappedValue.bookmarked : collection.wrappedValue.images, id: \.id) { image in
         ImageCollectionSidebarItemView(image: image)
       }.onMove { source, destination in
-        collection.bookmarks.move(fromOffsets: source, toOffset: destination)
-        collection.updateImages()
+        collection.wrappedValue.bookmarks.move(fromOffsets: source, toOffset: destination)
+        collection.wrappedValue.updateImages()
       }
     }.safeAreaInset(edge: .bottom, spacing: 0) {
+      // I would *really* like this at the top, but I can't justify it since this is more a filter and not a new tab.
       VStack(alignment: .trailing, spacing: 0) {
         Divider()
 
@@ -147,42 +148,41 @@ struct ImageCollectionSidebarView: View {
         Label(mark ? "Bookmark" : "Remove Bookmark", systemImage: "bookmark")
       }
     }.overlay {
-      let visible = collection.bookmarks.isEmpty && !prerendering
+      let visible = collection.wrappedValue.bookmarks.isEmpty && !prerendering
 
       VStack {
         if visible {
           ImageCollectionSidebarEmptyView()
         }
-      }.animation(.default, value: visible)
+      }
+      .visible(visible)
+      .animation(.default, value: visible)
     }
     .alert(self.error ?? "", isPresented: error) {}
     .task {
       copyDepot.bookmarks = await copyDepot.resolve()
       copyDepot.update()
-    }.onKeyPress(.space, phases: .down) { event in
+    }.onKey(" ") {
       quicklook(urls: urls(from: self.selection))
-
-      return .handled
     }.focusedValue(\.sidebarFinder,
       .init(enabled: !self.selection.isEmpty) {
         openFinder(selecting: urls(from: self.selection))
       }
     ).focusedValue(\.sidebarQuicklook, .init(enabled: !self.selection.isEmpty || quicklookItem != nil) {
-        guard quicklookItem == nil else {
-          quicklookItem = nil
+      guard quicklookItem == nil else {
+        quicklookItem = nil
 
-          return
-        }
-
-        quicklook(urls: urls(from: self.selection))
+        return
       }
-    ).focusedValue(\.sidebarBookmark, .init(enabled: !self.selection.isEmpty) {
-        bookmark(selection: self.selection)
+
+      quicklook(urls: urls(from: self.selection))
+    }).focusedValue(\.sidebarBookmark, .init(enabled: !self.selection.isEmpty) {
+      bookmark(selection: self.selection)
     }).focusedValue(\.sidebarBookmarkState, bookmark(selection: self.selection) ? .add : .remove)
   }
 
   func urls(from selection: ImageCollectionView.Selection) -> [URL] {
-    collection.images.filter(in: selection, by: \.id).map(\.url)
+    collection.wrappedValue.images.filter(in: selection, by: \.id).map(\.url)
   }
 
   func quicklook(urls: [URL]) {
@@ -194,7 +194,7 @@ struct ImageCollectionSidebarView: View {
 
   func bookmark(selection: ImageCollectionView.Selection) -> Bool {
     guard selection.isEmpty else {
-      return !selection.isSubset(of: collection.bookmarkedIndex)
+      return !selection.isSubset(of: collection.wrappedValue.bookmarkedIndex)
     }
 
     return true
@@ -205,10 +205,10 @@ struct ImageCollectionSidebarView: View {
   }
 
   func bookmark(_ value: Bool, selection: ImageCollectionView.Selection) {
-    collection.images.filter(in: selection, by: \.id).forEach { image in
-      image.bookmark.bookmarked = value
+    collection.wrappedValue.images.filter(in: selection, by: \.id).forEach { image in
+      image.bookmarked = value
     }
 
-    collection.updateBookmarks()
+    collection.wrappedValue.updateBookmarks()
   }
 }

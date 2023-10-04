@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-// NOTE: This is currently unused, but may be useful if I plan to support Ventura.
+// SwiftUI has a built-in .onKeyPress modifier, but it's been buggy in my experience.
 
 class KeyEventHostingView<Content>: NSHostingView<Content> where Content: View {
   typealias Action = (NSEvent) -> Bool
@@ -76,5 +76,17 @@ extension View {
   ) -> some View {
     // Interestingly, if I embed the logic directly in this method, animations no longer work. So there is a purpose to modifier(_:)
     self.modifier(KeyEventViewModifier(key: key, modifiers: modifiers, action: action))
+  }
+
+  func onKey(
+    _ key: String,
+    modifiers: NSEvent.ModifierFlags = [],
+    action: @escaping () -> Void
+  ) -> some View {
+    self.onKey(key, modifiers: modifiers) { _ in
+      action()
+
+      return true
+    }
   }
 }

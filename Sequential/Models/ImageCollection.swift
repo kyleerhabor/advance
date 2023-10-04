@@ -15,7 +15,7 @@ struct ImageProperties {
   let height: Double
   let orientation: CGImagePropertyOrientation
 
-  init?(at url: URL) async {
+  init?(at url: URL) {
     guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
       return nil
     }
@@ -46,6 +46,10 @@ class ImageCollectionItem {
   var url: URL
   unowned var bookmark: ImageCollectionBookmark
   var aspectRatio: Double
+  var bookmarked: Bool {
+    get { bookmark.item.bookmarked }
+    set { bookmark.item.bookmarked = newValue }
+  }
 
   // Live Text
   var orientation: CGImagePropertyOrientation
@@ -78,54 +82,56 @@ class ImageCollectionItem {
 }
 
 extension ImageCollectionItem: Identifiable, Equatable {
-  var id: URL {
-    url
-  }
+  var id: URL { url }
 
   static func ==(lhs: ImageCollectionItem, rhs: ImageCollectionItem) -> Bool {
     lhs.url == rhs.url
   }
 }
 
-struct Bookmark {
-  let data: Data
-  let url: URL
-}
-
 @Observable
-class ImageCollectionBookmark: Codable {
-  var data: Data
-  let url: URL?
-  let scoped: Bool
-  var image: ImageCollectionItem?
+class ImageCollectionBookmarkItem: Codable {
   var bookmarked: Bool
 
-  init(data: Data, url: URL?, scoped: Bool, bookmarked: Bool) {
-    self.data = data
-    self.url = url
-    self.scoped = scoped
+  init(bookmarked: Bool = false) {
     self.bookmarked = bookmarked
   }
 
-  func bookmark(url: URL) throws -> Data {
-    try if scoped {
-      url.scoped { try url.bookmark() }
-    } else {
-      url.bookmark()
-    }
+  required init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+
+    self.bookmarked = try container.decode(Bool.self, forKey: .bookmarked)
   }
 
-  func resolve() async throws -> Bookmark {
-    var data = data
-    var stale = false
-    var url = try URL(resolvingBookmarkData: data, options: .withSecurityScope, bookmarkDataIsStale: &stale)
+  func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
 
-    if stale {
-      data = try bookmark(url: url)
-      url = try URL(resolvingBookmarkData: data, options: .withSecurityScope, bookmarkDataIsStale: &stale)
+    try container.encode(bookmarked, forKey: .bookmarked)
+  }
+
+  enum CodingKeys: CodingKey {
+    case bookmarked
+  }
+}
+
+class ImageCollectionBookmark: Codable {
+  var data: Data
+  let url: URL?
+  var item: ImageCollectionBookmarkItem
+  var image: ImageCollectionItem?
+
+  init(data: Data, url: URL?, item: ImageCollectionBookmarkItem) {
+    self.data = data
+    self.url = url
+    self.item = item
+  }
+
+  func resolve() throws -> Bookmark {
+    try .init(data: data, resolving: .withSecurityScope) { url in
+      try url.scoped {
+        try url.bookmark()
+      }
     }
-
-    return .init(data: data, url: url)
   }
 
   // Codable conformance
@@ -135,20 +141,19 @@ class ImageCollectionBookmark: Codable {
 
     self.data = try container.decode(Data.self, forKey: .data)
     self.url = nil
-    self.scoped = true
+    self.item = try container.decode(ImageCollectionBookmarkItem.self, forKey: .item)
     self.image = nil
-    self.bookmarked = try container.decode(Bool.self, forKey: .bookmarked)
   }
 
   func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
 
     try container.encode(data, forKey: .data)
-    try container.encode(bookmarked, forKey: .bookmarked)
+    try container.encode(item, forKey: .item)
   }
 
   enum CodingKeys: CodingKey {
-    case data, bookmarked
+    case data, item
   }
 }
 
@@ -183,10 +188,10 @@ class ImageCollection: Codable {
   init(urls: [URL]) throws {
     self.bookmarks = try urls.map { url in
       .init(
+        // I haven't researched whether or not creating bookmarks is expensive.
         data: try url.bookmark(),
         url: url,
-        scoped: true,
-        bookmarked: false
+        item: .init()
       )
     }
   }
@@ -202,27 +207,21 @@ class ImageCollection: Codable {
             data = bookmark.data
             url = bURL
           } else {
-            let resolved = try await bookmark.resolve()
+            let resolved = try bookmark.resolve()
+
             data = resolved.data
             url = resolved.url
           }
 
-          return try await url.scoped {
-            let bookmark = ImageCollectionBookmark(
-              data: data,
-              url: url,
-              scoped: true,
-              bookmarked: bookmark.bookmarked
-            )
+          let mark = ImageCollectionBookmark(data: data, url: url, item: bookmark.item)
 
-            guard let properties = await ImageProperties(at: url) else {
-              throw ImageError.undecodable
-            }
-
-            bookmark.image = .init(url: url, bookmark: bookmark, properties: properties)
-
-            return (offset, bookmark)
+          guard let properties = url.scoped({ ImageProperties(at: url) }) else {
+            throw ImageError.undecodable
           }
+
+          mark.image = .init(url: url, bookmark: mark, properties: properties)
+
+          return (offset, mark)
         }
       }
 
@@ -232,11 +231,11 @@ class ImageCollection: Codable {
         switch result {
           case .success(let bookmark): results.append(bookmark)
           case .failure(let err):
-            Logger.model.error("Could not resolve bookmark on load: \(err)")
+            Logger.model.error("Could not load bookmark: \(err)")
         }
       }
 
-      return results.sorted { $0.offset < $1.offset }.map(\.value)
+      return results.ordered()
     }
   }
 
@@ -245,7 +244,7 @@ class ImageCollection: Codable {
   }
 
   func updateBookmarks() {
-    bookmarked = images.filter { $0.bookmark.bookmarked }
+    bookmarked = images.filter { $0.bookmarked }
     bookmarkedIndex = Set(bookmarked.map(\.id))
   }
 
@@ -257,7 +256,7 @@ class ImageCollection: Codable {
 
       self.bookmarks = try container.decode([ImageCollectionBookmark].self)
     } catch {
-      Logger.model.info("Could not decode image collection for scene restoration.")
+      Logger.model.error("Could not decode image collection for scene restoration.")
 
       self.bookmarks = []
     }

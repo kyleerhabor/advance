@@ -13,32 +13,29 @@ struct CopyDepotBookmark: Codable {
   let url: URL
   let resolved: Bool
 
-  init(data: Data, url: URL, resolved: Bool = false) {
+  init(data: Data, url: URL, resolved: Bool) {
     self.data = data
     self.url = url
     self.resolved = resolved
   }
 
-  func resolve() async throws -> Bookmark {
-    var data = data
-    var stale = false
-    var url = try URL(resolvingBookmarkData: data, options: .withSecurityScope, bookmarkDataIsStale: &stale)
-
-    if stale {
-      data = try url.scoped { try url.bookmark(options: .withSecurityScope) }
-      url = try URL(resolvingBookmarkData: data, options: .withSecurityScope, bookmarkDataIsStale: &stale)
+  func resolve() throws -> Bookmark {
+    try .init(data: data, resolving: .withSecurityScope) { url in
+      try url.scoped {
+        try url.bookmark(options: .withSecurityScope)
+      }
     }
-
-    return .init(data: data, url: url)
   }
+
+  // MARK: Codable conformance
 
   init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
 
-    self.init(
-      data: try container.decode(Data.self, forKey: .data),
-      url: try container.decode(URL.self, forKey: .url)
-    )
+    let data = try container.decode(Data.self, forKey: .data)
+    let url = try container.decode(URL.self, forKey: .url)
+
+    self.init(data: data, url: url, resolved: false)
   }
 
   enum CodingKeys: CodingKey {
@@ -46,16 +43,14 @@ struct CopyDepotBookmark: Codable {
   }
 }
 
-struct CopyDepotURL {
+struct CopyDepotDestination {
   let url: URL
   let path: AttributedString
   let icon: Image
 }
 
-extension CopyDepotURL: Identifiable {
-  var id: URL {
-    url
-  }
+extension CopyDepotDestination: Identifiable {
+  var id: URL { url }
 }
 
 @Observable
@@ -66,8 +61,8 @@ class CopyDepot {
   let encoder = JSONEncoder()
   let decoder = JSONDecoder()
   var bookmarks = [CopyDepotBookmark]()
-  var resolved = [CopyDepotURL]()
-  var unresolved = [CopyDepotURL]()
+  var resolved = [CopyDepotDestination]()
+  var unresolved = [CopyDepotDestination]()
 
   func resolve() async -> [CopyDepotBookmark] {
     guard let data = UserDefaults.standard.data(forKey: "copyDestinations") else {
@@ -79,20 +74,22 @@ class CopyDepot {
     do {
       let decoded = try decoder.decode([CopyDepotBookmark].self, from: data)
 
-      return await decoded.mapAsync { bookmark in
+      return decoded.map { bookmark in
         do {
-          let bookmark = try await bookmark.resolve()
-
+          let bookmark = try bookmark.resolve()
+          
           return .init(
             data: bookmark.data,
             url: bookmark.url,
             resolved: true
           )
         } catch {
+          let path = bookmark.url.string
+
           if let err = error as? CocoaError, err.code == .fileNoSuchFile || err.code == .fileReadCorruptFile {
-            Logger.model.info("Bookmark for copy destination \"\(bookmark.url.string)\" (\(bookmark.data)) could not be resolved. Is it temporarily unavailable?")
+            Logger.model.info("Bookmark for copy destination \"\(path)\" (\(bookmark.data)) could not be resolved. Is it temporarily unavailable?")
           } else {
-            Logger.model.error("Bookmark for copy destination \"\(bookmark.url.string)\" (\(bookmark.data)) could not be resolved: \(error)")
+            Logger.model.error("Bookmark for copy destination \"\(path)\" (\(bookmark.data)) could not be resolved: \(error)")
           }
 
           // We want to keep it for "unresolved" bookmarks (allowing the user to remove it in case).
@@ -119,7 +116,7 @@ class CopyDepot {
 
   func store() {
     do {
-      let data = try encoder.encode(bookmarks)
+      let data = try encoder.encode(bookmarks.sorted { $0.data.lexicographicallyPrecedes($1.data) })
 
       UserDefaults.standard.set(data, forKey: "copyDestinations")
     } catch {
@@ -127,22 +124,15 @@ class CopyDepot {
     }
   }
 
-  func compute(url: URL, home homeComponents: ArraySlice<String>) -> CopyDepotURL {
+  func compute(url: URL, home homeComponents: ArraySlice<String>) -> CopyDepotDestination {
     let components = url.pathComponents
 
     // This whole thing is a mess, but is much better than my prior implementation.
-    let inHome = components.count > homeComponents.count && zip(components, homeComponents).allSatisfy { (component, home) in
+    let home = components.count > homeComponents.count && zip(components, homeComponents).allSatisfy { (component, home) in
       component == home
     }
-    let inVolume = components.first == "Volumes"
-    let dropping = if inHome {
-      homeComponents.count
-    } else if inVolume {
-      3
-    } else {
-      1 // We don't want the root /.
-    }
 
+    let dropping = home ? homeComponents.count : 1
     let paths = components.dropFirst(dropping)
 
     var separator = AttributedString(" 􀰇 ")
