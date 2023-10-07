@@ -10,7 +10,7 @@ import QuickLook
 import SwiftUI
 
 struct ImageCollectionSidebarItemView: View {
-  let image: ImageCollectionItem
+  let image: ImageCollectionItemImage
 
   var body: some View {
     VStack {
@@ -23,7 +23,7 @@ struct ImageCollectionSidebarItemView: View {
             .imageScale(.large)
             .shadow(radius: 0.5)
             .padding(4)
-            .visible(image.bookmarked)
+            .visible(image.item.bookmarked)
         }
 
       // Interestingly, this can be slightly expensive.
@@ -206,7 +206,7 @@ struct ImageCollectionSidebarView: View {
 
   func bookmark(_ value: Bool, selection: ImageCollectionView.Selection) {
     collection.wrappedValue.images.filter(in: selection, by: \.id).forEach { image in
-      image.bookmarked = value
+      image.item.bookmarked = value
     }
 
     collection.wrappedValue.updateBookmarks()

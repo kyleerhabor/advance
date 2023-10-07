@@ -22,7 +22,7 @@ struct SequentialApp: App {
         SettingsView()
       }
       // FIXME: This isn't giving it a default size of its minimum (the first time).
-      .windowResizability(.contentMinSize)
+//      .windowResizability(.contentMinSize)
     }
     .environment(copyDepot)
     .environmentObject(delegate)

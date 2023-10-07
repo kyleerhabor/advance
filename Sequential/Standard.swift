@@ -7,6 +7,7 @@
 
 import AppKit
 import OSLog
+import UniformTypeIdentifiers
 
 typealias Offset<T> = (offset: Int, element: T)
 
@@ -30,8 +31,8 @@ extension URL {
     self.path(percentEncoded: false)
   }
 
-  func bookmark(options: BookmarkCreationOptions = [.withSecurityScope, .securityScopeAllowOnlyReadAccess]) throws -> Data {
-    try self.bookmarkData(options: options)
+  func bookmark(options: BookmarkCreationOptions, document: URL? = nil) throws -> Data {
+    try self.bookmarkData(options: options, includingResourceValuesForKeys: [], relativeTo: document)
   }
 
   func scoped<T>(_ body: () throws -> T) rethrows -> T {
@@ -72,6 +73,10 @@ extension URL {
     }
 
     return try await body()
+  }
+
+  func isDirectory() throws -> Bool? {
+    return try self.resourceValues(forKeys: [.isDirectoryKey]).isDirectory ?? false
   }
 }
 
@@ -152,4 +157,83 @@ extension Set {
   var isMany: Bool {
     self.count > 1
   }
+}
+
+extension NSItemProvider {
+  func resolve(_ type: UTType) async throws -> URL {
+    try await withCheckedThrowingContinuation { continuation in
+      self.loadInPlaceFileRepresentation(forTypeIdentifier: type.identifier) { url, inPlace, err in
+        if let err {
+          continuation.resume(throwing: err)
+
+          return
+        }
+
+        if let url {
+          // Note that when this happens, the image is copied to ~/Library/Containers/<sandbox>/Data/Library/Caches.
+          // We most likely want to allow the user to clear this data (in case it becomes excessive).
+          if !inPlace {
+            Logger.model.info("URL from dragged image \"\(url.string)\" is a local copy")
+          }
+
+          continuation.resume(returning: url)
+
+          return
+        }
+
+        fatalError()
+      }
+    }
+  }
+}
+
+struct EnumeratedURL {
+  let url: URL
+  let resources: URLResourceValues
+}
+
+extension FileManager {
+  func enumerate(
+    at url: URL,
+    properties: [URLResourceKey],
+    include: (URL, DirectoryEnumerator) throws -> Bool
+  ) rethrows -> [URL] {
+    guard let enumerator = self.enumerator(at: url, includingPropertiesForKeys: properties) else {
+      return []
+    }
+
+    var urls = [URL]()
+
+    for case let url as URL in enumerator {
+      if try include(url, enumerator) {
+        urls.append(url)
+      }
+    }
+
+    return urls
+  }
+
+  func enumerate(at url: URL) throws -> [URL] {
+    try enumerate(at: url, properties: [.isDirectoryKey]) { url, enumerator in
+      return try url.isDirectory() != true
+    }
+  }
+
+  func enumerate(at url: URL, maxLevel: Int) throws -> [URL] {
+    try enumerate(at: url, properties: [.isDirectoryKey]) { url, enumerator in
+      guard try url.isDirectory() == true else {
+        return true
+      }
+
+      if enumerator.level >= maxLevel {
+        enumerator.skipDescendants()
+      }
+
+      return false
+    }
+  }
+}
+
+extension URL.BookmarkCreationOptions {
+  static let withReadOnlySecurityScope = Self([.withSecurityScope, .securityScopeAllowOnlyReadAccess])
 }

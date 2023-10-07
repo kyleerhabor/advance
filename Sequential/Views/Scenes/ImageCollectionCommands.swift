@@ -116,6 +116,7 @@ struct ImageCollectionCommands: Commands {
       Button("Open...") {
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
+        panel.canChooseDirectories = true
         panel.allowsMultipleSelection = true
         panel.allowedContentTypes = [.image]
 
@@ -125,9 +126,11 @@ struct ImageCollectionCommands: Commands {
           }
 
           do {
-            openWindow(value: try ImageCollection(urls: panel.urls))
+            let bookmarks = try await ImageCollection.resolve(urls: panel.urls.enumerated()).ordered()
+
+            openWindow(value: ImageCollection(bookmarks: bookmarks))
           } catch {
-            Logger.ui.error("\(error)")
+            Logger.model.error("\(error)")
           }
         }
       }.keyboardShortcut(.open)
@@ -189,10 +192,14 @@ struct ImageCollectionCommands: Commands {
         NSApp.appearance = appearance?.app()
 
         delegate.onOpen = { urls in
-          do {
-            openWindow(value: try ImageCollection(urls: urls))
-          } catch {
-            Logger.ui.error("\(error)")
+          Task {
+            do {
+              let bookmarks = try await ImageCollection.resolve(urls: urls.enumerated()).ordered()
+
+              openWindow(value: ImageCollection(bookmarks: bookmarks))
+            } catch {
+              Logger.ui.error("\(error)")
+            }
           }
         }
       }

@@ -52,29 +52,29 @@ struct ImageCollectionItemView<Overlay>: View where Overlay: View {
   @State private var accessingSecurityScope = false
   @State private var phase = AsyncImagePhase.empty
 
-  var image: ImageCollectionItem
+  let image: ImageCollectionItemImage
   @ViewBuilder var overlay: (Binding<AsyncImagePhase>) -> Overlay
 
   var body: some View {
     DisplayImageView(url: image.url, transaction: .init(animation: .default)) { $phase in
       ImageCollectionItemPhaseView(phase: $phase, overlay: overlay)
-        .task { await check() }
+//        .task { await check() }
     } failure: {
       // TODO: See if failure from the URL changing can be handled better.
-      await check()
+//      await check()
     }.aspectRatio(image.aspectRatio, contentMode: .fit)
   }
 
   // TODO: Make this nicer.
-  func resolve() async throws -> (Bookmark, ImageProperties) {
-    let bookmark = try image.bookmark.resolve()
-
-    guard let properties = ImageProperties(at: bookmark.url) else {
-      throw ImageError.undecodable
-    }
-
-    return (bookmark, properties)
-  }
+//  func resolve() async throws -> (Bookmark, ImageProperties) {
+//    let bookmark = try image.bookmark.resolve()
+//
+//    guard let properties = ImageProperties(at: bookmark.url) else {
+//      throw ImageError.undecodable
+//    }
+//
+//    return (bookmark, properties)
+//  }
 
   func reachable(url: URL) -> Bool {
     do {
@@ -91,34 +91,34 @@ struct ImageCollectionItemView<Overlay>: View where Overlay: View {
     }
   }
 
-  @MainActor
-  func check() async {
-    let url = image.url
-
-    // Image I/O does not give us any useful information on *why* it failed (here, at creating either an image
-    // source or thumbnail). As a result, we have to resort to this less efficient method (as per the documentation).
-    // Unfortunately this produces noise in logs from the task failure in DisplayImageView.
-    //
-    // To do this properly, I need a way to plug into DisplayImageView at the point of CGImageSourceCreateThumbnailAtIndex
-    // so I can run this check.
-    if !reachable(url: url) {
-      Logger.ui.error("Image at URL \"\(url.string)\" is unreachable. Attempting to update...")
-
-      do {
-        let resolved = try await resolve()
-
-        image.update(bookmark: resolved.0, properties: resolved.1)
-      } catch {
-        Logger.ui.error("Could not resolve bookmark for image \"\(url.string)\": \(error)")
-
-        return
-      }
-    }
-  }
+//  @MainActor
+//  func check() async {
+//    let url = image.url
+//
+//    // Image I/O does not give us any useful information on *why* it failed (here, at creating either an image
+//    // source or thumbnail). As a result, we have to resort to this less efficient method (as per the documentation).
+//    // Unfortunately this produces noise in logs from the task failure in DisplayImageView.
+//    //
+//    // To do this properly, I need a way to plug into DisplayImageView at the point of CGImageSourceCreateThumbnailAtIndex
+//    // so I can run this check.
+//    if !reachable(url: url) {
+//      Logger.ui.error("Image at URL \"\(url.string)\" is unreachable. Attempting to update...")
+//
+//      do {
+//        let resolved = try await resolve()
+//
+//        image.update(bookmark: resolved.0, properties: resolved.1)
+//      } catch {
+//        Logger.ui.error("Could not resolve bookmark for image \"\(url.string)\": \(error)")
+//
+//        return
+//      }
+//    }
+//  }
 }
 
 extension ImageCollectionItemView where Overlay == EmptyView {
-  init(image: ImageCollectionItem) {
+  init(image: ImageCollectionItemImage) {
     self.init(image: image) { _ in }
   }
 }
@@ -236,7 +236,7 @@ struct ImageCollectionNavigationDetailView: View {
   @Environment(\.selection) @Binding private var selection
   @FocusedValue(\.sidebarScroller) private var sidebarScroller
 
-  var images: [ImageCollectionItem]
+  @Binding var images: [ImageCollectionItemImage]
 
   var body: some View {
     ScrollViewReader { proxy in
@@ -246,6 +246,8 @@ struct ImageCollectionNavigationDetailView: View {
             in: self.selection.subtracting(selection),
             by: \.id
           ).last?.id else {
+            Logger.ui.info("\(self.selection) vs. \(selection) vs. \(images)")
+
             return
           }
 
@@ -262,7 +264,7 @@ struct ImageCollectionNavigationDetailView: View {
 }
 
 struct ImageCollectionView: View {
-  typealias Selection = Set<ImageCollectionItem.ID>
+  typealias Selection = Set<ImageCollectionItemImage.ID>
 
   @Environment(Window.self) private var win
   @Environment(\.prerendering) private var prerendering
@@ -285,14 +287,46 @@ struct ImageCollectionView: View {
       ImageCollectionNavigationSidebarView(columns: $columns)
         .navigationSplitViewColumnWidth(min: 128, ideal: 192, max: 256)
     } detail: {
-      ImageCollectionNavigationDetailView(images: collection.wrappedValue.images)
+      ImageCollectionNavigationDetailView(images: collection.images)
+        .ignoresSafeArea(edges: windowless ? .top : [])
     }
     .navigationTitle(Text(visible?.deletingPathExtension().lastPathComponent ?? "Sequential"))
     // I wish it were possible to pass nil to not use this modifier. This workaround displays a blank file that doesn't
     // point anywhere.
     .navigationDocument(visible ?? .none)
     .task {
-      collection.wrappedValue.bookmarks = await collection.wrappedValue.load()
+      let resolved = await collection.wrappedValue.load()
+      let items = Dictionary(collection.wrappedValue.items.map { ($0.bookmark.id, $0) }) { _, item in item }
+      let results = resolved.map { bookmark in
+        switch bookmark {
+          case .document(let document):
+            let items = document.images.map { image in
+              ImageCollectionItem(
+                image: image,
+                document: document.url,
+                bookmarked: items[image.id]?.bookmarked ?? false
+              )
+            }
+
+            let bookmark = BookmarkKind.document(.init(
+              data: document.data,
+              files: items.map(\.bookmark)
+            ))
+
+            return (bookmark, items)
+          case .file(let image):
+            let item = ImageCollectionItem(
+              image: image,
+              document: nil,
+              bookmarked: items[image.id]?.bookmarked ?? false
+            )
+
+            return (BookmarkKind.file(item.bookmark), [item])
+        }
+      }
+
+      collection.wrappedValue.bookmarks = results.map(\.0)
+      collection.wrappedValue.items = results.flatMap(\.1)
       collection.wrappedValue.updateImages()
       collection.wrappedValue.updateBookmarks()
     }.onPreferenceChange(ScrollPositionPreferenceKey.self) { origin in
@@ -304,6 +338,10 @@ struct ImageCollectionView: View {
 
       setTitleBarVisibility(false)
     }.onContinuousHover { _ in
+      guard window?.inLiveResize == false else {
+        return
+      }
+
       setTitleBarVisibility(true)
     }.onChange(of: columns) {
       setTitleBarVisibility(true)
@@ -313,7 +351,7 @@ struct ImageCollectionView: View {
   init() {
     // When the user toggles the sidebar, I don't want the title bar to be hidden.
     self.publisher = subject
-      .collect(6)
+      .collect(6) // 12?
       .filter { origins in
         origins.dropFirst().allSatisfy { $0.x == origins.first?.x }
       }

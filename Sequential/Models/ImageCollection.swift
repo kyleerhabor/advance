@@ -42,142 +42,166 @@ struct ImageProperties {
 }
 
 @Observable
-class ImageCollectionItem {
-  var url: URL
-  unowned var bookmark: ImageCollectionBookmark
+class ImageCollectionItemImage {
+  let url: URL
+  unowned let item: ImageCollectionItem
   var aspectRatio: Double
-  var bookmarked: Bool {
-    get { bookmark.item.bookmarked }
-    set { bookmark.item.bookmarked = newValue }
-  }
 
   // Live Text
   var orientation: CGImagePropertyOrientation
   var analysis: ImageAnalysis?
 
-  init(url: URL, bookmark: ImageCollectionBookmark, aspectRatio: Double, orientation: CGImagePropertyOrientation) {
+  init(url: URL, item: ImageCollectionItem, aspectRatio: Double, orientation: CGImagePropertyOrientation) {
     self.url = url
+    self.item = item
     self.aspectRatio = aspectRatio
-    self.bookmark = bookmark
     self.orientation = orientation
     self.analysis = nil
   }
 
-  convenience init(url: URL, bookmark: ImageCollectionBookmark, properties: ImageProperties) {
+  convenience init(url: URL, item: ImageCollectionItem, properties: ImageProperties) {
     self.init(
       url: url,
-      bookmark: bookmark,
+      item: item,
       aspectRatio: properties.width / properties.height,
       orientation: properties.orientation
     )
   }
-
-  func update(bookmark: Bookmark, properties: ImageProperties) {
-    url = bookmark.url
-    aspectRatio = properties.width / properties.height
-    orientation = properties.orientation
-    analysis = nil
-    self.bookmark.data = bookmark.data
-  }
 }
 
-extension ImageCollectionItem: Identifiable, Equatable {
-  var id: URL { url }
+extension ImageCollectionItemImage: Identifiable, Equatable {
+  var id: UUID {
+    item.bookmark.id
+  }
 
-  static func ==(lhs: ImageCollectionItem, rhs: ImageCollectionItem) -> Bool {
-    lhs.url == rhs.url
+  static func ==(lhs: ImageCollectionItemImage, rhs: ImageCollectionItemImage) -> Bool {
+    lhs.id == rhs.id
   }
 }
 
 @Observable
-class ImageCollectionBookmarkItem: Codable {
+class ImageCollectionItem: Codable {
+  var bookmark: BookmarkFile
+  var image: ImageCollectionItemImage?
   var bookmarked: Bool
 
-  init(bookmarked: Bool = false) {
+  init(bookmark: BookmarkFile, bookmarked: Bool = false) {
+    self.bookmark = bookmark
     self.bookmarked = bookmarked
   }
 
-  required init(from decoder: Decoder) throws {
-    let container = try decoder.container(keyedBy: CodingKeys.self)
+  init(image: ResolvedBookmarkImage, document: URL?, bookmarked: Bool = false) {
+    let url = image.bookmark.url
+    let file = BookmarkFile(
+      id: image.id,
+      data: image.bookmark.data,
+      url: url,
+      document: document
+    )
 
-    self.bookmarked = try container.decode(Bool.self, forKey: .bookmarked)
-  }
-
-  func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-
-    try container.encode(bookmarked, forKey: .bookmarked)
-  }
-
-  enum CodingKeys: CodingKey {
-    case bookmarked
-  }
-}
-
-class ImageCollectionBookmark: Codable {
-  var data: Data
-  let url: URL?
-  var item: ImageCollectionBookmarkItem
-  var image: ImageCollectionItem?
-
-  init(data: Data, url: URL?, item: ImageCollectionBookmarkItem) {
-    self.data = data
-    self.url = url
-    self.item = item
-  }
-
-  func resolve() throws -> Bookmark {
-    try .init(data: data, resolving: .withSecurityScope) { url in
-      try url.scoped {
-        try url.bookmark()
-      }
-    }
+    self.bookmark = file
+    self.bookmarked = bookmarked
+    self.image = .init(url: url, item: self, properties: image.properties)
   }
 
   // Codable conformance
 
   required init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
+    let id = try container.decode(UUID.self, forKey: .bookmark)
 
-    self.data = try container.decode(Data.self, forKey: .data)
-    self.url = nil
-    self.item = try container.decode(ImageCollectionBookmarkItem.self, forKey: .item)
-    self.image = nil
+    self.bookmark = .init(id: id, data: .init(), document: nil)
+    self.bookmarked = try container.decode(Bool.self, forKey: .bookmarked)
   }
 
   func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
 
-    try container.encode(data, forKey: .data)
-    try container.encode(item, forKey: .item)
+    try container.encode(bookmark.id, forKey: .bookmark)
+    try container.encode(bookmarked, forKey: .bookmarked)
   }
 
   enum CodingKeys: CodingKey {
-    case data, item
+    case bookmark
+    case bookmarked
   }
 }
 
-extension ImageCollectionBookmark: Hashable {
-  static func ==(lhs: ImageCollectionBookmark, rhs: ImageCollectionBookmark) -> Bool {
-    lhs.data == rhs.data
-  }
+struct ResolvedBookmarkImage {
+  let id: UUID
+  let bookmark: Bookmark
+  let properties: ImageProperties
+}
 
-  func hash(into hasher: inout Hasher) {
-    hasher.combine(data)
+extension ResolvedBookmarkImage {
+  init(id: UUID, file: BookmarkFile) throws {
+    let data = file.data
+    let bookmark = if let url = file.url {
+      Bookmark(data: data, url: url)
+    } else {
+      try BookmarkFile(
+        id: file.id,
+        data: data,
+        url: nil,
+        document: file.document
+      ).resolve()
+    }
+
+    let url = bookmark.url
+
+    guard let properties = url.scoped({ ImageProperties(at: bookmark.url) }) else {
+      throw BookmarkError(url: url, underlying: ImageError.undecodable)
+    }
+
+    self.init(id: id, bookmark: bookmark, properties: properties)
+  }
+}
+
+struct ResolvedBookmarkImageDocument {
+  let data: Data
+  let url: URL
+  let images: [ResolvedBookmarkImage]
+}
+
+enum ResolvedBookmarkImageKind {
+  case document(ResolvedBookmarkImageDocument)
+  case file(ResolvedBookmarkImage)
+}
+
+struct ResolvedBookmarkDocument {
+  let data: Data
+  let url: URL
+  let images: [Bookmark]
+}
+
+enum ResolvedBookmarkKind {
+  case document(ResolvedBookmarkDocument)
+  case file(Bookmark)
+}
+
+struct BookmarkError<Underlying>: Error, LocalizedError where Underlying: Error {
+  let url: URL
+  let underlying: Underlying
+
+  var errorDescription: String? {
+    "\(underlying) (\(url))"
   }
 }
 
 @Observable
 class ImageCollection: Codable {
   // The "source of truth".
-  var bookmarks: [ImageCollectionBookmark]
+  var bookmarks: [BookmarkKind]
+  var items = [ImageCollectionItem]()
+
+  // The state for the UI.
+  var images = [ImageCollectionItemImage]()
+  var bookmarked = [ImageCollectionItemImage]()
+  var bookmarkedIndex = ImageCollectionView.Selection()
 
   // The materialized state useful for the UI.
-  var images = [ImageCollectionItem]()
-  var bookmarked = [ImageCollectionItem]()
-  var bookmarkedIndex = ImageCollectionView.Selection()
-  var visible = [ImageCollectionItem]()
-  var currentImage: ImageCollectionItem? {
+  var visible = [ImageCollectionItemImage]()
+  var currentImage: ImageCollectionItemImage? {
     visible.last
   }
 
@@ -185,76 +209,199 @@ class ImageCollection: Codable {
     self.bookmarks = []
   }
 
-  init(urls: [URL]) throws {
-    self.bookmarks = try urls.map { url in
-      .init(
-        // I haven't researched whether or not creating bookmarks is expensive.
-        data: try url.bookmark(),
-        url: url,
-        item: .init()
-      )
+  init(bookmarks: [BookmarkKind]) {
+    self.bookmarks = bookmarks
+    self.items = bookmarks.flatMap { bookmark in
+      switch bookmark {
+        case .document(let document):
+          return document.files.map { file in
+            ImageCollectionItem(bookmark: file)
+          }
+        case .file(let file):
+          return [ImageCollectionItem(bookmark: file)]
+      }
     }
   }
 
-  func load() async -> [ImageCollectionBookmark] {
-    await withThrowingTaskGroup(of: Offset<ImageCollectionBookmark>.self) { group in
-      for (offset, bookmark) in bookmarks.enumerated() {
-        group.addTask {
-          let data: Data
-          let url: URL
-
-          if let bURL = bookmark.url {
-            data = bookmark.data
-            url = bURL
-          } else {
-            let resolved = try bookmark.resolve()
-
-            data = resolved.data
-            url = resolved.url
-          }
-
-          let mark = ImageCollectionBookmark(data: data, url: url, item: bookmark.item)
-
-          guard let properties = url.scoped({ ImageProperties(at: url) }) else {
-            throw ImageError.undecodable
-          }
-
-          mark.image = .init(url: url, bookmark: mark, properties: properties)
-
-          return (offset, mark)
-        }
-      }
-
-      var results = [Offset<ImageCollectionBookmark>]()
-
-      while let result = await group.nextResult() {
-        switch result {
-          case .success(let bookmark): results.append(bookmark)
-          case .failure(let err):
-            Logger.model.error("Could not load bookmark: \(err)")
-        }
-      }
-
-      return results.ordered()
-    }
+  func load() async -> [ResolvedBookmarkImageKind] {
+    await Self.resolve(bookmarks: bookmarks.enumerated()).ordered()
   }
 
   func updateImages() {
-    images = bookmarks.compactMap(\.image)
+    images = items.compactMap(\.image)
   }
 
   func updateBookmarks() {
-    bookmarked = images.filter { $0.bookmarked }
+    bookmarked = images.filter { $0.item.bookmarked }
     bookmarkedIndex = Set(bookmarked.map(\.id))
+  }
+
+  static func resolve(urls: some Sequence<Offset<URL>>) async throws -> [Offset<BookmarkKind>] {
+    try await withThrowingTaskGroup(of: Offset<BookmarkKind>.self) { group in
+      urls.forEach { (offset, url) in
+        group.addTask {
+          let bookmark = try await url.scoped {
+            let data = try url.bookmark(options: .withReadOnlySecurityScope)
+
+            guard try url.isDirectory() == true else {
+              return BookmarkKind.file(.init(
+                data: data,
+                url: url,
+                document: nil
+              ))
+            }
+
+            let contents = try FileManager.default.enumerate(at: url)
+              // Can we do better than this?
+              .sorted { $0.string.localizedStandardCompare($1.string) == .orderedAscending }
+
+            return BookmarkKind.document(.init(
+              data: data,
+              url: url,
+              files: try await withThrowingTaskGroup(of: Offset<BookmarkFile>.self) { group in
+                contents.enumerated().forEach { (offset, content) in
+                  group.addTask {
+                    let data = try content.bookmark(options: .withReadOnlySecurityScope, document: url)
+                    let file = BookmarkFile(data: data, url: content, document: url)
+
+                    return (offset, file)
+                  }
+                }
+
+                var files = [Offset<BookmarkFile>]()
+                files.reserveCapacity(contents.count)
+
+                return try await group.reduce(into: files) { partialResult, file in
+                  partialResult.append(file)
+                }.ordered()
+              }
+            ))
+          }
+
+          return (offset, bookmark)
+        }
+      }
+
+      var bookmarks = [Offset<BookmarkKind>]()
+      bookmarks.reserveCapacity(urls.underestimatedCount)
+
+      return try await group.reduce(into: bookmarks) { partialResult, bookmark in
+        partialResult.append(bookmark)
+      }
+    }
+  }
+
+  static func resolve(bookmarks: some Sequence<Offset<BookmarkKind>>) async -> [Offset<ResolvedBookmarkImageKind>] {
+    await withThrowingTaskGroup(of: Offset<ResolvedBookmarkImageKind>.self) { group in
+      bookmarks.forEach { (offset, bookmark) in
+        group.addTask {
+          switch bookmark {
+            case .document(let document):
+              let bookmark = if let url = document.url {
+                Bookmark(data: document.data, url: url)
+              } else {
+                try document.resolve()
+              }
+
+              let url = bookmark.url
+              let document = ResolvedBookmarkImageKind.document(.init(
+                data: bookmark.data,
+                url: url,
+                images: await url.scoped {
+                  await withThrowingTaskGroup(of: Offset<ResolvedBookmarkImage>.self) { group in
+                    let files = document.files
+
+                    files.enumerated().forEach { (offset, file) in
+                      group.addTask {
+                        // FIXME: Sometimes, bookmark resolution fails.
+                        //
+                        // I'm really not sure why this happens. On a local copy of Children of the Whales, volumes 1 - 22,
+                        // for example (3.9K images), only a handful of images may fail with the error "The file
+                        // couldn't be opened because it isn't in the correct format." But this doesn't always happen,
+                        // since a number of times the whole collection is resolved.
+                        //
+                        // A potential hint is that this seems to only happen the first time a set of images is imported
+                        // (so scene restoration always works).
+                        let image = try ResolvedBookmarkImage(
+                          id: file.id,
+                          file: .init(
+                            id: file.id,
+                            data: file.data,
+                            url: file.url,
+                            document: url
+                          )
+                        )
+
+                        return (offset, image)
+                      }
+                    }
+
+                    var images = [Offset<ResolvedBookmarkImage>]()
+                    images.reserveCapacity(files.count)
+
+                    while let result = await group.nextResult() {
+                      switch result {
+                        case .success(let image): images.append(image)
+                        case .failure(let err):
+                          Logger.model.error("Could not resolve bookmark image for document \"\(url.string)\": \(err)")
+                      }
+                    }
+
+                    return images.ordered()
+                  }
+                }
+              ))
+
+              return (offset, document)
+            case .file(let file):
+              let file = ResolvedBookmarkImageKind.file(try .init(id: file.id, file: file))
+
+              return (offset, file)
+          }
+        }
+      }
+
+      var marks = [Offset<ResolvedBookmarkImageKind>]()
+      marks.reserveCapacity(bookmarks.underestimatedCount)
+
+      while let result = await group.nextResult() {
+        switch result {
+          case .success(let bookmark): marks.append(bookmark)
+          case .failure(let err):
+            Logger.model.error("Could not resolve bookmark: \(err)")
+        }
+      }
+
+      return marks
+    }
   }
 
   // Codable conformance
 
   required init(from decoder: Decoder) throws {
     do {
-      let container = try decoder.singleValueContainer()
+      let container = try decoder.container(keyedBy: CodingKeys.self)
+      let bookmarks = try container.decode([BookmarkKind].self, forKey: .bookmarks)
+      let index = bookmarks.reduce(into: [UUID: BookmarkFile]()) { partialResult, bookmark in
+        bookmark.files.forEach { file in
+          partialResult[file.id] = file
+        }
+      }
 
-      self.bookmarks = try container.decode([ImageCollectionBookmark].self)
+      let items = try container
+        .decode([ImageCollectionItem].self, forKey: .items)
+        .compactMap { item -> ImageCollectionItem? in
+          guard let file = index[item.bookmark.id] else {
+            return nil
+          }
+
+          item.bookmark = file
+
+          return item
+        }
+
+      self.bookmarks = bookmarks
+      self.items = items
     } catch {
       Logger.model.error("Could not decode image collection for scene restoration.")
 
@@ -263,9 +410,14 @@ class ImageCollection: Codable {
   }
 
   func encode(to encoder: Encoder) throws {
-    var container = encoder.singleValueContainer()
+    var container = encoder.container(keyedBy: CodingKeys.self)
 
-    try container.encode(bookmarks)
+    try container.encode(bookmarks, forKey: .bookmarks)
+    try container.encode(items, forKey: .items)
+  }
+
+  enum CodingKeys: CodingKey {
+    case bookmarks, items
   }
 }
 

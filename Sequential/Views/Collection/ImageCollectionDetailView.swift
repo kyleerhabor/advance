@@ -11,14 +11,14 @@ import SwiftUI
 struct ImageCollectionDetailItemBookmarkView: View {
   @Environment(\.collection) private var collection
 
-  let image: ImageCollectionItem
+  let image: ImageCollectionItemImage
 
   var body: some View {
     Button {
-      image.bookmarked.toggle()
+      image.item.bookmarked.toggle()
       collection.wrappedValue.updateBookmarks()
     } label: {
-      Label(image.bookmarked ? "Remove Bookmark" : "Bookmark", systemImage: "bookmark")
+      Label(image.item.bookmarked ? "Remove Bookmark" : "Bookmark", systemImage: "bookmark")
     }
   }
 }
@@ -46,7 +46,7 @@ struct VisiblePreferenceKey: PreferenceKey {
 struct ImageCollectionDetailItemVisibilityView: View {
   @Environment(\.collection) private var collection
 
-  let image: ImageCollectionItem
+  let image: ImageCollectionItemImage
 
   var body: some View {
     GeometryReader { proxy in
@@ -81,7 +81,7 @@ struct ImageCollectionDetailItemView: View {
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
   @State private var error: String?
 
-  let image: ImageCollectionItem
+  let image: ImageCollectionItemImage
   let margin: Double
   let insets: EdgeInsets
   var liveTextIcon: Bool
@@ -164,7 +164,7 @@ struct ImageCollectionDetailView: View {
   @SceneStorage(Keys.liveTextIcon.key) private var liveTextIcon: Bool?
   @State private var showingDetails = false
 
-  let images: [ImageCollectionItem]
+  let images: [ImageCollectionItemImage]
   let scrollSidebar: () -> Void
   var icon: Bool {
     liveTextIcon ?? appLiveTextIcon

@@ -32,6 +32,8 @@ struct DisplayImageView<Content>: View where Content: View {
       content($phase)
         .onChange(of: proxy.size, initial: true) {
           sizeSubject.send(proxy.size)
+        }.onReceive(sizePublisher) { size in
+          self.size = size
         }.task(id: size) {
           // This action will be called twice on initialization:
           // - Once for the default value of .zero
@@ -50,8 +52,6 @@ struct DisplayImageView<Content>: View where Content: View {
 
           await resample(size: size)
         }
-    }.onReceive(sizePublisher) { size in
-      self.size = size
     }
   }
 

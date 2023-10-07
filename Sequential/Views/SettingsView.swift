@@ -162,7 +162,7 @@ struct SettingsView: View {
       }
 
       LabeledContent("Copying:") {
-        Button("Show Destinations...") {
+        Button("Show Folders...") {
           showingDestinations = true
         }.sheet(isPresented: $showingDestinations) {
           // We want the destinations to be sorted off-screen to not disrupt the user. The action is in a Task so it's

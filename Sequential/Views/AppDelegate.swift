@@ -31,9 +31,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
   }
 
   func application(_ application: NSApplication, open urls: [URL]) {
-    // TODO: Support opening folders.
-    //
-    // I presume this would require using the relativeTo parameter when creating and resolving bookmarks.
     onOpen(urls)
   }
 }

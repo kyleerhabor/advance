@@ -6,6 +6,7 @@
 //
 
 import ImageIO
+import OSLog
 
 extension CGImageSource {
   func resample(to size: some Numeric) throws -> CGImage {

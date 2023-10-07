@@ -8,51 +8,6 @@
 import OSLog
 import SwiftUI
 
-struct ResolvedBookmark {
-  let url: URL
-  let stale: Bool
-
-  init(
-    data: Data,
-    options: URL.BookmarkResolutionOptions,
-    relativeTo document: URL? = nil
-  ) throws {
-    var stale = false
-
-    self.url = try URL(resolvingBookmarkData: data, options: options, relativeTo: document, bookmarkDataIsStale: &stale)
-    self.stale = stale
-  }
-}
-
-struct Bookmark {
-  let data: Data
-  let url: URL
-}
-
-extension Bookmark {
-  init(
-    data: Data,
-    resolving: URL.BookmarkResolutionOptions,
-    relativeTo document: URL? = nil,
-    create: (URL) throws -> Data
-  ) throws {
-    var data = data
-    var resolved = try ResolvedBookmark(data: data, options: resolving, relativeTo: document)
-
-    if resolved.stale {
-      // From the resolution options, we can infer that if it includes .withSecurityScope, wrapping URL in the method
-      // with the same name would theoretically be valid, but we still wouldn't exactly know *how* to create the
-      // bookmark. Personally, I think accepting a closure and having the caller handle the case maintains simplicity.
-      // If we did check for the security scope and implicity wrap create in one, the user would need to implicitly
-      // track it, which would be more complex.
-      data = try create(resolved.url)
-      resolved = try ResolvedBookmark(data: data, options: resolving, relativeTo: document)
-    }
-
-    self.init(data: data, url: resolved.url)
-  }
-}
-
 enum ImageError: Error {
   case undecodable
   case thumbnail
