@@ -246,8 +246,6 @@ struct ImageCollectionNavigationDetailView: View {
             in: self.selection.subtracting(selection),
             by: \.id
           ).last?.id else {
-            Logger.ui.info("\(self.selection) vs. \(selection) vs. \(images)")
-
             return
           }
 

@@ -5,7 +5,6 @@
 //  Created by Kyle Erhabor on 7/28/23.
 //
 
-import OSLog
 import SwiftUI
 
 enum ImageError: Error {
