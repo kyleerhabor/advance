@@ -13,7 +13,7 @@ class Window {
 }
 
 extension Window: Equatable {
-  static func == (lhs: Window, rhs: Window) -> Bool {
+  static func ==(lhs: Window, rhs: Window) -> Bool {
     lhs.window == rhs.window
   }
 }
@@ -134,12 +134,12 @@ extension View {
   }
 }
 
-class WindowDelegate {
-  @MainActor
-  @objc static func window(
-    _ window: NSWindow,
-    willUseFullScreenPresentationOptions proposedOptions: NSApplication.PresentationOptions = []
-  ) -> NSApplication.PresentationOptions {
-    return proposedOptions.union(.autoHideToolbar)
-  }
-}
+//class WindowDelegate {
+//  @MainActor
+//  @objc static func window(
+//    _ window: NSWindow,
+//    willUseFullScreenPresentationOptions proposedOptions: NSApplication.PresentationOptions = []
+//  ) -> NSApplication.PresentationOptions {
+//    return proposedOptions.union(.autoHideToolbar)
+//  }
+//}

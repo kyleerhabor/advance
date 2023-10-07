@@ -56,7 +56,6 @@ struct AppMenuJumpToCurrentImageFocusedValueKey: FocusedValueKey {
 }
 
 extension FocusedValues {
-  // FIXME: Add Equatable conformance to window to stop lagging.
   var window: WindowFocusedValueKey.Value? {
     get { self[WindowFocusedValueKey.self] }
     set { self[WindowFocusedValueKey.self] = newValue }

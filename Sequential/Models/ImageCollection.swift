@@ -313,15 +313,6 @@ class ImageCollection: Codable {
 
                     files.enumerated().forEach { (offset, file) in
                       group.addTask {
-                        // FIXME: Sometimes, bookmark resolution fails.
-                        //
-                        // I'm really not sure why this happens. On a local copy of Children of the Whales, volumes 1 - 22,
-                        // for example (3.9K images), only a handful of images may fail with the error "The file
-                        // couldn't be opened because it isn't in the correct format." But this doesn't always happen,
-                        // since a number of times the whole collection is resolved.
-                        //
-                        // A potential hint is that this seems to only happen the first time a set of images is imported
-                        // (so scene restoration always works).
                         let image = try ResolvedBookmarkImage(
                           id: file.id,
                           file: .init(

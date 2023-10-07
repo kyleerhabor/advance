@@ -15,13 +15,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
   var onOpen: ([URL]) -> Void = { _ in }
 
   func applicationWillFinishLaunching(_ notification: Notification) {
-    let prior = #selector(NSWindowDelegate.window(_:willUseFullScreenPresentationOptions:))
-    let selector = #selector(WindowDelegate.window(_:willUseFullScreenPresentationOptions:))
-    let method = class_getClassMethod(WindowDelegate.self, selector)!
-    let impl = method_getImplementation(method)
-
-    class_addMethod(NSWindowController.self, prior, impl, nil)
-
     // I personally think the context switch one needs to perform mentally when switching tabs outweights the benefit
     // of (potentially) having less windows. The lack of animation is the largest contributing factor, but also, imo,
     // Sequential is not meant to be used with a lot of windows, unlike e.g. Finder where it's easy to get a dozen

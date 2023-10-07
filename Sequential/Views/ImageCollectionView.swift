@@ -206,7 +206,6 @@ struct ImageCollectionNavigationSidebarView: View {
         .focusedSceneValue(\.jumpToCurrentImage, .init(enabled: collection.wrappedValue.currentImage != nil) {
           let id = collection.wrappedValue.currentImage!.id
 
-          focused = true
           selection = [id]
 
           Task {
@@ -214,6 +213,11 @@ struct ImageCollectionNavigationSidebarView: View {
               proxy.scrollTo(id, anchor: .center)
 
               columns = .all
+            }
+
+            // Yes, this is convoluted; but it fixes an issue where focus won't apply when the sidebar is not already open.
+            Task {
+              focused = true
             }
           }
         }).focusedSceneValue(\.sidebarScroller, .init(selection: selection) {
@@ -265,9 +269,9 @@ struct ImageCollectionView: View {
   typealias Selection = Set<ImageCollectionItemImage.ID>
 
   @Environment(Window.self) private var win
+  @Environment(\.fullScreen) private var fullScreen
   @Environment(\.prerendering) private var prerendering
   @Environment(\.collection) private var collection
-  @Environment(\.fullScreen) private var fullScreen
   @AppStorage(Keys.windowless.key) private var windowless = Keys.windowless.value
   @AppStorage(Keys.displayTitleBarImage.key) private var displayTitleBarImage = Keys.displayTitleBarImage.value
   @SceneStorage("sidebar") private var columns = NavigationSplitViewVisibility.all
@@ -286,12 +290,12 @@ struct ImageCollectionView: View {
         .navigationSplitViewColumnWidth(min: 128, ideal: 192, max: 256)
     } detail: {
       ImageCollectionNavigationDetailView(images: collection.images)
-        .ignoresSafeArea(edges: windowless ? .top : [])
     }
     .navigationTitle(Text(visible?.deletingPathExtension().lastPathComponent ?? "Sequential"))
     // I wish it were possible to pass nil to not use this modifier. This workaround displays a blank file that doesn't
     // point anywhere.
     .navigationDocument(visible ?? .none)
+    .toolbar(fullScreen == true ? .hidden : .automatic)
     .task {
       let resolved = await collection.wrappedValue.load()
       let items = Dictionary(collection.wrappedValue.items.map { ($0.bookmark.id, $0) }) { _, item in item }

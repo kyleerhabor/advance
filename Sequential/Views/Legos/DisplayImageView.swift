@@ -32,9 +32,11 @@ struct DisplayImageView<Content>: View where Content: View {
       content($phase)
         .onChange(of: proxy.size, initial: true) {
           sizeSubject.send(proxy.size)
-        }.onReceive(sizePublisher) { size in
-          self.size = size
         }.task(id: size) {
+          // The reason we can't directly use size is that, on certain occasions, the UI will sometimes not load an
+          // image. Using the proxy size, for some reason, always works.
+          let size = proxy.size
+
           // This action will be called twice on initialization:
           // - Once for the default value of .zero
           // - Another for the received size of the container
@@ -46,12 +48,10 @@ struct DisplayImageView<Content>: View where Content: View {
             return
           }
 
-          // The reason we can't directly use size is that, on certain occasions, the UI will sometimes not load an
-          // image. Using the proxy size, for some reason, always works.
-          let size = proxy.size
-
           await resample(size: size)
         }
+    }.onReceive(sizePublisher) { size in
+      self.size = size
     }
   }
 
@@ -99,9 +99,11 @@ struct DisplayImageView<Content>: View where Content: View {
           phase = .success(image)
         }
       }
-    } catch ImageError.thumbnail {
-      await failure()
-    } catch is CancellationError {
+    } 
+//    catch ImageError.thumbnail {
+//      await failure()
+//    } 
+    catch is CancellationError {
       // We don't want a CancellationError to e.g. change the visible image to a blank one, or for it to slightly
       // go blank then immediately come back.
     } catch {

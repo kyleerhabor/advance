@@ -46,6 +46,11 @@ enum ExecutionError: Error {
   case interrupt
 }
 
+enum FolderDepth {
+  case unbound
+  case max(Int)
+}
+
 struct Keys {
   static let appearance = Item("appearance", nil as SettingsView.Scheme)
   static let margin = Item("margin", 1)

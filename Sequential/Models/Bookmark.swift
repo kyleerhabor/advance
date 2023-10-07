@@ -61,7 +61,7 @@ class BookmarkFile: Codable {
   init(id: UUID = .init(), data: Data, url: URL? = nil, document: URL?) {
     self.id = id
     self.data = data
-    self.url = nil
+    self.url = url
     self.document = document
   }
 
@@ -145,7 +145,7 @@ struct BookmarkDocument: Codable {
 }
 
 extension BookmarkDocument: Hashable {
-  static func ==(lhs: BookmarkDocument, rhs: BookmarkDocument) -> Bool {
+  static func ==(lhs: Self, rhs: Self) -> Bool {
     lhs.data == rhs.data && lhs.files == rhs.files
   }
 

@@ -91,10 +91,16 @@ struct ImageCollectionSidebarView: View {
     List(selection: selection) {
       ForEach(bookmarks ? collection.wrappedValue.bookmarked : collection.wrappedValue.images, id: \.id) { image in
         ImageCollectionSidebarItemView(image: image)
-      }.onMove { source, destination in
-        collection.wrappedValue.bookmarks.move(fromOffsets: source, toOffset: destination)
-        collection.wrappedValue.updateImages()
       }
+      // FIXME: items order should be independent of bookmarks order.
+      //
+      // Since bookmarks can either be a file or document containing files, ordering it would be tricky. It probably
+      // wouldn't be worth it and instead to base all user-facing choices on it (so, including order). The issue,
+      // however, is resolution is currently based on the bookmark order.
+//      .onMove { source, destination in
+//        collection.wrappedValue.items.move(fromOffsets: source, toOffset: destination)
+//        collection.wrappedValue.updateImages()
+//      }
     }.safeAreaInset(edge: .bottom, spacing: 0) {
       // I would *really* like this at the top, but I can't justify it since this is more a filter and not a new tab.
       VStack(alignment: .trailing, spacing: 0) {
@@ -148,7 +154,7 @@ struct ImageCollectionSidebarView: View {
         Label(mark ? "Bookmark" : "Remove Bookmark", systemImage: "bookmark")
       }
     }.overlay {
-      let visible = collection.wrappedValue.bookmarks.isEmpty && !prerendering
+      let visible = collection.wrappedValue.items.isEmpty && !prerendering
 
       VStack {
         if visible {
