@@ -104,7 +104,7 @@ struct ImageCollectionDetailItemView: View {
           @Bindable var image = image
 
           LiveTextView(
-            url: image.url,
+            scope: image.scope,
             orientation: image.orientation,
             analysis: $image.analysis
           ).supplementaryInterfaceHidden(!liveTextIcon)

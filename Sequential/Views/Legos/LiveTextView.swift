@@ -12,13 +12,13 @@ import VisionKit
 struct LiveTextView: NSViewRepresentable {
   private let analyzer = ImageAnalyzer()
 
-  let url: URL
+  let scope: ScopeURL
   let orientation: CGImagePropertyOrientation
   @Binding var analysis: ImageAnalysis?
   private var supplementaryInterfaceHidden: Bool
 
-  init(url: URL, orientation: CGImagePropertyOrientation, analysis: Binding<ImageAnalysis?>) {
-    self.url = url
+  init(scope: ScopeURL, orientation: CGImagePropertyOrientation, analysis: Binding<ImageAnalysis?>) {
+    self.scope = scope
     self.orientation = orientation
     self._analysis = analysis
     self.supplementaryInterfaceHidden = false
@@ -74,7 +74,7 @@ struct LiveTextView: NSViewRepresentable {
         let frame = overlayView.frame
         let size = max(frame.width, frame.height) / context.environment.pixelLength
 
-        try await url.scoped {
+        try await scope.scoped {
           let url = try await analysisURL(size: size)
           let analysis = try await analyze(url: url)
 
@@ -97,8 +97,8 @@ struct LiveTextView: NSViewRepresentable {
     // Is there a constant provided by Vision / VisionKit?
     let maxSize = 8192.0
 
-    guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
-      return url
+    guard let source = CGImageSourceCreateWithURL(scope.url as CFURL, nil) else {
+      return scope.url
     }
 
     let primary = CGImageSourceGetPrimaryImageIndex(source)
@@ -107,12 +107,12 @@ struct LiveTextView: NSViewRepresentable {
     guard let properties = CGImageSourceCopyPropertiesAtIndex(source, primary, nil) as? Dictionary<CFString, Any>,
           let imageSize = pixelSizeOfImageProperties(properties),
           imageSize.length() >= maxSize else {
-      return url
+      return scope.url
     }
 
     let size = min(size, maxSize - 1)
 
-    Logger.livetext.info("Image at URL \"\(url.string)\" has dimensions \(imageSize.width) / \(imageSize.height), exceeding Vision framework limit of \(maxSize.description); proceeding to downsample to size \(size.description)")
+    Logger.livetext.info("Image at URL \"\(scope.url.string)\" has dimensions \(imageSize.width) / \(imageSize.height), exceeding Vision framework limit of \(maxSize.description); proceeding to downsample to size \(size.description)")
 
     return try downsample(source: source, index: primary, size: size)
   }
@@ -128,7 +128,7 @@ struct LiveTextView: NSViewRepresentable {
 
     let url = URL.liveTextDownsampledDirectory.appending(component: UUID().uuidString)
 
-    Logger.livetext.info("Copying downsampled image of URL \"\(self.url.string)\" to destination \"\(url.string)\"")
+    Logger.livetext.info("Copying downsampled image of URL \"\(self.scope.url.string)\" to destination \"\(url.string)\"")
 
     try FileManager.default.createDirectory(at: .liveTextDownsampledDirectory, withIntermediateDirectories: true)
 

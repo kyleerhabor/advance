@@ -18,12 +18,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     // I personally think the context switch one needs to perform mentally when switching tabs outweights the benefit
     // of (potentially) having less windows. The lack of animation is the largest contributing factor, but also, imo,
     // Sequential is not meant to be used with a lot of windows, unlike e.g. Finder where it's easy to get a dozen
-    // windows where the UI is similar enough. It's also not totally compatible with NSWindowDelegate's window(_:willUseFullScreenPresentationOptions:)
-    // method, since it can sometimes get stuck until the user moves to another space and then back.
+    // windows where the UI is similar enough.
     NSWindow.allowsAutomaticWindowTabbing = false
   }
 
   func application(_ application: NSApplication, open urls: [URL]) {
+    application.abortModal()
+
     onOpen(urls)
   }
 }
@@ -42,7 +43,7 @@ func openFinder(in url: URL) -> Bool {
 
 func openFinder(at url: URL) {
   if !openFinder(in: url) {
-    Logger.ui.info("Failed to open Finder in folder \"\(url.string)\". Fallbacking to selection...")
+    Logger.ui.info("Failed to open Finder in folder \"\(url.string)\". Fallbacking to selection.")
 
     openFinder(selecting: url)
   }

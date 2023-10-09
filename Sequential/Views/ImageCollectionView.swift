@@ -56,65 +56,54 @@ struct ImageCollectionItemView<Overlay>: View where Overlay: View {
   @ViewBuilder var overlay: (Binding<AsyncImagePhase>) -> Overlay
 
   var body: some View {
-    DisplayImageView(url: image.url, transaction: .init(animation: .default)) { $phase in
+    DisplayImageView(scope: image.scope, transaction: .init(animation: .default)) { $phase in
       ImageCollectionItemPhaseView(phase: $phase, overlay: overlay)
-//        .task { await check() }
-    } failure: {
-      // TODO: See if failure from the URL changing can be handled better.
-//      await check()
+    } retry: {
+      await resolve()
     }.aspectRatio(image.aspectRatio, contentMode: .fit)
   }
 
-  // TODO: Make this nicer.
-//  func resolve() async throws -> (Bookmark, ImageProperties) {
-//    let bookmark = try image.bookmark.resolve()
-//
-//    guard let properties = ImageProperties(at: bookmark.url) else {
-//      throw ImageError.undecodable
-//    }
-//
-//    return (bookmark, properties)
-//  }
-
-  func reachable(url: URL) -> Bool {
+  func resolve() async -> Bool {
     do {
-      return try url.checkResourceIsReachable()
-    } catch {
-      if let err = error as? CocoaError, err.code == .fileReadNoSuchFile {
-        // We don't need to see the error.
+      let bookmark: Bookmark
+
+      if let document = image.item.bookmark.document {
+        let mark = try document.resolve()
+
+        document.data = mark.data
+        document.url = mark.url
+
+        bookmark = try mark.url.scoped { try image.item.bookmark.resolve() }
+      } else {
+        bookmark = try image.item.bookmark.resolve()
+      }
+
+      guard bookmark.url != image.url else {
+        Logger.model.info("Image resampling for URL \"\(image.url.string)\" failed, but bookmark was not stale")
+
         return false
       }
 
-      Logger.model.error("Checking URL \"\(url.string)\" for reachable status resulted in an error: \(error)")
+      Logger.model.info("Image resampling for URL \"\(image.url.string)\" failed and bookmark was stale. Refreshing...")
+
+      guard let properties = bookmark.url.scoped({ ImageProperties(at: bookmark.url) }) else {
+        return false
+      }
+
+      image.item.bookmark.data = bookmark.data
+      image.item.bookmark.url = bookmark.url
+      image.url = bookmark.url
+      image.aspectRatio = properties.width / properties.height
+      image.orientation = properties.orientation
+      image.analysis = nil
+
+      return true
+    } catch {
+      Logger.model.error("\(error)")
 
       return false
     }
   }
-
-//  @MainActor
-//  func check() async {
-//    let url = image.url
-//
-//    // Image I/O does not give us any useful information on *why* it failed (here, at creating either an image
-//    // source or thumbnail). As a result, we have to resort to this less efficient method (as per the documentation).
-//    // Unfortunately this produces noise in logs from the task failure in DisplayImageView.
-//    //
-//    // To do this properly, I need a way to plug into DisplayImageView at the point of CGImageSourceCreateThumbnailAtIndex
-//    // so I can run this check.
-//    if !reachable(url: url) {
-//      Logger.ui.error("Image at URL \"\(url.string)\" is unreachable. Attempting to update...")
-//
-//      do {
-//        let resolved = try await resolve()
-//
-//        image.update(bookmark: resolved.0, properties: resolved.1)
-//      } catch {
-//        Logger.ui.error("Could not resolve bookmark for image \"\(url.string)\": \(error)")
-//
-//        return
-//      }
-//    }
-//  }
 }
 
 extension ImageCollectionItemView where Overlay == EmptyView {
@@ -302,20 +291,18 @@ struct ImageCollectionView: View {
       let results = resolved.map { bookmark in
         switch bookmark {
           case .document(let document):
+            let doc = BookmarkDocument(data: document.data, url: document.url)
             let items = document.images.map { image in
               ImageCollectionItem(
                 image: image,
-                document: document.url,
+                document: doc,
                 bookmarked: items[image.id]?.bookmarked ?? false
               )
             }
 
-            let bookmark = BookmarkKind.document(.init(
-              data: document.data,
-              files: items.map(\.bookmark)
-            ))
+            doc.files = items.map(\.bookmark)
 
-            return (bookmark, items)
+            return (BookmarkKind.document(doc), items)
           case .file(let image):
             let item = ImageCollectionItem(
               image: image,

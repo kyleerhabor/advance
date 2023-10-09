@@ -43,13 +43,16 @@ struct ImageProperties {
 
 @Observable
 class ImageCollectionItemImage {
-  let url: URL
+  var url: URL
   unowned let item: ImageCollectionItem
   var aspectRatio: Double
 
   // Live Text
   var orientation: CGImagePropertyOrientation
   var analysis: ImageAnalysis?
+
+  // Others
+  var scope: ScopeURL { .init(url: url, document: item.bookmark.document?.url) }
 
   init(url: URL, item: ImageCollectionItem, aspectRatio: Double, orientation: CGImagePropertyOrientation) {
     self.url = url
@@ -90,7 +93,7 @@ class ImageCollectionItem: Codable {
     self.bookmarked = bookmarked
   }
 
-  init(image: ResolvedBookmarkImage, document: URL?, bookmarked: Bool = false) {
+  init(image: ResolvedBookmarkImage, document: BookmarkDocument?, bookmarked: Bool = false) {
     let url = image.bookmark.url
     let file = BookmarkFile(
       id: image.id,
@@ -255,27 +258,26 @@ class ImageCollection: Codable {
               // Can we do better than this?
               .sorted { $0.string.localizedStandardCompare($1.string) == .orderedAscending }
 
-            return BookmarkKind.document(.init(
-              data: data,
-              url: url,
-              files: try await withThrowingTaskGroup(of: Offset<BookmarkFile>.self) { group in
-                contents.enumerated().forEach { (offset, content) in
-                  group.addTask {
-                    let data = try content.bookmark(options: .withReadOnlySecurityScope, document: url)
-                    let file = BookmarkFile(data: data, url: content, document: url)
+            let document = BookmarkDocument(data: data, url: url, files: [])
+            document.files = try await withThrowingTaskGroup(of: Offset<BookmarkFile>.self) { group in
+              contents.enumerated().forEach { (offset, content) in
+                group.addTask {
+                  let data = try content.bookmark(options: .withReadOnlySecurityScope, document: url)
+                  let file = BookmarkFile(data: data, url: content, document: document)
 
-                    return (offset, file)
-                  }
+                  return (offset, file)
                 }
-
-                var files = [Offset<BookmarkFile>]()
-                files.reserveCapacity(contents.count)
-
-                return try await group.reduce(into: files) { partialResult, file in
-                  partialResult.append(file)
-                }.ordered()
               }
-            ))
+
+              var files = [Offset<BookmarkFile>]()
+              files.reserveCapacity(contents.count)
+
+              return try await group.reduce(into: files) { partialResult, file in
+                partialResult.append(file)
+              }.ordered()
+            }
+
+            return .document(document)
           }
 
           return (offset, bookmark)
@@ -304,6 +306,7 @@ class ImageCollection: Codable {
               }
 
               let url = bookmark.url
+              let doc = BookmarkDocument(data: bookmark.data, url: url)
               let document = ResolvedBookmarkImageKind.document(.init(
                 data: bookmark.data,
                 url: url,
@@ -319,7 +322,7 @@ class ImageCollection: Codable {
                             id: file.id,
                             data: file.data,
                             url: file.url,
-                            document: url
+                            document: doc
                           )
                         )
 

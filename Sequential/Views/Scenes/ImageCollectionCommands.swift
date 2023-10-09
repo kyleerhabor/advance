@@ -119,11 +119,14 @@ struct ImageCollectionCommands: Commands {
         panel.allowsMultipleSelection = true
         panel.allowedContentTypes = [.image]
 
-        Task {
-          guard await panel.begin() == .OK else {
-            return
-          }
+        // We don't want panel.begin() since it creating a modeless window causes SwiftUI to not treat it like a window.
+        // This is most obvious when there are no windows but the open dialog and the app is activated, creating a new
+        // window for the scene.
+        guard panel.runModal() == .OK else {
+          return
+        }
 
+        Task {
           do {
             let bookmarks = try await ImageCollection.resolve(urls: panel.urls.enumerated()).ordered()
 

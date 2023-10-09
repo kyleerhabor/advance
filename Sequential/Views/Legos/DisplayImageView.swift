@@ -10,10 +10,15 @@ import OSLog
 import SwiftUI
 import UniformTypeIdentifiers
 
+struct DisplayImage: Equatable {
+  let scoped: ScopeURL
+  let size: CGSize
+}
+
 struct DisplayImageView<Content>: View where Content: View {
   typealias Subject = CurrentValueSubject<CGSize, Never>
   typealias PhaseContent = (Binding<AsyncImagePhase>) -> Content
-  typealias Failure = () async -> Void
+  typealias Retry = () async -> Bool
 
   @Environment(\.pixelLength) private var pixel
   @State private var phase = AsyncImagePhase.empty
@@ -22,17 +27,17 @@ struct DisplayImageView<Content>: View where Content: View {
   private var sizeSubject: Subject
   private var sizePublisher: AnyPublisher<CGSize, Never>
 
-  let url: URL
+  let scope: ScopeURL
   let transaction: Transaction
   let content: PhaseContent
-  let failure: Failure
+  let retry: Retry
 
   var body: some View {
     GeometryReader { proxy in
       content($phase)
         .onChange(of: proxy.size, initial: true) {
           sizeSubject.send(proxy.size)
-        }.task(id: size) {
+        }.task(id: DisplayImage(scoped: scope, size: size)) {
           // The reason we can't directly use size is that, on certain occasions, the UI will sometimes not load an
           // image. Using the proxy size, for some reason, always works.
           let size = proxy.size
@@ -56,16 +61,15 @@ struct DisplayImageView<Content>: View where Content: View {
   }
 
   init(
-    url: URL,
+    scope: ScopeURL,
     transaction: Transaction,
     @ViewBuilder content: @escaping PhaseContent,
-    // Miserable failure.
-    failure: @escaping Failure
+    retry: @escaping Retry
   ) {
-    self.url = url
+    self.scope = scope
     self.transaction = transaction
     self.content = content
-    self.failure = failure
+    self.retry = retry
 
     let size = Subject(.init())
 
@@ -99,15 +103,16 @@ struct DisplayImageView<Content>: View where Content: View {
           phase = .success(image)
         }
       }
-    } 
-//    catch ImageError.thumbnail {
-//      await failure()
-//    } 
-    catch is CancellationError {
+    } catch ImageError.thumbnail {
+      // We don't need to update anything if it succeeds since the task is bound to the URL (which has most likely changed).
+      if await !retry() {
+        phase = .failure(ImageError.thumbnail)
+      }
+    } catch is CancellationError {
       // We don't want a CancellationError to e.g. change the visible image to a blank one, or for it to slightly
       // go blank then immediately come back.
     } catch {
-      Logger.ui.error("Failed to resample image at \"\(url.string)\": \(error)")
+      Logger.ui.error("Failed to resample image at \"\(scope.url.string)\": \(error)")
 
       withTransaction(transaction) {
         phase = .failure(error)
@@ -116,15 +121,15 @@ struct DisplayImageView<Content>: View where Content: View {
   }
 
   func resample(to size: CGSize) async throws -> Image {
-    let thumbnail = try url.scoped {
-      guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+    let thumbnail = try scope.scoped {
+      guard let source = CGImageSourceCreateWithURL(scope.url as CFURL, nil) else {
         throw ImageError.undecodable
       }
 
       return try source.resample(to: size.length())
     }
     
-    Logger.ui.info("Created a resampled image from \"\(url.string)\" at dimensions \(thumbnail.width.description)x\(thumbnail.height.description) for size \(size.width) / \(size.height)")
+    Logger.ui.info("Created a resampled image from \"\(scope.url.string)\" at dimensions \(thumbnail.width.description)x\(thumbnail.height.description) for size \(size.width) / \(size.height)")
 
     try Task.checkCancellation()
 

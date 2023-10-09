@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import OSLog
 
 struct ResolvedBookmark {
   let url: URL
@@ -54,11 +55,11 @@ extension Bookmark {
 
 class BookmarkFile: Codable {
   let id: UUID
-  let data: Data
-  let url: URL?
-  let document: URL?
+  var data: Data
+  var url: URL?
+  unowned let document: BookmarkDocument?
 
-  init(id: UUID = .init(), data: Data, url: URL? = nil, document: URL?) {
+  init(id: UUID = .init(), data: Data, url: URL? = nil, document: BookmarkDocument?) {
     self.id = id
     self.data = data
     self.url = url
@@ -70,9 +71,9 @@ class BookmarkFile: Codable {
   }
 
   func resolve() throws -> Bookmark {
-    try Bookmark(data: data, resolving: .withSecurityScope, relativeTo: document) { url in
+    try Bookmark(data: data, resolving: .withSecurityScope, relativeTo: document?.url) { url in
       try url.scoped {
-        try Self.bookmark(url: url, document: document)
+        try Self.bookmark(url: url, document: document?.url)
       }
     }
   }
@@ -110,9 +111,9 @@ extension BookmarkFile: Hashable {
   }
 }
 
-struct BookmarkDocument: Codable {
-  let data: Data
-  let url: URL?
+class BookmarkDocument: Codable {
+  var data: Data
+  var url: URL?
   var files: [BookmarkFile]
 
   init(data: Data, url: URL? = nil, files: [BookmarkFile] = []) {
@@ -131,7 +132,7 @@ struct BookmarkDocument: Codable {
 
   // Codable conformance
 
-  init(from decoder: Decoder) throws {
+  required init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
 
     self.data = try container.decode(Data.self, forKey: .data)
@@ -145,7 +146,7 @@ struct BookmarkDocument: Codable {
 }
 
 extension BookmarkDocument: Hashable {
-  static func ==(lhs: Self, rhs: Self) -> Bool {
+  static func ==(lhs: BookmarkDocument, rhs: BookmarkDocument) -> Bool {
     lhs.data == rhs.data && lhs.files == rhs.files
   }
 
@@ -164,6 +165,39 @@ enum BookmarkKind: Codable, Hashable {
         document.files
       case .file(let file):
         [file]
+    }
+  }
+}
+
+struct ScopeURL: Equatable {
+  let url: URL
+  let document: URL?
+
+  func scoped<T>(_ body: () throws -> T) rethrows -> T {
+    return if let document {
+      try document.scoped {
+        try url.scoped {
+          try body()
+        }
+      }
+    } else {
+      try url.scoped {
+        try body()
+      }
+    }
+  }
+
+  func scoped<T>(_ body: () async throws -> T) async rethrows -> T {
+    return if let document {
+      try await document.scoped {
+        try await url.scoped {
+          try await body()
+        }
+      }
+    } else {
+      try await url.scoped {
+        try await body()
+      }
     }
   }
 }
