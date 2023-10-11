@@ -122,7 +122,7 @@ struct ImageCollectionSidebarEmptyView: View {
     let resolved = await ImageCollection.resolve(bookmarks: bookmarks.enumerated()).ordered()
 
     // TODO: De-duplicate (see ImageCollectionView).
-    let results = resolved.map { bookmark in
+    return resolved.map { bookmark in
       switch bookmark {
         case .document(let document):
           let doc = BookmarkDocument(data: document.data, url: document.url)
@@ -139,7 +139,5 @@ struct ImageCollectionSidebarEmptyView: View {
           return (BookmarkKind.file(item.bookmark), [item])
       }
     }
-
-    return results
   }
 }

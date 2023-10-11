@@ -49,24 +49,98 @@ struct ImageCollectionItemPhaseView<Overlay>: View where Overlay: View {
 }
 
 struct ImageCollectionItemView<Overlay>: View where Overlay: View {
-  @State private var accessingSecurityScope = false
+  typealias ImageTask = Task<AsyncImagePhase, Error>
+  typealias KeyPath = WritableKeyPath<ImageCollectionItemImage, AsyncImagePhase>
+
+  @Environment(\.pixelLength) private var pixel
+
   @State private var phase = AsyncImagePhase.empty
+  @State private var task: ImageTask?
 
   let image: ImageCollectionItemImage
   @ViewBuilder var overlay: (Binding<AsyncImagePhase>) -> Overlay
 
   var body: some View {
-    DisplayImageView(scope: image.scope, transaction: .init(animation: .default)) { $phase in
+    DisplayView { size in
+      // Does Image I/O round up when you provide a pixel size? If not, we should do so so images are never lesser
+      // in quality.
+      let size = CGSize(
+        width: size.width / pixel,
+        height: size.height / pixel
+      )
+
+      let task = ImageTask {
+        do {
+          let thumbnail = try await image.scoped { try await resample(url: image.url, size: size) }
+
+          return .success(thumbnail)
+        } catch ImageError.thumbnail {
+          guard let resolved = await resolve(image: image) else {
+            return .failure(ImageError.thumbnail)
+          }
+
+          let url = resolved.bookmark.url
+
+          image.item.bookmark.data = resolved.bookmark.data
+          image.item.bookmark.url = url
+          image.url = url
+          image.aspectRatio = resolved.properties.width / resolved.properties.height
+          image.orientation = resolved.properties.orientation
+          image.analysis = nil
+
+          do {
+            let thumbnail = try await url.scoped { try await resample(url: url, size: size) }
+
+            return .success(thumbnail)
+          } catch {
+            return .failure(error)
+          }
+        } catch {
+          if let err = error as? CancellationError {
+            throw err
+          }
+
+          return .failure(error)
+        }
+      }
+
+      self.task = task
+
+      if case let .success(phase) = await task.result {
+        // If we're updating an already existing image with a new image, don't perform an animation.
+        if case .success = self.phase, case .success = phase {
+          self.phase = phase
+        } else {
+          withAnimation {
+            self.phase = phase
+          }
+        }
+      }
+
+      self.task = nil
+    } content: {
       ImageCollectionItemPhaseView(phase: $phase, overlay: overlay)
-    } retry: {
-      await resolve()
     }.aspectRatio(image.aspectRatio, contentMode: .fit)
   }
 
-  func resolve() async -> Bool {
-    do {
-      let bookmark: Bookmark
+  func resample(url: URL, size: CGSize) async throws -> Image {
+    guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+      throw ImageError.undecodable
+    }
 
+    let thumbnail = try source.resample(to: size.length())
+
+    Logger.ui.info("Created a resampled image from \"\(url.string)\" at dimensions \(thumbnail.width.description)x\(thumbnail.height.description) for size \(size.width) / \(size.height)")
+
+    try Task.checkCancellation()
+
+    return .init(nsImage: .init(cgImage: thumbnail, size: size))
+  }
+
+  func resolve(image: ImageCollectionItemImage) async -> ResolvedBookmarkImage? {
+    let bookmark: Bookmark
+
+    do {
       if let document = image.item.bookmark.document {
         let mark = try document.resolve()
 
@@ -77,32 +151,25 @@ struct ImageCollectionItemView<Overlay>: View where Overlay: View {
       } else {
         bookmark = try image.item.bookmark.resolve()
       }
-
-      guard bookmark.url != image.url else {
-        Logger.model.info("Image resampling for URL \"\(image.url.string)\" failed, but bookmark was not stale")
-
-        return false
-      }
-
-      Logger.model.info("Image resampling for URL \"\(image.url.string)\" failed and bookmark was stale. Refreshing...")
-
-      guard let properties = bookmark.url.scoped({ ImageProperties(at: bookmark.url) }) else {
-        return false
-      }
-
-      image.item.bookmark.data = bookmark.data
-      image.item.bookmark.url = bookmark.url
-      image.url = bookmark.url
-      image.aspectRatio = properties.width / properties.height
-      image.orientation = properties.orientation
-      image.analysis = nil
-
-      return true
     } catch {
       Logger.model.error("\(error)")
 
-      return false
+      return nil
     }
+
+    guard bookmark.url != image.url else {
+      Logger.model.error("Image resampling for URL \"\(image.url.string)\" failed and bookmark was not stale")
+
+      return nil
+    }
+
+    Logger.model.info("Image resampling for URL \"\(image.url.string)\" failed and bookmark was stale. Refreshing...")
+
+    guard let properties = bookmark.url.scoped({ ImageProperties(at: bookmark.url) }) else {
+      return nil
+    }
+
+    return .init(id: image.id, bookmark: bookmark, properties: properties)
   }
 }
 

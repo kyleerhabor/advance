@@ -169,35 +169,10 @@ enum BookmarkKind: Codable, Hashable {
   }
 }
 
-struct ScopeURL: Equatable {
-  let url: URL
-  let document: URL?
+protocol URLScope {
+  var url: URL { get }
 
-  func scoped<T>(_ body: () throws -> T) rethrows -> T {
-    return if let document {
-      try document.scoped {
-        try url.scoped {
-          try body()
-        }
-      }
-    } else {
-      try url.scoped {
-        try body()
-      }
-    }
-  }
+  func scoped<T>(_ body: () throws -> T) rethrows -> T
 
-  func scoped<T>(_ body: () async throws -> T) async rethrows -> T {
-    return if let document {
-      try await document.scoped {
-        try await url.scoped {
-          try await body()
-        }
-      }
-    } else {
-      try await url.scoped {
-        try await body()
-      }
-    }
-  }
+  func scoped<T>(_ body: () async throws -> T) async rethrows -> T
 }

@@ -8,6 +8,7 @@
 import Foundation
 import ImageIO
 import OSLog
+import SwiftUI
 import VisionKit
 
 struct ImageProperties {
@@ -35,8 +36,10 @@ struct ImageProperties {
       CGImagePropertyOrientation.up
     }
 
-    self.width = orientation == .right ? size.height : size.width
-    self.height = orientation == .right ? size.width : size.height
+    let flipped = orientation == .right
+
+    self.width = flipped ? size.height : size.width
+    self.height = flipped ? size.width : size.height
     self.orientation = orientation
   }
 }
@@ -51,10 +54,12 @@ class ImageCollectionItemImage {
   var orientation: CGImagePropertyOrientation
   var analysis: ImageAnalysis?
 
-  // Others
-  var scope: ScopeURL { .init(url: url, document: item.bookmark.document?.url) }
-
-  init(url: URL, item: ImageCollectionItem, aspectRatio: Double, orientation: CGImagePropertyOrientation) {
+  init(
+    url: URL,
+    item: ImageCollectionItem,
+    aspectRatio: Double,
+    orientation: CGImagePropertyOrientation
+  ) {
     self.url = url
     self.item = item
     self.aspectRatio = aspectRatio
@@ -62,7 +67,11 @@ class ImageCollectionItemImage {
     self.analysis = nil
   }
 
-  convenience init(url: URL, item: ImageCollectionItem, properties: ImageProperties) {
+  convenience init(
+    url: URL,
+    item: ImageCollectionItem,
+    properties: ImageProperties
+  ) {
     self.init(
       url: url,
       item: item,
@@ -79,6 +88,43 @@ extension ImageCollectionItemImage: Identifiable, Equatable {
 
   static func ==(lhs: ImageCollectionItemImage, rhs: ImageCollectionItemImage) -> Bool {
     lhs.id == rhs.id
+  }
+}
+
+extension ImageCollectionItemImage: URLScope {
+  // "CNLabelContactRelationYoungerCousinMothersSiblingsDaughterOrFathersSistersDaughter" me when I don't have proper namespaces. - Objective-C
+  //
+  // func name(...) {...}
+  // func name(...) async {...}
+  //
+  // Me when I refuse to solve the color function problem. - Swift (https://journal.stuffwithstuff.com/2015/02/01/what-color-is-your-function/)
+
+  func scoped<T>(_ body: () throws -> T) rethrows -> T {
+    if let document = self.item.bookmark.document?.url {
+      try document.scoped {
+        try url.scoped {
+          try body()
+        }
+      }
+    } else {
+      try url.scoped {
+        try body()
+      }
+    }
+  }
+
+  func scoped<T>(_ body: () async throws -> T) async rethrows -> T {
+    if let document = self.item.bookmark.document?.url {
+      try await document.scoped {
+        try await url.scoped {
+          try await body()
+        }
+      }
+    } else {
+      try await url.scoped {
+        try await body()
+      }
+    }
   }
 }
 
@@ -182,13 +228,9 @@ enum ResolvedBookmarkKind {
   case file(Bookmark)
 }
 
-struct BookmarkError<Underlying>: Error, LocalizedError where Underlying: Error {
+struct BookmarkError<Underlying>: Error where Underlying: Error {
   let url: URL
   let underlying: Underlying
-
-  var errorDescription: String? {
-    "\(underlying) (\(url))"
-  }
 }
 
 @Observable

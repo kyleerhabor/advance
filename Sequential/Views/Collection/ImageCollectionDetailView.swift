@@ -104,7 +104,7 @@ struct ImageCollectionDetailItemView: View {
           @Bindable var image = image
 
           LiveTextView(
-            scope: image.scope,
+            scope: image,
             orientation: image.orientation,
             analysis: $image.analysis
           ).supplementaryInterfaceHidden(!liveTextIcon)
@@ -121,7 +121,8 @@ struct ImageCollectionDetailItemView: View {
         // some which (magically) handle their own memory while not destroying the image (in other words, it rests at a
         // good average, like ~150 MB).
         //
-        // In the future, I'd like to improve image loading so images are preloaded before they appear on-screen.
+        // In the future, I'd like to improve image loading so images are preloaded before they appear on-screen. I've
+        // tried this before, but it's resulted in microhangs.
         phase = .empty
       }
     }

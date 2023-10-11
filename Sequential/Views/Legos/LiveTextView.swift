@@ -12,12 +12,12 @@ import VisionKit
 struct LiveTextView: NSViewRepresentable {
   private let analyzer = ImageAnalyzer()
 
-  let scope: ScopeURL
+  let scope: URLScope
   let orientation: CGImagePropertyOrientation
   @Binding var analysis: ImageAnalysis?
   private var supplementaryInterfaceHidden: Bool
 
-  init(scope: ScopeURL, orientation: CGImagePropertyOrientation, analysis: Binding<ImageAnalysis?>) {
+  init(scope: URLScope, orientation: CGImagePropertyOrientation, analysis: Binding<ImageAnalysis?>) {
     self.scope = scope
     self.orientation = orientation
     self._analysis = analysis
