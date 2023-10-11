@@ -13,7 +13,7 @@ When it comes to PDFs, Preview's feature set is rich; for images, however, not s
 - **Pages were often incorrectly scaled.** While the image width and height did match, the page size often did not.
 - **Converting required significant CPU and memory usage.** It was common to see "BackgroundShortcutRunner" using 600% CPU in Activity Monitor, and because Shortcuts creates the PDF in-memory, a large-enough input could result in crippling memory consumption.
 - **Scaling, in general, was often poor.** There were a number of times where I took a produced PDF and sent it to my phone, only to notice white lines that appeared on the border that would fade as I zoomed in.
-- **The file size was much larger.** Since many images had to be artificially upsized, the resulting PDF often had a significantly larger file size compared to the input. For example, I have a local copy of the manga [Children of the Whales][children-of-the-whales], weighting in at ~300 MB. With this shortcut, however, the newly created PDF has a size of ~1 GB.
+- **The file size was much larger.** Since many images had to be artificially upsized, the resulting PDF often had a significantly larger file size compared to the input. For example, I have a local copy of the manga series [Children of the Whales][children-of-the-whales], weighting in at ~300 MB. With this shortcut, however, the newly created PDF has a size of ~1 GB.
 
 Sequential was created to provide an experience as simple as (or even simpler than) Preview, while also solving many of the outlined issues above. At the same time, however, it is not Sequential's goal to replace Preview (e.g. by replicating its basic editing capabilities) as Sequential's domain is scoped to image viewing.
 
@@ -34,7 +34,13 @@ Sequential was created to provide an experience as simple as (or even simpler th
 <details>
   <summary>An example using the 1st volume of the manga "The Ancient Magus' Bride"</summary>
 
-  <img src="Documentation/Screenshot.png" alt="The app showcasing the main canvas with one image, and a sidebar with three images. The toolbar contains a toggle for the Live Text icon and the sidebar a tab for only listing bookmarked images.">
+  <img src="Documentation/Screenshots/The Ancient Magus' Bride.png" alt="The app showcasing the main canvas with one image, and a sidebar with three images. The toolbar contains a toggle for the Live Text icon and the sidebar a tab for only listing bookmarked images.">
+</details>
+
+<details>
+  <summary>A page from the manga series "Children of the Whales" with the sidebar closed and margins set to none</summary>
+  
+  <img src="Documentation/Screenshots/Children of the Whales.png" alt="The app showcasing the visible frame of a page from Children of the Whales (volume 18, chapter 73, page 5). The sidebar is closed, so only the title bar and image featuring the work are present, with the image extending to cover the full width.">
 </details>
 
 [^1]: A local copy of the 1st volume of the manga [The Ancient Magus' Bride][the-ancient-magus-bride] (~350 MB) loads in under 1 second on my 2019 MacBook Pro. To compare, Preview loads the same set of images in 7 seconds, and continues to heavily utilize the CPU in the background for much longer.
