@@ -169,10 +169,37 @@ enum BookmarkKind: Codable, Hashable {
   }
 }
 
+// If you really think about it, this doesn't need to be constrained to handling URL scopes.
 protocol URLScope {
+  associatedtype Scope
+
   var url: URL { get }
+
+  func startSecurityScope() -> Scope
+
+  func endSecurityScope(scope: Scope)
 
   func scoped<T>(_ body: () throws -> T) rethrows -> T
 
   func scoped<T>(_ body: () async throws -> T) async rethrows -> T
 }
+
+extension URLScope {
+  func scoped<T>(_ body: () throws -> T) rethrows -> T {
+    let scope = startSecurityScope()
+
+    defer { endSecurityScope(scope: scope) }
+
+    return try body()
+  }
+
+  func scoped<T>(_ body: () async throws -> T) async rethrows -> T {
+    let scope = startSecurityScope()
+
+    defer { endSecurityScope(scope: scope) }
+
+    return try await body()
+  }
+}
+
+struct BookmarkResolutionError: Error {}

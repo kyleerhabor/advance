@@ -27,6 +27,22 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
     onOpen(urls)
   }
+
+  func applicationWillUpdate(_ notification: Notification) {
+    guard let app = notification.object as? NSApplication,
+          app.modalWindow == nil else {
+      return
+    }
+
+    app.windows.forEach { window in
+      guard window.isFullScreen(),
+            let toolbar = window.toolbar, toolbar.isVisible else {
+        return
+      }
+
+      toolbar.isVisible = false
+    }
+  }
 }
 
 func openFinder(selecting url: URL) {

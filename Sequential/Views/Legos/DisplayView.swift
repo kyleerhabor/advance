@@ -12,7 +12,6 @@ import SwiftUI
 struct DisplayView<Content>: View where Content: View {
   typealias Action = (CGSize) async -> Void
 
-  @Environment(\.pixelLength) private var pixel
   @State private var size = CGSize.zero
   private let subject = PassthroughSubject<CGSize, Never>()
   private let publisher: AnyPublisher<CGSize, Never>

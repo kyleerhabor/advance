@@ -72,30 +72,32 @@ class CopyDepot {
     }
 
     do {
-      let decoded = try decoder.decode([CopyDepotBookmark].self, from: data)
+      let bookmarks = try decoder
+        .decode([CopyDepotBookmark].self, from: data)
+        .map { bookmark in
+          do {
+            let bookmark = try bookmark.resolve()
 
-      return decoded.map { bookmark in
-        do {
-          let bookmark = try bookmark.resolve()
-          
-          return .init(
-            data: bookmark.data,
-            url: bookmark.url,
-            resolved: true
-          )
-        } catch {
-          let path = bookmark.url.string
+            return CopyDepotBookmark(
+              data: bookmark.data,
+              url: bookmark.url,
+              resolved: true
+            )
+          } catch {
+            let path = bookmark.url.string
 
-          if let err = error as? CocoaError, err.code == .fileNoSuchFile || err.code == .fileReadCorruptFile {
-            Logger.model.info("Bookmark for copy destination \"\(path)\" (\(bookmark.data)) could not be resolved. Is it temporarily unavailable?")
-          } else {
-            Logger.model.error("Bookmark for copy destination \"\(path)\" (\(bookmark.data)) could not be resolved: \(error)")
+            if let err = error as? CocoaError, err.code == .fileNoSuchFile || err.code == .fileReadCorruptFile {
+              Logger.model.info("Bookmark for copy destination \"\(path)\" (\(bookmark.data)) could not be resolved. Is it temporarily unavailable?")
+            } else {
+              Logger.model.error("Bookmark for copy destination \"\(path)\" (\(bookmark.data)) could not be resolved: \(error)")
+            }
+
+            // We want to keep it for "unresolved" bookmarks (allowing the user to remove it in case).
+            return bookmark
           }
+        }.sorted { $0.url < $1.url }
 
-          // We want to keep it for "unresolved" bookmarks (allowing the user to remove it in case).
-          return bookmark
-        }
-      }
+      return bookmarks
     } catch {
       Logger.model.error("Could not decode bookmarks: \(error)")
 
@@ -107,7 +109,6 @@ class CopyDepot {
     let grouping = Dictionary(grouping: bookmarks, by: \.resolved)
     let resolved = grouping[true] ?? []
     let unresolved = grouping[false] ?? []
-
     let home = URL.homeDirectory.pathComponents.prefix(3)
 
     self.resolved = resolved.map { compute(url: $0.url, home: home) }
@@ -116,7 +117,7 @@ class CopyDepot {
 
   func store() {
     do {
-      let data = try encoder.encode(bookmarks.sorted { $0.data.lexicographicallyPrecedes($1.data) })
+      let data = try encoder.encode(bookmarks)
 
       UserDefaults.standard.set(data, forKey: "copyDestinations")
     } catch {

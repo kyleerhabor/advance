@@ -95,7 +95,9 @@ extension FocusedValues {
 struct ImageCollectionCommands: Commands {
   @Environment(\.openWindow) private var openWindow
   @EnvironmentObject private var delegate: AppDelegate
-  @AppStorage(Keys.appearance.key) private var appearance: SettingsView.Scheme
+  @AppStorage(Keys.appearance.key) private var appearance: SettingsGeneralView.Scheme
+  @AppStorage(Keys.importHidden.key) private var importHidden = Keys.importHidden.value
+  @AppStorage(Keys.importLimit.key) private var importLimit = Keys.importLimit.value
   @FocusedValue(\.window) private var win
   @FocusedValue(\.fullScreen) private var fullScreen
   @FocusedValue(\.sidebarFinder) private var finder
@@ -128,7 +130,11 @@ struct ImageCollectionCommands: Commands {
 
         Task {
           do {
-            let bookmarks = try await ImageCollection.resolve(urls: panel.urls.enumerated()).ordered()
+            let bookmarks = try await ImageCollection.resolve(
+              urls: panel.urls.enumerated(),
+              hidden: importHidden,
+              limit: importLimit
+            ).ordered()
 
             openWindow(value: ImageCollection(bookmarks: bookmarks))
           } catch {
@@ -176,7 +182,7 @@ struct ImageCollectionCommands: Commands {
 
       Divider()
 
-      Button("Go to Current Image") {
+      Button("Show in Sidebar") {
         jumpToCurrentImage?()
       }
       .keyboardShortcut(.jumpToCurrentImage)
@@ -196,7 +202,11 @@ struct ImageCollectionCommands: Commands {
         delegate.onOpen = { urls in
           Task {
             do {
-              let bookmarks = try await ImageCollection.resolve(urls: urls.enumerated()).ordered()
+              let bookmarks = try await ImageCollection.resolve(
+                urls: urls.enumerated(),
+                hidden: importHidden,
+                limit: importLimit
+              ).ordered()
 
               openWindow(value: ImageCollection(bookmarks: bookmarks))
             } catch {

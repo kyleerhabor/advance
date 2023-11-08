@@ -46,21 +46,51 @@ enum ExecutionError: Error {
   case interrupt
 }
 
-enum FolderDepth {
-  case unbound
+enum ImportLimit: Hashable {
   case max(Int)
+  case unbound
+
+  static let direct = Self.max(0)
+}
+
+extension ImportLimit: RawRepresentable {
+  init?(rawValue: Int) {
+    if rawValue == -1 {
+      self = .unbound
+    } else {
+      self = .max(rawValue)
+    }
+  }
+
+  var rawValue: Int {
+    switch self {
+      case .max(let max):
+        max
+      case .unbound:
+        -1
+    }
+  }
+}
+
+enum TripleCardinality: Hashable {
+  case none
+  case some
+  case all
 }
 
 struct Keys {
-  static let appearance = Item("appearance", nil as SettingsView.Scheme)
+  static let appearance = Item("appearance", nil as SettingsGeneralView.Scheme)
   static let margin = Item("margin", 1)
   static let collapseMargins = Item("collapseMargins", true)
-  static let windowless = Item("windowless", false)
-  static let displayTitleBarImage = Item("displayTitleBarImage", true)
   // I think enabling Live Text by default but disabling the icons strikes a nice compromise between convenience (e.g.
   // being able to select text) and UI simplicity (i.e. not having the buttons get in the way).
   static let liveText = Item("liveText", true)
   static let liveTextIcon = Item("liveTextIcon", false)
+  static let trackCurrentImage = Item("trackCurrentImage", false)
+  static let windowless = Item("windowless", false)
+  static let displayTitleBarImage = Item("displayTitleBarImage", true)
+  static let importHidden = Item("importHidden", false)
+  static let importLimit = Item("importLimit", ImportLimit.unbound)
 
   struct Item<Key, Value> {
     let key: Key

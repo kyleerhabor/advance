@@ -9,15 +9,15 @@ import OSLog
 import SwiftUI
 import VisionKit
 
-struct LiveTextView: NSViewRepresentable {
+struct LiveTextView<Scope>: NSViewRepresentable where Scope: URLScope {
   private let analyzer = ImageAnalyzer()
 
-  let scope: URLScope
+  let scope: Scope
   let orientation: CGImagePropertyOrientation
   @Binding var analysis: ImageAnalysis?
   private var supplementaryInterfaceHidden: Bool
 
-  init(scope: URLScope, orientation: CGImagePropertyOrientation, analysis: Binding<ImageAnalysis?>) {
+  init(scope: Scope, orientation: CGImagePropertyOrientation, analysis: Binding<ImageAnalysis?>) {
     self.scope = scope
     self.orientation = orientation
     self._analysis = analysis
@@ -117,10 +117,10 @@ struct LiveTextView: NSViewRepresentable {
     return try downsample(source: source, index: primary, size: size)
   }
 
-  func downsample(source: CGImageSource, index: Int, size: some Numeric) throws -> URL {
+  func downsample(source: CGImageSource, index: Int, size: Double) throws -> URL {
     // We unfortunately can't just feed this to ImageAnalyzer since it results in a memory leak. Instead, we'll save
     // it to a file and feed the URL instead (which doesn't result in a memory leak!)
-    let thumbnail = try source.resample(to: size, index: index)
+    let thumbnail = try source.resample(to: size.rounded(.up), index: index)
 
     guard let type = CGImageSourceGetType(source) else {
       throw ImageError.thumbnail

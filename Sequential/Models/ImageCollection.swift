@@ -81,7 +81,7 @@ class ImageCollectionItemImage {
   }
 }
 
-extension ImageCollectionItemImage: Identifiable, Equatable {
+extension ImageCollectionItemImage: Identifiable, Hashable {
   var id: UUID {
     item.bookmark.id
   }
@@ -89,41 +89,43 @@ extension ImageCollectionItemImage: Identifiable, Equatable {
   static func ==(lhs: ImageCollectionItemImage, rhs: ImageCollectionItemImage) -> Bool {
     lhs.id == rhs.id
   }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine(id)
+  }
+}
+
+struct URLSecurityScope {
+  let url: URL
+  let accessing: Bool
+}
+
+struct BookmarkSecurityScope {
+  let document: URLSecurityScope?
+  let url: URLSecurityScope
 }
 
 extension ImageCollectionItemImage: URLScope {
-  // "CNLabelContactRelationYoungerCousinMothersSiblingsDaughterOrFathersSistersDaughter" me when I don't have proper namespaces. - Objective-C
-  //
-  // func name(...) {...}
-  // func name(...) async {...}
-  //
-  // Me when I refuse to solve the color function problem. - Swift (https://journal.stuffwithstuff.com/2015/02/01/what-color-is-your-function/)
-
-  func scoped<T>(_ body: () throws -> T) rethrows -> T {
-    if let document = self.item.bookmark.document?.url {
-      try document.scoped {
-        try url.scoped {
-          try body()
-        }
-      }
+  func startSecurityScope() -> BookmarkSecurityScope {
+    let document: URLSecurityScope? = if let url = item.bookmark.document?.url {
+      .init(url: url, accessing: url.startSecurityScope())
     } else {
-      try url.scoped {
-        try body()
-      }
+      nil
     }
+
+    return .init(
+      document: document,
+      url: .init(url: url, accessing: url.startSecurityScope())
+    )
   }
 
-  func scoped<T>(_ body: () async throws -> T) async rethrows -> T {
-    if let document = self.item.bookmark.document?.url {
-      try await document.scoped {
-        try await url.scoped {
-          try await body()
-        }
-      }
-    } else {
-      try await url.scoped {
-        try await body()
-      }
+  func endSecurityScope(scope: BookmarkSecurityScope) {
+    if scope.url.accessing {
+      scope.url.url.endSecurityScope()
+    }
+
+    if let scope = scope.document, scope.accessing {
+      scope.url.endSecurityScope()
     }
   }
 }
@@ -281,7 +283,9 @@ class ImageCollection: Codable {
     bookmarkedIndex = Set(bookmarked.map(\.id))
   }
 
-  static func resolve(urls: some Sequence<Offset<URL>>) async throws -> [Offset<BookmarkKind>] {
+  // If we want hidden and limit to not spill into many callers, it would make sense to have one function that consumes
+  // the hidden and limit parameters that exist solely for enumerating and return a structure this can easily iterate.
+  static func resolve(urls: some Sequence<Offset<URL>>, hidden: Bool, limit: ImportLimit) async throws -> [Offset<BookmarkKind>] {
     try await withThrowingTaskGroup(of: Offset<BookmarkKind>.self) { group in
       urls.forEach { (offset, url) in
         group.addTask {
@@ -296,9 +300,9 @@ class ImageCollection: Codable {
               ))
             }
 
-            let contents = try FileManager.default.enumerate(at: url)
-              // Can we do better than this?
-              .sorted { $0.string.localizedStandardCompare($1.string) == .orderedAscending }
+            let contents = try FileManager.default
+              .enumerate(at: url, hidden: hidden, limit: limit)
+              .finderSort()
 
             let document = BookmarkDocument(data: data, url: url, files: [])
             document.files = try await withThrowingTaskGroup(of: Offset<BookmarkFile>.self) { group in
@@ -465,4 +469,9 @@ extension ImageCollection: Hashable {
   func hash(into hasher: inout Hasher) {
     hasher.combine(bookmarks)
   }
+}
+
+struct ResolvedBookmarkImageSnapshot {
+  let document: Bookmark?
+  let image: ResolvedBookmarkImage
 }

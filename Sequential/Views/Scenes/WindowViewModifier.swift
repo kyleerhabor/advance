@@ -19,7 +19,7 @@ extension Window: Equatable {
 }
 
 struct FullScreenEnvironmentKey: EnvironmentKey {
-  static var defaultValue: Bool?
+  static var defaultValue = false
 }
 
 struct PrerenderEnvironmentKey: EnvironmentKey {
@@ -85,14 +85,14 @@ struct WindowViewModifier: ViewModifier {
 
 struct WindowFullScreenViewModifier: ViewModifier {
   @Environment(Window.self) private var window
-  @State private var fullScreen: Bool?
+  @State private var fullScreen = FullScreenEnvironmentKey.defaultValue
 
   func body(content: Content) -> some View {
     content
       .environment(\.fullScreen, fullScreen)
       .focusedSceneValue(\.fullScreen, fullScreen)
       .onChange(of: window.window == nil) {
-        fullScreen = window.window?.isFullScreen()
+        fullScreen = window.window?.isFullScreen() ?? FullScreenEnvironmentKey.defaultValue
       }.onReceive(NotificationCenter.default.publisher(for: NSWindow.willEnterFullScreenNotification)) { notification in
         guard isCurrentWindow(notification) else {
           return
@@ -133,13 +133,3 @@ extension View {
       .modifier(WindowViewModifier())
   }
 }
-
-//class WindowDelegate {
-//  @MainActor
-//  @objc static func window(
-//    _ window: NSWindow,
-//    willUseFullScreenPresentationOptions proposedOptions: NSApplication.PresentationOptions = []
-//  ) -> NSApplication.PresentationOptions {
-//    return proposedOptions.union(.autoHideToolbar)
-//  }
-//}

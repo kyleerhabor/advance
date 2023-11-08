@@ -35,7 +35,7 @@ extension URL {
     try self.bookmarkData(options: options, includingResourceValuesForKeys: [], relativeTo: document)
   }
 
-  func scoped<T>(_ body: () throws -> T) rethrows -> T {
+  func startSecurityScope() -> Bool {
     let accessing = self.startAccessingSecurityScopedResource()
 
     if accessing {
@@ -44,11 +44,21 @@ extension URL {
       Logger.sandbox.info("Tried to start security scope for URL \"\(self.string)\", but scope was inaccessible")
     }
 
+    return accessing
+  }
+
+  func endSecurityScope() {
+    self.stopAccessingSecurityScopedResource()
+
+    Logger.sandbox.debug("Ended security scope for URL \"\(self.string)\"")
+  }
+
+  func scoped<T>(_ body: () throws -> T) rethrows -> T {
+    let accessing = startSecurityScope()
+
     defer {
       if accessing {
-        self.stopAccessingSecurityScopedResource()
-
-        Logger.sandbox.debug("Ended security scope for URL \"\(self.string)\"")
+        endSecurityScope()
       }
     }
 
@@ -56,19 +66,11 @@ extension URL {
   }
 
   func scoped<T>(_ body: () async throws -> T) async rethrows -> T {
-    let accessing = self.startAccessingSecurityScopedResource()
-
-    if accessing {
-      Logger.sandbox.debug("Started security scope for URL \"\(self.string)\"")
-    } else {
-      Logger.sandbox.info("Tried to start security scope for URL \"\(self.string)\", but scope was inaccessible")
-    }
+    let accessing = startSecurityScope()
 
     defer {
       if accessing {
-        self.stopAccessingSecurityScopedResource()
-
-        Logger.sandbox.debug("Ended security scope for URL \"\(self.string)\"")
+        endSecurityScope()
       }
     }
 
@@ -77,6 +79,12 @@ extension URL {
 
   func isDirectory() throws -> Bool? {
     return try self.resourceValues(forKeys: [.isDirectoryKey]).isDirectory ?? false
+  }
+}
+
+extension URL: Comparable {
+  public static func <(lhs: Self, rhs: Self) -> Bool {
+    lhs.dataRepresentation.lexicographicallyPrecedes(rhs.dataRepresentation)
   }
 }
 
@@ -107,6 +115,34 @@ extension Sequence {
 
   func filter<T>(in set: Set<T>, by value: (Element) -> T) -> [Element] {
     self.filter { set.contains(value($0)) }
+  }
+
+  func finderSort() -> [Element] where Element == URL {
+    self.sorted { a, b in
+      // First, we need to find a and b's common directory, then compare which one is a directory vs. a file, then finally
+      // do a localized standard comparison on
+
+      // First, we need to find a and b's common directory, then compare which one is a file or directory (since Finder
+      // sorts folders first). Finally, if they're the same type, we do a localized standard comparison (the same Finder
+      // applies when sorting by name) to sort by ascending order.
+      let ap = a.pathComponents
+      let bp = b.pathComponents
+      let (index, (ac, bc)) = zip(ap, bp).enumerated().first { _, pair in
+        pair.0.localizedStandardCompare(pair.1) != .orderedSame
+      }!
+
+      let count = index + 1
+
+      if ap.count > count && bp.count == count {
+        return true
+      }
+
+      if ap.count == count && bp.count > count {
+        return false
+      }
+
+      return ac.localizedStandardCompare(bc) == .orderedAscending
+    }
   }
 }
 
@@ -193,47 +229,49 @@ struct EnumeratedURL {
 }
 
 extension FileManager {
-  func enumerate(
-    at url: URL,
-    properties: [URLResourceKey],
-    include: (URL, DirectoryEnumerator) throws -> Bool
-  ) rethrows -> [URL] {
-    guard let enumerator = self.enumerator(at: url, includingPropertiesForKeys: properties) else {
+  // This is partially coupled to the UI since it makes assumptions about how the iteration occurrs (limit and packages
+  // as the two notable examples).
+  func enumerate(at url: URL, hidden: Bool, limit: ImportLimit) throws -> [URL] {
+    var options: FileManager.DirectoryEnumerationOptions = [.skipsPackageDescendants]
+
+    if limit == .direct {
+      options.insert(.skipsSubdirectoryDescendants)
+    }
+
+    if !hidden {
+      options.insert(.skipsHiddenFiles)
+    }
+
+    guard let enumerator = FileManager.default.enumerator(at: url, includingPropertiesForKeys: [.isDirectoryKey], options: options) else {
       return []
     }
 
-    var urls = [URL]()
-
-    for case let url as URL in enumerator {
-      if try include(url, enumerator) {
-        urls.append(url)
-      }
-    }
-
-    return urls
-  }
-
-  func enumerate(at url: URL) throws -> [URL] {
-    try enumerate(at: url, properties: [.isDirectoryKey]) { url, enumerator in
-      return try url.isDirectory() != true
-    }
-  }
-
-  func enumerate(at url: URL, maxLevel: Int) throws -> [URL] {
-    try enumerate(at: url, properties: [.isDirectoryKey]) { url, enumerator in
-      guard try url.isDirectory() == true else {
-        return true
+    return try enumerator.compactMap { element -> URL? in
+      guard let url = element as? URL else {
+        return nil
       }
 
-      if enumerator.level >= maxLevel {
+      let resource = try url.resourceValues(forKeys: [.isDirectoryKey])
+
+      guard resource.isDirectory == true else {
+        return url
+      }
+
+      if case let .max(max) = limit, max == enumerator.level - 1 {
         enumerator.skipDescendants()
       }
 
-      return false
+      return nil
     }
   }
 }
 
 extension URL.BookmarkCreationOptions {
   static let withReadOnlySecurityScope = Self([.withSecurityScope, .securityScopeAllowOnlyReadAccess])
+}
+
+extension ClosedRange {
+  func clamp(_ value: Bound) -> Bound {
+    Swift.max(self.lowerBound, Swift.min(value, self.upperBound))
+  }
 }

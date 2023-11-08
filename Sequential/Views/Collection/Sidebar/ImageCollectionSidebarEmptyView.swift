@@ -28,7 +28,8 @@ struct ImageCollectionEmptySidebarLabelStyle: LabelStyle {
 
 struct ImageCollectionSidebarEmptyView: View {
   @Environment(\.collection) private var collection
-
+  @AppStorage(Keys.importHidden.key) private var importHidden = Keys.importHidden.value
+  @AppStorage(Keys.importLimit.key) private var importLimit = Keys.importLimit.value
   @State private var isFilePickerPresented = false
 
   var body: some View {
@@ -51,14 +52,6 @@ struct ImageCollectionSidebarEmptyView: View {
         case .success(let urls):
           Task {
             do {
-              // FIXME: Accessing URLs from folders often fails in the UI.
-              //
-              // This happens because security scopes from other methods (e.g. NSOpenPanel) start an implicit security scope.
-              // To solve this, I imagine linking an image's BookmarkFile with its BookmarkDocument (if it has one) and
-              // starting a security scope for both of them. If this works, I'd also like to go back and immediately
-              // close any implicitly created security scopes.
-              //
-              // TODO: See if BookmarkDocument is relevant when a URL is moved outside the folder.
               let resolved = try await resolve(urls: urls.enumerated())
 
               collection.wrappedValue.bookmarks.append(contentsOf: resolved.map(\.0))
@@ -79,18 +72,11 @@ struct ImageCollectionSidebarEmptyView: View {
           let urls = try await withThrowingTaskGroup(of: Offset<URL>.self) { group in
             providers.enumerated().forEach { (offset, provider) in
               group.addTask { @MainActor in
+                // There's an interesting bug where some providers aren't loaded even when their UTType is correct.
                 do {
-                  do {
-                    return (offset, try await provider.resolve(.image))
-                  } catch {
-                    let url = try await provider.resolve(.folder)
-
-                    return (offset, url)
-                  }
+                  return (offset, try await provider.resolve(.image))
                 } catch {
-                  Logger.model.error("\(error)")
-
-                  throw error
+                  return (offset, try await provider.resolve(.folder))
                 }
               }
             }
@@ -118,7 +104,7 @@ struct ImageCollectionSidebarEmptyView: View {
   }
 
   func resolve(urls: some Sequence<Offset<URL>>) async throws -> [(BookmarkKind, [ImageCollectionItem])] {
-    let bookmarks = try await ImageCollection.resolve(urls: urls).ordered()
+    let bookmarks = try await ImageCollection.resolve(urls: urls, hidden: importHidden, limit: importLimit).ordered()
     let resolved = await ImageCollection.resolve(bookmarks: bookmarks.enumerated()).ordered()
 
     // TODO: De-duplicate (see ImageCollectionView).

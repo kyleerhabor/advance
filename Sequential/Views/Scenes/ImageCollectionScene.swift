@@ -5,6 +5,7 @@
 //  Created by Kyle Erhabor on 9/13/23.
 //
 
+import OSLog
 import SwiftUI
 
 struct ImageCollectionEnvironmentKey: EnvironmentKey {
@@ -19,6 +20,8 @@ extension EnvironmentValues {
 }
 
 struct ImageCollectionScene: Scene {
+  @Environment(\.scenePhase) private var phase
+
   var body: some Scene {
     WindowGroup(for: ImageCollection.self) { collection in
       ImageCollectionView()

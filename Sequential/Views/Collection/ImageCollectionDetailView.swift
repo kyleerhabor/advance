@@ -79,6 +79,7 @@ struct ImageCollectionDetailItemView: View {
   @Environment(\.selection) @Binding private var selection
   @AppStorage(Keys.collapseMargins.key) private var collapse = Keys.collapseMargins.value
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
+  @AppStorage(Keys.trackCurrentImage.key) private var trackCurrentImage = Keys.trackCurrentImage.value
   @State private var error: String?
 
   let image: ImageCollectionItemImage
@@ -110,7 +111,9 @@ struct ImageCollectionDetailItemView: View {
           ).supplementaryInterfaceHidden(!liveTextIcon)
         }
       }.background {
-        ImageCollectionDetailItemVisibilityView(image: image)
+        if trackCurrentImage {
+          ImageCollectionDetailItemVisibilityView(image: image)
+        }
       }.onDisappear {
         // This is necessary to slow down the memory creep SwiftUI creates when rendering some images. It does not
         // eliminate it, but severely halts it. As an example, I have a copy of the first volume of Soloist in a Cage (~750 MBs).
@@ -126,7 +129,7 @@ struct ImageCollectionDetailItemView: View {
         phase = .empty
       }
     }
-    .shadow(radius: margin)
+    .shadow(radius: margin / 2)
     .listRowInsets(.listRow + insets)
     .contextMenu {
       Button("Show in Finder") {
@@ -147,7 +150,7 @@ struct ImageCollectionDetailItemView: View {
       }
 
       if !copyDepot.resolved.isEmpty {
-        ImageCollectionCopyDestinationView(error: $error) { [url] }
+        ImageCollectionCopyDestinationView(error: $error) { [image] }
       }
 
       Divider()

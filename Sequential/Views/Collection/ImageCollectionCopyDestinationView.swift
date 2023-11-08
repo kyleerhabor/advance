@@ -8,11 +8,11 @@
 import OSLog
 import SwiftUI
 
-struct ImageCollectionCopyDestinationView: View {
+struct ImageCollectionCopyDestinationView<Scope>: View where Scope: URLScope {
   @Environment(CopyDepot.self) private var depot
   @Binding var error: String?
 
-  let urls: () -> [URL]
+  let scopes: () -> [Scope]
 
   var body: some View {
     Menu("Copy to Folder", systemImage: "doc.on.doc") {
@@ -22,9 +22,11 @@ struct ImageCollectionCopyDestinationView: View {
 
           do {
             try dest.scoped {
-              try urls().forEach { url in
+              try scopes().forEach { scope in
+                let url = scope.url
+
                 do {
-                  try url.scoped {
+                  try scope.scoped {
                     try FileManager.default.copyItem(at: url, to: dest.appending(component: url.lastPathComponent))
                   }
                 } catch {

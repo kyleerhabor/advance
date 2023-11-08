@@ -49,86 +49,87 @@ struct ImageCollectionItemPhaseView<Overlay>: View where Overlay: View {
 }
 
 struct ImageCollectionItemView<Overlay>: View where Overlay: View {
-  typealias ImageTask = Task<AsyncImagePhase, Error>
-  typealias KeyPath = WritableKeyPath<ImageCollectionItemImage, AsyncImagePhase>
-
   @Environment(\.pixelLength) private var pixel
-
   @State private var phase = AsyncImagePhase.empty
-  @State private var task: ImageTask?
 
   let image: ImageCollectionItemImage
   @ViewBuilder var overlay: (Binding<AsyncImagePhase>) -> Overlay
 
   var body: some View {
     DisplayView { size in
-      // Does Image I/O round up when you provide a pixel size? If not, we should do so so images are never lesser
-      // in quality.
       let size = CGSize(
         width: size.width / pixel,
         height: size.height / pixel
       )
 
-      let task = ImageTask {
-        do {
-          let thumbnail = try await image.scoped { try await resample(url: image.url, size: size) }
-
-          return .success(thumbnail)
-        } catch ImageError.thumbnail {
-          guard let resolved = await resolve(image: image) else {
-            return .failure(ImageError.thumbnail)
-          }
-
-          let url = resolved.bookmark.url
-
-          image.item.bookmark.data = resolved.bookmark.data
-          image.item.bookmark.url = url
-          image.url = url
-          image.aspectRatio = resolved.properties.width / resolved.properties.height
-          image.orientation = resolved.properties.orientation
-          image.analysis = nil
-
-          do {
-            let thumbnail = try await url.scoped { try await resample(url: url, size: size) }
-
-            return .success(thumbnail)
-          } catch {
-            return .failure(error)
-          }
-        } catch {
-          if let err = error as? CancellationError {
-            throw err
-          }
-
-          return .failure(error)
-        }
+      guard let phase = await resample(image: image, size: size) else {
+        return
       }
 
-      self.task = task
+      if case let .failure(err) = phase {
+        Logger.ui.error("Could not resample image \"\(image.url.string)\": \(err)")
+      }
 
-      if case let .success(phase) = await task.result {
-        // If we're updating an already existing image with a new image, don't perform an animation.
-        if case .success = self.phase, case .success = phase {
+      // If we're replacing an already existing image with a new image, don't animate.
+      if case .success = self.phase,
+         case .success = phase {
+        // Either storing image data in @State is slow, rendering it is slow, or transferring it across actors is slow.
+        // This seems to only be the case for certain images, too.
+        self.phase = phase
+      } else {
+        withAnimation {
           self.phase = phase
-        } else {
-          withAnimation {
-            self.phase = phase
-          }
         }
       }
-
-      self.task = nil
     } content: {
       ImageCollectionItemPhaseView(phase: $phase, overlay: overlay)
     }.aspectRatio(image.aspectRatio, contentMode: .fit)
   }
 
+  @MainActor
+  func resample(image: ImageCollectionItemImage, size: CGSize) async -> AsyncImagePhase? {
+    let thumbnail: Image
+
+    do {
+      thumbnail = try await image.scoped { try await resample(url: image.url, size: size) }
+    } catch ImageError.thumbnail {
+      do {
+        let snapshot = try await resolve(image: image)
+
+        if let document = snapshot.document {
+          image.item.bookmark.document?.data = document.data
+          image.item.bookmark.document?.url = document.url
+        }
+
+        image.url = snapshot.image.bookmark.url
+        image.aspectRatio = snapshot.image.properties.width / snapshot.image.properties.height
+        image.orientation = snapshot.image.properties.orientation
+        image.item.bookmark.data = snapshot.image.bookmark.data
+        image.item.bookmark.url = snapshot.image.bookmark.url
+        image.analysis = nil
+
+        thumbnail = try await image.scoped { try await resample(url: image.url, size: size) }
+      } catch is CancellationError {
+        return nil
+      } catch {
+        return .failure(error)
+      }
+    } catch is CancellationError {
+      return nil
+    } catch {
+      return .failure(error)
+    }
+
+    return .success(thumbnail)
+  }
+
   func resample(url: URL, size: CGSize) async throws -> Image {
     guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+      // FIXME: For some reason, if the user scrolls fast enough in the UI, this returns nil and throws.
       throw ImageError.undecodable
     }
 
-    let thumbnail = try source.resample(to: size.length())
+    let thumbnail = try source.resample(to: size.length().rounded(.up))
 
     Logger.ui.info("Created a resampled image from \"\(url.string)\" at dimensions \(thumbnail.width.description)x\(thumbnail.height.description) for size \(size.width) / \(size.height)")
 
@@ -137,39 +138,42 @@ struct ImageCollectionItemView<Overlay>: View where Overlay: View {
     return .init(nsImage: .init(cgImage: thumbnail, size: size))
   }
 
-  func resolve(image: ImageCollectionItemImage) async -> ResolvedBookmarkImage? {
+  func resolve(image: ImageCollectionItemImage) async throws -> ResolvedBookmarkImageSnapshot {
+    let document: Bookmark?
     let bookmark: Bookmark
 
-    do {
-      if let document = image.item.bookmark.document {
-        let mark = try document.resolve()
+    if let docu = image.item.bookmark.document {
+      let doc = try docu.resolve()
 
-        document.data = mark.data
-        document.url = mark.url
-
-        bookmark = try mark.url.scoped { try image.item.bookmark.resolve() }
-      } else {
-        bookmark = try image.item.bookmark.resolve()
+      document = doc
+      bookmark = try doc.url.scoped {
+        try Bookmark(data: image.item.bookmark.data, resolving: .withSecurityScope, relativeTo: doc.url) { url in
+          try url.scoped {
+            try BookmarkFile.bookmark(url: url, document: doc.url)
+          }
+        }
       }
-    } catch {
-      Logger.model.error("\(error)")
-
-      return nil
+    } else {
+      document = nil
+      bookmark = try image.item.bookmark.resolve()
     }
 
-    guard bookmark.url != image.url else {
-      Logger.model.error("Image resampling for URL \"\(image.url.string)\" failed and bookmark was not stale")
-
-      return nil
+    guard image.url != bookmark.url else {
+      throw BookmarkResolutionError()
     }
-
-    Logger.model.info("Image resampling for URL \"\(image.url.string)\" failed and bookmark was stale. Refreshing...")
 
     guard let properties = bookmark.url.scoped({ ImageProperties(at: bookmark.url) }) else {
-      return nil
+      throw ImageError.undecodable
     }
 
-    return .init(id: image.id, bookmark: bookmark, properties: properties)
+    return .init(
+      document: document,
+      image: .init(
+        id: image.id,
+        bookmark: bookmark,
+        properties: properties
+      )
+    )
   }
 }
 
@@ -271,7 +275,8 @@ struct ImageCollectionNavigationSidebarView: View {
               columns = .all
             }
 
-            // Yes, this is convoluted; but it fixes an issue where focus won't apply when the sidebar is not already open.
+            // Yes, this is convoluted; but it *partially* fixes an issue where focus won't apply when the sidebar is
+            // not already open. It doesn't always work, however, so it's not a solution.
             Task {
               focused = true
             }
@@ -330,6 +335,7 @@ struct ImageCollectionView: View {
   @Environment(\.collection) private var collection
   @AppStorage(Keys.windowless.key) private var windowless = Keys.windowless.value
   @AppStorage(Keys.displayTitleBarImage.key) private var displayTitleBarImage = Keys.displayTitleBarImage.value
+  @AppStorage(Keys.trackCurrentImage.key) private var trackCurrentImage = Keys.trackCurrentImage.value
   @SceneStorage("sidebar") private var columns = NavigationSplitViewVisibility.all
   @State private var selection = Selection()
   private let subject = PassthroughSubject<CGPoint, Never>()
@@ -346,12 +352,13 @@ struct ImageCollectionView: View {
         .navigationSplitViewColumnWidth(min: 128, ideal: 192, max: 256)
     } detail: {
       ImageCollectionNavigationDetailView(images: collection.images)
+        .frame(minWidth: 256)
     }
     .navigationTitle(Text(visible?.deletingPathExtension().lastPathComponent ?? "Sequential"))
     // I wish it were possible to pass nil to not use this modifier. This workaround displays a blank file that doesn't
     // point anywhere.
     .navigationDocument(visible ?? .none)
-    .toolbar(fullScreen == true ? .hidden : .automatic)
+    .toolbar(fullScreen ? .hidden : .automatic)
     .task {
       let resolved = await collection.wrappedValue.load()
       let items = Dictionary(collection.wrappedValue.items.map { ($0.bookmark.id, $0) }) { _, item in item }
@@ -385,29 +392,46 @@ struct ImageCollectionView: View {
       collection.wrappedValue.items = results.flatMap(\.1)
       collection.wrappedValue.updateImages()
       collection.wrappedValue.updateBookmarks()
+    }.onChange(of: trackCurrentImage) {
+      guard !trackCurrentImage else {
+        return
+      }
+
+      collection.wrappedValue.visible = []
+    // Yes, the listed code below is dumb.
     }.onPreferenceChange(ScrollPositionPreferenceKey.self) { origin in
       subject.send(origin)
     }.onReceive(publisher) {
-      guard columns == .detailOnly && fullScreen == false else {
+      guard columns == .detailOnly && !fullScreen else {
         return
       }
 
       setTitleBarVisibility(false)
     }.onContinuousHover { _ in
-      guard window?.inLiveResize == false else {
+      guard window?.inLiveResize == false, !fullScreen else {
         return
       }
 
       setTitleBarVisibility(true)
     }.onChange(of: columns) {
+      guard !fullScreen else {
+        return
+      }
+
       setTitleBarVisibility(true)
+    }.onChange(of: fullScreen) {
+      guard let window else {
+        return
+      }
+
+      window.animator().titlebarSeparatorStyle = fullScreen ? .none : .automatic
     }.environment(\.selection, $selection)
   }
 
   init() {
     // When the user toggles the sidebar, I don't want the title bar to be hidden.
     self.publisher = subject
-      .collect(6) // 12?
+      .collect(6)
       .filter { origins in
         origins.dropFirst().allSatisfy { $0.x == origins.first?.x }
       }
