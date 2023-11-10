@@ -147,9 +147,9 @@ struct ImageCollectionItemView<Overlay>: View where Overlay: View {
 
       document = doc
       bookmark = try doc.url.scoped {
-        try Bookmark(data: image.item.bookmark.data, resolving: .withSecurityScope, relativeTo: doc.url) { url in
+        try Bookmark(data: image.item.bookmark.data, resolving: [], relativeTo: doc.url) { url in
           try url.scoped {
-            try BookmarkFile.bookmark(url: url, document: doc.url)
+            try url.bookmark(options: [], document: doc.url)
           }
         }
       }

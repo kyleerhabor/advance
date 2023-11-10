@@ -119,12 +119,11 @@ extension Sequence {
 
   func finderSort() -> [Element] where Element == URL {
     self.sorted { a, b in
-      // First, we need to find a and b's common directory, then compare which one is a directory vs. a file, then finally
-      // do a localized standard comparison on
-
       // First, we need to find a and b's common directory, then compare which one is a file or directory (since Finder
       // sorts folders first). Finally, if they're the same type, we do a localized standard comparison (the same Finder
       // applies when sorting by name) to sort by ascending order.
+      //
+      // In the future, it may be useful to extract the first two steps so the user can sort by some condition (e.g. date added)
       let ap = a.pathComponents
       let bp = b.pathComponents
       let (index, (ac, bc)) = zip(ap, bp).enumerated().first { _, pair in

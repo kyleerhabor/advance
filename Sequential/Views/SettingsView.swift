@@ -118,6 +118,6 @@ struct SettingsView: View {
   }
 
   enum Tab {
-    case general, importing, experimental
+    case general, importing
   }
 }

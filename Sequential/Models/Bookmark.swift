@@ -40,11 +40,6 @@ extension Bookmark {
     var resolved = try ResolvedBookmark(data: data, options: resolving, relativeTo: document)
 
     if resolved.stale {
-      // From the resolution options, we can infer that if it includes .withSecurityScope, wrapping URL in the method
-      // with the same name would theoretically be valid, but we still wouldn't exactly know *how* to create the
-      // bookmark. Personally, I think accepting a closure and having the caller handle the case maintains simplicity.
-      // If we did check for the security scope and implicity wrap create in one, the user would need to implicitly
-      // track it, which would be more complex.
       data = try create(resolved.url)
       resolved = try ResolvedBookmark(data: data, options: resolving, relativeTo: document)
     }
@@ -66,14 +61,14 @@ class BookmarkFile: Codable {
     self.document = document
   }
 
-  static func bookmark(url: URL, document: URL?) throws -> Data {
-    try url.bookmark(options: .withReadOnlySecurityScope, document: document)
-  }
-
   func resolve() throws -> Bookmark {
     try Bookmark(data: data, resolving: .withSecurityScope, relativeTo: document?.url) { url in
       try url.scoped {
-        try Self.bookmark(url: url, document: document?.url)
+        if let document {
+          try url.bookmark(options: [], document: document.url)
+        } else {
+          try url.bookmark(options: .withReadOnlySecurityScope)
+        }
       }
     }
   }
@@ -125,7 +120,7 @@ class BookmarkDocument: Codable {
   func resolve() throws -> Bookmark {
     try Bookmark(data: data, resolving: .withSecurityScope) { url in
       try url.scoped {
-        try BookmarkFile.bookmark(url: url, document: nil)
+        try url.bookmark(options: .withReadOnlySecurityScope)
       }
     }
   }
