@@ -24,7 +24,8 @@ extension Logger {
 }
 
 extension URL {
-  static let none = Self(string: "file:")!
+  static let file = Self(string: "file:")!
+  static let rootDirectory = Self(string: "file:/")!
   static let liveTextDownsampledDirectory = Self.temporaryDirectory.appending(component: "Live Text Downsampled")
 
   var string: String {
@@ -80,6 +81,10 @@ extension URL {
   func isDirectory() throws -> Bool? {
     return try self.resourceValues(forKeys: [.isDirectoryKey]).isDirectory ?? false
   }
+
+  func appending<S>(components: some BidirectionalCollection<S>) -> URL where S: StringProtocol {
+    self.appending(path: components.joined(separator: "/"))
+  }
 }
 
 extension URL: Comparable {
@@ -127,7 +132,7 @@ extension Sequence {
       let ap = a.pathComponents
       let bp = b.pathComponents
       let (index, (ac, bc)) = zip(ap, bp).enumerated().first { _, pair in
-        pair.0.localizedStandardCompare(pair.1) != .orderedSame
+        pair.0 == pair.1
       }!
 
       let count = index + 1
@@ -142,6 +147,16 @@ extension Sequence {
 
       return ac.localizedStandardCompare(bc) == .orderedAscending
     }
+  }
+
+  func find<Result>(_ body: (Element) -> Result?) -> Result? {
+    for element in self {
+      if let value = body(element) {
+        return value
+      }
+    }
+
+    return nil
   }
 }
 
@@ -222,23 +237,18 @@ extension NSItemProvider {
   }
 }
 
-struct EnumeratedURL {
-  let url: URL
-  let resources: URLResourceValues
-}
-
 extension FileManager {
   // This is partially coupled to the UI since it makes assumptions about how the iteration occurrs (limit and packages
   // as the two notable examples).
-  func enumerate(at url: URL, hidden: Bool, limit: ImportLimit) throws -> [URL] {
+  func enumerate(at url: URL, hidden: Bool, subdirectories: Bool) throws -> [URL] {
     var options: FileManager.DirectoryEnumerationOptions = [.skipsPackageDescendants]
-
-    if limit == .direct {
-      options.insert(.skipsSubdirectoryDescendants)
-    }
 
     if !hidden {
       options.insert(.skipsHiddenFiles)
+    }
+
+    if !subdirectories {
+      options.insert(.skipsSubdirectoryDescendants)
     }
 
     guard let enumerator = FileManager.default.enumerator(at: url, includingPropertiesForKeys: [.isDirectoryKey], options: options) else {
@@ -256,10 +266,6 @@ extension FileManager {
         return url
       }
 
-      if case let .max(max) = limit, max == enumerator.level - 1 {
-        enumerator.skipDescendants()
-      }
-
       return nil
     }
   }
@@ -269,8 +275,63 @@ extension URL.BookmarkCreationOptions {
   static let withReadOnlySecurityScope = Self([.withSecurityScope, .securityScopeAllowOnlyReadAccess])
 }
 
-extension ClosedRange {
-  func clamp(_ value: Bound) -> Bound {
-    Swift.max(self.lowerBound, Swift.min(value, self.upperBound))
+extension Comparable {
+  func clamp(to range: ClosedRange<Self>) -> Self {
+    Swift.max(range.lowerBound, Swift.min(self, range.upperBound))
+  }
+}
+
+struct Matcher<Item, Path, Transform> where Item: Equatable, Path: Sequence<Item?> {
+  typealias Items = Sequence<Item>
+
+  let path: Path
+  let transform: ([Item]) -> Transform
+
+  func match(items: some Items) -> Transform? {
+    guard let matches = Self.match(path: self.path, items: items) else {
+      return nil
+    }
+
+    return transform(matches)
+  }
+
+  static func match(path: Path, items: some Items) -> [Item]? {
+    let paths = zip(items, path)
+    let satisfied = paths.allSatisfy { (component, path) in
+      if let path {
+        return component == path
+      }
+
+      return true
+    }
+
+    guard satisfied else {
+      return nil
+    }
+
+    return paths.filter { (_, path) in path == nil }.map(\.0)
+  }
+}
+
+extension Matcher where Item == String,
+                        Path == [String?],
+                        Transform == URL {
+  typealias URLItems = BidirectionalCollection<Item>
+
+  static let home = Matcher(path: ["/", "Users", nil]) { _ in URL.rootDirectory }
+
+  static let volumeTrash = Matcher(path: ["/", "Volumes", nil, ".Trashes", nil]) { matched in
+    // For some reason, calling appending on a URL without path components (e.g. "file:") results in a crash.
+    URL.rootDirectory.appending(components: "Volumes", matched.first!, "Trash")
+  }
+
+  func match(items: some URLItems) -> Transform? {
+    if let matches = Self.match(path: path, items: items) {
+      return self
+        .transform(matches)
+        .appending(components: items.dropFirst(self.path.count))
+    }
+
+    return nil
   }
 }

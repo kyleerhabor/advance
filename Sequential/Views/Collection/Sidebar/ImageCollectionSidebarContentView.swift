@@ -18,6 +18,8 @@ struct ImageCollectionSidebarContentView: View {
   @State private var quickLookItems = [URL]()
   @State private var quickLookScopes = [ImageCollectionItemImage: ImageCollectionItemImage.Scope]()
   @State private var bookmarks = false
+  @State private var selectedCopyFiles = ImageCollectionView.Selection()
+  @State private var isPresentingCopyFilePicker = false
   @State private var error: String?
 
   let scrollDetail: () -> Void
@@ -97,7 +99,14 @@ struct ImageCollectionSidebarContentView: View {
       }
 
       if !copyDepot.resolved.isEmpty {
-        ImageCollectionCopyDestinationView(error: $error) { images(from: ids) }
+        let isPresented = Binding {
+          isPresentingCopyFilePicker
+        } set: { isPresenting in
+          isPresentingCopyFilePicker = isPresenting
+          selectedCopyFiles = ids
+        }
+
+        ImageCollectionCopyDestinationView(isPresented: isPresented, error: $error) { images(from: ids) }
       }
 
       Divider()
@@ -108,6 +117,17 @@ struct ImageCollectionSidebarContentView: View {
         bookmark(mark, selection: ids)
       } label: {
         Label(mark ? "Bookmark" : "Remove Bookmark", systemImage: "bookmark")
+      }
+    }.fileImporter(isPresented: $isPresentingCopyFilePicker, allowedContentTypes: [.folder]) { result in
+      switch result {
+        case .success(let url):
+          do {
+            try ImageCollectionCopyDestinationView.save(scopes: images(from: selectedCopyFiles), to: url)
+          } catch {
+            self.error = error.localizedDescription
+          }
+        case .failure(let err):
+          Logger.ui.info("\(err)")
       }
     }
     .alert(self.error ?? "", isPresented: error) {}

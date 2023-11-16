@@ -47,6 +47,41 @@ struct CopyDepotDestination {
   let url: URL
   let path: AttributedString
   let icon: Image
+
+  init(url: URL) {
+    self.url = url
+    self.path = Self.format(components: Self.normalize(url: url).pathComponents.dropFirst())
+    // TODO: Don't initialize this on the main thread.
+    self.icon = .init(nsImage: NSWorkspace.shared.icon(forFile: url.string))
+  }
+
+  static func normalize(url: URL) -> URL {
+    let matchers = [Matcher.home, Matcher.volumeTrash]
+    let components = url.pathComponents
+
+    return matchers.find { $0.match(items: components) } ?? url
+  }
+
+  static func format(components: some Sequence<String>) -> AttributedString {
+    var separator = AttributedString(" 􀰇 ")
+    separator.foregroundColor = .tertiaryLabelColor
+
+    var string = AttributedString()
+    var iterator = components
+      .map { AttributedString($0) }
+      .makeIterator()
+
+    if let first = iterator.next() {
+      string.append(first)
+
+      while let next = iterator.next() {
+        string.append(separator)
+        string.append(next)
+      }
+    }
+
+    return string
+  }
 }
 
 extension CopyDepotDestination: Identifiable {
@@ -109,10 +144,9 @@ class CopyDepot {
     let grouping = Dictionary(grouping: bookmarks, by: \.resolved)
     let resolved = grouping[true] ?? []
     let unresolved = grouping[false] ?? []
-    let home = URL.homeDirectory.pathComponents.prefix(3)
 
-    self.resolved = resolved.map { compute(url: $0.url, home: home) }
-    self.unresolved = unresolved.map { compute(url: $0.url, home: home) }
+    self.resolved = resolved.map { .init(url: $0.url) }
+    self.unresolved = unresolved.map { .init(url: $0.url) }
   }
 
   func store() {
@@ -123,40 +157,5 @@ class CopyDepot {
     } catch {
       Logger.model.error("\(error)")
     }
-  }
-
-  func compute(url: URL, home homeComponents: ArraySlice<String>) -> CopyDepotDestination {
-    let components = url.pathComponents
-
-    // This whole thing is a mess, but is much better than my prior implementation.
-    let home = components.count > homeComponents.count && zip(components, homeComponents).allSatisfy { (component, home) in
-      component == home
-    }
-
-    let dropping = home ? homeComponents.count : 1
-    let paths = components.dropFirst(dropping)
-
-    var separator = AttributedString(" 􀰇 ")
-    separator.foregroundColor = .tertiaryLabelColor
-
-    var string = AttributedString()
-    var iterator = paths
-      .map { AttributedString($0) }
-      .makeIterator()
-
-    if let first = iterator.next() {
-      string.append(first)
-
-      while let next = iterator.next() {
-        string.append(separator)
-        string.append(next)
-      }
-    }
-
-    return .init(
-      url: url,
-      path: string,
-      icon: .init(nsImage: NSWorkspace.shared.icon(forFile: url.string))
-    )
   }
 }

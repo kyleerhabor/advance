@@ -90,7 +90,7 @@ struct Keys {
   static let windowless = Item("windowless", false)
   static let displayTitleBarImage = Item("displayTitleBarImage", true)
   static let importHidden = Item("importHidden", false)
-  static let importLimit = Item("importLimit", ImportLimit.unbound)
+  static let importSubdirectories = Item("importSubdirectories", true)
 
   struct Item<Key, Value> {
     let key: Key

@@ -285,7 +285,7 @@ class ImageCollection: Codable {
 
   // If we want hidden and limit to not spill into many callers, it would make sense to have one function that consumes
   // the hidden and limit parameters that exist solely for enumerating and return a structure this can easily iterate.
-  static func resolve(urls: some Sequence<Offset<URL>>, hidden: Bool, limit: ImportLimit) async throws -> [Offset<BookmarkKind>] {
+  static func resolve(urls: some Sequence<Offset<URL>>, hidden: Bool, subdirectories: Bool) async throws -> [Offset<BookmarkKind>] {
     try await withThrowingTaskGroup(of: Offset<BookmarkKind>.self) { group in
       urls.forEach { (offset, url) in
         group.addTask {
@@ -301,7 +301,7 @@ class ImageCollection: Codable {
             }
 
             let contents = try FileManager.default
-              .enumerate(at: url, hidden: hidden, limit: limit)
+              .enumerate(at: url, hidden: hidden, subdirectories: subdirectories)
               .finderSort()
 
             let document = BookmarkDocument(data: data, url: url, files: [])

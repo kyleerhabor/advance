@@ -29,7 +29,7 @@ struct ImageCollectionEmptySidebarLabelStyle: LabelStyle {
 struct ImageCollectionSidebarEmptyView: View {
   @Environment(\.collection) private var collection
   @AppStorage(Keys.importHidden.key) private var importHidden = Keys.importHidden.value
-  @AppStorage(Keys.importLimit.key) private var importLimit = Keys.importLimit.value
+  @AppStorage(Keys.importSubdirectories.key) private var importSubdirectories = Keys.importSubdirectories.value
   @State private var isFilePickerPresented = false
 
   var body: some View {
@@ -104,7 +104,7 @@ struct ImageCollectionSidebarEmptyView: View {
   }
 
   func resolve(urls: some Sequence<Offset<URL>>) async throws -> [(BookmarkKind, [ImageCollectionItem])] {
-    let bookmarks = try await ImageCollection.resolve(urls: urls, hidden: importHidden, limit: importLimit).ordered()
+    let bookmarks = try await ImageCollection.resolve(urls: urls, hidden: importHidden, subdirectories: importSubdirectories).ordered()
     let resolved = await ImageCollection.resolve(bookmarks: bookmarks.enumerated()).ordered()
 
     // TODO: De-duplicate (see ImageCollectionView).

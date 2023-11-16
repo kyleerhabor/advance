@@ -357,7 +357,7 @@ struct ImageCollectionView: View {
     .navigationTitle(Text(visible?.deletingPathExtension().lastPathComponent ?? "Sequential"))
     // I wish it were possible to pass nil to not use this modifier. This workaround displays a blank file that doesn't
     // point anywhere.
-    .navigationDocument(visible ?? .none)
+    .navigationDocument(visible ?? .file)
     .toolbar(fullScreen ? .hidden : .automatic)
     .task {
       let resolved = await collection.wrappedValue.load()

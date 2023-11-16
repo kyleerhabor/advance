@@ -97,7 +97,7 @@ struct ImageCollectionCommands: Commands {
   @EnvironmentObject private var delegate: AppDelegate
   @AppStorage(Keys.appearance.key) private var appearance: SettingsGeneralView.Scheme
   @AppStorage(Keys.importHidden.key) private var importHidden = Keys.importHidden.value
-  @AppStorage(Keys.importLimit.key) private var importLimit = Keys.importLimit.value
+  @AppStorage(Keys.importSubdirectories.key) private var importSubdirectories = Keys.importSubdirectories.value
   @FocusedValue(\.window) private var win
   @FocusedValue(\.fullScreen) private var fullScreen
   @FocusedValue(\.sidebarFinder) private var finder
@@ -133,7 +133,7 @@ struct ImageCollectionCommands: Commands {
             let bookmarks = try await ImageCollection.resolve(
               urls: panel.urls.enumerated(),
               hidden: importHidden,
-              limit: importLimit
+              subdirectories: importSubdirectories
             ).ordered()
 
             openWindow(value: ImageCollection(bookmarks: bookmarks))
@@ -205,7 +205,7 @@ struct ImageCollectionCommands: Commands {
               let bookmarks = try await ImageCollection.resolve(
                 urls: urls.enumerated(),
                 hidden: importHidden,
-                limit: importLimit
+                subdirectories: importSubdirectories
               ).ordered()
 
               openWindow(value: ImageCollection(bookmarks: bookmarks))
