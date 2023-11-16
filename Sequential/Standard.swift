@@ -132,7 +132,7 @@ extension Sequence {
       let ap = a.pathComponents
       let bp = b.pathComponents
       let (index, (ac, bc)) = zip(ap, bp).enumerated().first { _, pair in
-        pair.0 == pair.1
+        pair.0 != pair.1
       }!
 
       let count = index + 1
