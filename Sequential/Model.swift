@@ -46,38 +46,6 @@ enum ExecutionError: Error {
   case interrupt
 }
 
-enum ImportLimit: Hashable {
-  case max(Int)
-  case unbound
-
-  static let direct = Self.max(0)
-}
-
-extension ImportLimit: RawRepresentable {
-  init?(rawValue: Int) {
-    if rawValue == -1 {
-      self = .unbound
-    } else {
-      self = .max(rawValue)
-    }
-  }
-
-  var rawValue: Int {
-    switch self {
-      case .max(let max):
-        max
-      case .unbound:
-        -1
-    }
-  }
-}
-
-enum TripleCardinality: Hashable {
-  case none
-  case some
-  case all
-}
-
 struct Keys {
   static let appearance = Item("appearance", nil as SettingsGeneralView.Scheme)
   static let margin = Item("margin", 1)
@@ -86,9 +54,10 @@ struct Keys {
   // being able to select text) and UI simplicity (i.e. not having the buttons get in the way).
   static let liveText = Item("liveText", true)
   static let liveTextIcon = Item("liveTextIcon", false)
-  static let trackCurrentImage = Item("trackCurrentImage", false)
+  static let trackCurrentImage = Item("trackCurrentImage", true)
   static let windowless = Item("windowless", false)
   static let displayTitleBarImage = Item("displayTitleBarImage", true)
+  static let resolveCopyDestinationConflicts = Item("resolveCopyDestinationConflicts", true)
   static let importHidden = Item("importHidden", false)
   static let importSubdirectories = Item("importSubdirectories", true)
 

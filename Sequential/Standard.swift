@@ -83,6 +83,7 @@ extension URL {
   }
 
   func appending<S>(components: some BidirectionalCollection<S>) -> URL where S: StringProtocol {
+    // Pretty gross (and a bad name, since no percent encoding is occurring.
     self.appending(path: components.joined(separator: "/"))
   }
 }
@@ -313,17 +314,19 @@ struct Matcher<Item, Path, Transform> where Item: Equatable, Path: Sequence<Item
   }
 }
 
-extension Matcher where Item == String,
-                        Path == [String?],
-                        Transform == URL {
+extension Matcher where Item == String, Path == [String?], Transform == URL {
   typealias URLItems = BidirectionalCollection<Item>
 
   static let home = Matcher(path: ["/", "Users", nil]) { _ in URL.rootDirectory }
+  static let trash = Matcher(path: ["/", "Users", nil, ".Trash"]) { matches in
+    URL.rootDirectory.appending(components: "Users", matches.first!, "Trash")
+  }
 
   static let volumeTrash = Matcher(path: ["/", "Volumes", nil, ".Trashes", nil]) { matched in
-    // For some reason, calling appending on a URL without path components (e.g. "file:") results in a crash.
     URL.rootDirectory.appending(components: "Volumes", matched.first!, "Trash")
   }
+
+  static let volume = Matcher(path: ["/", "Volumes", nil]) { _ in URL.rootDirectory }
 
   func match(items: some URLItems) -> Transform? {
     if let matches = Self.match(path: path, items: items) {

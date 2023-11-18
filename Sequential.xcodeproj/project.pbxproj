@@ -24,6 +24,7 @@
 		0077AF922ABB8650002E3FF4 /* Image.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0077AF912ABB8650002E3FF4 /* Image.swift */; };
 		007D96372AB6367000F912A6 /* KeyEventView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 007D96362AB6367000F912A6 /* KeyEventView.swift */; };
 		007FDD492A76E1C800A1E42B /* WindowViewModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 007FDD482A76E1C800A1E42B /* WindowViewModifier.swift */; };
+		008815F62B07DC8A00D8F3D8 /* Algorithms in Frameworks */ = {isa = PBXBuildFile; productRef = 008815F52B07DC8A00D8F3D8 /* Algorithms */; };
 		00C09BBF2A789D30006EB887 /* View.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00C09BBE2A789D30006EB887 /* View.swift */; };
 		00C127362A90CF7400B5452C /* LiveTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00C127352A90CF7400B5452C /* LiveTextView.swift */; };
 		00C369532AB766DC0033F10A /* ImageCollection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00C369522AB766DC0033F10A /* ImageCollection.swift */; };
@@ -78,6 +79,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				008815F62B07DC8A00D8F3D8 /* Algorithms in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -237,6 +239,7 @@
 			);
 			name = Sequential;
 			packageProductDependencies = (
+				008815F52B07DC8A00D8F3D8 /* Algorithms */,
 			);
 			productName = Sequential;
 			productReference = 001CB5182A718D3C00DBB6FA /* Sequential.app */;
@@ -268,6 +271,7 @@
 			);
 			mainGroup = 001CB50F2A718D3C00DBB6FA;
 			packageReferences = (
+				008815F42B07DC8A00D8F3D8 /* XCRemoteSwiftPackageReference "swift-algorithms" */,
 			);
 			productRefGroup = 001CB5192A718D3C00DBB6FA /* Products */;
 			projectDirPath = "";
@@ -531,6 +535,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		008815F42B07DC8A00D8F3D8 /* XCRemoteSwiftPackageReference "swift-algorithms" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-algorithms.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.2.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		008815F52B07DC8A00D8F3D8 /* Algorithms */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 008815F42B07DC8A00D8F3D8 /* XCRemoteSwiftPackageReference "swift-algorithms" */;
+			productName = Algorithms;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 001CB5102A718D3C00DBB6FA /* Project object */;
 }

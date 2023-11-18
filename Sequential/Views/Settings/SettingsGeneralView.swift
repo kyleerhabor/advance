@@ -19,6 +19,7 @@ struct SettingsGeneralView: View {
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
   @AppStorage(Keys.liveTextIcon.key) private var liveTextIcons = Keys.liveTextIcon.value
   @AppStorage(Keys.trackCurrentImage.key) private var trackCurrentImage = Keys.trackCurrentImage.value
+  @AppStorage(Keys.resolveCopyDestinationConflicts.key) private var resolveConflicts = Keys.resolveCopyDestinationConflicts.value
   @State private var showingDestinations = false
   private let range = 0.0...4.0
 
@@ -86,7 +87,7 @@ struct SettingsGeneralView: View {
       Toggle(isOn: $trackCurrentImage) {
         Text("Track the current image")
 
-        Text("This enables functionality like dynamically modifying the title and showing the current image via **Image > Show in Sidebar**, but may degrade performance.")
+        Text("This enables functionality like dynamically modifying the title and showing the current image via **Image 􀯻 Show in Sidebar**, but may degrade performance.")
       }
 
       GroupBox {
@@ -101,6 +102,13 @@ struct SettingsGeneralView: View {
     }
 
     LabeledContent("Copying:") {
+      // TODO: Add a setting to not flip the direction for multiple resolutions.
+      Toggle(isOn: $resolveConflicts) {
+        Text("Resolve conflicts")
+
+        Text("If a file already exists at the destination of a folder, the name of the image's enclosing folder will be appended to the destination.")
+      }
+
       Button("Show Folders...") {
         showingDestinations = true
       }.sheet(isPresented: $showingDestinations) {

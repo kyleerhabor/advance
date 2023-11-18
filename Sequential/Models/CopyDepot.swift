@@ -56,10 +56,11 @@ struct CopyDepotDestination {
   }
 
   static func normalize(url: URL) -> URL {
-    let matchers = [Matcher.home, Matcher.volumeTrash]
-    let components = url.pathComponents
+    let matchers = [Matcher.trash, Matcher.home, Matcher.volumeTrash]
 
-    return matchers.find { $0.match(items: components) } ?? url
+    return matchers.reduce(url) { url, matcher in
+      matcher.match(items: url.pathComponents) ?? url
+    }
   }
 
   static func format(components: some Sequence<String>) -> AttributedString {
@@ -92,6 +93,8 @@ extension CopyDepotDestination: Identifiable {
 // I tried writing a @DataStorage property wrapper to act like @AppStorage but specifically for storing Data types
 // automatically (via Codable conformance), but had trouble reflecting changes across scenes. In addition, changes
 // would only get communicated to the property wrapper on direct assignment (making internal mutation not simple)
+//
+// Maybe we could use the Observable framework directly to resolve the latter issue?
 class CopyDepot {
   let encoder = JSONEncoder()
   let decoder = JSONDecoder()

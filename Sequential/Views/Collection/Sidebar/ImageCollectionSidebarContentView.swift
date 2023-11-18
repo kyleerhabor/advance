@@ -14,6 +14,7 @@ struct ImageCollectionSidebarContentView: View {
   @Environment(\.prerendering) private var prerendering
   @Environment(\.collection) private var collection
   @Environment(\.selection) @Binding private var selection
+  @AppStorage(Keys.resolveCopyDestinationConflicts.key) private var resolveCopyConflicts = Keys.resolveCopyDestinationConflicts.value
   @State private var selectedQuickLookItem: URL?
   @State private var quickLookItems = [URL]()
   @State private var quickLookScopes = [ImageCollectionItemImage: ImageCollectionItemImage.Scope]()
@@ -121,10 +122,12 @@ struct ImageCollectionSidebarContentView: View {
     }.fileImporter(isPresented: $isPresentingCopyFilePicker, allowedContentTypes: [.folder]) { result in
       switch result {
         case .success(let url):
-          do {
-            try ImageCollectionCopyDestinationView.save(scopes: images(from: selectedCopyFiles), to: url)
-          } catch {
-            self.error = error.localizedDescription
+          Task {
+            do {
+              try await save(images: images(from: selectedCopyFiles), to: url)
+            } catch {
+              self.error = error.localizedDescription
+            }
           }
         case .failure(let err):
           Logger.ui.info("\(err)")
@@ -198,5 +201,19 @@ struct ImageCollectionSidebarContentView: View {
     }
 
     collection.wrappedValue.updateBookmarks()
+  }
+
+  func save(images: [ImageCollectionItemImage], to destination: URL) async throws {
+    try ImageCollectionCopyDestinationView<ImageCollectionItemImage>.saving {
+      try destination.scoped {
+        try images.forEach { image in
+          try ImageCollectionCopyDestinationView.saving(url: image, to: destination) { url in
+            try image.scoped {
+              try ImageCollectionCopyDestinationView<ImageCollectionItemImage>.save(url: url, to: destination, resolvingConflicts: resolveCopyConflicts)
+            }
+          }
+        }
+      }
+    }
   }
 }

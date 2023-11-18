@@ -80,6 +80,7 @@ struct ImageCollectionDetailItemView: View {
   @AppStorage(Keys.collapseMargins.key) private var collapse = Keys.collapseMargins.value
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
   @AppStorage(Keys.trackCurrentImage.key) private var trackCurrentImage = Keys.trackCurrentImage.value
+  @AppStorage(Keys.resolveCopyDestinationConflicts.key) private var resolveCopyConflicts = Keys.resolveCopyDestinationConflicts.value
   @State private var isPresentingCopyFilePicker = false
   @State private var error: String?
 
@@ -160,15 +161,29 @@ struct ImageCollectionDetailItemView: View {
     }.fileImporter(isPresented: $isPresentingCopyFilePicker, allowedContentTypes: [.folder]) { result in
       switch result {
         case .success(let url):
-          do {
-            try ImageCollectionCopyDestinationView.save(scopes: [image], to: url)
-          } catch {
-            self.error = error.localizedDescription
+          Task {
+            do {
+              try await save(image: image, to: url)
+            } catch {
+              self.error = error.localizedDescription
+            }
           }
         case .failure(let err):
           Logger.ui.info("\(err)")
       }
     }.alert(self.error ?? "", isPresented: error) {}
+  }
+
+  func save(image: ImageCollectionItemImage, to destination: URL) async throws {
+    try ImageCollectionCopyDestinationView<ImageCollectionItemImage>.saving {
+      try destination.scoped {
+        try ImageCollectionCopyDestinationView.saving(url: image, to: destination) { url in
+          try image.scoped {
+            try ImageCollectionCopyDestinationView<ImageCollectionItemImage>.save(url: url, to: destination, resolvingConflicts: resolveCopyConflicts)
+          }
+        }
+      }
+    }
   }
 }
 
