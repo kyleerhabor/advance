@@ -110,7 +110,7 @@ struct ImageCollectionCopyDestinationView<Scope>: View where Scope: URLScope {
       .dropFirst() // The initial value from the reduction (an empty array)
 
     return try resolutions.map { resolution in
-      let out = "\(url.deletingPathExtension().lastPathComponent) [\(resolution.joined(separator: " 􀰁 "))]"
+      let out = "\(url.deletingPathExtension().lastPathComponent) [\(resolution.joined(separator: " 􀯶 "))]"
 
       return destination
         .appending(component: out)
