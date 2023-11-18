@@ -149,16 +149,6 @@ extension Sequence {
       return ac.localizedStandardCompare(bc) == .orderedAscending
     }
   }
-
-  func find<Result>(_ body: (Element) -> Result?) -> Result? {
-    for element in self {
-      if let value = body(element) {
-        return value
-      }
-    }
-
-    return nil
-  }
 }
 
 extension CGSize {
@@ -317,16 +307,17 @@ struct Matcher<Item, Path, Transform> where Item: Equatable, Path: Sequence<Item
 extension Matcher where Item == String, Path == [String?], Transform == URL {
   typealias URLItems = BidirectionalCollection<Item>
 
-  static let home = Matcher(path: ["/", "Users", nil]) { _ in URL.rootDirectory }
+  static let home = Matcher(path: ["/", "Users", nil]) { _ in .rootDirectory }
+  // "/Users/<...>/.Trash" -> "/Users/<...>/Trash"
   static let trash = Matcher(path: ["/", "Users", nil, ".Trash"]) { matches in
-    URL.rootDirectory.appending(components: "Users", matches.first!, "Trash")
+    .rootDirectory.appending(components: "Users", matches.first!, "Trash")
   }
 
+  static let volume = Matcher(path: ["/", "Volumes", nil]) { _ in .rootDirectory }
+  // "/Volumes/<...>/.Trashes/<uid>" -> "/Volumes/<...>/Trash"
   static let volumeTrash = Matcher(path: ["/", "Volumes", nil, ".Trashes", nil]) { matched in
-    URL.rootDirectory.appending(components: "Volumes", matched.first!, "Trash")
+    .rootDirectory.appending(components: "Volumes", matched.first!, "Trash")
   }
-
-  static let volume = Matcher(path: ["/", "Volumes", nil]) { _ in URL.rootDirectory }
 
   func match(items: some URLItems) -> Transform? {
     if let matches = Self.match(path: path, items: items) {

@@ -338,8 +338,9 @@ struct ImageCollectionView: View {
   @AppStorage(Keys.trackCurrentImage.key) private var trackCurrentImage = Keys.trackCurrentImage.value
   @SceneStorage("sidebar") private var columns = NavigationSplitViewVisibility.all
   @State private var selection = Selection()
-  private let subject = PassthroughSubject<CGPoint, Never>()
-  private let publisher: AnyPublisher<Void, Never>
+  private let scrollSubject = PassthroughSubject<CGPoint, Never>()
+  private let cursorSubject = PassthroughSubject<Void, Never>()
+  private let publisher: AnyPublisher<Bool, Never>
   private var window: NSWindow? { win.window }
 
   var body: some View {
@@ -398,21 +399,22 @@ struct ImageCollectionView: View {
       }
 
       collection.wrappedValue.visible = []
+    }
     // Yes, the listed code below is dumb.
-    }.onPreferenceChange(ScrollPositionPreferenceKey.self) { origin in
-      subject.send(origin)
-    }.onReceive(publisher) {
+    .onPreferenceChange(ScrollPositionPreferenceKey.self) { origin in
+      scrollSubject.send(origin)
+    }.onReceive(publisher) { hide in
       guard columns == .detailOnly && !fullScreen else {
         return
       }
 
-      setTitleBarVisibility(false)
+      setTitleBarVisibility(hide)
     }.onContinuousHover { _ in
       guard window?.inLiveResize == false, !fullScreen else {
         return
       }
 
-      setTitleBarVisibility(true)
+      cursorSubject.send()
     }.onChange(of: columns) {
       guard !fullScreen else {
         return
@@ -429,13 +431,25 @@ struct ImageCollectionView: View {
   }
 
   init() {
-    // When the user toggles the sidebar, I don't want the title bar to be hidden.
-    self.publisher = subject
+    let cursor = cursorSubject
+      .delay(for: .milliseconds(250), scheduler: DispatchQueue.main)
+      .map { _ in true }
+      .prepend(false)
+
+    let scroller = scrollSubject
+      // When the user hides the sidebar, the title bar shouldn't be hidden (it normally produces at most 6 events).
       .collect(6)
       .filter { origins in
         origins.dropFirst().allSatisfy { $0.x == origins.first?.x }
-      }
-      .map { _ in }
+      }.map { _ in false }
+
+    // This "works", but not in the best way. The ideal would be that if the scroll publisher hasn't published in a
+    // while, the cursor publisher sends events. This would make it so someone not scrolling who moves their mouse sees
+    // the title bar immediately, while if they're scrolling, it has a delay to compete with the scroller.
+    self.publisher = scroller
+      .map { _ in cursor }
+      .switchToLatest()
+      .removeDuplicates()
       .eraseToAnyPublisher()
   }
 
@@ -444,11 +458,7 @@ struct ImageCollectionView: View {
       return
     }
 
-    let opacity: CGFloat = visible ? 1 : 0
-
-    if window.standardWindowButton(.closeButton)?.superview?.alphaValue != opacity {
-      window.standardWindowButton(.closeButton)?.superview?.animator().alphaValue = opacity
-      window.animator().titlebarSeparatorStyle = visible ? .automatic : .none
-    }
+    window.standardWindowButton(.closeButton)?.superview?.animator().alphaValue = visible ? 1 : 0
+    window.animator().titlebarSeparatorStyle = visible ? .automatic : .none
   }
 }
