@@ -9,11 +9,10 @@ import Combine
 import OSLog
 import SwiftUI
 
-struct ImageCollectionItemPhaseView<Overlay>: View where Overlay: View {
+struct ImageCollectionItemPhaseView: View {
   @State private var elapsed = false
 
   @Binding var phase: AsyncImagePhase
-  @ViewBuilder var overlay: (Binding<AsyncImagePhase>) -> Overlay
 
   var body: some View {
     // For transparent images, the fill is still useful to know that an image is supposed to be in the frame, but when
@@ -34,8 +33,6 @@ struct ImageCollectionItemPhaseView<Overlay>: View where Overlay: View {
         } else {
           ProgressView().visible(elapsed)
         }
-      }.overlay {
-        overlay($phase)
       }.task {
         guard (try? await Task.sleep(for: .seconds(1))) != nil else {
           return
@@ -44,6 +41,8 @@ struct ImageCollectionItemPhaseView<Overlay>: View where Overlay: View {
         withAnimation {
           elapsed = true
         }
+      }.onDisappear {
+        elapsed = false
       }
   }
 }
@@ -82,7 +81,8 @@ struct ImageCollectionItemView<Overlay>: View where Overlay: View {
         }
       }
     } content: {
-      ImageCollectionItemPhaseView(phase: $phase, overlay: overlay)
+      ImageCollectionItemPhaseView(phase: $phase)
+        .overlay { overlay($phase) }
     }.aspectRatio(image.aspectRatio, contentMode: .fit)
   }
 

@@ -170,21 +170,21 @@ struct LiveTextView<Scope>: NSViewRepresentable where Scope: URLScope {
 
     func overlayView(_ overlayView: ImageAnalysisOverlayView, updatedMenuFor menu: NSMenu, for event: NSEvent, at point: CGPoint) -> NSMenu {
       // v[iew] [menu]. I tried directly setting the .contextMenu on the LiveTextView, but it never seems to work.
-      guard let vMenu = overlayView.superview?.superview?.superview?.menu else {
+      guard let vMenu = sequence(first: overlayView, next: \.superview).firstNonNil(\.menu) else {
         return menu
       }
 
+      // TODO: Make this safer by only keeping known items.
+      //
+      // This could be done either by filtering this collection alone, or forgoing this whole process and requiring
+      // the superview (i.e. the SwiftUI view) to reimplement it (which wouldn't be as native, but likely more robust).
+      // I tried the latter prior, but couldn't get NSHostingView to overlay the view. I wonder if NSHostingController
+      // will work better...
       let removing = [
         // Already implemented.
         menu.item(withTag: Tag.copyImage),
         // Too unstable (and slow).
         menu.item(withTag: Tag.shareImage),
-        // TODO: Make this safer by only keeping known items.
-        //
-        // This could be done either by filtering this collection alone, or forgoing this whole process and requiring
-        // the superview (i.e. the SwiftUI view) to reimplement it (which wouldn't be as native, but likely more robust).
-        // I tried the latter prior, but couldn't get NSHostingView to overlay the view. I wonder if NSHostingController
-        // will work better...
         menu.items.first { $0.title.hasPrefix("Search With") }
       ].compactMap { $0 }
 

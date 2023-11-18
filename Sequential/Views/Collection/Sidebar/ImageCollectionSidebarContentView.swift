@@ -45,17 +45,14 @@ struct ImageCollectionSidebarContentView: View {
       // TODO: Figure out how to support tabs.
       //
       // This works, but it resets the user's scrolling position whenever bookmarks is flipped.
-      ForEach(bookmarks ? collection.wrappedValue.bookmarked : collection.wrappedValue.images, id: \.id) { image in
-        ImageCollectionSidebarItemView(image: image)
-      }
+      //
       // TODO: Order bookmarks based on items.
       //
       // Bookmarks can be the core backing store, while items can be user preferences, followed by images as final
       // materialized state. This would be required to preserve order for operations like moving and initial resolving.
-//      .onMove { source, destination in
-//        collection.wrappedValue.items.move(fromOffsets: source, toOffset: destination)
-//        collection.wrappedValue.updateImages()
-//      }
+      ForEach(bookmarks ? collection.wrappedValue.bookmarked : collection.wrappedValue.images, id: \.id) { image in
+        ImageCollectionSidebarItemView(image: image)
+      }
     }.safeAreaInset(edge: .bottom, spacing: 0) {
       // I would *really* like this at the top, but I can't justify it since this is more a filter and not a new tab.
       VStack(alignment: .trailing, spacing: 0) {

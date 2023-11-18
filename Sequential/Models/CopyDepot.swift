@@ -51,7 +51,6 @@ struct CopyDepotDestination {
   init(url: URL) {
     self.url = url
     self.path = Self.format(components: Self.normalize(url: url).pathComponents.dropFirst())
-    // TODO: Don't initialize this on the main thread.
     self.icon = .init(nsImage: NSWorkspace.shared.icon(forFile: url.string))
   }
 
@@ -148,8 +147,17 @@ class CopyDepot {
     let resolved = grouping[true] ?? []
     let unresolved = grouping[false] ?? []
 
-    self.resolved = resolved.map { .init(url: $0.url) }
-    self.unresolved = unresolved.map { .init(url: $0.url) }
+    Task {
+      async let resolved = destinations(for: resolved)
+      async let unresolved = destinations(for: unresolved)
+
+      self.resolved = await resolved
+      self.unresolved = await unresolved
+    }
+  }
+
+  func destinations(for bookmarks: [CopyDepotBookmark]) async -> [CopyDepotDestination] {
+    bookmarks.map { .init(url: $0.url) }
   }
 
   func store() {
