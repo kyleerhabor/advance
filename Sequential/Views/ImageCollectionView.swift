@@ -432,9 +432,12 @@ struct ImageCollectionView: View {
 
   init() {
     let cursor = cursorSubject
-      .delay(for: .milliseconds(250), scheduler: DispatchQueue.main)
       .map { _ in true }
       .prepend(false)
+      // This, combined (pun) with the joining of the scroller publisher, is to prevent instances where the cursor
+      // slightly moves when the user meant to scroll. Note that this currently best suits trackpads, as the duration
+      // is too short to effectively counter a physical mouse (especially if it's heavy).
+      .throttle(for: .milliseconds(500), scheduler: DispatchQueue.main, latest: true)
 
     let scroller = scrollSubject
       // When the user hides the sidebar, the title bar shouldn't be hidden (it normally produces at most 6 events).
@@ -443,9 +446,6 @@ struct ImageCollectionView: View {
         origins.dropFirst().allSatisfy { $0.x == origins.first?.x }
       }.map { _ in false }
 
-    // This "works", but not in the best way. The ideal would be that if the scroll publisher hasn't published in a
-    // while, the cursor publisher sends events. This would make it so someone not scrolling who moves their mouse sees
-    // the title bar immediately, while if they're scrolling, it has a delay to compete with the scroller.
     self.publisher = scroller
       .map { _ in cursor }
       .switchToLatest()

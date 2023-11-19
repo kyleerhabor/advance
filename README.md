@@ -20,11 +20,13 @@ Sequential was created to provide an experience as simple as (or even simpler th
 ## Features
 
 - Simple interface: a main canvas for viewing images, and a sidebar for managing them
-- Configurable margins: allow images to cover their whole frame, or make some room for yourself
+- Configurable margins:
+  - Allow images to cover their whole frame, or make some room for yourself
+  - Hide the title bar when scrolling to truly immerse yourself in the imagery
 - Continuous scrolling
 - Support for Live Text
-- Bookmarks
-- Windowless mode: hides the title bar while you scroll, allowing images to cover the full window (`Settings... > Enable windowless mode`)
+- Bookmarking
+- Copying: clone images to selected destinations as-is to save time and memories
 - Fast:
   - Only loads what is required up front, reducing initialization dramatically[^1]
   - Performs downsampling on images to match the size on-screen, improving CPU and memory usage while not compromising image quality.[^2] You can drop hundreds of 4K+ images and Sequential won't complain
