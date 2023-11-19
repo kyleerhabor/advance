@@ -183,24 +183,24 @@ struct LiveTextView<Scope>: NSViewRepresentable where Scope: URLScope {
       let removing = [
         // Already implemented.
         menu.item(withTag: Tag.copyImage),
-        // Too unstable (and slow).
+        // Too unstable (and slow). This does not need VisionKit / Live Text to implement, anyway.
         menu.item(withTag: Tag.shareImage),
+        // Always opens in Safari, which is undesirable.
         menu.items.first { $0.title.hasPrefix("Search With") }
       ].compactMap { $0 }
 
       removing.forEach(menu.removeItem)
 
-      let items = menu.items
+      let items = vMenu.items
+      let index = menu.indexOfItem(withTag: Tag.recommendedAppItems)
+      let end = index + items.count
 
-      if !items.isEmpty {
-        vMenu.addItem(.separator())
-        items.forEach { item in
-          menu.removeItem(item)
-          vMenu.addItem(item)
-        }
+      zip(index..<end, items).forEach { (index, item) in
+        vMenu.removeItem(item)
+        menu.insertItem(item, at: index)
       }
 
-      return vMenu
+      return menu
     }
   }
 }

@@ -161,7 +161,7 @@ struct ImageCollectionDetailItemView: View {
     }.fileImporter(isPresented: $isPresentingCopyFilePicker, allowedContentTypes: [.folder]) { result in
       switch result {
         case .success(let url):
-          Task {
+          Task(priority: .medium) {
             do {
               try await save(image: image, to: url)
             } catch {

@@ -23,7 +23,7 @@ struct ImageCollectionCopyDestinationView<Scope>: View where Scope: URLScope {
         Button {
           // If the user is copying a large collection, we could benefit from displaying a progress indicator in the
           // toolbar.
-          Task {
+          Task(priority: .medium) {
             do {
               try await save(to: destination.url)
             } catch {
