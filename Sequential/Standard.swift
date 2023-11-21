@@ -329,3 +329,13 @@ extension Matcher where Item == String, Path == [String?], Transform == URL {
     return nil
   }
 }
+
+// Borrowed (but inverted) from https://www.swiftbysundell.com/articles/the-power-of-key-paths-in-swift/
+func setter<Object: AnyObject, Value>(
+  keyPath: ReferenceWritableKeyPath<Object, Value>,
+  value: Value
+) -> (Object) -> Void {
+  return { object in
+    object[keyPath: keyPath] = value
+  }
+}

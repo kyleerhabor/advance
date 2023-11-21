@@ -49,6 +49,11 @@ class ImageCollectionItemImage {
   var url: URL
   unowned let item: ImageCollectionItem
   var aspectRatio: Double
+  // Do we want to use Observable's accessors directly (rather than putting them on item)?
+  var bookmarked: Bool {
+    get { item.bookmarked }
+    set { item.bookmarked = newValue }
+  }
 
   // Live Text
   var orientation: CGImagePropertyOrientation

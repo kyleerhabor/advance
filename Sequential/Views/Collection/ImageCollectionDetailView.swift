@@ -8,35 +8,6 @@
 import OSLog
 import SwiftUI
 
-struct ImageCollectionDetailItemBookmarkView: View {
-  @Environment(\.collection) private var collection
-
-  let image: ImageCollectionItemImage
-
-  var body: some View {
-    Button {
-      image.item.bookmarked.toggle()
-      collection.wrappedValue.updateBookmarks()
-    } label: {
-      Label(image.item.bookmarked ? "Remove Bookmark" : "Bookmark", systemImage: "bookmark")
-    }
-  }
-}
-
-struct ScrollPositionPreferenceKey: PreferenceKey {
-  static var defaultValue = CGPoint.zero
-
-  static func reduce(value: inout CGPoint, nextValue: () -> CGPoint) {
-    let next = nextValue()
-
-    guard next != .zero else {
-      return
-    }
-
-    value = next
-  }
-}
-
 struct VisiblePreferenceKey: PreferenceKey {
   static var defaultValue = false
 
@@ -54,7 +25,7 @@ struct ImageCollectionDetailItemVisibilityView: View {
       let frame = proxy.frame(in: .local)
       
       Color.clear
-        .preference(key: ScrollPositionPreferenceKey.self, value: container.origin)
+        .preference(key: ScrollOffsetPreferenceKey.self, value: container.origin)
         .preference(key: VisiblePreferenceKey.self, value: frame.intersects(container))
     }
     // If the user scrolls fast enough where the image hasn't been rendered into the UI yet, they may see the
@@ -74,6 +45,24 @@ struct ImageCollectionDetailItemVisibilityView: View {
   }
 }
 
+struct ImageCollectionDetailItemBookmarkView: View {
+  @Environment(\.collection) private var collection
+
+  @Binding var bookmarked: Bool
+  var bookmark: Binding<Bool> {
+    .init {
+      bookmarked
+    } set: { bookmarked in
+      self.bookmarked = bookmarked
+      collection.wrappedValue.updateBookmarks()
+    }
+  }
+
+  var body: some View {
+    ImageCollectionBookmarkView(bookmarked: bookmark)
+  }
+}
+
 struct ImageCollectionDetailItemView: View {
   @Environment(CopyDepot.self) private var copyDepot
   @Environment(\.selection) @Binding private var selection
@@ -81,8 +70,17 @@ struct ImageCollectionDetailItemView: View {
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
   @AppStorage(Keys.trackCurrentImage.key) private var trackCurrentImage = Keys.trackCurrentImage.value
   @AppStorage(Keys.resolveCopyDestinationConflicts.key) private var resolveCopyConflicts = Keys.resolveCopyDestinationConflicts.value
-  @State private var isPresentingCopyFilePicker = false
+  @State private var isPresentingCopyDestinationPicker = false
   @State private var error: String?
+  var isPresentingErrorAlert: Binding<Bool> {
+    .init {
+      self.error != nil
+    } set: { present in
+      if !present {
+        self.error = nil
+      }
+    }
+  }
 
   let image: ImageCollectionItemImage
   let margin: Double
@@ -93,13 +91,6 @@ struct ImageCollectionDetailItemView: View {
   var body: some View {
     let url = image.url
     let insets = collapse ? insets : .init(margin * 6)
-    let error = Binding {
-      self.error != nil
-    } set: { present in
-      if !present {
-        self.error = nil
-      }
-    }
 
     ImageCollectionItemView(image: image) { $phase in
       VStack {
@@ -134,31 +125,43 @@ struct ImageCollectionDetailItemView: View {
     .shadow(radius: margin / 2)
     .listRowInsets(.listRow + insets)
     .contextMenu {
-      Button("Show in Finder") {
-        openFinder(selecting: url)
-      }
+      Section {
+        Button("Show in Finder") {
+          openFinder(selecting: url)
+        }
 
-      Button("Show in Sidebar", systemImage: "sidebar.squares.leading") {
-        selection = [image.id]
-        scrollSidebar()
-      }
-
-      Divider()
-
-      Button("Copy", systemImage: "doc.on.doc") {
-        if !NSPasteboard.general.write(items: [url as NSURL]) {
-          Logger.ui.error("Failed to write URL \"\(url.string)\" to pasteboard")
+        Button("Show in Sidebar") {
+          selection = [image.id]
+          scrollSidebar()
         }
       }
 
-      if !copyDepot.resolved.isEmpty {
-        ImageCollectionCopyDestinationView(isPresented: $isPresentingCopyFilePicker, error: $error) { [image] }
+      Section {
+        Button("Copy", systemImage: "doc.on.doc") {
+          if !NSPasteboard.general.write(items: [url as NSURL]) {
+            Logger.ui.error("Failed to write URL \"\(url.string)\" to pasteboard")
+          }
+        }
+
+        ImageCollectionCopyDestinationView(isPresented: $isPresentingCopyDestinationPicker, error: $error) { destination in
+          Task(priority: .medium) {
+            do {
+              try await save(image: image, to: destination)
+            } catch {
+              self.error = error.localizedDescription
+            }
+          }
+        }
       }
 
-      Divider()
+      // For some reason, Swift fails to compile when this is in the Section. In addition, it does not allow shadowing
+      // original name.
+      @Bindable var img = image
 
-      ImageCollectionDetailItemBookmarkView(image: image)
-    }.fileImporter(isPresented: $isPresentingCopyFilePicker, allowedContentTypes: [.folder]) { result in
+      Section {
+        ImageCollectionDetailItemBookmarkView(bookmarked: $img.bookmarked)
+      }
+    }.fileImporter(isPresented: $isPresentingCopyDestinationPicker, allowedContentTypes: [.folder]) { result in
       switch result {
         case .success(let url):
           Task(priority: .medium) {
@@ -171,15 +174,15 @@ struct ImageCollectionDetailItemView: View {
         case .failure(let err):
           Logger.ui.info("\(err)")
       }
-    }.alert(self.error ?? "", isPresented: error) {}
+    }.alert(error ?? "", isPresented: isPresentingErrorAlert) {}
   }
 
   func save(image: ImageCollectionItemImage, to destination: URL) async throws {
-    try ImageCollectionCopyDestinationView<ImageCollectionItemImage>.saving {
+    try ImageCollectionCopyDestinationView.saving {
       try destination.scoped {
         try ImageCollectionCopyDestinationView.saving(url: image, to: destination) { url in
           try image.scoped {
-            try ImageCollectionCopyDestinationView<ImageCollectionItemImage>.save(url: url, to: destination, resolvingConflicts: resolveCopyConflicts)
+            try ImageCollectionCopyDestinationView.save(url: url, to: destination, resolvingConflicts: resolveCopyConflicts)
           }
         }
       }

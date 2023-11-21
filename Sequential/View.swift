@@ -78,3 +78,20 @@ extension View {
     self.opacity(visible ? 1 : 0)
   }
 }
+
+extension Binding {
+  init(_ base: Binding<Value?>, defaultValue: Value) {
+    self.init {
+      base.wrappedValue ?? defaultValue
+    } set: { value in
+      base.wrappedValue = value
+    }
+  }
+}
+
+// This is for focused state to appropriately track changes without constantly re-rendering the view.
+extension Binding: Equatable where Value: Equatable {
+  public static func ==(lhs: Self, rhs: Self) -> Bool {
+    lhs.wrappedValue == rhs.wrappedValue
+  }
+}

@@ -39,16 +39,21 @@ struct AppMenuQuickLookFocusedValueKey: FocusedValueKey {
   typealias Value = AppMenuAction
 }
 
-enum AppMenuBookmarkState: Equatable {
-  case add, remove
+//enum AppMenuBookmarkState: Equatable {
+//  case add, remove
+//}
+
+struct AppMenuBookmarkAction: Equatable {
+  let bookmarked: Bool
+  let menu: AppMenuAction
 }
 
 struct AppMenuBookmarkFocusedValueKey: FocusedValueKey {
   typealias Value = AppMenuAction
 }
 
-struct AppMenuBookmarkStateFocusedValueKey: FocusedValueKey {
-  typealias Value = AppMenuBookmarkState
+struct AppMenuBookmarkedFocusedValueKey: FocusedValueKey {
+  typealias Value = Binding<Bool>
 }
 
 struct AppMenuJumpToCurrentImageFocusedValueKey: FocusedValueKey {
@@ -81,9 +86,9 @@ extension FocusedValues {
     set { self[AppMenuBookmarkFocusedValueKey.self] = newValue }
   }
 
-  var sidebarBookmarkState: AppMenuBookmarkStateFocusedValueKey.Value? {
-    get { self[AppMenuBookmarkStateFocusedValueKey.self] }
-    set { self[AppMenuBookmarkStateFocusedValueKey.self] = newValue }
+  var sidebarBookmarked: AppMenuBookmarkedFocusedValueKey.Value? {
+    get { self[AppMenuBookmarkedFocusedValueKey.self] }
+    set { self[AppMenuBookmarkedFocusedValueKey.self] = newValue }
   }
 
   var jumpToCurrentImage: AppMenuJumpToCurrentImageFocusedValueKey.Value? {
@@ -103,7 +108,7 @@ struct ImageCollectionCommands: Commands {
   @FocusedValue(\.sidebarFinder) private var finder
   @FocusedValue(\.sidebarQuicklook) private var quicklook
   @FocusedValue(\.sidebarBookmark) private var bookmark
-  @FocusedValue(\.sidebarBookmarkState) private var bookmarkState
+  @FocusedBinding(\.sidebarBookmarked) private var bookmarked
   @FocusedValue(\.jumpToCurrentImage) private var jumpToCurrentImage
   private var window: NSWindow? { win?.window }
 
@@ -174,11 +179,9 @@ struct ImageCollectionCommands: Commands {
     }
 
     CommandMenu("Image") {
-      Button(bookmarkState == .remove ? "Remove Bookmark" : "Bookmark") {
-        bookmark?()
-      }
-      .keyboardShortcut(.bookmark)
-      .disabled(bookmark?.enabled != true)
+      Toggle("Bookmark", isOn: .init($bookmarked, defaultValue: false))
+        .keyboardShortcut(.bookmark)
+        .disabled(bookmarked == nil)
 
       Divider()
 

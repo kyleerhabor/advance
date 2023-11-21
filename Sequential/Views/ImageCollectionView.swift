@@ -270,16 +270,16 @@ struct ImageCollectionNavigationSidebarView: View {
 
           Task {
             withAnimation {
+              // Idea: Let the proxy finish scrolling before opening the sidebar.
+              //
+              // This will most likely involve the same tactic used to determine when the user is scrolling in the
+              // detail view.
               proxy.scrollTo(id, anchor: .center)
 
               columns = .all
             }
 
-            // Yes, this is convoluted; but it *partially* fixes an issue where focus won't apply when the sidebar is
-            // not already open. It doesn't always work, however, so it's not a solution.
-            Task {
-              focused = true
-            }
+            focused = true
           }
         }).focusedSceneValue(\.sidebarScroller, .init(selection: selection) {
           // The only place we're calling this is in ImageCollectionDetailItemView with a single item.
@@ -401,7 +401,7 @@ struct ImageCollectionView: View {
       collection.wrappedValue.visible = []
     }
     // Yes, the listed code below is dumb.
-    .onPreferenceChange(ScrollPositionPreferenceKey.self) { origin in
+    .onPreferenceChange(ScrollOffsetPreferenceKey.self) { origin in
       scrollSubject.send(origin)
     }.onReceive(publisher) { hide in
       guard columns == .detailOnly && !fullScreen else {

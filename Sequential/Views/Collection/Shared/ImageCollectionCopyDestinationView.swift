@@ -9,47 +9,25 @@ import Algorithms
 import OSLog
 import SwiftUI
 
-struct ImageCollectionCopyDestinationView<Scope>: View where Scope: URLScope {
+struct ImageCollectionCopyDestinationView: View {
   @Environment(CopyDepot.self) private var depot
   @AppStorage(Keys.resolveCopyDestinationConflicts.key) private var resolveConflicts = Keys.resolveCopyDestinationConflicts.value
 
   @Binding var isPresented: Bool
   @Binding var error: String?
-  let scopes: () -> [Scope]
+  let action: (URL) -> Void
 
   var body: some View {
     Menu("Copy to Folder", systemImage: "doc.on.doc") {
       ForEach(depot.resolved, id: \.url) { destination in
         Button {
-          // If the user is copying a large collection, we could benefit from displaying a progress indicator in the
-          // toolbar.
-          Task(priority: .medium) {
-            do {
-              try await save(to: destination.url)
-            } catch {
-              self.error = error.localizedDescription
-            }
-          }
+          action(destination.url)
         } label: {
           Text(destination.path)
         }
       }
     } primaryAction: {
       isPresented.toggle()
-    }
-  }
-
-  func save(to destination: URL) async throws {
-    try Self.saving {
-      try destination.scoped {
-        try scopes().forEach { scope in
-          try Self.saving(url: scope, to: destination) { url in
-            try scope.scoped {
-              try Self.save(url: url, to: destination, resolvingConflicts: resolveConflicts)
-            }
-          }
-        }
-      }
     }
   }
 
@@ -64,7 +42,7 @@ struct ImageCollectionCopyDestinationView<Scope>: View where Scope: URLScope {
     }
   }
 
-  static func saving(url scope: Scope, to destination: URL, action: (URL) throws -> Void) rethrows {
+  static func saving(url scope: some URLScope, to destination: URL, action: (URL) throws -> Void) rethrows {
     let url = scope.url
 
     do {

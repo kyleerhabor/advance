@@ -69,34 +69,33 @@ struct ImageCollectionSidebarContentView: View {
     // be reflected.
     .quickLookPreview($selectedQuickLookItem, in: quickLookItems)
     .contextMenu { ids in
-      Button("Show in Finder") {
-        openFinder(selecting: urls(from: ids))
-      }
-
-      // I tried replacing this for a Toggle, but the shift in items for the toggle icon didn't make it look right,
-      // defeating the purpose.
-      Button("Quick Look", systemImage: "eye") {
-        guard selectedQuickLookItem == nil else {
-          selectedQuickLookItem = nil
-
-          return
+      Section {
+        Button("Show in Finder") {
+          openFinder(selecting: urls(from: ids))
         }
 
-        quicklook(images: images(from: ids))
-      }
+        // I tried replacing this for a Toggle, but the shift in items for the toggle icon didn't make it look right,
+        // defeating the purpose.
+        Button("Quick Look", systemImage: "eye") {
+          guard selectedQuickLookItem == nil else {
+            selectedQuickLookItem = nil
 
-      Divider()
+            return
+          }
 
-      // Should we state how many images will be copied?
-      Button("Copy", systemImage: "doc.on.doc") {
-        let urls = urls(from: ids)
-
-        if !NSPasteboard.general.write(items: urls as [NSURL]) {
-          Logger.ui.error("Failed to write URLs \"\(urls.map(\.string))\" to pasteboard")
+          quicklook(images: images(from: ids))
         }
       }
 
-      if !copyDepot.resolved.isEmpty {
+      Section {
+        Button("Copy") {
+          let urls = urls(from: ids)
+
+          if !NSPasteboard.general.write(items: urls as [NSURL]) {
+            Logger.ui.error("Failed to write URLs \"\(urls.map(\.string))\" to pasteboard")
+          }
+        }
+
         let isPresented = Binding {
           isPresentingCopyFilePicker
         } set: { isPresenting in
@@ -104,17 +103,29 @@ struct ImageCollectionSidebarContentView: View {
           selectedCopyFiles = ids
         }
 
-        ImageCollectionCopyDestinationView(isPresented: isPresented, error: $error) { images(from: ids) }
+        ImageCollectionCopyDestinationView(isPresented: isPresented, error: $error) { destination in
+          Task(priority: .medium) {
+            do {
+              try await save(images: images(from: ids), to: destination)
+            } catch {
+              self.error = error.localizedDescription
+            }
+          }
+        }
       }
 
-      Divider()
+      Section {
+        let marked = Binding {
+          if ids.isEmpty {
+            return false
+          }
 
-      let mark: Bool = bookmark(selection: ids)
+          return bookmarked(selection: ids)
+        } set: { bookmarked in
+          bookmark(images: images(from: ids), value: bookmarked)
+        }
 
-      Button {
-        bookmark(mark, selection: ids)
-      } label: {
-        Label(mark ? "Bookmark" : "Remove Bookmark", systemImage: "bookmark")
+        ImageCollectionBookmarkView(bookmarked: marked)
       }
     }.fileImporter(isPresented: $isPresentingCopyFilePicker, allowedContentTypes: [.folder]) { result in
       switch result {
@@ -148,9 +159,11 @@ struct ImageCollectionSidebarContentView: View {
       }
 
       quicklook(images: images(from: self.selection))
-    }).focusedValue(\.sidebarBookmark, .init(enabled: !self.selection.isEmpty) {
-      bookmark(selection: self.selection)
-    }).focusedValue(\.sidebarBookmarkState, bookmark(selection: self.selection) ? .add : .remove)
+    }).focusedValue(\.sidebarBookmarked, .init {
+      bookmarked(selection: self.selection)
+    } set: { bookmarked in
+      bookmark(images: images(from: self.selection), value: bookmarked)
+    })
   }
 
   func images(from selection: ImageCollectionView.Selection) -> [ImageCollectionItemImage] {
@@ -180,33 +193,23 @@ struct ImageCollectionSidebarContentView: View {
     quickLookScopes = [:]
   }
 
-  func bookmark(selection: ImageCollectionView.Selection) -> Bool {
-    guard selection.isEmpty else {
-      return !selection.isSubset(of: collection.wrappedValue.bookmarkedIndex)
-    }
-
-    return true
+  func bookmarked(selection: ImageCollectionView.Selection) -> Bool {
+    return selection.isSubset(of: collection.wrappedValue.bookmarkedIndex)
   }
 
-  func bookmark(selection: ImageCollectionView.Selection) {
-    bookmark(bookmark(selection: selection), selection: selection)
-  }
-
-  func bookmark(_ value: Bool, selection: ImageCollectionView.Selection) {
-    collection.wrappedValue.images.filter(in: selection, by: \.id).forEach { image in
-      image.item.bookmarked = value
-    }
-
+  func bookmark(images: some Sequence<ImageCollectionItemImage>, value: Bool) {
+    images.forEach(setter(keyPath: \.bookmarked, value: value))
+    
     collection.wrappedValue.updateBookmarks()
   }
 
   func save(images: [ImageCollectionItemImage], to destination: URL) async throws {
-    try ImageCollectionCopyDestinationView<ImageCollectionItemImage>.saving {
+    try ImageCollectionCopyDestinationView.saving {
       try destination.scoped {
         try images.forEach { image in
           try ImageCollectionCopyDestinationView.saving(url: image, to: destination) { url in
             try image.scoped {
-              try ImageCollectionCopyDestinationView<ImageCollectionItemImage>.save(url: url, to: destination, resolvingConflicts: resolveCopyConflicts)
+              try ImageCollectionCopyDestinationView.save(url: url, to: destination, resolvingConflicts: resolveCopyConflicts)
             }
           }
         }
