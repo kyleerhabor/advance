@@ -22,7 +22,7 @@ Sequential was created to provide an experience as simple as (or even simpler th
 - Simple interface: a main canvas for viewing images, and a sidebar for managing them
 - Configurable margins:
   - Allow images to cover their whole frame, or make some room for yourself
-  - Hide the title bar when scrolling to truly immerse yourself in the imagery
+  - Hide the toolbar when scrolling to truly immerse yourself in the imagery
 - Continuous scrolling
 - Support for Live Text
 - Bookmarking
@@ -42,7 +42,7 @@ Sequential was created to provide an experience as simple as (or even simpler th
 <details>
   <summary>A page from the manga series "Children of the Whales" with the sidebar closed and margins set to none</summary>
 
-  <img src="Documentation/Screenshots/Children of the Whales.png" alt="The app showcasing the visible frame of a page from Children of the Whales (volume 18, chapter 73, page 5). The sidebar is closed, so only the title bar and image featuring the work are present, with the image extending to cover the full width.">
+  <img src="Documentation/Screenshots/Children of the Whales.png" alt="The app showcasing the visible frame of a page from Children of the Whales (volume 18, chapter 73, page 5). The sidebar is closed, so only the toolbar and image featuring the work are present, with the image extending to cover the full width.">
 </details>
 
 [^1]: A local copy of the 1st volume of the manga [The Ancient Magus' Bride][the-ancient-magus-bride] (~350 MB) loads in under 1 second on my 2019 MacBook Pro. To compare, Preview loads the same set of images in 7 seconds, and continues to heavily utilize the CPU in the background for much longer.

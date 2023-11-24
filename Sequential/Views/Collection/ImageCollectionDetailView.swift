@@ -86,7 +86,7 @@ struct ImageCollectionDetailItemView: View {
   let margin: Double
   let insets: EdgeInsets
   var liveTextIcon: Bool
-  let scrollSidebar: () -> Void
+  let scrollSidebar: Scroller.Scroll
 
   var body: some View {
     let url = image.url
@@ -131,8 +131,11 @@ struct ImageCollectionDetailItemView: View {
         }
 
         Button("Show in Sidebar") {
-          selection = [image.id]
-          scrollSidebar()
+          let selection: Set = [image.id]
+
+          scrollSidebar(selection)
+
+          self.selection = selection
         }
       }
 
@@ -154,12 +157,14 @@ struct ImageCollectionDetailItemView: View {
         }
       }
 
-      // For some reason, Swift fails to compile when this is in the Section. In addition, it does not allow shadowing
-      // original name.
-      @Bindable var img = image
-
       Section {
-        ImageCollectionDetailItemBookmarkView(bookmarked: $img.bookmarked)
+        let bookmarked = Binding {
+          image.bookmarked
+        } set: { bookmarked in
+          image.bookmarked = bookmarked
+        }
+
+        ImageCollectionDetailItemBookmarkView(bookmarked: bookmarked)
       }
     }.fileImporter(isPresented: $isPresentingCopyDestinationPicker, allowedContentTypes: [.folder]) { result in
       switch result {
@@ -199,7 +204,7 @@ struct ImageCollectionDetailView: View {
   @State private var showingDetails = false
 
   let images: [ImageCollectionItemImage]
-  let scrollSidebar: () -> Void
+  let scrollSidebar: Scroller.Scroll
   var icon: Bool {
     liveTextIcon ?? appLiveTextIcon
   }

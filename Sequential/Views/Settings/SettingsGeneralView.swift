@@ -87,12 +87,13 @@ struct SettingsGeneralView: View {
       Toggle(isOn: $trackCurrentImage) {
         Text("Track the current image")
 
+        // TODO: Figure out how to make the chevron smaller.
         Text("This enables functionality like dynamically modifying the title and showing the current image via **Image 􀯻 Show in Sidebar**, but may degrade performance.")
       }
 
       GroupBox {
         Toggle(isOn: $windowless) {
-          Text("Hide the title bar when scrolling")
+          Text("Hide the toolbar when scrolling")
 
           Text("Only relevant when the sidebar is not open.")
         }

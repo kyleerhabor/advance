@@ -186,8 +186,9 @@ func time<T>(
   )
 }
 
-func noop() {}
+func noop<each T>(_ args: repeat each T) {}
 
+// I have no idea if Swift will specialize if we implement this on Collection.
 extension RandomAccessCollection {
   var isMany: Bool {
     self.count > 1
@@ -210,19 +211,17 @@ extension NSItemProvider {
           return
         }
 
-        if let url {
-          // Note that when this happens, the image is copied to ~/Library/Containers/<sandbox>/Data/Library/Caches.
-          // We most likely want to allow the user to clear this data (in case it becomes excessive).
-          if !inPlace {
-            Logger.model.info("URL from dragged image \"\(url.string)\" is a local copy")
-          }
-
-          continuation.resume(returning: url)
-
-          return
+        guard let url else {
+          fatalError()
         }
 
-        fatalError()
+        // Note that when this happens, the image is copied to ~/Library/Containers/<sandbox>/Data/Library/Caches.
+        // We most likely want to allow the user to clear this data (in case it becomes excessive).
+        if !inPlace {
+          Logger.model.info("Resolved URL \"\(url.string)\" is a local copy")
+        }
+
+        continuation.resume(returning: url)
       }
     }
   }

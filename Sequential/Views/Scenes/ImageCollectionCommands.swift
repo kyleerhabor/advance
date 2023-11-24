@@ -39,19 +39,6 @@ struct AppMenuQuickLookFocusedValueKey: FocusedValueKey {
   typealias Value = AppMenuAction
 }
 
-//enum AppMenuBookmarkState: Equatable {
-//  case add, remove
-//}
-
-struct AppMenuBookmarkAction: Equatable {
-  let bookmarked: Bool
-  let menu: AppMenuAction
-}
-
-struct AppMenuBookmarkFocusedValueKey: FocusedValueKey {
-  typealias Value = AppMenuAction
-}
-
 struct AppMenuBookmarkedFocusedValueKey: FocusedValueKey {
   typealias Value = Binding<Bool>
 }
@@ -81,11 +68,6 @@ extension FocusedValues {
     set { self[AppMenuQuickLookFocusedValueKey.self] = newValue }
   }
 
-  var sidebarBookmark: AppMenuBookmarkFocusedValueKey.Value? {
-    get { self[AppMenuBookmarkFocusedValueKey.self] }
-    set { self[AppMenuBookmarkFocusedValueKey.self] = newValue }
-  }
-
   var sidebarBookmarked: AppMenuBookmarkedFocusedValueKey.Value? {
     get { self[AppMenuBookmarkedFocusedValueKey.self] }
     set { self[AppMenuBookmarkedFocusedValueKey.self] = newValue }
@@ -103,12 +85,11 @@ struct ImageCollectionCommands: Commands {
   @AppStorage(Keys.appearance.key) private var appearance: SettingsGeneralView.Scheme
   @AppStorage(Keys.importHidden.key) private var importHidden = Keys.importHidden.value
   @AppStorage(Keys.importSubdirectories.key) private var importSubdirectories = Keys.importSubdirectories.value
+  @FocusedBinding(\.sidebarBookmarked) private var bookmarked
   @FocusedValue(\.window) private var win
   @FocusedValue(\.fullScreen) private var fullScreen
   @FocusedValue(\.sidebarFinder) private var finder
   @FocusedValue(\.sidebarQuicklook) private var quicklook
-  @FocusedValue(\.sidebarBookmark) private var bookmark
-  @FocusedBinding(\.sidebarBookmarked) private var bookmarked
   @FocusedValue(\.jumpToCurrentImage) private var jumpToCurrentImage
   private var window: NSWindow? { win?.window }
 

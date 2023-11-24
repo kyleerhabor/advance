@@ -64,7 +64,7 @@ struct ImageCollectionSidebarView: View {
   @Environment(\.collection) @Binding private var collection
   @Environment(\.prerendering) private var prerendering
 
-  let scrollDetail: () -> Void
+  let scrollDetail: Scroller.Scroll
 
   var body: some View {
     ImageCollectionSidebarContentView(scrollDetail: scrollDetail)

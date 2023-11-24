@@ -194,31 +194,15 @@ extension EnvironmentValues {
   }
 }
 
-struct SidebarScroller: Equatable, Hashable {
-  let selection: ImageCollectionView.Selection
-  let scroll: () -> Void
-
-  init(selection: ImageCollectionView.Selection, _ scroll: @escaping () -> Void) {
-    self.selection = selection
-    self.scroll = scroll
-  }
-
-  static func ==(lhs: Self, rhs: Self) -> Bool {
-    lhs.selection == rhs.selection
-  }
-
-  func hash(into hasher: inout Hasher) {
-    hasher.combine(selection)
-  }
-}
-
 struct Scroller {
+  typealias Scroll = (ImageCollectionView.Selection) -> Void
+
   // While we're not directly using this property, it helps SwiftUI not excessively re-evaluate the view body (presumably
   // because a closure doesn't have an identity).
   let selection: ImageCollectionView.Selection
-  let scroll: () -> Void
+  let scroll: Scroll
 
-  init(selection: ImageCollectionView.Selection, _ scroll: @escaping () -> Void) {
+  init(selection: ImageCollectionView.Selection, _ scroll: @escaping Scroll) {
     self.selection = selection
     self.scroll = scroll
   }
@@ -269,36 +253,36 @@ struct ImageCollectionNavigationSidebarView: View {
           selection = [id]
 
           Task {
-            withAnimation {
-              // Idea: Let the proxy finish scrolling before opening the sidebar.
-              //
-              // This will most likely involve the same tactic used to determine when the user is scrolling in the
-              // detail view.
-              proxy.scrollTo(id, anchor: .center)
-
-              columns = .all
-            }
-
-            focused = true
+            scroll(id: id, proxy: proxy)
           }
-        }).focusedSceneValue(\.sidebarScroller, .init(selection: selection) {
+        }).focusedSceneValue(\.sidebarScroller, .init(selection: selection) { selection in
           // The only place we're calling this is in ImageCollectionDetailItemView with a single item.
           let id = selection.first!
 
           Task {
-            withAnimation {
-              proxy.scrollTo(id, anchor: .center)
-
-              columns = .all
-            }
+            scroll(id: id, proxy: proxy)
           }
       })
     }
   }
+
+  func scroll(id: some Hashable, proxy: ScrollViewProxy) {
+    withAnimation {
+      // Idea: Let the proxy finish scrolling before opening the sidebar.
+      //
+      // This will most likely involve the same tactic used to determine when the user is scrolling in the
+      // detail view.
+      proxy.scrollTo(id, anchor: .center)
+
+      columns = .all
+    }
+
+    focused = true
+  }
 }
 
 struct ImageCollectionNavigationDetailView: View {
-  @Environment(\.selection) @Binding private var selection
+  @Environment(\.selection) private var selection
   @FocusedValue(\.sidebarScroller) private var sidebarScroller
 
   @Binding var images: [ImageCollectionItemImage]
@@ -306,9 +290,9 @@ struct ImageCollectionNavigationDetailView: View {
   var body: some View {
     ScrollViewReader { proxy in
       ImageCollectionDetailView(images: images, scrollSidebar: sidebarScroller?.scroll ?? noop)
-        .focusedSceneValue(\.detailScroller, .init(selection: selection) { [selection] in
+        .focusedSceneValue(\.detailScroller, .init(selection: selection.wrappedValue) { selection in
           guard let id = images.filter(
-            in: self.selection.subtracting(selection),
+            in: selection.subtracting(self.selection.wrappedValue),
             by: \.id
           ).last?.id else {
             return
@@ -340,7 +324,8 @@ struct ImageCollectionView: View {
   @State private var selection = Selection()
   private let scrollSubject = PassthroughSubject<CGPoint, Never>()
   private let cursorSubject = PassthroughSubject<Void, Never>()
-  private let publisher: AnyPublisher<Bool, Never>
+  private let toolbarSubject = PassthroughSubject<Bool, Never>()
+  private let toolbarPublisher: AnyPublisher<Bool, Never>
   private var window: NSWindow? { win.window }
 
   var body: some View {
@@ -402,31 +387,28 @@ struct ImageCollectionView: View {
     }
     // Yes, the listed code below is dumb.
     .onPreferenceChange(ScrollOffsetPreferenceKey.self) { origin in
-      scrollSubject.send(origin)
-    }.onReceive(publisher) { hide in
-      guard columns == .detailOnly && !fullScreen else {
+      guard let window,
+            !window.isFullScreen() && windowless && columns == .detailOnly else {
         return
       }
 
-      setTitleBarVisibility(hide)
+      scrollSubject.send(origin)
     }.onContinuousHover { _ in
-      guard window?.inLiveResize == false, !fullScreen else {
+      guard let window, !window.inLiveResize else {
         return
       }
 
       cursorSubject.send()
     }.onChange(of: columns) {
-      guard !fullScreen else {
-        return
-      }
-
-      setTitleBarVisibility(true)
+      toolbarSubject.send(true)
     }.onChange(of: fullScreen) {
+      toolbarSubject.send(true)
+    }.onReceive(toolbarPublisher) { visible in
       guard let window else {
         return
       }
 
-      window.animator().titlebarSeparatorStyle = fullScreen ? .none : .automatic
+      Self.setToolbarVisibility(visible, for: window)
     }.environment(\.selection, $selection)
   }
 
@@ -440,24 +422,21 @@ struct ImageCollectionView: View {
       .throttle(for: .milliseconds(500), scheduler: DispatchQueue.main, latest: true)
 
     let scroller = scrollSubject
-      // When the user hides the sidebar, the title bar shouldn't be hidden (it normally produces at most 6 events).
+      // When the user hides the sidebar, the toolbar shouldn't be hidden (it normally produces at most 6 events).
       .collect(6)
       .filter { origins in
         origins.dropFirst().allSatisfy { $0.x == origins.first?.x }
       }.map { _ in false }
 
-    self.publisher = scroller
+    self.toolbarPublisher = scroller
       .map { _ in cursor }
       .switchToLatest()
+      .merge(with: toolbarSubject)
       .removeDuplicates()
       .eraseToAnyPublisher()
   }
 
-  func setTitleBarVisibility(_ visible: Bool) {
-    guard windowless, let window else {
-      return
-    }
-
+  static func setToolbarVisibility(_ visible: Bool, for window: NSWindow) {
     window.standardWindowButton(.closeButton)?.superview?.animator().alphaValue = visible ? 1 : 0
     window.animator().titlebarSeparatorStyle = visible ? .automatic : .none
   }

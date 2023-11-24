@@ -12,7 +12,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
   // If we try to use @Environment(\.openWindow) in this delegate, we'll get a warning about it not being used in a
   // SwiftUI view (which will note that the value will not be updated). While it's not really a problem, we're better
   // off not worrying about what other side effects it may entail.
-  var onOpen: ([URL]) -> Void = { _ in }
+  var onOpen: ([URL]) -> Void = noop
 
   func applicationWillFinishLaunching(_ notification: Notification) {
     // I personally think the context switch one needs to perform mentally when switching tabs outweights the benefit

@@ -23,15 +23,15 @@ struct ImageCollectionSidebarContentView: View {
   @State private var isPresentingCopyFilePicker = false
   @State private var error: String?
 
-  let scrollDetail: () -> Void
+  let scrollDetail: Scroller.Scroll
 
   var body: some View {
     let selection = Binding {
       self.selection
     } set: { selection in
-      self.selection = selection
+      scrollDetail(selection)
 
-      scrollDetail()
+      self.selection = selection
     }
     let error = Binding {
       self.error != nil
@@ -116,11 +116,7 @@ struct ImageCollectionSidebarContentView: View {
 
       Section {
         let marked = Binding {
-          if ids.isEmpty {
-            return false
-          }
-
-          return bookmarked(selection: ids)
+          isBookmarked(selection: ids)
         } set: { bookmarked in
           bookmark(images: images(from: ids), value: bookmarked)
         }
@@ -160,7 +156,7 @@ struct ImageCollectionSidebarContentView: View {
 
       quicklook(images: images(from: self.selection))
     }).focusedValue(\.sidebarBookmarked, .init {
-      bookmarked(selection: self.selection)
+      isBookmarked(selection: self.selection)
     } set: { bookmarked in
       bookmark(images: images(from: self.selection), value: bookmarked)
     })
@@ -174,17 +170,6 @@ struct ImageCollectionSidebarContentView: View {
     images(from: selection).map(\.url)
   }
 
-  func quicklook(images: [ImageCollectionItemImage]) {
-    clearQuickLookItems()
-
-    images.forEach { image in
-      quickLookScopes[image] = image.startSecurityScope()
-    }
-
-    quickLookItems = images.map(\.url)
-    selectedQuickLookItem = quickLookItems.first
-  }
-
   func clearQuickLookItems() {
     quickLookScopes.forEach { (image, scope) in
       image.endSecurityScope(scope: scope)
@@ -193,8 +178,28 @@ struct ImageCollectionSidebarContentView: View {
     quickLookScopes = [:]
   }
 
+  func quicklook(images: [ImageCollectionItemImage]) {
+    clearQuickLookItems()
+
+    images.forEach { image in
+      // If we hooked into Quick Look directly, we could likely avoid this lifetime juggling taking place here.
+      quickLookScopes[image] = image.startSecurityScope()
+    }
+
+    quickLookItems = images.map(\.url)
+    selectedQuickLookItem = quickLookItems.first
+  }
+
   func bookmarked(selection: ImageCollectionView.Selection) -> Bool {
     return selection.isSubset(of: collection.wrappedValue.bookmarkedIndex)
+  }
+
+  func isBookmarked(selection: ImageCollectionView.Selection) -> Bool {
+    if selection.isEmpty {
+      return false
+    }
+
+    return bookmarked(selection: selection)
   }
 
   func bookmark(images: some Sequence<ImageCollectionItemImage>, value: Bool) {

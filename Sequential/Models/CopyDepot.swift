@@ -148,6 +148,7 @@ class CopyDepot {
     let unresolved = grouping[false] ?? []
 
     Task {
+      // Note: I got a crash here once.
       async let resolved = destinations(for: resolved)
       async let unresolved = destinations(for: unresolved)
 
