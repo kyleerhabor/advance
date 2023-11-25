@@ -87,8 +87,7 @@ struct SettingsGeneralView: View {
       Toggle(isOn: $trackCurrentImage) {
         Text("Track the current image")
 
-        // TODO: Figure out how to make the chevron smaller.
-        Text("This enables functionality like dynamically modifying the title and showing the current image via **Image 􀯻 Show in Sidebar**, but may degrade performance.")
+        tracking.imageScale(.small)
       }
 
       GroupBox {
@@ -124,6 +123,24 @@ struct SettingsGeneralView: View {
           .frame(minWidth: 512, minHeight: 160)
       }
     }
+  }
+
+  @TextBuilder
+  var tracking: Text {
+    Text("This enables functionality like dynamically modifying the title and showing the current image via ")
+
+    trackingNavigation.bold()
+
+    Text(", but may degrade performance.")
+  }
+
+  @TextBuilder
+  var trackingNavigation: Text {
+    Text("Image ")
+
+    Text(Image(systemName: "chevron.forward"))
+
+    Text(" Show in Sidebar")
   }
 }
 
