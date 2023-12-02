@@ -59,7 +59,7 @@ func openFinder(in url: URL) -> Bool {
 
 func openFinder(at url: URL) {
   if !openFinder(in: url) {
-    Logger.ui.info("Failed to open Finder in folder \"\(url.string)\". Fallbacking to selection.")
+    Logger.ui.info("Failed to open Finder in folder \"\(url.string)\". Defaulting to selection...")
 
     openFinder(selecting: url)
   }

@@ -15,7 +15,7 @@ struct VisiblePreferenceKey: PreferenceKey {
 }
 
 struct ImageCollectionDetailItemVisibilityView: View {
-  @Environment(\.collection) private var collection
+  @Environment(\.visible) @Binding private var visible
 
   let image: ImageCollectionItemImage
 
@@ -33,14 +33,14 @@ struct ImageCollectionDetailItemVisibilityView: View {
     // an ordered set)
     .onPreferenceChange(VisiblePreferenceKey.self) { visible in
       guard visible else {
-        if let index = collection.wrappedValue.visible.firstIndex(of: image) {
-          collection.wrappedValue.visible.remove(at: index)
+        if let index = self.visible.firstIndex(of: image) {
+          self.visible.remove(at: index)
         }
 
         return
       }
 
-      collection.wrappedValue.visible.append(image)
+      self.visible.append(image)
     }
   }
 }
@@ -82,7 +82,7 @@ struct ImageCollectionDetailItemView: View {
     }
   }
 
-  let image: ImageCollectionItemImage
+  @Bindable var image: ImageCollectionItemImage
   let margin: Double
   let insets: EdgeInsets
   var liveTextIcon: Bool
@@ -92,38 +92,47 @@ struct ImageCollectionDetailItemView: View {
     let url = image.url
     let insets = collapse ? insets : .init(margin * 6)
 
-    ImageCollectionItemView(image: image) { $phase in
-      VStack {
-        if phase.image != nil && liveText {
-          @Bindable var image = image
-
-          LiveTextView(
-            scope: image,
-            orientation: image.orientation,
-            analysis: $image.analysis
-          ).supplementaryInterfaceHidden(!liveTextIcon)
-        }
+    // For some reason, ImageCollectionItemView needs to be wrapped in a VStack for animations to apply.
+    VStack {
+      ImageCollectionItemView(image: image) { $phase in
+        Color.clear
+          .overlay {
+            if phase.image != nil && liveText {
+              LiveTextView(
+                scope: image,
+                orientation: image.orientation,
+                analysis: $image.analysis
+              ).supplementaryInterfaceHidden(!liveTextIcon)
+            }
+          }.onDisappear {
+            // This is necessary to slow down the memory creep SwiftUI creates when rendering some images. It does not
+            // eliminate it, but severely halts it. As an example, I have a copy of the first volume of the manga Soloist in a Cage (~750 MBs).
+            // When the window size is the default and the sidebar is open but hasn't been scrolled through, by time I
+            // reach page 24, the memory has ballooned to ~600 MB. With this little trick, however, it rests at about ~150-200 MBs,
+            // and is nearly eliminated by the window being closed. Note that the memory creep is mostly applicable to
+            // regular memory and not so much real memory. In addition, not all image collections need it, since there are
+            // some which (magically) handle their own memory while not destroying the image (in other words, it rests at a
+            // good average, like ~150 MB).
+            //
+            // In the future, I'd like to improve image loading so images are preloaded before they appear on-screen. I've
+            // tried this before, but it's resulted in microhangs.
+            phase = .empty
+          }
       }.background {
+        // Yes, this does improve performance—not because GeometryReader is expensive, but because monitoring the current
+        // image is. We update the visible collection in the environment, which is high up in the view hierarchy. On my
+        // 2019 MacBook Pro, for example, previewing the Made in Abyss manga (volumes 1 - 11, 1.8K images) results in a
+        // ~40ms hang each time the collection is modified (meaning when the user scrolls to a new image). It's subtle,
+        // and primarily applicable to large image collections, but problematic nevertheless. I'd like to fix this, but
+        // the only solution it seems is to push the collection lower into the view hierarchy (which, given the current
+        // structure, is difficult).
         if trackCurrentImage {
           ImageCollectionDetailItemVisibilityView(image: image)
         }
-      }.onDisappear {
-        // This is necessary to slow down the memory creep SwiftUI creates when rendering some images. It does not
-        // eliminate it, but severely halts it. As an example, I have a copy of the first volume of Soloist in a Cage (~750 MBs).
-        // When the window size is the default and the sidebar is open but hasn't been scrolled through, by time I
-        // reach page 24, the memory has ballooned to ~600 MB. With this little trick, however, it rests at about ~150-200 MBs,
-        // and is nearly eliminated by the window being closed. Note that the memory creep is mostly applicable to
-        // regular memory and not so much real memory. In addition, not all image collections need it, since there are
-        // some which (magically) handle their own memory while not destroying the image (in other words, it rests at a
-        // good average, like ~150 MB).
-        //
-        // In the future, I'd like to improve image loading so images are preloaded before they appear on-screen. I've
-        // tried this before, but it's resulted in microhangs.
-        phase = .empty
       }
     }
-    .shadow(radius: margin / 2)
     .listRowInsets(.listRow + insets)
+    .shadow(radius: margin / 2)
     .contextMenu {
       Section {
         Button("Show in Finder") {
@@ -158,13 +167,7 @@ struct ImageCollectionDetailItemView: View {
       }
 
       Section {
-        let bookmarked = Binding {
-          image.bookmarked
-        } set: { bookmarked in
-          image.bookmarked = bookmarked
-        }
-
-        ImageCollectionDetailItemBookmarkView(bookmarked: bookmarked)
+        ImageCollectionDetailItemBookmarkView(bookmarked: $image.bookmarked)
       }
     }.fileImporter(isPresented: $isPresentingCopyDestinationPicker, allowedContentTypes: [.folder]) { result in
       switch result {
@@ -179,7 +182,9 @@ struct ImageCollectionDetailItemView: View {
         case .failure(let err):
           Logger.ui.info("\(err)")
       }
-    }.alert(error ?? "", isPresented: isPresentingErrorAlert) {}
+    }
+    .fileDialogCopy()
+    .alert(error ?? "", isPresented: isPresentingErrorAlert) {}
   }
 
   func save(image: ImageCollectionItemImage, to destination: URL) async throws {

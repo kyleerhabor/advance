@@ -251,12 +251,6 @@ class ImageCollection: Codable {
   var bookmarked = [ImageCollectionItemImage]()
   var bookmarkedIndex = ImageCollectionView.Selection()
 
-  // The materialized state useful for the UI.
-  var visible = [ImageCollectionItemImage]()
-  var currentImage: ImageCollectionItemImage? {
-    visible.last
-  }
-
   init() {
     self.bookmarks = []
   }

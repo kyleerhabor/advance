@@ -24,7 +24,6 @@
 		0042B5DB2AB8C450009F251B /* ImageCollectionCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0042B5DA2AB8C450009F251B /* ImageCollectionCommands.swift */; };
 		004D8FC02A76C1C900C0303E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 004D8FBF2A76C1C900C0303E /* SettingsView.swift */; };
 		0077AF922ABB8650002E3FF4 /* Image.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0077AF912ABB8650002E3FF4 /* Image.swift */; };
-		007D96372AB6367000F912A6 /* KeyEventView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 007D96362AB6367000F912A6 /* KeyEventView.swift */; };
 		007FDD492A76E1C800A1E42B /* WindowViewModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 007FDD482A76E1C800A1E42B /* WindowViewModifier.swift */; };
 		008815F62B07DC8A00D8F3D8 /* Algorithms in Frameworks */ = {isa = PBXBuildFile; productRef = 008815F52B07DC8A00D8F3D8 /* Algorithms */; };
 		00C09BBF2A789D30006EB887 /* View.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00C09BBE2A789D30006EB887 /* View.swift */; };
@@ -61,7 +60,6 @@
 		004D822E2AC77C1A00C8284C /* The Ancient Magus' Bride.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "The Ancient Magus' Bride.png"; sourceTree = "<group>"; };
 		004D8FBF2A76C1C900C0303E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		0077AF912ABB8650002E3FF4 /* Image.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Image.swift; sourceTree = "<group>"; };
-		007D96362AB6367000F912A6 /* KeyEventView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyEventView.swift; sourceTree = "<group>"; };
 		007FDD482A76E1C800A1E42B /* WindowViewModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowViewModifier.swift; sourceTree = "<group>"; };
 		009A6D112AD6564F00436383 /* Children of the Whales.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Children of the Whales.png"; sourceTree = "<group>"; };
 		00C09BBE2A789D30006EB887 /* View.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = View.swift; sourceTree = "<group>"; };
@@ -199,7 +197,6 @@
 			children = (
 				002629D12AD59DC700ABFEB6 /* DisplayView.swift */,
 				00C127352A90CF7400B5452C /* LiveTextView.swift */,
-				007D96362AB6367000F912A6 /* KeyEventView.swift */,
 				002FB7722B0BD99900E930AF /* ScrollingView.swift */,
 			);
 			path = Legos;
@@ -316,7 +313,6 @@
 				001D8D0E2A74AC5400B58790 /* Model.swift in Sources */,
 				00E22C542ACF32BB001048ED /* Bookmark.swift in Sources */,
 				003763C92AB4068700D53F2E /* ImageCollectionSidebarView.swift in Sources */,
-				007D96372AB6367000F912A6 /* KeyEventView.swift in Sources */,
 				004D8FC02A76C1C900C0303E /* SettingsView.swift in Sources */,
 				00C369532AB766DC0033F10A /* ImageCollection.swift in Sources */,
 				002629D22AD59DC700ABFEB6 /* DisplayView.swift in Sources */,

@@ -9,8 +9,71 @@ import Combine
 import OSLog
 import SwiftUI
 
+struct SelectionEnvironmentKey: EnvironmentKey {
+  static var defaultValue = Binding.constant(ImageCollectionView.Selection())
+}
+
+struct VisibleEnvironmentKey: EnvironmentKey {
+  static var defaultValue = Binding.constant([ImageCollectionItemImage]())
+}
+
+extension EnvironmentValues {
+  var selection: SelectionEnvironmentKey.Value {
+    get { self[SelectionEnvironmentKey.self] }
+    set { self[SelectionEnvironmentKey.self] = newValue }
+  }
+
+  var visible: VisibleEnvironmentKey.Value {
+    get { self[VisibleEnvironmentKey.self] }
+    set { self[VisibleEnvironmentKey.self] = newValue }
+  }
+}
+
+struct Scroller {
+  typealias Scroll = (ImageCollectionView.Selection) -> Void
+
+  // While we're not directly using this property, it helps SwiftUI not excessively re-evaluate the view body (presumably
+  // because a closure doesn't have an identity).
+  let selection: ImageCollectionView.Selection
+  let scroll: Scroll
+
+  init(selection: ImageCollectionView.Selection, _ scroll: @escaping Scroll) {
+    self.selection = selection
+    self.scroll = scroll
+  }
+}
+
+extension Scroller: Equatable {
+  static func ==(lhs: Self, rhs: Self) -> Bool {
+    lhs.selection == rhs.selection
+  }
+}
+
+struct SidebarScrollerFocusedValueKey: FocusedValueKey {
+  typealias Value = Scroller
+}
+
+struct DetailScrollerFocusedValueKey: FocusedValueKey {
+  typealias Value = Scroller
+}
+
+extension FocusedValues {
+  var sidebarScroller: SidebarScrollerFocusedValueKey.Value? {
+    get { self[SidebarScrollerFocusedValueKey.self] }
+    set { self[SidebarScrollerFocusedValueKey.self] = newValue }
+  }
+
+  var detailScroller: DetailScrollerFocusedValueKey.Value? {
+    get { self[DetailScrollerFocusedValueKey.self] }
+    set { self[DetailScrollerFocusedValueKey.self] = newValue }
+  }
+}
+
 struct ImageCollectionItemPhaseView: View {
   @State private var elapsed = false
+  private var imagePhase: ImagePhase {
+    .init(phase) ?? .empty
+  }
 
   @Binding var phase: AsyncImagePhase
 
@@ -25,22 +88,30 @@ struct ImageCollectionItemPhaseView: View {
       .overlay {
         if let image = phase.image {
           image.resizable()
-        } else if case .failure = phase {
+        }
+      }.overlay {
+        ProgressView()
+          .visible(imagePhase == .empty && elapsed)
+          .animation(.default, value: elapsed)
+      }.overlay {
+        if case .failure = phase {
           // We can't really get away with not displaying a failure view.
           Image(systemName: "exclamationmark.triangle.fill")
             .symbolRenderingMode(.multicolor)
             .imageScale(.large)
-        } else {
-          ProgressView().visible(elapsed)
         }
-      }.task {
-        guard (try? await Task.sleep(for: .seconds(1))) != nil else {
-          return
+      }
+      .animation(.default, value: imagePhase)
+      .task {
+        do {
+          try await Task.sleep(for: .seconds(1))
+        } catch is CancellationError {
+          // Fallthrough
+        } catch {
+          Logger.ui.fault("Image elapse threw an error besides CancellationError: \(error)")
         }
 
-        withAnimation {
-          elapsed = true
-        }
+        elapsed = true
       }.onDisappear {
         elapsed = false
       }
@@ -61,28 +132,24 @@ struct ImageCollectionItemView<Overlay>: View where Overlay: View {
         height: size.height / pixel
       )
 
-      guard let phase = await resample(image: image, size: size) else {
-        return
-      }
-
-      if case let .failure(err) = phase {
-        Logger.ui.error("Could not resample image \"\(image.url.string)\": \(err)")
-      }
-
-      // If we're replacing an already existing image with a new image, don't animate.
-      if case .success = self.phase,
-         case .success = phase {
-        // Either storing image data in @State is slow, rendering it is slow, or transferring it across actors is slow.
-        // This seems to only be the case for certain images, too.
-        self.phase = phase
-      } else {
-        withAnimation {
-          self.phase = phase
+      Task {
+        guard let phase = await resample(image: image, size: size) else {
+          return
         }
+        
+        if case let .failure(err) = phase {
+          Logger.ui.error("Could not resample image \"\(image.url.string)\": \(err)")
+        }
+
+        self.phase = phase
       }
     } content: {
+      @Bindable var image = image
+
       ImageCollectionItemPhaseView(phase: $phase)
-        .overlay { overlay($phase) }
+        .overlay {
+          overlay($phase)
+        }
     }.aspectRatio(image.aspectRatio, contentMode: .fit)
   }
 
@@ -125,7 +192,7 @@ struct ImageCollectionItemView<Overlay>: View where Overlay: View {
 
   func resample(url: URL, size: CGSize) async throws -> Image {
     guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
-      // FIXME: For some reason, if the user scrolls fast enough in the UI, this returns nil and throws.
+      // FIXME: For some reason, if the user scrolls fast enough in the UI, source returns nil.
       throw ImageError.undecodable
     }
 
@@ -183,57 +250,6 @@ extension ImageCollectionItemView where Overlay == EmptyView {
   }
 }
 
-struct SelectionEnvironmentKey: EnvironmentKey {
-  static var defaultValue = Binding.constant(ImageCollectionView.Selection())
-}
-
-extension EnvironmentValues {
-  var selection: SelectionEnvironmentKey.Value {
-    get { self[SelectionEnvironmentKey.self] }
-    set { self[SelectionEnvironmentKey.self] = newValue }
-  }
-}
-
-struct Scroller {
-  typealias Scroll = (ImageCollectionView.Selection) -> Void
-
-  // While we're not directly using this property, it helps SwiftUI not excessively re-evaluate the view body (presumably
-  // because a closure doesn't have an identity).
-  let selection: ImageCollectionView.Selection
-  let scroll: Scroll
-
-  init(selection: ImageCollectionView.Selection, _ scroll: @escaping Scroll) {
-    self.selection = selection
-    self.scroll = scroll
-  }
-}
-
-extension Scroller: Equatable {
-  static func ==(lhs: Self, rhs: Self) -> Bool {
-    lhs.selection == rhs.selection
-  }
-}
-
-struct SidebarScrollerFocusedValueKey: FocusedValueKey {
-  typealias Value = Scroller
-}
-
-struct DetailScrollerFocusedValueKey: FocusedValueKey {
-  typealias Value = Scroller
-}
-
-extension FocusedValues {
-  var sidebarScroller: SidebarScrollerFocusedValueKey.Value? {
-    get { self[SidebarScrollerFocusedValueKey.self] }
-    set { self[SidebarScrollerFocusedValueKey.self] = newValue }
-  }
-
-  var detailScroller: DetailScrollerFocusedValueKey.Value? {
-    get { self[DetailScrollerFocusedValueKey.self] }
-    set { self[DetailScrollerFocusedValueKey.self] = newValue }
-  }
-}
-
 struct ImageCollectionNavigationSidebarView: View {
   @Environment(\.prerendering) private var prerendering
   @Environment(\.collection) private var collection
@@ -247,52 +263,66 @@ struct ImageCollectionNavigationSidebarView: View {
     ScrollViewReader { proxy in
       ImageCollectionSidebarView(scrollDetail: detailScroller?.scroll ?? noop)
         .focused($focused)
-        .focusedSceneValue(\.jumpToCurrentImage, .init(enabled: collection.wrappedValue.currentImage != nil) {
-          let id = collection.wrappedValue.currentImage!.id
-
-          selection = [id]
-
-          Task {
-            scroll(id: id, proxy: proxy)
-          }
-        }).focusedSceneValue(\.sidebarScroller, .init(selection: selection) { selection in
+        .focusedSceneValue(\.sidebarScroller, .init(selection: selection) { selection in
           // The only place we're calling this is in ImageCollectionDetailItemView with a single item.
           let id = selection.first!
 
           Task {
-            scroll(id: id, proxy: proxy)
+            scroll(proxy, to: id)
           }
-      })
+        })
     }
   }
 
-  func scroll(id: some Hashable, proxy: ScrollViewProxy) {
+  func scroll(_ proxy: ScrollViewProxy, to id: some Hashable) {
+    // We're using completion blocks to synchronize actions in the UI.
+    //
+    // If the sidebar is not open, the scroll should happen off-screen before presenting it to the user. In addition,
+    // we need the selected image to gain focus, which can only occur after the sidebar is fully open.
+    //
+    // There is unfortunately a slight continuation of the scroll animation that may occur during the columns animation,
+    // but it's subtle and miles ahead of the prior implementation.
     withAnimation {
-      // Idea: Let the proxy finish scrolling before opening the sidebar.
-      //
-      // This will most likely involve the same tactic used to determine when the user is scrolling in the
-      // detail view.
       proxy.scrollTo(id, anchor: .center)
-
-      columns = .all
+    } completion: {
+      withAnimation {
+        columns = .all
+      } completion: {
+        focused = true
+      }
     }
-
-    focused = true
   }
 }
 
 struct ImageCollectionNavigationDetailView: View {
-  @Environment(\.selection) private var selection
+  @Environment(\.selection) @Binding private var selection
+  @AppStorage(Keys.trackCurrentImage.key) private var trackCurrentImage = Keys.trackCurrentImage.value
+  @AppStorage(Keys.displayTitleBarImage.key) private var displayTitleBarImage = Keys.displayTitleBarImage.value
   @FocusedValue(\.sidebarScroller) private var sidebarScroller
+  // If we could move this to a background view while keeping it in the environment, we'd probably have no animation hitches.
+  @State private var visible = [ImageCollectionItemImage]()
+  private var visibleImage: ImageCollectionItemImage? { visible.last }
+  private var visibleImageURL: URL? {
+    guard displayTitleBarImage else {
+      return nil
+    }
 
-  @Binding var images: [ImageCollectionItemImage]
+    return visible.last?.url
+  }
+
+  var images: [ImageCollectionItemImage]
 
   var body: some View {
     ScrollViewReader { proxy in
       ImageCollectionDetailView(images: images, scrollSidebar: sidebarScroller?.scroll ?? noop)
-        .focusedSceneValue(\.detailScroller, .init(selection: selection.wrappedValue) { selection in
+        .navigationTitle(Text(visibleImageURL?.deletingPathExtension().lastPathComponent ?? "Sequential"))
+        // I wish it were possible to pass nil to not use this modifier. This workaround displays a blank file that doesn't
+        // point anywhere.
+        .navigationDocument(visibleImageURL ?? .file)
+        .environment(\.visible, $visible)
+        .focusedSceneValue(\.detailScroller, .init(selection: selection) { selection in
           guard let id = images.filter(
-            in: selection.subtracting(self.selection.wrappedValue),
+            in: selection.subtracting(self.selection),
             by: \.id
           ).last?.id else {
             return
@@ -305,7 +335,19 @@ struct ImageCollectionNavigationDetailView: View {
               proxy.scrollTo(id, anchor: .top)
             }
           }
-        })
+        }).focusedSceneValue(\.jumpToCurrentImage, .init(enabled: visibleImage != nil) {
+          let id = visibleImage!.id
+
+          selection = [id]
+
+          sidebarScroller?.scroll([id])
+        }).onChange(of: trackCurrentImage) {
+          guard !trackCurrentImage else {
+            return
+          }
+
+          visible = []
+        }
     }
   }
 }
@@ -315,11 +357,8 @@ struct ImageCollectionView: View {
 
   @Environment(Window.self) private var win
   @Environment(\.fullScreen) private var fullScreen
-  @Environment(\.prerendering) private var prerendering
   @Environment(\.collection) private var collection
   @AppStorage(Keys.windowless.key) private var windowless = Keys.windowless.value
-  @AppStorage(Keys.displayTitleBarImage.key) private var displayTitleBarImage = Keys.displayTitleBarImage.value
-  @AppStorage(Keys.trackCurrentImage.key) private var trackCurrentImage = Keys.trackCurrentImage.value
   @SceneStorage("sidebar") private var columns = NavigationSplitViewVisibility.all
   @State private var selection = Selection()
   private let scrollSubject = PassthroughSubject<CGPoint, Never>()
@@ -329,21 +368,13 @@ struct ImageCollectionView: View {
   private var window: NSWindow? { win.window }
 
   var body: some View {
-    // Interestingly, using @State causes the app to hang whenever the list of URLs is changed. I presume this has to
-    // do with how changes are propagated.
-    let visible = displayTitleBarImage ? collection.wrappedValue.currentImage?.url : nil
-
     NavigationSplitView(columnVisibility: $columns) {
       ImageCollectionNavigationSidebarView(columns: $columns)
         .navigationSplitViewColumnWidth(min: 128, ideal: 192, max: 256)
     } detail: {
-      ImageCollectionNavigationDetailView(images: collection.images)
+      ImageCollectionNavigationDetailView(images: collection.wrappedValue.images)
         .frame(minWidth: 256)
     }
-    .navigationTitle(Text(visible?.deletingPathExtension().lastPathComponent ?? "Sequential"))
-    // I wish it were possible to pass nil to not use this modifier. This workaround displays a blank file that doesn't
-    // point anywhere.
-    .navigationDocument(visible ?? .file)
     .toolbar(fullScreen ? .hidden : .automatic)
     .task {
       let resolved = await collection.wrappedValue.load()
@@ -378,13 +409,8 @@ struct ImageCollectionView: View {
       collection.wrappedValue.items = results.flatMap(\.1)
       collection.wrappedValue.updateImages()
       collection.wrappedValue.updateBookmarks()
-    }.onChange(of: trackCurrentImage) {
-      guard !trackCurrentImage else {
-        return
-      }
-
-      collection.wrappedValue.visible = []
     }
+    .environment(\.selection, $selection)
     // Yes, the listed code below is dumb.
     .onPreferenceChange(ScrollOffsetPreferenceKey.self) { origin in
       guard let window,
@@ -402,14 +428,14 @@ struct ImageCollectionView: View {
     }.onChange(of: columns) {
       toolbarSubject.send(true)
     }.onChange(of: fullScreen) {
-      toolbarSubject.send(true)
+      // We can't use toolbarSubject since duplicate elements are dropped. If the user has the toolbar visible (therefore,
+      // the last value is true) and tries to enter full screen, setToolbarVisibility won't be called, causing the title
+      // bar separator to be set to .automatic instead of .none (which is bad in light mode, where a thin line is drawn
+      // at the top of the screen)
+      setToolbarVisibility(true)
     }.onReceive(toolbarPublisher) { visible in
-      guard let window else {
-        return
-      }
-
-      Self.setToolbarVisibility(visible, for: window)
-    }.environment(\.selection, $selection)
+      setToolbarVisibility(visible)
+    }
   }
 
   init() {
@@ -436,8 +462,19 @@ struct ImageCollectionView: View {
       .eraseToAnyPublisher()
   }
 
+  func setToolbarVisibility(_ visible: Bool) {
+    guard let window else {
+      return
+    }
+
+    Self.setToolbarVisibility(visible, for: window)
+  }
+
   static func setToolbarVisibility(_ visible: Bool, for window: NSWindow) {
     window.standardWindowButton(.closeButton)?.superview?.animator().alphaValue = visible ? 1 : 0
-    window.animator().titlebarSeparatorStyle = visible ? .automatic : .none
+
+    // For some reason, full screen windows in light mode draw a slight line under the top of the screen after
+    // scrolling for a bit. This doesn't occur in dark mode, which is interesting.
+    window.animator().titlebarSeparatorStyle = visible && !window.isFullScreen() ? .automatic : .none
   }
 }

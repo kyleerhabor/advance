@@ -31,6 +31,21 @@ extension AppMenuAction: Equatable {
   }
 }
 
+struct AppMenu<Identity> where Identity: Equatable {
+  let identity: Identity
+  let perform: () -> Void
+}
+
+extension AppMenu: Equatable {
+  static func ==(lhs: Self, rhs: Self) -> Bool {
+    lhs.identity == rhs.identity
+  }
+}
+
+struct AppMenuOpenFilePickerFocusedValueKey<Identity>: FocusedValueKey where Identity: Equatable {
+  typealias Value = AppMenu<Identity>
+}
+
 struct AppMenuFinderFocusedValueKey: FocusedValueKey {
   typealias Value = AppMenuAction
 }
@@ -56,6 +71,11 @@ extension FocusedValues {
   var fullScreen: FullScreenFocusedValueKey.Value? {
     get { self[FullScreenFocusedValueKey.self] }
     set { self[FullScreenFocusedValueKey.self] = newValue }
+  }
+
+  var openFileImporter: AppMenuOpenFilePickerFocusedValueKey<Bool>.Value? {
+    get { self[AppMenuOpenFilePickerFocusedValueKey<Bool>.self] }
+    set { self[AppMenuOpenFilePickerFocusedValueKey<Bool>.self] = newValue }
   }
 
   var sidebarFinder: AppMenuFinderFocusedValueKey.Value? {
@@ -88,6 +108,7 @@ struct ImageCollectionCommands: Commands {
   @FocusedBinding(\.sidebarBookmarked) private var bookmarked
   @FocusedValue(\.window) private var win
   @FocusedValue(\.fullScreen) private var fullScreen
+  @FocusedValue(\.openFileImporter) private var openFileImporter
   @FocusedValue(\.sidebarFinder) private var finder
   @FocusedValue(\.sidebarQuicklook) private var quicklook
   @FocusedValue(\.jumpToCurrentImage) private var jumpToCurrentImage
@@ -101,23 +122,22 @@ struct ImageCollectionCommands: Commands {
 
     CommandGroup(after: .newItem) {
       Button("Open...") {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = true
-        panel.canChooseDirectories = true
-        panel.allowsMultipleSelection = true
-        panel.allowedContentTypes = [.image]
+        if let openFileImporter {
+          openFileImporter.perform()
 
-        // We don't want panel.begin() since it creating a modeless window causes SwiftUI to not treat it like a window.
-        // This is most obvious when there are no windows but the open dialog and the app is activated, creating a new
-        // window for the scene.
-        guard panel.runModal() == .OK else {
+          return
+        }
+
+        let urls = Self.performImageFilePicker()
+        
+        guard !urls.isEmpty else {
           return
         }
 
         Task {
           do {
             let bookmarks = try await ImageCollection.resolve(
-              urls: panel.urls.enumerated(),
+              urls: urls.enumerated(),
               hidden: importHidden,
               subdirectories: importSubdirectories
             ).ordered()
@@ -200,5 +220,22 @@ struct ImageCollectionCommands: Commands {
         }
       }
     }
+  }
+
+  static func performImageFilePicker() -> [URL] {
+    let panel = NSOpenPanel()
+    panel.canChooseFiles = true
+    panel.canChooseDirectories = true
+    panel.allowsMultipleSelection = true
+    panel.allowedContentTypes = [.image]
+
+    // We don't want panel.begin() since it creating a modeless window causes SwiftUI to not treat it like a window.
+    // This is most obvious when there are no windows but the open dialog and the app is activated, creating a new
+    // window for the scene.
+    guard panel.runModal() == .OK else {
+      return []
+    }
+
+    return panel.urls
   }
 }

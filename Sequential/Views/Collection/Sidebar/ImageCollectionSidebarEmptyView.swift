@@ -7,11 +7,6 @@
 
 import OSLog
 import SwiftUI
-import UniformTypeIdentifiers
-
-// FIXME: Accessing the URLs in the UI often fails.
-//
-// This seems specific to 
 
 struct ImageCollectionEmptySidebarLabelStyle: LabelStyle {
   func makeBody(configuration: Configuration) -> some View {
@@ -64,7 +59,9 @@ struct ImageCollectionSidebarEmptyView: View {
         case .failure(let err):
           Logger.ui.error("Import images from sidebar failed: \(err)")
       }
-    }.onDrop(of: [.image, .folder], isTargeted: nil) { providers in
+    }
+    .fileDialogOpen()
+    .onDrop(of: [.image, .folder], isTargeted: nil) { providers in
       NSApp.abortModal()
 
       Task {
@@ -100,7 +97,9 @@ struct ImageCollectionSidebarEmptyView: View {
       }
 
       return true
-    }
+    }.focusedSceneValue(\.openFileImporter, .init(identity: false) {
+      isFilePickerPresented.toggle()
+    })
   }
 
   func resolve(urls: some Sequence<Offset<URL>>) async throws -> [(BookmarkKind, [ImageCollectionItem])] {

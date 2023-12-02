@@ -10,7 +10,7 @@ import OSLog
 import SwiftUI
 
 struct DisplayView<Content>: View where Content: View {
-  typealias Action = (CGSize) async -> Void
+  typealias Action = (CGSize) -> Void
 
   @State private var size = CGSize.zero
   private let subject = PassthroughSubject<CGSize, Never>()
@@ -31,7 +31,7 @@ struct DisplayView<Content>: View where Content: View {
             return
           }
 
-          await action(size)
+          action(size)
         }
     }.onReceive(publisher) { size in
       self.size = size

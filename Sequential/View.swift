@@ -5,6 +5,7 @@
 //  Created by Kyle Erhabor on 7/31/23.
 //
 
+import OSLog
 import SwiftUI
 
 extension NSWindow {
@@ -81,5 +82,58 @@ extension Binding {
 extension Binding: Equatable where Value: Equatable {
   public static func ==(lhs: Self, rhs: Self) -> Bool {
     lhs.wrappedValue == rhs.wrappedValue
+  }
+}
+
+struct FileDialogOpenViewModifier: ViewModifier {
+  func body(content: Content) -> some View {
+    content.fileDialogCustomizationID("open")
+  }
+}
+
+struct FileDialogCopyViewModifier: ViewModifier {
+  func body(content: Content) -> some View {
+    content
+      .fileDialogCustomizationID("copy")
+      .fileDialogConfirmationLabel("Copy")
+  }
+}
+
+struct FileDialogCopyDestinationViewModifier: ViewModifier {
+  func body(content: Content) -> some View {
+    content
+      .fileDialogCustomizationID("copydestination")
+      .fileDialogConfirmationLabel("Add")
+  }
+}
+
+extension View {
+  // I wish there were a way to apply this to the NSOpenPanel used in File > Open...
+  func fileDialogOpen() -> some View {
+    self.modifier(FileDialogOpenViewModifier())
+  }
+
+  func fileDialogCopy() -> some View {
+    self.modifier(FileDialogCopyViewModifier())
+  }
+
+  func fileDialogCopyDestination() -> some View {
+    self.modifier(FileDialogCopyDestinationViewModifier())
+  }
+}
+
+enum ImagePhase: Equatable {
+  case empty, success, failure
+
+  init?(_ phase: AsyncImagePhase) {
+    switch phase {
+      case .empty: self = .empty
+      case .success: self = .success
+      case .failure: self = .failure
+      @unknown default:
+        Logger.ui.error("AsyncImagePhase was not recognized")
+
+        return nil
+    }
   }
 }

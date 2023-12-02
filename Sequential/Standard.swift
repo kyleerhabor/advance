@@ -188,6 +188,14 @@ func time<T>(
 
 func noop<each T>(_ args: repeat each T) {}
 
+func constant<T, each U>(value: T) -> ((repeat each U) -> T) {
+  func result<each V>(_ args: repeat each V) -> T {
+    return value
+  }
+
+  return result
+}
+
 // I have no idea if Swift will specialize if we implement this on Collection.
 extension RandomAccessCollection {
   var isMany: Bool {
@@ -306,13 +314,13 @@ struct Matcher<Item, Path, Transform> where Item: Equatable, Path: Sequence<Item
 extension Matcher where Item == String, Path == [String?], Transform == URL {
   typealias URLItems = BidirectionalCollection<Item>
 
-  static let home = Matcher(path: ["/", "Users", nil]) { _ in .rootDirectory }
+  static let home = Matcher(path: ["/", "Users", nil], transform: constant(value: .rootDirectory))
   // "/Users/<...>/.Trash" -> "/Users/<...>/Trash"
   static let trash = Matcher(path: ["/", "Users", nil, ".Trash"]) { matches in
     .rootDirectory.appending(components: "Users", matches.first!, "Trash")
   }
 
-  static let volume = Matcher(path: ["/", "Volumes", nil]) { _ in .rootDirectory }
+  static let volume = Matcher(path: ["/", "Volumes", nil], transform: constant(value: .rootDirectory))
   // "/Volumes/<...>/.Trashes/<uid>" -> "/Volumes/<...>/Trash"
   static let volumeTrash = Matcher(path: ["/", "Volumes", nil, ".Trashes", nil]) { matched in
     .rootDirectory.appending(components: "Volumes", matched.first!, "Trash")

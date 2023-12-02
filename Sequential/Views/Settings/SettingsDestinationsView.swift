@@ -103,7 +103,7 @@ struct SettingsDestinationsView: View {
             case .failure(let err):
               Logger.ui.error("Could not import copy destinations: \(err)")
           }
-        }
+        }.fileDialogCopyDestination()
       }
     }.task {
       depot.bookmarks = await depot.resolve()
