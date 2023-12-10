@@ -9,17 +9,31 @@ import OSLog
 import SwiftUI
 import VisionKit
 
+extension ImageAnalysisOverlayView {
+  func setHighlightVisibility(highlight: Bool, supplementaryInterfaceHidden: Bool, animated: Bool) {
+    let hidden = !highlight && supplementaryInterfaceHidden
+
+    self.setSupplementaryInterfaceHidden(hidden, animated: animated)
+    self.selectableItemsHighlighted = highlight
+  }
+}
+
 struct LiveTextView<Scope>: NSViewRepresentable where Scope: URLScope {
   private let analyzer = ImageAnalyzer()
 
   let scope: Scope
   let orientation: CGImagePropertyOrientation
+  @Binding var highlight: Bool
   @Binding var analysis: ImageAnalysis?
   private var supplementaryInterfaceHidden: Bool
+  private var hidden: Bool {
+    return !highlight && supplementaryInterfaceHidden
+  }
 
-  init(scope: Scope, orientation: CGImagePropertyOrientation, analysis: Binding<ImageAnalysis?>) {
+  init(scope: Scope, orientation: CGImagePropertyOrientation, highlight: Binding<Bool>, analysis: Binding<ImageAnalysis?>) {
     self.scope = scope
     self.orientation = orientation
+    self._highlight = highlight
     self._analysis = analysis
     self.supplementaryInterfaceHidden = false
   }
@@ -29,7 +43,7 @@ struct LiveTextView<Scope>: NSViewRepresentable where Scope: URLScope {
     overlayView.delegate = context.coordinator
     // .imageSubject seems to be very unreliable, so I'm limiting it to text only.
     overlayView.preferredInteractionTypes = .automaticTextOnly
-    overlayView.setSupplementaryInterfaceHidden(supplementaryInterfaceHidden, animated: false)
+    overlayView.setHighlightVisibility(highlight: highlight, supplementaryInterfaceHidden: supplementaryInterfaceHidden, animated: false)
 
     analyze(overlayView, context: context)
 
@@ -37,24 +51,21 @@ struct LiveTextView<Scope>: NSViewRepresentable where Scope: URLScope {
   }
 
   func updateNSView(_ overlayView: ImageAnalysisOverlayView, context: Context) {
-    overlayView.setSupplementaryInterfaceHidden(supplementaryInterfaceHidden, animated: true)
+    context.coordinator.setHighlight($highlight)
 
-    // The user has to toggle the Live Text icon button to set the supplementary interface state. If a user is
-    // highlighting items and toggles the state, it feels natural to also hide any highlighted items (else, you can't
-    // hide them anymore).
-    if supplementaryInterfaceHidden {
-      overlayView.selectableItemsHighlighted = false
-    }
+    overlayView.setHighlightVisibility(highlight: highlight, supplementaryInterfaceHidden: supplementaryInterfaceHidden, animated: true)
 
     analyze(overlayView, context: context)
   }
 
   static func dismantleNSView(_ overlayView: ImageAnalysisOverlayView, coordinator: Coordinator) {
+    coordinator.highlight = false
+
     coordinator.task?.cancel()
   }
 
   func makeCoordinator() -> Coordinator {
-    Coordinator()
+    Coordinator(highlight: $highlight)
   }
 
   @MainActor
@@ -166,7 +177,17 @@ struct LiveTextView<Scope>: NSViewRepresentable where Scope: URLScope {
   class Coordinator: NSObject, ImageAnalysisOverlayViewDelegate {
     typealias Tag = ImageAnalysisOverlayView.MenuTag
 
+    @Binding var highlight: Bool
     var task: Task<Void, Never>?
+
+    init(highlight: Binding<Bool>, task: Task<Void, Never>? = nil) {
+      self._highlight = highlight
+      self.task = task
+    }
+
+    func setHighlight(_ highlight: Binding<Bool>) {
+      self._highlight = highlight
+    }
 
     func overlayView(_ overlayView: ImageAnalysisOverlayView, updatedMenuFor menu: NSMenu, for event: NSEvent, at point: CGPoint) -> NSMenu {
       // v[iew] [menu]. I tried directly setting the .contextMenu on the LiveTextView, but it never seems to work.
@@ -201,6 +222,10 @@ struct LiveTextView<Scope>: NSViewRepresentable where Scope: URLScope {
       }
 
       return menu
+    }
+
+    func overlayView(_ overlayView: ImageAnalysisOverlayView, highlightSelectedItemsDidChange highlightSelectedItems: Bool) {
+      highlight = highlightSelectedItems
     }
   }
 }

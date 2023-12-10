@@ -50,11 +50,10 @@ struct Keys {
   static let appearance = Item("appearance", nil as SettingsGeneralView.Scheme)
   static let margin = Item("margin", 1)
   static let collapseMargins = Item("collapseMargins", true)
-  // I think enabling Live Text by default but disabling the icons strikes a nice compromise between convenience (e.g.
+  // I think enabling Live Text by default but hiding the icon strikes a nice compromise between convenience (e.g.
   // being able to select text) and UI simplicity (i.e. not having the buttons get in the way).
   static let liveText = Item("liveText", true)
   static let liveTextIcon = Item("liveTextIcon", false)
-  static let trackCurrentImage = Item("trackCurrentImage", true)
   static let windowless = Item("windowless", false)
   static let displayTitleBarImage = Item("displayTitleBarImage", true)
   static let resolveCopyDestinationConflicts = Item("resolveCopyDestinationConflicts", true)

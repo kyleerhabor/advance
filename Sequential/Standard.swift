@@ -315,13 +315,13 @@ extension Matcher where Item == String, Path == [String?], Transform == URL {
   typealias URLItems = BidirectionalCollection<Item>
 
   static let home = Matcher(path: ["/", "Users", nil], transform: constant(value: .rootDirectory))
-  // "/Users/<...>/.Trash" -> "/Users/<...>/Trash"
+  // "/Users/<user>/.Trash" -> "/Users/<...>/Trash"
   static let trash = Matcher(path: ["/", "Users", nil, ".Trash"]) { matches in
     .rootDirectory.appending(components: "Users", matches.first!, "Trash")
   }
 
   static let volume = Matcher(path: ["/", "Volumes", nil], transform: constant(value: .rootDirectory))
-  // "/Volumes/<...>/.Trashes/<uid>" -> "/Volumes/<...>/Trash"
+  // "/Volumes/<volume>/.Trashes/<uid>" -> "/Volumes/<...>/Trash"
   static let volumeTrash = Matcher(path: ["/", "Volumes", nil, ".Trashes", nil]) { matched in
     .rootDirectory.appending(components: "Volumes", matched.first!, "Trash")
   }
@@ -344,5 +344,19 @@ func setter<Object: AnyObject, Value>(
 ) -> (Object) -> Void {
   return { object in
     object[keyPath: keyPath] = value
+  }
+}
+
+extension Collection where Index: FixedWidthInteger {
+  var middleIndex: Index {
+    self.startIndex + ((self.endIndex - self.startIndex) / 2)
+  }
+
+  var middle: Element? {
+    if self.isEmpty {
+      return nil
+    }
+
+    return self[middleIndex]
   }
 }

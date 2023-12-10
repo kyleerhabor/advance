@@ -37,6 +37,7 @@ struct SequentialApp: App {
       try FileManager.default.removeItem(at: .liveTextDownsampledDirectory)
     } catch {
       if let err = error as? CocoaError, err.code == .fileNoSuchFile {
+        // The directory does not exist, so we don't care.
         return
       }
 

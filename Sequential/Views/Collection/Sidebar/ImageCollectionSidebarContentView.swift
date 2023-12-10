@@ -61,63 +61,13 @@ struct ImageCollectionSidebarItemView: View {
   }
 }
 
-struct ImageCollectionSidebarItem {
-  let id: UUID
-  let visible: Bool
-  let position: CGFloat
-}
-
-struct ImageCollectionSidebarItemVisibleView: View {
-  let id: ImageCollectionItemImage.ID
-
-  var body: some View {
-    GeometryReader { proxy in
-      let container = proxy.frame(in: .scrollView)
-      let local = proxy.frame(in: .local)
-
-      Color.clear.preference(
-        key: VisiblePreferenceKey.self,
-        value: local.intersects(container)
-//        key: ImageCollectionSidebarItemPreferenceKey.self,
-//        value: .init(
-//          id: id,
-//          // Note: This is a little *too* loose. It should really say "if it's fully contained within", but .contains
-//          // doesn't seem to be right here.
-//          visible: local.intersects(container),
-//          position: container.origin.y
-//        )
-      )
-    }
-  }
-}
-
-extension ImageCollectionSidebarItem: Comparable {
-  static func <(lhs: Self, rhs: Self) -> Bool {
-    lhs.position < rhs.position
-  }
-}
-
-struct ImageCollectionSidebarItemPreferenceKey: PreferenceKey {
-  static var defaultValue = ImageCollectionSidebarItem(id: .init(), visible: false, position: .zero)
-
-  static func reduce(value: inout ImageCollectionSidebarItem, nextValue: () -> ImageCollectionSidebarItem) {
-    let next = nextValue()
-
-    guard next.visible else {
-      return
-    }
-
-    value = max(value, next)
-  }
-}
-
 struct ImageCollectionSidebarContentView: View {
   @Environment(CopyDepot.self) private var copyDepot
   @Environment(\.prerendering) private var prerendering
   @Environment(\.collection) private var collection
   @Environment(\.selection) @Binding private var selection
   @AppStorage(Keys.resolveCopyDestinationConflicts.key) private var resolveCopyConflicts = Keys.resolveCopyDestinationConflicts.value
-  @State private var items = [ImageCollectionItemImage.ID]()
+  @State private var item: ImageCollectionItemImage.ID?
   @State private var bookmarks = false
   @State private var selectedQuickLookItem: URL?
   @State private var quickLookItems = [URL]()
@@ -148,11 +98,6 @@ struct ImageCollectionSidebarContentView: View {
       }
     }
 
-    // TODO: Generalize the visibility code, make it persistable, and apply it to the detail view.
-    //
-    // This would allow users to continue where they left off. The main thing stopping this is data is loaded after the
-    // view is, so we'd need to know when the view is ready.
-    //
     // TODO: Package certain variables into one state for the sidebar.
     //
     // The main point of this would be to separate selection state between non-filtered and filtered bookmarks. There
@@ -169,29 +114,35 @@ struct ImageCollectionSidebarContentView: View {
         // materialized state. This would be required to preserve order for operations like moving and initial resolving.
         ForEach(bookmarks ? collection.wrappedValue.bookmarked : collection.wrappedValue.images, id: \.id) { image in
           ImageCollectionSidebarItemView(image: image)
-            .background {
-              ImageCollectionSidebarItemVisibleView(id: image.id)
-                .onPreferenceChange(VisiblePreferenceKey.self) { visible in
-                  guard visible else {
-                    if let index = items.firstIndex(of: image.id) {
-                      items.remove(at: index)
-                    }
-
-                    return
-                  }
-
-                  items.append(image.id)
-                }
+            .anchorPreference(key: VisiblePreferenceKey<ImageCollectionItemImage.ID>.self, value: .bounds) {
+              [.init(item: image.id, anchor: $0)]
             }
         }
-      }.onChange(of: filtering) {
-        let items = Set(items)
+      }.backgroundPreferenceValue(VisiblePreferenceKey<ImageCollectionItemImage.ID>.self) { items in
+        GeometryReader { proxy in
+          Color.clear
+            .onChange(of: items) {
+              guard !filtering else {
+                return
+              }
 
-        guard !filtering, let item = collection.wrappedValue.images.last(where: { items.contains($0.id) })?.id else {
-          return
+              let local = proxy.frame(in: .local)
+              let visibles = items
+                .filter { local.contains(proxy[$0.anchor]) }
+                .map(\.item)
+
+              self.item = visibles.middle
+            }
+        }.onChange(of: filtering) {
+          guard !filtering,
+                let item else {
+            return
+          }
+
+          // FIXME: When scrolling only the first few images (e.g. ~21) in a large collection (say, 200+), this may
+          // always scroll to the beginning.
+          proxy.scrollTo(item, anchor: .center)
         }
-
-        proxy.scrollTo(item, anchor: .center)
       }
     }.safeAreaInset(edge: .bottom, spacing: 0) {
       // I would *really* like this at the top, but I can't justify it since this is more a filter and not a new tab.
@@ -282,15 +233,9 @@ struct ImageCollectionSidebarContentView: View {
     .task {
       copyDepot.bookmarks = await copyDepot.resolve()
       copyDepot.update()
-    }.onDisappear {
-      clearQuickLookItems()
-    }.onKeyPress(.space, phases: .down) { _ in
-      quicklook(images: images(from: selection))
-
-      return .handled
-    }.focusedValue(\.sidebarFinder, .init(enabled: !selection.isEmpty) {
+    }.focusedValue(\.sidebarFinder, .init(enabled: !selection.isEmpty, menu: .init(identity: selection) {
       openFinder(selecting: urls(from: selection))
-    }).focusedValue(\.sidebarQuicklook, .init(enabled: !selection.isEmpty || selectedQuickLookItem != nil) {
+    })).focusedValue(\.sidebarQuicklook, .init(enabled: !selection.isEmpty, menu: .init(identity: quickLookItems) {
       guard selectedQuickLookItem == nil else {
         selectedQuickLookItem = nil
 
@@ -298,11 +243,17 @@ struct ImageCollectionSidebarContentView: View {
       }
 
       quicklook(images: images(from: selection))
-    }).focusedValue(\.sidebarBookmarked, .init {
+    })).focusedValue(\.sidebarBookmarked, .init {
       isBookmarked(selection: selection)
     } set: { bookmarked in
       bookmark(images: images(from: selection), value: bookmarked)
-    })
+    }).onDisappear {
+      clearQuickLookItems()
+    }.onKeyPress(.space, phases: .down) { _ in
+      quicklook(images: images(from: selection))
+
+      return .handled
+    }
   }
 
   func images(from selection: ImageCollectionView.Selection) -> [ImageCollectionItemImage] {

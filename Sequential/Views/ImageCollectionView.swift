@@ -29,32 +29,37 @@ extension EnvironmentValues {
   }
 }
 
-struct Scroller {
+struct Scroller<Identity> where Identity: Equatable {
   typealias Scroll = (ImageCollectionView.Selection) -> Void
 
   // While we're not directly using this property, it helps SwiftUI not excessively re-evaluate the view body (presumably
   // because a closure doesn't have an identity).
-  let selection: ImageCollectionView.Selection
+  let identity: Identity
   let scroll: Scroll
 
-  init(selection: ImageCollectionView.Selection, _ scroll: @escaping Scroll) {
-    self.selection = selection
+  init(identity: Identity, _ scroll: @escaping Scroll) {
+    self.identity = identity
     self.scroll = scroll
   }
 }
 
 extension Scroller: Equatable {
   static func ==(lhs: Self, rhs: Self) -> Bool {
-    lhs.selection == rhs.selection
+    lhs.identity == rhs.identity
   }
 }
 
 struct SidebarScrollerFocusedValueKey: FocusedValueKey {
-  typealias Value = Scroller
+  typealias Value = Scroller<ImageCollectionView.Selection>
+}
+
+struct DetailScrollerIdentity: Equatable {
+  let images: [ImageCollectionItemImage]
+  let selection: ImageCollectionView.Selection
 }
 
 struct DetailScrollerFocusedValueKey: FocusedValueKey {
-  typealias Value = Scroller
+  typealias Value = Scroller<DetailScrollerIdentity>
 }
 
 extension FocusedValues {
@@ -120,6 +125,8 @@ struct ImageCollectionItemPhaseView: View {
 
 struct ImageCollectionItemView<Overlay>: View where Overlay: View {
   @Environment(\.pixelLength) private var pixel
+  @Environment(\.fullScreen) private var fullScreen
+  @Environment(\.isFullScreen) private var isFullScreen
   @State private var phase = AsyncImagePhase.empty
 
   let image: ImageCollectionItemImage
@@ -127,6 +134,15 @@ struct ImageCollectionItemView<Overlay>: View where Overlay: View {
 
   var body: some View {
     DisplayView { size in
+      // For some reason, some images in full screen mode can cause SwiftUI to believe there are more views on screen
+      // than there actually are (usually the first 21). This causes all the .onAppear and .task modifiers to fire,
+      // resulting in a massive memory spike (e.g. ~1.8 GB).
+      //
+      // This check just verifies that the window is not in the process of transitioning modes.
+      if fullScreen && !isFullScreen {
+        return
+      }
+
       let size = CGSize(
         width: size.width / pixel,
         height: size.height / pixel
@@ -144,8 +160,6 @@ struct ImageCollectionItemView<Overlay>: View where Overlay: View {
         self.phase = phase
       }
     } content: {
-      @Bindable var image = image
-
       ImageCollectionItemPhaseView(phase: $phase)
         .overlay {
           overlay($phase)
@@ -263,7 +277,7 @@ struct ImageCollectionNavigationSidebarView: View {
     ScrollViewReader { proxy in
       ImageCollectionSidebarView(scrollDetail: detailScroller?.scroll ?? noop)
         .focused($focused)
-        .focusedSceneValue(\.sidebarScroller, .init(selection: selection) { selection in
+        .focusedSceneValue(\.sidebarScroller, .init(identity: selection) { selection in
           // The only place we're calling this is in ImageCollectionDetailItemView with a single item.
           let id = selection.first!
 
@@ -296,31 +310,14 @@ struct ImageCollectionNavigationSidebarView: View {
 
 struct ImageCollectionNavigationDetailView: View {
   @Environment(\.selection) @Binding private var selection
-  @AppStorage(Keys.trackCurrentImage.key) private var trackCurrentImage = Keys.trackCurrentImage.value
-  @AppStorage(Keys.displayTitleBarImage.key) private var displayTitleBarImage = Keys.displayTitleBarImage.value
   @FocusedValue(\.sidebarScroller) private var sidebarScroller
-  // If we could move this to a background view while keeping it in the environment, we'd probably have no animation hitches.
-  @State private var visible = [ImageCollectionItemImage]()
-  private var visibleImage: ImageCollectionItemImage? { visible.last }
-  private var visibleImageURL: URL? {
-    guard displayTitleBarImage else {
-      return nil
-    }
-
-    return visible.last?.url
-  }
 
   var images: [ImageCollectionItemImage]
 
   var body: some View {
     ScrollViewReader { proxy in
       ImageCollectionDetailView(images: images, scrollSidebar: sidebarScroller?.scroll ?? noop)
-        .navigationTitle(Text(visibleImageURL?.deletingPathExtension().lastPathComponent ?? "Sequential"))
-        // I wish it were possible to pass nil to not use this modifier. This workaround displays a blank file that doesn't
-        // point anywhere.
-        .navigationDocument(visibleImageURL ?? .file)
-        .environment(\.visible, $visible)
-        .focusedSceneValue(\.detailScroller, .init(selection: selection) { selection in
+        .focusedSceneValue(\.detailScroller, .init(identity: .init(images: images, selection: selection)) { selection in
           guard let id = images.filter(
             in: selection.subtracting(self.selection),
             by: \.id
@@ -335,19 +332,7 @@ struct ImageCollectionNavigationDetailView: View {
               proxy.scrollTo(id, anchor: .top)
             }
           }
-        }).focusedSceneValue(\.jumpToCurrentImage, .init(enabled: visibleImage != nil) {
-          let id = visibleImage!.id
-
-          selection = [id]
-
-          sidebarScroller?.scroll([id])
-        }).onChange(of: trackCurrentImage) {
-          guard !trackCurrentImage else {
-            return
-          }
-
-          visible = []
-        }
+        })
     }
   }
 }
@@ -368,6 +353,10 @@ struct ImageCollectionView: View {
   private var window: NSWindow? { win.window }
 
   var body: some View {
+    // TODO: Add a feature to scroll the sidebar when opening the sidebar
+    //
+    // This requires knowing the sidebar was explicitly opened by the user (and not through implicit means like scrolling
+    // to a particular image, aka "Show in Sidebar")
     NavigationSplitView(columnVisibility: $columns) {
       ImageCollectionNavigationSidebarView(columns: $columns)
         .navigationSplitViewColumnWidth(min: 128, ideal: 192, max: 256)
@@ -412,13 +401,20 @@ struct ImageCollectionView: View {
     }
     .environment(\.selection, $selection)
     // Yes, the listed code below is dumb.
-    .onPreferenceChange(ScrollOffsetPreferenceKey.self) { origin in
-      guard let window,
-            !window.isFullScreen() && windowless && columns == .detailOnly else {
-        return
-      }
+    .backgroundPreferenceValue(ScrollOffsetPreferenceKey.self) { anchors in
+      GeometryReader { proxy in
+        let origin = anchors.map { proxy[$0].origin }.min { $0.y < $1.y }
 
-      scrollSubject.send(origin)
+        Color.clear.onChange(of: origin) {
+          guard let window,
+                !window.isFullScreen() && windowless && columns == .detailOnly,
+                let origin else {
+            return
+          }
+
+          scrollSubject.send(origin)
+        }
+      }
     }.onContinuousHover { _ in
       guard let window, !window.inLiveResize else {
         return
@@ -475,6 +471,8 @@ struct ImageCollectionView: View {
 
     // For some reason, full screen windows in light mode draw a slight line under the top of the screen after
     // scrolling for a bit. This doesn't occur in dark mode, which is interesting.
+    //
+    // FIXME: For some reason, the title bar separator does not animate.
     window.animator().titlebarSeparatorStyle = visible && !window.isFullScreen() ? .automatic : .none
   }
 }

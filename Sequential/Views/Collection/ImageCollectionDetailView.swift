@@ -8,40 +8,31 @@
 import OSLog
 import SwiftUI
 
-struct VisiblePreferenceKey: PreferenceKey {
-  static var defaultValue = false
-
-  static func reduce(value: inout Bool, nextValue: () -> Bool) {}
+struct VisibleItem<Item> {
+  let item: Item
+  let anchor: Anchor<CGRect>
 }
 
-struct ImageCollectionDetailItemVisibilityView: View {
-  @Environment(\.visible) @Binding private var visible
+extension VisibleItem: Equatable where Item: Equatable {}
 
-  let image: ImageCollectionItemImage
+// https://swiftwithmajid.com/2020/03/18/anchor-preferences-in-swiftui/
+struct VisiblePreferenceKey<Item>: PreferenceKey {
+  typealias Value = [VisibleItem<Item>]
 
-  var body: some View {
-    GeometryReader { proxy in
-      let container = proxy.frame(in: .scrollView)
-      let frame = proxy.frame(in: .local)
-      
-      Color.clear
-        .preference(key: ScrollOffsetPreferenceKey.self, value: container.origin)
-        .preference(key: VisiblePreferenceKey.self, value: frame.intersects(container))
-    }
-    // If the user scrolls fast enough where the image hasn't been rendered into the UI yet, they may see the
-    // default title instead. A solution would be to work in an append-only mode (which would make for good use in
-    // an ordered set)
-    .onPreferenceChange(VisiblePreferenceKey.self) { visible in
-      guard visible else {
-        if let index = self.visible.firstIndex(of: image) {
-          self.visible.remove(at: index)
-        }
+  static var defaultValue: Value { [] }
 
-        return
-      }
+  static func reduce(value: inout Value, nextValue: () -> Value) {
+    value.append(contentsOf: nextValue())
+  }
+}
 
-      self.visible.append(image)
-    }
+struct ScrollOffsetPreferenceKey: PreferenceKey {
+  typealias Value = [Anchor<CGRect>]
+
+  static var defaultValue = Value()
+
+  static func reduce(value: inout Value, nextValue: () -> Value) {
+    value.append(contentsOf: nextValue())
   }
 }
 
@@ -68,7 +59,6 @@ struct ImageCollectionDetailItemView: View {
   @Environment(\.selection) @Binding private var selection
   @AppStorage(Keys.collapseMargins.key) private var collapse = Keys.collapseMargins.value
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
-  @AppStorage(Keys.trackCurrentImage.key) private var trackCurrentImage = Keys.trackCurrentImage.value
   @AppStorage(Keys.resolveCopyDestinationConflicts.key) private var resolveCopyConflicts = Keys.resolveCopyDestinationConflicts.value
   @State private var isPresentingCopyDestinationPicker = false
   @State private var error: String?
@@ -95,41 +85,17 @@ struct ImageCollectionDetailItemView: View {
     // For some reason, ImageCollectionItemView needs to be wrapped in a VStack for animations to apply.
     VStack {
       ImageCollectionItemView(image: image) { $phase in
-        Color.clear
-          .overlay {
-            if phase.image != nil && liveText {
-              LiveTextView(
-                scope: image,
-                orientation: image.orientation,
-                analysis: $image.analysis
-              ).supplementaryInterfaceHidden(!liveTextIcon)
-            }
-          }.onDisappear {
-            // This is necessary to slow down the memory creep SwiftUI creates when rendering some images. It does not
-            // eliminate it, but severely halts it. As an example, I have a copy of the first volume of the manga Soloist in a Cage (~750 MBs).
-            // When the window size is the default and the sidebar is open but hasn't been scrolled through, by time I
-            // reach page 24, the memory has ballooned to ~600 MB. With this little trick, however, it rests at about ~150-200 MBs,
-            // and is nearly eliminated by the window being closed. Note that the memory creep is mostly applicable to
-            // regular memory and not so much real memory. In addition, not all image collections need it, since there are
-            // some which (magically) handle their own memory while not destroying the image (in other words, it rests at a
-            // good average, like ~150 MB).
-            //
-            // In the future, I'd like to improve image loading so images are preloaded before they appear on-screen. I've
-            // tried this before, but it's resulted in microhangs.
-            phase = .empty
-          }
-      }.background {
-        // Yes, this does improve performance—not because GeometryReader is expensive, but because monitoring the current
-        // image is. We update the visible collection in the environment, which is high up in the view hierarchy. On my
-        // 2019 MacBook Pro, for example, previewing the Made in Abyss manga (volumes 1 - 11, 1.8K images) results in a
-        // ~40ms hang each time the collection is modified (meaning when the user scrolls to a new image). It's subtle,
-        // and primarily applicable to large image collections, but problematic nevertheless. I'd like to fix this, but
-        // the only solution it seems is to push the collection lower into the view hierarchy (which, given the current
-        // structure, is difficult).
-        if trackCurrentImage {
-          ImageCollectionDetailItemVisibilityView(image: image)
+        if phase.image != nil && liveText {
+          LiveTextView(
+            scope: image,
+            orientation: image.orientation,
+            highlight: $image.highlighted,
+            analysis: $image.analysis
+          ).supplementaryInterfaceHidden(!liveTextIcon)
         }
       }
+      .anchorPreference(key: VisiblePreferenceKey.self, value: .bounds) { [.init(item: image, anchor: $0)] }
+      .anchorPreference(key: ScrollOffsetPreferenceKey.self, value: .bounds) { [$0] }
     }
     .listRowInsets(.listRow + insets)
     .shadow(radius: margin / 2)
@@ -205,8 +171,8 @@ struct ImageCollectionDetailView: View {
   @AppStorage(Keys.margin.key) private var margins = Keys.margin.value
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
   @AppStorage(Keys.liveTextIcon.key) private var appLiveTextIcon = Keys.liveTextIcon.value
+  @AppStorage(Keys.displayTitleBarImage.key) private var displayTitleBarImage = Keys.displayTitleBarImage.value
   @SceneStorage(Keys.liveTextIcon.key) private var liveTextIcon: Bool?
-  @State private var showingDetails = false
 
   let images: [ImageCollectionItemImage]
   let scrollSidebar: Scroller.Scroll
@@ -265,11 +231,43 @@ struct ImageCollectionDetailView: View {
           liveTextIcon = $0
         }
 
-        let title = "\(icon ? "Hide" : "Show") Live Text icon"
-
-        Toggle(title, systemImage: "text.viewfinder", isOn: icons)
+        Toggle("Live Text Icon", systemImage: "text.viewfinder", isOn: icons)
           .keyboardShortcut(.liveTextIcon)
-          .help(title)
+          .help("\(icon ? "Hide" : "Show") Live Text icon")
+      }
+    }.backgroundPreferenceValue(VisiblePreferenceKey<ImageCollectionItemImage>.self) { items in
+      GeometryReader { proxy in
+        let local = proxy.frame(in: .local)
+        let visible = items
+          .filter { local.intersects(proxy[$0.anchor]) }
+          .map(\.item)
+
+        let highlight = Binding {
+          if visible.isEmpty {
+            return false
+          }
+
+          return visible.allSatisfy(\.highlighted)
+        } set: { highlight in
+          visible.forEach(setter(keyPath: \.highlighted, value: highlight))
+        }
+
+        // This code is really stupid, but really useful for one feature: toggling Live Text highlighting with Command-Shift-T.
+        Toggle("Live Text Highlight", systemImage: "dot.viewfinder", isOn: highlight)
+          .id(visible)
+          .hidden()
+          .keyboardShortcut(.liveTextHighlight)
+
+        if let image = visible.last, displayTitleBarImage {
+          let url = image.url
+
+          // I would like to set .jumpToCurrentImage here, but whenever the identity changes, it causes a hang in large
+          // image collections. This seems to be due to the modifier itself (since I imagine it happens in the sidebar)
+          // but, interestingly, only seems to occur when the user scrolls down (and not up).
+          Color.clear
+            .navigationTitle(Text(url.deletingPathExtension().lastPathComponent))
+            .navigationDocument(url)
+        }
       }
     }.task {
       copyDepot.bookmarks = await copyDepot.resolve()

@@ -18,7 +18,6 @@ struct SettingsGeneralView: View {
   @AppStorage(Keys.displayTitleBarImage.key) private var displayTitleBarImage = Keys.displayTitleBarImage.value
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
   @AppStorage(Keys.liveTextIcon.key) private var liveTextIcons = Keys.liveTextIcon.value
-  @AppStorage(Keys.trackCurrentImage.key) private var trackCurrentImage = Keys.trackCurrentImage.value
   @AppStorage(Keys.resolveCopyDestinationConflicts.key) private var resolveConflicts = Keys.resolveCopyDestinationConflicts.value
   @State private var showingDestinations = false
   private let range = 0.0...4.0
@@ -78,27 +77,19 @@ struct SettingsGeneralView: View {
       GroupBox {
         Toggle("Enable Live Text", isOn: $liveText)
 
-        Toggle("Show icons", isOn: $liveTextIcons)
+        Toggle("Show icon", isOn: $liveTextIcons)
           .disabled(!liveText)
       }
     }
 
     LabeledContent("Main Canvas:") {
-      Toggle(isOn: $trackCurrentImage) {
-        Text("Track the current image")
+      Toggle(isOn: $windowless) {
+        Text("Hide the toolbar when scrolling")
 
-        tracking.imageScale(.small)
+        Text("Only relevant when the sidebar is not open.")
       }
 
-      GroupBox {
-        Toggle(isOn: $windowless) {
-          Text("Hide the toolbar when scrolling")
-
-          Text("Only relevant when the sidebar is not open.")
-        }
-
-        Toggle("Display the current image in the title", isOn: $displayTitleBarImage)
-      }.disabled(!trackCurrentImage)
+      Toggle("Display the current image in the title", isOn: $displayTitleBarImage)
     }
 
     LabeledContent("Copying:") {
@@ -123,24 +114,6 @@ struct SettingsGeneralView: View {
           .frame(minWidth: 512, minHeight: 160)
       }
     }
-  }
-
-  @TextBuilder
-  var tracking: Text {
-    Text("This enables functionality like dynamically modifying the title and showing the current image via ")
-
-    trackingNavigation.bold()
-
-    Text(", but may degrade performance.")
-  }
-
-  @TextBuilder
-  var trackingNavigation: Text {
-    Text("Image ")
-
-    Text(Image(systemName: "chevron.forward"))
-
-    Text(" Show in Sidebar")
   }
 }
 

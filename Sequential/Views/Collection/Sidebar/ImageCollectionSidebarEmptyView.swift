@@ -97,7 +97,7 @@ struct ImageCollectionSidebarEmptyView: View {
       }
 
       return true
-    }.focusedSceneValue(\.openFileImporter, .init(identity: false) {
+    }.focusedSceneValue(\.openFileImporter, .init(identity: .window) {
       isFilePickerPresented.toggle()
     })
   }

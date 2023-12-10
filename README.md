@@ -26,7 +26,7 @@ Sequential was created to provide an experience as simple as (or even simpler th
 - Continuous scrolling
 - Support for Live Text
 - Bookmarking
-- Copying: clone images to selected destinations as-is to save time and memories
+- Copying: clone images to select folders as-is to save time and memories
 - Fast:
   - Only loads what is required up front, reducing initialization dramatically[^1]
   - Performs downsampling on images to match the size on-screen, improving CPU and memory usage while not compromising image quality.[^2] You can drop hundreds of 4K+ images and Sequential won't complain

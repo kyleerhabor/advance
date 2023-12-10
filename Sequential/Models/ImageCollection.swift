@@ -57,6 +57,7 @@ class ImageCollectionItemImage {
 
   // Live Text
   var orientation: CGImagePropertyOrientation
+  var highlighted = false
   var analysis: ImageAnalysis?
 
   init(

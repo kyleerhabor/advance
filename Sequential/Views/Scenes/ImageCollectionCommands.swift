@@ -16,21 +16,6 @@ struct FullScreenFocusedValueKey: FocusedValueKey {
   typealias Value = Bool
 }
 
-struct AppMenuAction {
-  let enabled: Bool
-  let action: () -> Void
-
-  func callAsFunction() {
-    action()
-  }
-}
-
-extension AppMenuAction: Equatable {
-  static func ==(lhs: Self, rhs: Self) -> Bool {
-    lhs.enabled == rhs.enabled
-  }
-}
-
 struct AppMenu<Identity> where Identity: Equatable {
   let identity: Identity
   let perform: () -> Void
@@ -42,16 +27,30 @@ extension AppMenu: Equatable {
   }
 }
 
-struct AppMenuOpenFilePickerFocusedValueKey<Identity>: FocusedValueKey where Identity: Equatable {
-  typealias Value = AppMenu<Identity>
+struct AppMenuAction<Identity>: Equatable where Identity: Equatable {
+  let menu: AppMenu<Identity>
+  let enabled: Bool
+
+  init(enabled: Bool, menu: AppMenu<Identity>) {
+    self.menu = menu
+    self.enabled = enabled
+  }
+}
+
+enum AppMenuOpen: Equatable {
+  case window
+}
+
+struct AppMenuOpenFocusedValueKey: FocusedValueKey {
+  typealias Value = AppMenu<AppMenuOpen>
 }
 
 struct AppMenuFinderFocusedValueKey: FocusedValueKey {
-  typealias Value = AppMenuAction
+  typealias Value = AppMenuAction<ImageCollectionView.Selection>
 }
 
 struct AppMenuQuickLookFocusedValueKey: FocusedValueKey {
-  typealias Value = AppMenuAction
+  typealias Value = AppMenuAction<[URL]>
 }
 
 struct AppMenuBookmarkedFocusedValueKey: FocusedValueKey {
@@ -59,7 +58,7 @@ struct AppMenuBookmarkedFocusedValueKey: FocusedValueKey {
 }
 
 struct AppMenuJumpToCurrentImageFocusedValueKey: FocusedValueKey {
-  typealias Value = AppMenuAction
+  typealias Value = AppMenu<ImageCollectionItemImage.ID>
 }
 
 extension FocusedValues {
@@ -73,9 +72,9 @@ extension FocusedValues {
     set { self[FullScreenFocusedValueKey.self] = newValue }
   }
 
-  var openFileImporter: AppMenuOpenFilePickerFocusedValueKey<Bool>.Value? {
-    get { self[AppMenuOpenFilePickerFocusedValueKey<Bool>.self] }
-    set { self[AppMenuOpenFilePickerFocusedValueKey<Bool>.self] = newValue }
+  var openFileImporter: AppMenuOpenFocusedValueKey.Value? {
+    get { self[AppMenuOpenFocusedValueKey.self] }
+    set { self[AppMenuOpenFocusedValueKey.self] = newValue }
   }
 
   var sidebarFinder: AppMenuFinderFocusedValueKey.Value? {
@@ -111,7 +110,7 @@ struct ImageCollectionCommands: Commands {
   @FocusedValue(\.openFileImporter) private var openFileImporter
   @FocusedValue(\.sidebarFinder) private var finder
   @FocusedValue(\.sidebarQuicklook) private var quicklook
-  @FocusedValue(\.jumpToCurrentImage) private var jumpToCurrentImage
+//  @FocusedValue(\.jumpToCurrentImage) private var jumpToCurrentImage
   private var window: NSWindow? { win?.window }
 
   var body: some Commands {
@@ -152,13 +151,13 @@ struct ImageCollectionCommands: Commands {
       Divider()
 
       Button("Show in Finder") {
-        finder?()
+        finder?.menu.perform()
       }
       .keyboardShortcut(.finder)
       .disabled(finder?.enabled != true)
 
       Button("Quick Look", systemImage: "eye") {
-        quicklook?()
+        quicklook?.menu.perform()
       }
       .keyboardShortcut(.quicklook)
       .disabled(quicklook?.enabled != true)
@@ -186,11 +185,11 @@ struct ImageCollectionCommands: Commands {
 
       Divider()
 
-      Button("Show in Sidebar") {
-        jumpToCurrentImage?()
-      }
-      .keyboardShortcut(.jumpToCurrentImage)
-      .disabled(jumpToCurrentImage?.enabled != true)
+//      Button("Show in Sidebar") {
+//        jumpToCurrentImage?.perform()
+//      }
+//      .keyboardShortcut(.jumpToCurrentImage)
+//      .disabled(jumpToCurrentImage == nil)
     }
 
     CommandGroup(after: .windowArrangement) {

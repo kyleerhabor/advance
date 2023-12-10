@@ -20,22 +20,25 @@ struct DisplayView<Content>: View where Content: View {
   let content: Content
 
   var body: some View {
-    GeometryReader { proxy in
-      content
-        .onChange(of: proxy.size) {
-          subject.send(proxy.size)
-        }.task(id: size) {
-          let size = proxy.size
+    content
+      .background {
+        GeometryReader { proxy in
+          Color.clear
+            .onChange(of: proxy.size) {
+              subject.send(proxy.size)
+            }.task(id: size) {
+              let size = proxy.size
 
-          guard size != .zero else {
-            return
-          }
+              guard size != .zero else {
+                return
+              }
 
-          action(size)
+              action(size)
+            }
         }
-    }.onReceive(publisher) { size in
-      self.size = size
-    }
+      }.onReceive(publisher) { size in
+        self.size = size
+      }
   }
 
   init(action: @escaping Action, @ViewBuilder content: () -> Content) {
