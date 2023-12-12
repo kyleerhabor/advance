@@ -49,8 +49,12 @@ extension Scroller: Equatable {
   }
 }
 
+enum SidebarScrollerIdentity: Equatable {
+  case sidebar
+}
+
 struct SidebarScrollerFocusedValueKey: FocusedValueKey {
-  typealias Value = Scroller<ImageCollectionView.Selection>
+  typealias Value = Scroller<SidebarScrollerIdentity>
 }
 
 struct DetailScrollerIdentity: Equatable {
@@ -125,24 +129,17 @@ struct ImageCollectionItemPhaseView: View {
 
 struct ImageCollectionItemView<Overlay>: View where Overlay: View {
   @Environment(\.pixelLength) private var pixel
-  @Environment(\.fullScreen) private var fullScreen
-  @Environment(\.isFullScreen) private var isFullScreen
   @State private var phase = AsyncImagePhase.empty
 
   let image: ImageCollectionItemImage
-  @ViewBuilder var overlay: (Binding<AsyncImagePhase>) -> Overlay
+  @ViewBuilder var overlay: (AsyncImagePhase) -> Overlay
 
   var body: some View {
     DisplayView { size in
       // For some reason, some images in full screen mode can cause SwiftUI to believe there are more views on screen
       // than there actually are (usually the first 21). This causes all the .onAppear and .task modifiers to fire,
       // resulting in a massive memory spike (e.g. ~1.8 GB).
-      //
-      // This check just verifies that the window is not in the process of transitioning modes.
-      if fullScreen && !isFullScreen {
-        return
-      }
-
+      
       let size = CGSize(
         width: size.width / pixel,
         height: size.height / pixel
@@ -162,7 +159,7 @@ struct ImageCollectionItemView<Overlay>: View where Overlay: View {
     } content: {
       ImageCollectionItemPhaseView(phase: $phase)
         .overlay {
-          overlay($phase)
+          overlay(phase)
         }
     }.aspectRatio(image.aspectRatio, contentMode: .fit)
   }
@@ -265,8 +262,6 @@ extension ImageCollectionItemView where Overlay == EmptyView {
 }
 
 struct ImageCollectionNavigationSidebarView: View {
-  @Environment(\.prerendering) private var prerendering
-  @Environment(\.collection) private var collection
   @Environment(\.selection) @Binding private var selection
   @FocusedValue(\.detailScroller) private var detailScroller
   @FocusState private var focused: Bool
@@ -277,8 +272,7 @@ struct ImageCollectionNavigationSidebarView: View {
     ScrollViewReader { proxy in
       ImageCollectionSidebarView(scrollDetail: detailScroller?.scroll ?? noop)
         .focused($focused)
-        .focusedSceneValue(\.sidebarScroller, .init(identity: selection) { selection in
-          // The only place we're calling this is in ImageCollectionDetailItemView with a single item.
+        .focusedSceneValue(\.sidebarScroller, .init(identity: .sidebar) { selection in
           let id = selection.first!
 
           Task {
@@ -353,11 +347,11 @@ struct ImageCollectionView: View {
   private var window: NSWindow? { win.window }
 
   var body: some View {
-    // TODO: Add a feature to scroll the sidebar when opening the sidebar
-    //
-    // This requires knowing the sidebar was explicitly opened by the user (and not through implicit means like scrolling
-    // to a particular image, aka "Show in Sidebar")
     NavigationSplitView(columnVisibility: $columns) {
+      // TODO: Add a feature to scroll the sidebar when opened
+      //
+      // This requires knowing the sidebar was explicitly opened by the user (and not through implicit means like scrolling
+      // to a particular image, aka "Show in Sidebar")
       ImageCollectionNavigationSidebarView(columns: $columns)
         .navigationSplitViewColumnWidth(min: 128, ideal: 192, max: 256)
     } detail: {
@@ -401,18 +395,19 @@ struct ImageCollectionView: View {
     }
     .environment(\.selection, $selection)
     // Yes, the listed code below is dumb.
-    .backgroundPreferenceValue(ScrollOffsetPreferenceKey.self) { anchors in
+    .backgroundPreferenceValue(ScrollOffsetPreferenceKey.self) { anchor in
       GeometryReader { proxy in
-        let origin = anchors.map { proxy[$0].origin }.min { $0.y < $1.y }
+        if let anchor {
+          let origin = proxy[anchor].origin
 
-        Color.clear.onChange(of: origin) {
-          guard let window,
-                !window.isFullScreen() && windowless && columns == .detailOnly,
-                let origin else {
-            return
+          Color.clear.onChange(of: origin) {
+            guard let window,
+                  !window.isFullScreen() && windowless && columns == .detailOnly else {
+              return
+            }
+
+            scrollSubject.send(origin)
           }
-
-          scrollSubject.send(origin)
         }
       }
     }.onContinuousHover { _ in

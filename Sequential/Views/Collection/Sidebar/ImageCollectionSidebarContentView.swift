@@ -37,7 +37,7 @@ struct ImageCollectionSidebarItemView: View {
             .imageScale(.large)
             .shadow(radius: 0.5)
             .padding(4)
-            .visible(image.item.bookmarked)
+            .visible(image.bookmarked)
         }
 
       // Interestingly, this can be slightly expensive.
@@ -233,7 +233,7 @@ struct ImageCollectionSidebarContentView: View {
     .task {
       copyDepot.bookmarks = await copyDepot.resolve()
       copyDepot.update()
-    }.focusedValue(\.sidebarFinder, .init(enabled: !selection.isEmpty, menu: .init(identity: selection) {
+    }.focusedValue(\.openFinder, .init(enabled: !selection.isEmpty, menu: .init(identity: selection) {
       openFinder(selecting: urls(from: selection))
     })).focusedValue(\.sidebarQuicklook, .init(enabled: !selection.isEmpty, menu: .init(identity: quickLookItems) {
       guard selectedQuickLookItem == nil else {

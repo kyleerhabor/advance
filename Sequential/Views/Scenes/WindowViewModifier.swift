@@ -22,10 +22,6 @@ struct FullScreenEnvironmentKey: EnvironmentKey {
   static var defaultValue = false
 }
 
-struct IsFullScreenEnvironmentKey: EnvironmentKey {
-  static var defaultValue = false
-}
-
 struct PrerenderEnvironmentKey: EnvironmentKey {
   static var defaultValue = true
 }
@@ -34,11 +30,6 @@ extension EnvironmentValues {
   var fullScreen: FullScreenEnvironmentKey.Value {
     get { self[FullScreenEnvironmentKey.self] }
     set { self[FullScreenEnvironmentKey.self] = newValue }
-  }
-
-  var isFullScreen: IsFullScreenEnvironmentKey.Value {
-    get { self[IsFullScreenEnvironmentKey.self] }
-    set { self[IsFullScreenEnvironmentKey.self] = newValue }
   }
 
   var prerendering: PrerenderEnvironmentKey.Value {
@@ -95,12 +86,10 @@ struct WindowViewModifier: ViewModifier {
 struct WindowFullScreenViewModifier: ViewModifier {
   @Environment(Window.self) private var window
   @State private var fullScreen = FullScreenEnvironmentKey.defaultValue
-  @State private var isFullScreen = IsFullScreenEnvironmentKey.defaultValue
 
   func body(content: Content) -> some View {
     content
       .environment(\.fullScreen, fullScreen)
-      .environment(\.isFullScreen, isFullScreen)
       .focusedSceneValue(\.fullScreen, fullScreen)
       .onChange(of: window) {
         fullScreen = window.window?.isFullScreen() ?? FullScreenEnvironmentKey.defaultValue
@@ -116,18 +105,6 @@ struct WindowFullScreenViewModifier: ViewModifier {
         }
 
         fullScreen = false
-      }.onReceive(NotificationCenter.default.publisher(for: NSWindow.didEnterFullScreenNotification)) { notification in
-        guard isCurrentWindow(notification) else {
-          return
-        }
-
-        isFullScreen = true
-      }.onReceive(NotificationCenter.default.publisher(for: NSWindow.didExitFullScreenNotification)) { notification in
-        guard isCurrentWindow(notification) else {
-          return
-        }
-
-        isFullScreen = false
       }
   }
 

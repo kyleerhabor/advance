@@ -27,12 +27,16 @@ struct VisiblePreferenceKey<Item>: PreferenceKey {
 }
 
 struct ScrollOffsetPreferenceKey: PreferenceKey {
-  typealias Value = [Anchor<CGRect>]
+  typealias Value = Anchor<CGRect>?
 
-  static var defaultValue = Value()
+  static var defaultValue: Value = nil
 
   static func reduce(value: inout Value, nextValue: () -> Value) {
-    value.append(contentsOf: nextValue())
+    guard let next = nextValue() else {
+      return
+    }
+
+    value = next
   }
 }
 
@@ -45,6 +49,7 @@ struct ImageCollectionDetailItemBookmarkView: View {
       bookmarked
     } set: { bookmarked in
       self.bookmarked = bookmarked
+
       collection.wrappedValue.updateBookmarks()
     }
   }
@@ -54,9 +59,23 @@ struct ImageCollectionDetailItemBookmarkView: View {
   }
 }
 
+struct ImageCollectionDetailItemSidebarView: View {
+  @Environment(\.selection) @Binding private var selection
+
+  let id: ImageCollectionItemImage.ID
+  let scroll: Scroller.Scroll
+
+  var body: some View {
+    Button("Show in Sidebar") {
+      selection = [id]
+
+      scroll(selection)
+    }
+  }
+}
+
 struct ImageCollectionDetailItemView: View {
   @Environment(CopyDepot.self) private var copyDepot
-  @Environment(\.selection) @Binding private var selection
   @AppStorage(Keys.collapseMargins.key) private var collapse = Keys.collapseMargins.value
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
   @AppStorage(Keys.resolveCopyDestinationConflicts.key) private var resolveCopyConflicts = Keys.resolveCopyDestinationConflicts.value
@@ -84,7 +103,7 @@ struct ImageCollectionDetailItemView: View {
 
     // For some reason, ImageCollectionItemView needs to be wrapped in a VStack for animations to apply.
     VStack {
-      ImageCollectionItemView(image: image) { $phase in
+      ImageCollectionItemView(image: image) { phase in
         if phase.image != nil && liveText {
           LiveTextView(
             scope: image,
@@ -95,7 +114,7 @@ struct ImageCollectionDetailItemView: View {
         }
       }
       .anchorPreference(key: VisiblePreferenceKey.self, value: .bounds) { [.init(item: image, anchor: $0)] }
-      .anchorPreference(key: ScrollOffsetPreferenceKey.self, value: .bounds) { [$0] }
+      .anchorPreference(key: ScrollOffsetPreferenceKey.self, value: .bounds) { $0 }
     }
     .listRowInsets(.listRow + insets)
     .shadow(radius: margin / 2)
@@ -105,13 +124,7 @@ struct ImageCollectionDetailItemView: View {
           openFinder(selecting: url)
         }
 
-        Button("Show in Sidebar") {
-          let selection: Set = [image.id]
-
-          scrollSidebar(selection)
-
-          self.selection = selection
-        }
+        ImageCollectionDetailItemSidebarView(id: image.id, scroll: scrollSidebar)
       }
 
       Section {
@@ -146,7 +159,7 @@ struct ImageCollectionDetailItemView: View {
             }
           }
         case .failure(let err):
-          Logger.ui.info("\(err)")
+          Logger.ui.info("Could not import copy destination from file picker: \(err)")
       }
     }
     .fileDialogCopy()
@@ -166,12 +179,55 @@ struct ImageCollectionDetailItemView: View {
   }
 }
 
+struct ImageCollectionDetailCurrentView: View {
+  @Environment(\.selection) @Binding private var selection
+  @AppStorage(Keys.displayTitleBarImage.key) private var displayTitleBarImage = Keys.displayTitleBarImage.value
+
+  let images: [ImageCollectionItemImage]
+  let scrollSidebar: Scroller.Scroll
+
+  var body: some View {
+    let highlight = Binding {
+      if images.isEmpty {
+        return false
+      }
+
+      return images.allSatisfy(\.highlighted)
+    } set: { highlight in
+      images.forEach(setter(keyPath: \.highlighted, value: highlight))
+    }
+
+    // This code is really stupid, but really useful for one feature: toggling Live Text highlighting with Command-Shift-T.
+    Toggle("Live Text Highlight", systemImage: "dot.viewfinder", isOn: highlight)
+      .id(images)
+      .hidden()
+      .keyboardShortcut(.liveTextHighlight)
+
+    if let image = images.first, displayTitleBarImage {
+      let url = image.url
+
+      // I would like to set .jumpToCurrentImage here, but whenever the identity changes, it causes a hang in large
+      // image collections. This seems to be due to the modifier itself (since I imagine it happens in the sidebar)
+      // but, interestingly, only seems to occur when the user scrolls down (and not up).
+      Color.clear
+        .navigationTitle(Text(url.deletingPathExtension().lastPathComponent))
+        .navigationDocument(url)
+        .focusedSceneValue(\.jumpToCurrentImage, .init(identity: image.id) {
+          selection = [image.id]
+
+          scrollSidebar(selection)
+        }).focusedSceneValue(\.openFinder, .init(enabled: true, menu: .init(identity: [image.id]) {
+          openFinder(selecting: image.url)
+        }))
+    }
+  }
+}
+
 struct ImageCollectionDetailView: View {
   @Environment(CopyDepot.self) private var copyDepot
   @AppStorage(Keys.margin.key) private var margins = Keys.margin.value
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
   @AppStorage(Keys.liveTextIcon.key) private var appLiveTextIcon = Keys.liveTextIcon.value
-  @AppStorage(Keys.displayTitleBarImage.key) private var displayTitleBarImage = Keys.displayTitleBarImage.value
   @SceneStorage(Keys.liveTextIcon.key) private var liveTextIcon: Bool?
 
   let images: [ImageCollectionItemImage]
@@ -238,36 +294,11 @@ struct ImageCollectionDetailView: View {
     }.backgroundPreferenceValue(VisiblePreferenceKey<ImageCollectionItemImage>.self) { items in
       GeometryReader { proxy in
         let local = proxy.frame(in: .local)
-        let visible = items
+        let images = items
           .filter { local.intersects(proxy[$0.anchor]) }
           .map(\.item)
 
-        let highlight = Binding {
-          if visible.isEmpty {
-            return false
-          }
-
-          return visible.allSatisfy(\.highlighted)
-        } set: { highlight in
-          visible.forEach(setter(keyPath: \.highlighted, value: highlight))
-        }
-
-        // This code is really stupid, but really useful for one feature: toggling Live Text highlighting with Command-Shift-T.
-        Toggle("Live Text Highlight", systemImage: "dot.viewfinder", isOn: highlight)
-          .id(visible)
-          .hidden()
-          .keyboardShortcut(.liveTextHighlight)
-
-        if let image = visible.last, displayTitleBarImage {
-          let url = image.url
-
-          // I would like to set .jumpToCurrentImage here, but whenever the identity changes, it causes a hang in large
-          // image collections. This seems to be due to the modifier itself (since I imagine it happens in the sidebar)
-          // but, interestingly, only seems to occur when the user scrolls down (and not up).
-          Color.clear
-            .navigationTitle(Text(url.deletingPathExtension().lastPathComponent))
-            .navigationDocument(url)
-        }
+        ImageCollectionDetailCurrentView(images: images, scrollSidebar: scrollSidebar)
       }
     }.task {
       copyDepot.bookmarks = await copyDepot.resolve()

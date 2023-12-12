@@ -77,7 +77,7 @@ extension FocusedValues {
     set { self[AppMenuOpenFocusedValueKey.self] = newValue }
   }
 
-  var sidebarFinder: AppMenuFinderFocusedValueKey.Value? {
+  var openFinder: AppMenuFinderFocusedValueKey.Value? {
     get { self[AppMenuFinderFocusedValueKey.self] }
     set { self[AppMenuFinderFocusedValueKey.self] = newValue }
   }
@@ -108,9 +108,9 @@ struct ImageCollectionCommands: Commands {
   @FocusedValue(\.window) private var win
   @FocusedValue(\.fullScreen) private var fullScreen
   @FocusedValue(\.openFileImporter) private var openFileImporter
-  @FocusedValue(\.sidebarFinder) private var finder
+  @FocusedValue(\.openFinder) private var finder
   @FocusedValue(\.sidebarQuicklook) private var quicklook
-//  @FocusedValue(\.jumpToCurrentImage) private var jumpToCurrentImage
+  @FocusedValue(\.jumpToCurrentImage) private var jumpToCurrentImage
   private var window: NSWindow? { win?.window }
 
   var body: some Commands {
@@ -185,11 +185,11 @@ struct ImageCollectionCommands: Commands {
 
       Divider()
 
-//      Button("Show in Sidebar") {
-//        jumpToCurrentImage?.perform()
-//      }
-//      .keyboardShortcut(.jumpToCurrentImage)
-//      .disabled(jumpToCurrentImage == nil)
+      Button("Show in Sidebar") {
+        jumpToCurrentImage?.perform()
+      }
+      .keyboardShortcut(.jumpToCurrentImage)
+      .disabled(jumpToCurrentImage == nil)
     }
 
     CommandGroup(after: .windowArrangement) {
@@ -227,6 +227,7 @@ struct ImageCollectionCommands: Commands {
     panel.canChooseDirectories = true
     panel.allowsMultipleSelection = true
     panel.allowedContentTypes = [.image]
+    panel.identifier = .init(FileDialogOpenViewModifier.id)
 
     // We don't want panel.begin() since it creating a modeless window causes SwiftUI to not treat it like a window.
     // This is most obvious when there are no windows but the open dialog and the app is activated, creating a new

@@ -49,10 +49,17 @@ class ImageCollectionItemImage {
   var url: URL
   unowned let item: ImageCollectionItem
   var aspectRatio: Double
-  // Do we want to use Observable's accessors directly (rather than putting them on item)?
   var bookmarked: Bool {
-    get { item.bookmarked }
-    set { item.bookmarked = newValue }
+    get {
+      access(keyPath: \.bookmarked)
+
+      return item.bookmarked
+    }
+    set {
+      withMutation(keyPath: \.bookmarked) {
+        item.bookmarked = newValue
+      }
+    }
   }
 
   // Live Text
@@ -136,7 +143,6 @@ extension ImageCollectionItemImage: URLScope {
   }
 }
 
-@Observable
 class ImageCollectionItem: Codable {
   var bookmark: BookmarkFile
   var image: ImageCollectionItemImage?
@@ -279,7 +285,7 @@ class ImageCollection: Codable {
   }
 
   func updateBookmarks() {
-    bookmarked = images.filter { $0.item.bookmarked }
+    bookmarked = images.filter(\.bookmarked)
     bookmarkedIndex = Set(bookmarked.map(\.id))
   }
 

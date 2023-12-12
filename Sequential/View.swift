@@ -50,15 +50,6 @@ extension KeyboardShortcut {
   static let jumpToCurrentImage = Self("l")
 }
 
-@resultBuilder
-struct TextBuilder {
-  static let blank = Text(verbatim: "")
-
-  static func buildBlock(_ components: Text...) -> Text {
-    components.reduce(blank, +)
-  }
-}
-
 extension NSEvent.ModifierFlags {
   static let primary: Self = [.command, .shift, .option, .control]
 }
@@ -87,8 +78,10 @@ extension Binding: Equatable where Value: Equatable {
 }
 
 struct FileDialogOpenViewModifier: ViewModifier {
+  static let id = "open"
+
   func body(content: Content) -> some View {
-    content.fileDialogCustomizationID("open")
+    content.fileDialogCustomizationID(Self.id)
   }
 }
 
@@ -109,7 +102,6 @@ struct FileDialogCopyDestinationViewModifier: ViewModifier {
 }
 
 extension View {
-  // I wish there were a way to apply this to the NSOpenPanel used in File > Open...
   func fileDialogOpen() -> some View {
     self.modifier(FileDialogOpenViewModifier())
   }
@@ -132,7 +124,7 @@ enum ImagePhase: Equatable {
       case .success: self = .success
       case .failure: self = .failure
       @unknown default:
-        Logger.ui.error("AsyncImagePhase was not recognized")
+        Logger.ui.error("AsyncImagePhase case was not recognized")
 
         return nil
     }
