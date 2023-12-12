@@ -60,6 +60,9 @@ struct Keys {
   static let importHidden = Item("importHidden", false)
   static let importSubdirectories = Item("importSubdirectories", true)
 
+  static let brightness = Item("brightness", 0.0)
+  static let grayscale = Item("grayscale", 0.0)
+
   struct Item<Key, Value> {
     let key: Key
     let value: Value

@@ -149,11 +149,11 @@ class CopyDepot {
 
     Task {
       // Note: I got a crash here once.
-      async let resolved = destinations(for: resolved)
-      async let unresolved = destinations(for: unresolved)
+      let resolved = await destinations(for: resolved)
+      let unresolved = await destinations(for: unresolved)
 
-      self.resolved = await resolved
-      self.unresolved = await unresolved
+      self.resolved = resolved
+      self.unresolved = unresolved
     }
   }
 

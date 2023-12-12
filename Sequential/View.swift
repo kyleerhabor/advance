@@ -70,7 +70,6 @@ extension Binding {
   }
 }
 
-// This is for focused state to appropriately track changes without constantly re-rendering the view.
 extension Binding: Equatable where Value: Equatable {
   public static func ==(lhs: Self, rhs: Self) -> Bool {
     lhs.wrappedValue == rhs.wrappedValue

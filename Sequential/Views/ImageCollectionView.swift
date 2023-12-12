@@ -79,12 +79,14 @@ extension FocusedValues {
 }
 
 struct ImageCollectionItemPhaseView: View {
+  @AppStorage(Keys.brightness.key) private var brightness = Keys.brightness.value
+  @AppStorage(Keys.grayscale.key) private var grayscale = Keys.grayscale.value
   @State private var elapsed = false
   private var imagePhase: ImagePhase {
     .init(phase) ?? .empty
   }
 
-  @Binding var phase: AsyncImagePhase
+  let phase: AsyncImagePhase
 
   var body: some View {
     // For transparent images, the fill is still useful to know that an image is supposed to be in the frame, but when
@@ -96,7 +98,13 @@ struct ImageCollectionItemPhaseView: View {
       .visible(phase.image == nil)
       .overlay {
         if let image = phase.image {
-          image.resizable()
+          image
+            .resizable()
+            .animation(.default) { content in
+              content
+                .brightness(brightness)
+                .grayscale(grayscale)
+            }
         }
       }.overlay {
         ProgressView()
@@ -157,7 +165,7 @@ struct ImageCollectionItemView<Overlay>: View where Overlay: View {
         self.phase = phase
       }
     } content: {
-      ImageCollectionItemPhaseView(phase: $phase)
+      ImageCollectionItemPhaseView(phase: phase)
         .overlay {
           overlay(phase)
         }

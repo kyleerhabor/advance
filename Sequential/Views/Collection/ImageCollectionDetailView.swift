@@ -206,20 +206,74 @@ struct ImageCollectionDetailCurrentView: View {
     if let image = images.first, displayTitleBarImage {
       let url = image.url
 
-      // I would like to set .jumpToCurrentImage here, but whenever the identity changes, it causes a hang in large
-      // image collections. This seems to be due to the modifier itself (since I imagine it happens in the sidebar)
-      // but, interestingly, only seems to occur when the user scrolls down (and not up).
       Color.clear
         .navigationTitle(Text(url.deletingPathExtension().lastPathComponent))
         .navigationDocument(url)
-        .focusedSceneValue(\.jumpToCurrentImage, .init(identity: image.id) {
+        .focusedSceneValue(\.openFinder, .init(enabled: true, menu: .init(identity: [image.id]) {
+          openFinder(selecting: image.url)
+        })).focusedSceneValue(\.jumpToCurrentImage, .init(identity: image.id) {
           selection = [image.id]
 
           scrollSidebar(selection)
-        }).focusedSceneValue(\.openFinder, .init(enabled: true, menu: .init(identity: [image.id]) {
-          openFinder(selecting: image.url)
-        }))
+        })
     }
+  }
+}
+
+struct ImageCollectionDetailVisualView: View {
+  @AppStorage(Keys.brightness.key) private var brightness = Keys.brightness.value
+  @AppStorage(Keys.grayscale.key) private var grayscale = Keys.grayscale.value
+
+  var body: some View {
+    // FIXME: Using .focusable on ResetButton allows users to select but not perform action.
+    //
+    // Using .focusable allows me to tab to the button, but not hit Space to perform the action. Sometimes, however,
+    // I'll need to tab back once and hit Space for it to function.
+    Form {
+      HStack(alignment: .firstTextBaseline) {
+        LabeledContent {
+          Slider(value: $brightness, in: -0.5...0.5, step: 0.1) {
+            // Empty
+          } minimumValueLabel: {
+            Text("50%")
+              .fontDesign(.monospaced)
+          } maximumValueLabel: {
+            Text("150%")
+              .fontDesign(.monospaced)
+          }.frame(width: 250)
+        } label: {
+          Text("Brightness:")
+        }
+
+        ResetButton {
+          brightness = Keys.brightness.value
+        }.disabled(brightness == Keys.brightness.value)
+      }
+
+      HStack(alignment: .firstTextBaseline) {
+        LabeledContent {
+          Slider(value: $grayscale, in: 0...1, step: 0.1) {
+            // Empty
+          } minimumValueLabel: {
+            // I can't figure out how to align the labels.
+            Text(" 0%")
+              .fontDesign(.monospaced)
+          } maximumValueLabel: {
+            Text("100%")
+              .fontDesign(.monospaced)
+          }.frame(width: 250)
+        } label: {
+          Text("Grayscale:")
+        }
+
+        ResetButton {
+          grayscale = Keys.grayscale.value
+        }.disabled(grayscale == Keys.grayscale.value)
+      }
+    }
+    .formStyle(SettingsFormStyle())
+    .padding()
+    .frame(width: 384)
   }
 }
 
@@ -280,6 +334,14 @@ struct ImageCollectionDetailView: View {
     }
     .listStyle(.plain)
     .toolbar(id: "Canvas") {
+      ToolbarItem(id: "Visual") {
+        PopoverButtonView(edge: .bottom) {
+          ImageCollectionDetailVisualView()
+        } label: {
+          Label("Visual Effects", systemImage: "paintbrush.pointed")
+        }
+      }
+
       ToolbarItem(id: "Live Text Icon") {
         let icons = Binding {
           icon

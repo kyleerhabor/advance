@@ -77,16 +77,18 @@ extension HorizontalAlignment {
 }
 
 struct SettingsFormStyle: FormStyle {
+  let spacing: CGFloat?
+
+  init(spacing: CGFloat? = nil) {
+    self.spacing = spacing
+  }
+
   func makeBody(configuration: Configuration) -> some View {
-    VStack(alignment: .keyed, spacing: 16) {
+    VStack(alignment: .keyed, spacing: spacing) {
       configuration.content
         .labeledContentStyle(.settings)
     }
   }
-}
-
-extension FormStyle where Self == SettingsFormStyle {
-  static var settings: SettingsFormStyle { .init() }
 }
 
 struct SettingsView: View {
@@ -111,7 +113,7 @@ struct SettingsView: View {
         Label("Import", systemImage: "square.and.arrow.down")
       }
     }
-    .formStyle(.settings)
+    .formStyle(SettingsFormStyle(spacing: 16))
     .frame(width: 384) // 256 - 512
     .scenePadding()
     .frame(width: 576) // 512 - 640

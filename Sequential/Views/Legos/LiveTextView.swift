@@ -43,7 +43,10 @@ struct LiveTextView<Scope>: NSViewRepresentable where Scope: URLScope {
     overlayView.delegate = context.coordinator
     // .imageSubject seems to be very unreliable, so I'm limiting it to text only.
     overlayView.preferredInteractionTypes = .automaticTextOnly
-    overlayView.setHighlightVisibility(highlight: highlight, supplementaryInterfaceHidden: supplementaryInterfaceHidden, animated: false)
+
+    // If we enable highlighting on initialization, it'll immediately go away but the supplementary interface will
+    // be activated (i.e. have its accent color indicating the highlight state).
+    overlayView.setHighlightVisibility(highlight: false, supplementaryInterfaceHidden: supplementaryInterfaceHidden, animated: false)
 
     analyze(overlayView, context: context)
 
@@ -59,8 +62,6 @@ struct LiveTextView<Scope>: NSViewRepresentable where Scope: URLScope {
   }
 
   static func dismantleNSView(_ overlayView: ImageAnalysisOverlayView, coordinator: Coordinator) {
-    coordinator.highlight = false
-
     coordinator.task?.cancel()
   }
 

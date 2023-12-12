@@ -31,6 +31,7 @@
 		00CBAB572AB23E1F0045FF83 /* ImageCollectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00CBAB562AB23E1F0045FF83 /* ImageCollectionView.swift */; };
 		00CBAB5A2AB23E9C0045FF83 /* ImageCollectionScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00CBAB592AB23E9C0045FF83 /* ImageCollectionScene.swift */; };
 		00CBAB5C2AB2470C0045FF83 /* ImageCollectionDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00CBAB5B2AB2470C0045FF83 /* ImageCollectionDetailView.swift */; };
+		00CF4C8B2B28C0AD0033C95B /* Button.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00CF4C8A2B28C0AD0033C95B /* Button.swift */; };
 		00D38C312AD73672005505F5 /* ImageCollectionSidebarContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00D38C302AD73671005505F5 /* ImageCollectionSidebarContentView.swift */; };
 		00E0ECC02A76A8000030A0DC /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E0ECBF2A76A8000030A0DC /* AppDelegate.swift */; };
 		00E22C542ACF32BB001048ED /* Bookmark.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E22C532ACF32BB001048ED /* Bookmark.swift */; };
@@ -67,6 +68,7 @@
 		00CBAB562AB23E1F0045FF83 /* ImageCollectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionView.swift; sourceTree = "<group>"; };
 		00CBAB592AB23E9C0045FF83 /* ImageCollectionScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionScene.swift; sourceTree = "<group>"; };
 		00CBAB5B2AB2470C0045FF83 /* ImageCollectionDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionDetailView.swift; sourceTree = "<group>"; };
+		00CF4C8A2B28C0AD0033C95B /* Button.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Button.swift; sourceTree = "<group>"; };
 		00D38C302AD73671005505F5 /* ImageCollectionSidebarContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionSidebarContentView.swift; sourceTree = "<group>"; };
 		00DC498E2A75B92000161495 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		00E0ECBF2A76A8000030A0DC /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -193,6 +195,7 @@
 		00C127322A90925800B5452C /* Legos */ = {
 			isa = PBXGroup;
 			children = (
+				00CF4C8A2B28C0AD0033C95B /* Button.swift */,
 				002629D12AD59DC700ABFEB6 /* DisplayView.swift */,
 				00C127352A90CF7400B5452C /* LiveTextView.swift */,
 			);
@@ -318,6 +321,7 @@
 				0008556E2A7306CB00309905 /* Standard.swift in Sources */,
 				00FF849A2A995BBB007A4C69 /* SettingsDestinationsView.swift in Sources */,
 				007FDD492A76E1C800A1E42B /* WindowViewModifier.swift in Sources */,
+				00CF4C8B2B28C0AD0033C95B /* Button.swift in Sources */,
 				00C127362A90CF7400B5452C /* LiveTextView.swift in Sources */,
 				00E0ECC02A76A8000030A0DC /* AppDelegate.swift in Sources */,
 				0077AF922ABB8650002E3FF4 /* Image.swift in Sources */,

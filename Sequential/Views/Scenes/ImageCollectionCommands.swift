@@ -179,17 +179,17 @@ struct ImageCollectionCommands: Commands {
     }
 
     CommandMenu("Image") {
-      Toggle("Bookmark", isOn: .init($bookmarked, defaultValue: false))
-        .keyboardShortcut(.bookmark)
-        .disabled(bookmarked == nil)
-
-      Divider()
-
       Button("Show in Sidebar") {
         jumpToCurrentImage?.perform()
       }
       .keyboardShortcut(.jumpToCurrentImage)
       .disabled(jumpToCurrentImage == nil)
+
+      Divider()
+
+      Toggle("Bookmark", isOn: .init($bookmarked, defaultValue: false))
+        .keyboardShortcut(.bookmark)
+        .disabled(bookmarked == nil)
     }
 
     CommandGroup(after: .windowArrangement) {
