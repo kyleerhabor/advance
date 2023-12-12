@@ -34,9 +34,9 @@ Sequential was created to provide an experience as simple as (or even simpler th
 ## Screenshot
 
 <details>
-  <summary>An example using the 1st volume of the manga "The Ancient Magus' Bride"</summary>
-
-  <img src="Documentation/Screenshots/The Ancient Magus' Bride.png" alt="The app showcasing the main canvas with one image, and a sidebar with three images. The toolbar contains a toggle for the Live Text icon and the sidebar a tab for only listing bookmarked images.">
+  <summary>An image collection featuring the manga series "Wonder Cat Kyuu-chan"</summary>
+  
+  <img src="Documentation/Screenshots/Wonder Cat Kyuu-chan.png" alt="The app showcasing the main canvas with one image, and a sidebar with three images. The toolbar contains the title of the current image, a button for configuring image visual effects, and a toggle for the Live Text icon. At the bottom of the sidebar is a tab for listing bookmarked images.">
 </details>
 
 <details>

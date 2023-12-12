@@ -56,7 +56,6 @@
 		003763CB2AB40FD800D53F2E /* ImageCollectionSidebarEmptyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionSidebarEmptyView.swift; sourceTree = "<group>"; };
 		0042B5DA2AB8C450009F251B /* ImageCollectionCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionCommands.swift; sourceTree = "<group>"; };
 		004379D32A77734200246057 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
-		004D822E2AC77C1A00C8284C /* The Ancient Magus' Bride.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "The Ancient Magus' Bride.png"; sourceTree = "<group>"; };
 		004D8FBF2A76C1C900C0303E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		0077AF912ABB8650002E3FF4 /* Image.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Image.swift; sourceTree = "<group>"; };
 		007FDD482A76E1C800A1E42B /* WindowViewModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowViewModifier.swift; sourceTree = "<group>"; };
@@ -69,6 +68,7 @@
 		00CBAB592AB23E9C0045FF83 /* ImageCollectionScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionScene.swift; sourceTree = "<group>"; };
 		00CBAB5B2AB2470C0045FF83 /* ImageCollectionDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionDetailView.swift; sourceTree = "<group>"; };
 		00CF4C8A2B28C0AD0033C95B /* Button.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Button.swift; sourceTree = "<group>"; };
+		00CF4C8C2B28CDF00033C95B /* Wonder Cat Kyuu-chan.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Wonder Cat Kyuu-chan.png"; sourceTree = "<group>"; };
 		00D38C302AD73671005505F5 /* ImageCollectionSidebarContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionSidebarContentView.swift; sourceTree = "<group>"; };
 		00DC498E2A75B92000161495 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		00E0ECBF2A76A8000030A0DC /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -176,8 +176,8 @@
 		009A6D102AD6561400436383 /* Screenshots */ = {
 			isa = PBXGroup;
 			children = (
+				00CF4C8C2B28CDF00033C95B /* Wonder Cat Kyuu-chan.png */,
 				009A6D112AD6564F00436383 /* Children of the Whales.png */,
-				004D822E2AC77C1A00C8284C /* The Ancient Magus' Bride.png */,
 			);
 			path = Screenshots;
 			sourceTree = "<group>";
