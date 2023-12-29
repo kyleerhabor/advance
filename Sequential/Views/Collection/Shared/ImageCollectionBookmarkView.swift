@@ -24,9 +24,3 @@ struct ImageCollectionBookmarkView: View {
     }
   }
 }
-
-#Preview {
-  @State var bookmarked = false
-
-  return ImageCollectionBookmarkView(bookmarked: $bookmarked)
-}

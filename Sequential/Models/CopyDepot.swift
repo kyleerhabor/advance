@@ -5,53 +5,25 @@
 //  Created by Kyle Erhabor on 9/27/23.
 //
 
+import Algorithms
 import OSLog
 import SwiftUI
+import UniformTypeIdentifiers
 
-struct CopyDepotBookmark: Codable {
-  let data: Data
-  let url: URL
-  let resolved: Bool
-
-  init(data: Data, url: URL, resolved: Bool) {
-    self.data = data
-    self.url = url
-    self.resolved = resolved
-  }
-
-  func resolve() throws -> Bookmark {
-    try .init(data: data, resolving: .withSecurityScope) { url in
-      try url.scoped {
-        try url.bookmark(options: .withSecurityScope)
-      }
-    }
-  }
-
-  // MARK: Codable conformance
-
-  init(from decoder: Decoder) throws {
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-
-    let data = try container.decode(Data.self, forKey: .data)
-    let url = try container.decode(URL.self, forKey: .url)
-
-    self.init(data: data, url: url, resolved: false)
-  }
-
-  enum CodingKeys: CodingKey {
-    case data, url
+extension NSWorkspace {
+  func icon(forFileAt url: URL) -> NSImage {
+    self.icon(forFile: url.string)
   }
 }
 
-struct CopyDepotDestination {
+struct CopyDepotItemDestination {
+  let id: BookmarkStoreItem.ID
   let url: URL
-  let path: AttributedString
+  let path: URL
   let icon: Image
 
-  init(url: URL) {
-    self.url = url
-    self.path = Self.format(components: Self.normalize(url: url).pathComponents.dropFirst())
-    self.icon = .init(nsImage: NSWorkspace.shared.icon(forFile: url.string))
+  var string: AttributedString {
+    Self.format(components: path.pathComponents.dropFirst())
   }
 
   static func normalize(url: URL) -> URL {
@@ -64,110 +36,242 @@ struct CopyDepotDestination {
 
   static func format(components: some Sequence<String>) -> AttributedString {
     var separator = AttributedString(" 􀰇 ")
-    separator.foregroundColor = .tertiaryLabelColor
+    separator.foregroundColor = .tertiaryLabel
 
-    var string = AttributedString()
-    var iterator = components
+    return components
       .map { AttributedString($0) }
-      .makeIterator()
+      .interspersed(with: separator)
+      .reduce(into: .init(), +=)
+  }
 
-    if let first = iterator.next() {
-      string.append(first)
-
-      while let next = iterator.next() {
-        string.append(separator)
-        string.append(next)
-      }
-    }
-
-    return string
+  static func format(url: URL) -> AttributedString {
+    format(components: normalize(url: url).pathComponents.dropFirst())
   }
 }
 
-extension CopyDepotDestination: Identifiable {
-  var id: URL { url }
+extension CopyDepotItemDestination: Identifiable {}
+
+extension CopyDepotItemDestination: Equatable {
+  static func ==(lhs: Self, rhs: Self) -> Bool {
+    lhs.id == rhs.id
+  }
+}
+
+struct CopyDepotItemResolution {
+  let resolved: Bool
+  let destination: CopyDepotItemDestination
+}
+
+extension CopyDepotItemResolution: Equatable {}
+
+extension CopyDepotItemResolution: Identifiable {
+  var id: BookmarkStoreItem.ID { destination.id }
+}
+
+struct CopyDepotItem {
+  let url: URL
+  let bookmark: BookmarkStoreItem.ID
+  let resolved: Bool
+}
+
+extension CopyDepotItem: Codable {
+  init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    let url = try container.decode(URL.self, forKey: .url)
+    let bookmark = try container.decode(BookmarkStoreItem.ID.self, forKey: .bookmark)
+
+    self.url = url
+    self.bookmark = bookmark
+    self.resolved = false
+  }
+
+  enum CodingKeys: CodingKey {
+    // We're coding in the URL so we can still display it if it can't be resolved.
+    case url
+    case bookmark
+  }
+}
+
+extension URL {
+  static let copyDepotFile = URL.dataDirectory
+    .appending(component: "CopyDepot")
+    .appendingPathExtension(for: .binaryPropertyList)
 }
 
 @Observable
-// I tried writing a @DataStorage property wrapper to act like @AppStorage but specifically for storing Data types
-// automatically (via Codable conformance), but had trouble reflecting changes across scenes. In addition, changes
-// would only get communicated to the property wrapper on direct assignment (making internal mutation not simple)
-//
-// Maybe we could use the Observable framework directly to resolve the latter issue?
-class CopyDepot {
-  let encoder = JSONEncoder()
-  let decoder = JSONDecoder()
-  var bookmarks = [CopyDepotBookmark]()
-  var resolved = [CopyDepotDestination]()
-  var unresolved = [CopyDepotDestination]()
+class CopyDepot: Codable {
+  static let encoder = PropertyListEncoder()
+  static let decoder = PropertyListDecoder()
 
-  func resolve() async -> [CopyDepotBookmark] {
-    guard let data = UserDefaults.standard.data(forKey: "copyDestinations") else {
-      Logger.model.info("No data for copy destinations found in user defaults")
+  @ObservationIgnored var store = BookmarkStore()
+  @ObservationIgnored var items = [BookmarkStoreItem.ID: CopyDepotItem]()
 
-      return []
+  var main = [CopyDepotItemDestination]()
+  var settings = [CopyDepotItemResolution]()
+
+  init() {
+    Task {
+      let url = URL.copyDepotFile
+      let depot: CopyDepot
+
+      do {
+        depot = try await fetch(from: url)
+      } catch let err as CocoaError where err.code == .fileReadNoSuchFile {
+        Logger.model.info("Could not fetch copy depot from URL \"\(url.string)\" as the file does not exist yet.")
+
+        return
+      } catch {
+        Logger.model.error("Could not fetch copy depot from URL \"\(url.string)\": \(error)")
+
+        return
+      }
+
+      self.store = depot.store
+      self.items = depot.items
+
+      let state = await resolve(in: store)
+
+      self.store = state.store
+      apply(ids: state.value)
+      update()
+
+      Task(priority: .medium) {
+        await self.persist()
+      }
     }
+  }
 
-    do {
-      let bookmarks = try decoder
-        .decode([CopyDepotBookmark].self, from: data)
-        .map { bookmark in
-          do {
-            let bookmark = try bookmark.resolve()
+  func fetch(from url: URL) async throws -> Self {
+    let data = try Data(contentsOf: url)
+    let decoded = try Self.decoder.decode(Self.self, from: data)
 
-            return CopyDepotBookmark(
-              data: bookmark.data,
-              url: bookmark.url,
-              resolved: true
+    return decoded
+  }
+
+  typealias IDs = Set<BookmarkStoreItem.ID>
+
+  func resolve(in store: BookmarkStore) async -> BookmarkStoreState<IDs> {
+    await withThrowingTaskGroup(of: Pair<BookmarkStoreItem.ID, URLBookmark>.self) { group in
+      let bookmarks = items.values.compactMap { item in
+        store.bookmarks[item.bookmark]
+      }
+
+      bookmarks.forEach { bookmark in
+        group.addTask {
+          let data = bookmark.bookmark
+          let resolved = try BookmarkStoreItem.resolve(data: data.data, options: data.options, relativeTo: nil)
+
+          return .init(
+            left: bookmark.id,
+            right: .init(
+              url: resolved.url,
+              bookmark: .init(data: resolved.data, options: data.options)
             )
-          } catch {
-            let path = bookmark.url.string
+          )
+        }
+      }
 
-            if let err = error as? CocoaError, err.code == .fileNoSuchFile || err.code == .fileReadCorruptFile {
-              Logger.model.info("Bookmark for copy destination \"\(path)\" (\(bookmark.data)) could not be resolved. Is it temporarily unavailable?")
-            } else {
-              Logger.model.error("Bookmark for copy destination \"\(path)\" (\(bookmark.data)) could not be resolved: \(error)")
-            }
+      var store = store
+      var ids = IDs(minimumCapacity: bookmarks.count)
 
-            // We want to keep it for "unresolved" bookmarks (allowing the user to remove it in case).
-            return bookmark
-          }
-        }.sorted { $0.url < $1.url }
+      while let result = await group.nextResult() {
+        switch result {
+          case .success(let pair):
+            let id = pair.left
+            let union = pair.right
 
-      return bookmarks
-    } catch {
-      Logger.model.error("Could not decode bookmarks: \(error)")
+            ids.insert(id)
 
-      return []
+            let bookmark = union.bookmark
+            let item = BookmarkStoreItem(id: id, bookmark: bookmark, relative: nil)
+
+            store.register(item: item)
+            store.urls[item.hash] = union.url
+          case .failure(let err as CocoaError) where err.code == .fileNoSuchFile:
+            Logger.model.info("Could not resolve copy depot item as its file does not exist. Is it temporarily unavailable?")
+          case .failure(let err):
+            Logger.model.error("Could not resolve copy depot item: \(err)")
+        }
+      }
+
+      return .init(store: store, value: ids)
+    }
+  }
+
+  func apply(ids: IDs) {
+    items = items.mapValues { item in
+      guard ids.contains(item.bookmark),
+            let bookmark = store.bookmarks[item.bookmark],
+            let url = store.urls[bookmark.hash] else {
+        return .init(url: item.url, bookmark: item.bookmark, resolved: false)
+      }
+
+      return .init(url: url, bookmark: item.bookmark, resolved: true)
     }
   }
 
   func update() {
-    let grouping = Dictionary(grouping: bookmarks, by: \.resolved)
-    let resolved = grouping[true] ?? []
-    let unresolved = grouping[false] ?? []
+    self.main = items.values
+      .filter(\.resolved)
+      .map { item in
+        CopyDepotItemDestination(
+          id: item.bookmark,
+          url: item.url,
+          path: CopyDepotItemDestination.normalize(url: item.url),
+          icon: .init(nsImage: NSWorkspace.shared.icon(forFileAt: item.url))
+        )
+      }.sorted(using: KeyPathComparator(\.path.string))
 
-    Task {
-      // Note: I got a crash here once.
-      let resolved = await destinations(for: resolved)
-      let unresolved = await destinations(for: unresolved)
+    self.settings = items.values
+      .map { item in
+        CopyDepotItemResolution(
+          resolved: item.resolved,
+          destination: .init(
+            id: item.bookmark,
+            url: item.url,
+            path: CopyDepotItemDestination.normalize(url: item.url),
+            icon: item.resolved
+            ? .init(nsImage: NSWorkspace.shared.icon(forFileAt: item.url))
+            : .init(systemName: "questionmark.circle.fill")
+          )
+        )
+      }.sorted(using: KeyPathComparator(\.destination.path.string))
+  }
 
-      self.resolved = resolved
-      self.unresolved = unresolved
+  func persist(to url: URL) throws {
+    let encoded = try CopyDepot.encoder.encode(self)
+    let url = URL.copyDepotFile
+
+    try FileManager.default.creatingDirectories(at: url.deletingLastPathComponent(), code: .fileNoSuchFile) {
+      try encoded.write(to: url)
     }
   }
 
-  func destinations(for bookmarks: [CopyDepotBookmark]) async -> [CopyDepotDestination] {
-    bookmarks.map { .init(url: $0.url) }
-  }
-
-  func store() {
+  func persist() async {
     do {
-      let data = try encoder.encode(bookmarks)
-
-      UserDefaults.standard.set(data, forKey: "copyDestinations")
+      try persist(to: .copyDepotFile)
     } catch {
-      Logger.model.error("\(error)")
+      Logger.model.error("Could not persist copy depot: \(error)")
     }
+  }
+
+  // MARK: - Codable conformance
+
+  required init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    let items = try container.decode([CopyDepotItem].self, forKey: .items)
+
+    self.store = try container.decode(BookmarkStore.self, forKey: .store)
+    self.items = Dictionary(uniqueKeysWithValues: items.map { ($0.bookmark, $0) })
+  }
+
+  func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(store, forKey: .store)
+    try container.encode(Array(items.values), forKey: .items)
+  }
+
+  enum CodingKeys: CodingKey {
+    case store, items
   }
 }

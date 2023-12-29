@@ -5,21 +5,12 @@
 //  Created by Kyle Erhabor on 7/28/23.
 //
 
+import Defaults
 import SwiftUI
 
 enum ImageError: Error {
   case undecodable
   case thumbnail
-}
-
-func reversedImage(properties: Dictionary<CFString, Any>) -> Bool? {
-  guard let raw = properties[kCGImagePropertyOrientation] as? UInt32,
-        let orientation = CGImagePropertyOrientation(rawValue: raw) else {
-    return nil
-  }
-
-  // TODO: Cover other orientations.
-  return orientation == .right
 }
 
 extension NavigationSplitViewVisibility: RawRepresentable {
@@ -42,24 +33,15 @@ extension NavigationSplitViewVisibility: RawRepresentable {
   }
 }
 
-enum ExecutionError: Error {
-  case interrupt
-}
-
 struct Keys {
-  static let appearance = Item("appearance", nil as SettingsGeneralView.Scheme)
   static let margin = Item("margin", 1)
   static let collapseMargins = Item("collapseMargins", true)
   // I think enabling Live Text by default but hiding the icon strikes a nice compromise between convenience (e.g.
   // being able to select text) and UI simplicity (i.e. not having the buttons get in the way).
   static let liveText = Item("liveText", true)
   static let liveTextIcon = Item("liveTextIcon", false)
-  static let windowless = Item("windowless", false)
   static let displayTitleBarImage = Item("displayTitleBarImage", true)
-  static let resolveCopyDestinationConflicts = Item("resolveCopyDestinationConflicts", true)
-  static let importHidden = Item("importHidden", false)
-  static let importSubdirectories = Item("importSubdirectories", true)
-
+  
   static let brightness = Item("brightness", 0.0)
   static let grayscale = Item("grayscale", 0.0)
 
@@ -72,4 +54,35 @@ struct Keys {
       self.value = value
     }
   }
+}
+
+extension URL {
+  static let dataDirectory = Self.applicationSupportDirectory.appending(component: Bundle.identifier)
+}
+
+enum ColorScheme: Int {
+  case system, light, dark
+
+  var appearance: NSAppearance? {
+    switch self {
+      case .light: .init(named: .aqua)
+      case .dark: .init(named: .darkAqua)
+      default: nil
+    }
+  }
+}
+
+extension ColorScheme: Defaults.Serializable {}
+
+extension Defaults.Keys {
+  static let colorScheme = Key("colorscheme", default: ColorScheme.system)
+
+  static let importHiddenFiles = Key("importHiddenFiles", default: false)
+  static let importSubdirectories = Key("importSubdirectories", default: true)
+
+  static let hideToolbarScrolling = Key("hideToolbarScrolling", default: false)
+  static let hideCursorScrolling = Key("hideCursorScrolling", default: false)
+  static let hideScrollIndicator = Key("hideScrollIndicator", default: false)
+
+  static let resolveCopyingConflicts = Key("resolveCopyingConflicts", default: true)
 }

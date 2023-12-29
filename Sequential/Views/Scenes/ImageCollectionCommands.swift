@@ -5,8 +5,11 @@
 //  Created by Kyle Erhabor on 9/18/23.
 //
 
+import Defaults
 import OSLog
 import SwiftUI
+
+// MARK: - Focused value keys
 
 struct WindowFocusedValueKey: FocusedValueKey {
   typealias Value = Window
@@ -98,12 +101,14 @@ extension FocusedValues {
   }
 }
 
+// MARK: - Views
+
 struct ImageCollectionCommands: Commands {
+  @Environment(ImageCollectionManager.self) private var manager
   @Environment(\.openWindow) private var openWindow
   @EnvironmentObject private var delegate: AppDelegate
-  @AppStorage(Keys.appearance.key) private var appearance: SettingsGeneralView.Scheme
-  @AppStorage(Keys.importHidden.key) private var importHidden = Keys.importHidden.value
-  @AppStorage(Keys.importSubdirectories.key) private var importSubdirectories = Keys.importSubdirectories.value
+  @Default(.importHiddenFiles) private var importHidden
+  @Default(.importSubdirectories) private var importSubdirectories
   @FocusedBinding(\.sidebarBookmarked) private var bookmarked
   @FocusedValue(\.window) private var win
   @FocusedValue(\.fullScreen) private var fullScreen
@@ -112,7 +117,7 @@ struct ImageCollectionCommands: Commands {
   @FocusedValue(\.sidebarQuicklook) private var quicklook
   @FocusedValue(\.jumpToCurrentImage) private var jumpToCurrentImage
   private var window: NSWindow? { win?.window }
-
+  
   var body: some Commands {
     // TODO: Figure out how to remove the "Show/Hide Toolbar" item.
     ToolbarCommands()
@@ -134,17 +139,12 @@ struct ImageCollectionCommands: Commands {
         }
 
         Task {
-          do {
-            let bookmarks = try await ImageCollection.resolve(
-              urls: urls.enumerated(),
-              hidden: importHidden,
-              subdirectories: importSubdirectories
-            ).ordered()
+          let collection = await resolve(urls: urls, in: .init())
+          let id = UUID()
 
-            openWindow(value: ImageCollection(bookmarks: bookmarks))
-          } catch {
-            Logger.model.error("\(error)")
-          }
+          manager.collections[id] = collection
+
+          openWindow(value: id)
         }
       }.keyboardShortcut(.open)
 
@@ -195,26 +195,14 @@ struct ImageCollectionCommands: Commands {
     CommandGroup(after: .windowArrangement) {
       // This little hack allows us to do stuff with the UI on startup (since it's always called).
       Color.clear.onAppear {
-        // We need to set NSApp's appearance explicitly so windows we don't directly control (such as the about) will
-        // still sync with the user's preference.
-        //
-        // Note that we can't use .onChange(of:initial:_) since this scene will have to be focused to receive the
-        // change (when the settings view would have focus).
-        NSApp.appearance = appearance?.app()
-
         delegate.onOpen = { urls in
           Task {
-            do {
-              let bookmarks = try await ImageCollection.resolve(
-                urls: urls.enumerated(),
-                hidden: importHidden,
-                subdirectories: importSubdirectories
-              ).ordered()
+            let collection = await resolve(urls: urls, in: .init())
+            let id = UUID()
 
-              openWindow(value: ImageCollection(bookmarks: bookmarks))
-            } catch {
-              Logger.ui.error("\(error)")
-            }
+            manager.collections[id] = collection
+
+            openWindow(value: id)
           }
         }
       }
@@ -237,5 +225,52 @@ struct ImageCollectionCommands: Commands {
     }
 
     return panel.urls
+  }
+
+  func prepare(url: URL) -> ImageCollection.Kind {
+    let source = URLSource(url: url, options: [.withReadOnlySecurityScope, .withoutImplicitSecurityScope])
+
+    if url.isDirectory() {
+      return .document(.init(
+        source: source,
+        files: url.scoped {
+          FileManager.default
+            .contents(at: url, options: .init(includingHiddenFiles: importHidden, includingSubdirectories: importSubdirectories))
+            .finderSort()
+            .map { .init(url: $0, options: .withoutImplicitSecurityScope) }
+        }
+      ))
+    }
+
+    return .file(source)
+  }
+
+  static func resolve(kinds: [ImageCollection.Kind], in store: BookmarkStore) async -> ImageCollection {
+    let state = await ImageCollection.resolve(kinds: kinds, in: store)
+    let order = kinds.flatMap { kind in
+      kind.files.compactMap { source in
+        state.value[source.url]?.bookmark
+      }
+    }
+
+    let items = Dictionary(uniqueKeysWithValues: state.value.map { pair in
+      (pair.value.bookmark, ImageCollectionItem(root: pair.value, image: nil))
+    })
+
+    let collection = ImageCollection(
+      store: state.store,
+      items: items,
+      order: .init(order)
+    )
+
+    return collection
+  }
+
+  // MARK: - Convenience (concurrency)
+
+  func resolve(urls: [URL], in store: BookmarkStore) async -> ImageCollection {
+    let kinds = urls.map(prepare(url:))
+
+    return await Self.resolve(kinds: kinds, in: store)
   }
 }

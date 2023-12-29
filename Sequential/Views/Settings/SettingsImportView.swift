@@ -5,11 +5,12 @@
 //  Created by Kyle Erhabor on 10/12/23.
 //
 
+import Defaults
 import SwiftUI
 
 struct SettingsImportView: View {
-  @AppStorage(Keys.importHidden.key) private var importHidden = Keys.importHidden.value
-  @AppStorage(Keys.importSubdirectories.key) private var importSubdirectories = Keys.importSubdirectories.value
+  @Default(.importHiddenFiles) private var importHidden
+  @Default(.importSubdirectories) private var importSubdirectories
 
   var body: some View {
     LabeledContent("Files:") {
@@ -24,8 +25,4 @@ struct SettingsImportView: View {
       Toggle("Do not search subfolders", isOn: binding)
     }
   }
-}
-
-#Preview {
-  SettingsImportView()
 }

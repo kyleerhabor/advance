@@ -5,6 +5,7 @@
 //  Created by Kyle Erhabor on 10/11/23.
 //
 
+import Defaults
 import QuickLook
 import OSLog
 import SwiftUI
@@ -62,11 +63,13 @@ struct ImageCollectionSidebarItemView: View {
 }
 
 struct ImageCollectionSidebarContentView: View {
-  @Environment(CopyDepot.self) private var copyDepot
+  @Environment(ImageCollection.self) private var collection
   @Environment(\.prerendering) private var prerendering
-  @Environment(\.collection) private var collection
+  @Environment(\.id) private var id
   @Environment(\.selection) @Binding private var selection
-  @AppStorage(Keys.resolveCopyDestinationConflicts.key) private var resolveCopyConflicts = Keys.resolveCopyDestinationConflicts.value
+  @Default(.importHiddenFiles) private var importHidden
+  @Default(.importSubdirectories) private var importSubdirectories
+  @Default(.resolveCopyingConflicts) private var resolveConflicts
   @State private var item: ImageCollectionItemImage.ID?
   @State private var bookmarks = false
   @State private var selectedQuickLookItem: URL?
@@ -104,35 +107,34 @@ struct ImageCollectionSidebarContentView: View {
     // may be states added later, which is why I want to package it into one simple interface.
     ScrollViewReader { proxy in
       List(selection: selected) {
-        // TODO: Figure out how to support tabs.
-        //
-        // This works, but it resets the user's scrolling position whenever bookmarks is flipped.
-        //
-        // TODO: Order bookmarks based on items.
-        //
-        // Bookmarks can be the core backing store, while items can be user preferences, followed by images as final
-        // materialized state. This would be required to preserve order for operations like moving and initial resolving.
-        ForEach(bookmarks ? collection.wrappedValue.bookmarked : collection.wrappedValue.images, id: \.id) { image in
+        ForEach(bookmarks ? collection.bookmarks : collection.images, id: \.id) { image in
           ImageCollectionSidebarItemView(image: image)
             .anchorPreference(key: VisiblePreferenceKey<ImageCollectionItemImage.ID>.self, value: .bounds) {
               [.init(item: image.id, anchor: $0)]
             }
+        }.onMove { from, to in
+          collection.order.elements.move(fromOffsets: from, toOffset: to)
+          collection.update()
+        }
+        // This adds a "Delete" menu item under Edit.
+        .onDelete { offsets in
+          collection.order.elements.remove(atOffsets: offsets)
+          collection.update()
         }
       }.backgroundPreferenceValue(VisiblePreferenceKey<ImageCollectionItemImage.ID>.self) { items in
         GeometryReader { proxy in
-          Color.clear
-            .onChange(of: items) {
-              guard !filtering else {
-                return
-              }
-
-              let local = proxy.frame(in: .local)
-              let visibles = items
-                .filter { local.contains(proxy[$0.anchor]) }
-                .map(\.item)
-
-              self.item = visibles.middle
+          Color.clear.onChange(of: items) {
+            guard !filtering else {
+              return
             }
+
+            let local = proxy.frame(in: .local)
+            let visibles = items
+              .filter { local.contains(proxy[$0.anchor]) }
+              .map(\.item)
+
+            self.item = visibles.middle
+          }
         }.onChange(of: filtering) {
           guard !filtering,
                 let item else {
@@ -143,6 +145,9 @@ struct ImageCollectionSidebarContentView: View {
           // always scroll to the beginning.
           proxy.scrollTo(item, anchor: .center)
         }
+      }.onDeleteCommand {
+        collection.order.subtract(selection)
+        collection.update()
       }
     }.safeAreaInset(edge: .bottom, spacing: 0) {
       // I would *really* like this at the top, but I can't justify it since this is more a filter and not a new tab.
@@ -194,7 +199,7 @@ struct ImageCollectionSidebarContentView: View {
           selectedCopyFiles = ids
         }
 
-        ImageCollectionCopyDestinationView(isPresented: isPresented, error: $error) { destination in
+        ImageCollectionCopyingView(isPresented: isPresented, error: $error) { destination in
           Task(priority: .medium) {
             do {
               try await save(images: images(from: ids), to: destination)
@@ -230,10 +235,7 @@ struct ImageCollectionSidebarContentView: View {
     }
     .fileDialogCopy()
     .alert(self.error ?? "", isPresented: error) {}
-    .task {
-      copyDepot.bookmarks = await copyDepot.resolve()
-      copyDepot.update()
-    }.focusedValue(\.openFinder, .init(enabled: !selection.isEmpty, menu: .init(identity: selection) {
+    .focusedValue(\.openFinder, .init(enabled: !selection.isEmpty, menu: .init(identity: selection) {
       openFinder(selecting: urls(from: selection))
     })).focusedValue(\.sidebarQuicklook, .init(enabled: !selection.isEmpty, menu: .init(identity: quickLookItems) {
       guard selectedQuickLookItem == nil else {
@@ -257,7 +259,7 @@ struct ImageCollectionSidebarContentView: View {
   }
 
   func images(from selection: ImageCollectionView.Selection) -> [ImageCollectionItemImage] {
-    collection.wrappedValue.images.filter(in: selection, by: \.id)
+    collection.images.filter(in: selection, by: \.id)
   }
 
   func urls(from selection: ImageCollectionView.Selection) -> [URL] {
@@ -285,7 +287,7 @@ struct ImageCollectionSidebarContentView: View {
   }
 
   func bookmarked(selection: ImageCollectionView.Selection) -> Bool {
-    return selection.isSubset(of: collection.wrappedValue.bookmarkedIndex)
+    return selection.isSubset(of: collection.bookmarkings)
   }
 
   func isBookmarked(selection: ImageCollectionView.Selection) -> Bool {
@@ -299,16 +301,24 @@ struct ImageCollectionSidebarContentView: View {
   func bookmark(images: some Sequence<ImageCollectionItemImage>, value: Bool) {
     images.forEach(setter(keyPath: \.bookmarked, value: value))
     
-    collection.wrappedValue.updateBookmarks()
+    collection.updateBookmarks()
+
+    Task(priority: .medium) {
+      do {
+        try await collection.persist(id: id)
+      } catch {
+        Logger.model.error("Could not persist image collection \"\(id)\" (via sidebar bookmark): \(error)")
+      }
+    }
   }
 
   func save(images: [ImageCollectionItemImage], to destination: URL) async throws {
-    try ImageCollectionCopyDestinationView.saving {
+    try ImageCollectionCopyingView.saving {
       try destination.scoped {
         try images.forEach { image in
-          try ImageCollectionCopyDestinationView.saving(url: image, to: destination) { url in
+          try ImageCollectionCopyingView.saving(url: image, to: destination) { url in
             try image.scoped {
-              try ImageCollectionCopyDestinationView.save(url: url, to: destination, resolvingConflicts: resolveCopyConflicts)
+              try ImageCollectionCopyingView.save(url: url, to: destination, resolvingConflicts: resolveConflicts)
             }
           }
         }

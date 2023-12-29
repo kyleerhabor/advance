@@ -5,38 +5,44 @@
 //  Created by Kyle Erhabor on 10/12/23.
 //
 
+import Defaults
 import SwiftUI
 
 struct SettingsGeneralView: View {
   typealias Scheme = ColorScheme?
 
-  @Environment(CopyDepot.self) private var copyDepot
-  @AppStorage(Keys.appearance.key) private var appearance: Scheme
+  @Environment(\.liveTextSupported) private var liveTextSupported
   @AppStorage(Keys.margin.key) private var margin = Keys.margin.value
   @AppStorage(Keys.collapseMargins.key) private var collapseMargins = Keys.collapseMargins.value
-  @AppStorage(Keys.windowless.key) private var windowless = Keys.windowless.value
   @AppStorage(Keys.displayTitleBarImage.key) private var displayTitleBarImage = Keys.displayTitleBarImage.value
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
   @AppStorage(Keys.liveTextIcon.key) private var liveTextIcons = Keys.liveTextIcon.value
-  @AppStorage(Keys.resolveCopyDestinationConflicts.key) private var resolveConflicts = Keys.resolveCopyDestinationConflicts.value
-  @State private var showingDestinations = false
+  @Default(.colorScheme) private var colorScheme
+  @Default(.hideToolbarScrolling) private var hideToolbar
+  @Default(.hideCursorScrolling) private var hideCursor
+  @Default(.hideScrollIndicator) private var hideScroll
+  @Default(.resolveCopyingConflicts) private var resolveConflicts
+  @State private var isPresentingCopyingSheet = false
   private let range = 0.0...4.0
 
   var body: some View {
     LabeledContent("Appearance:") {
-      Picker("Theme:", selection: $appearance) {
+      Picker("Theme:", selection: $colorScheme) {
         Text("System")
-          .tag(nil as Scheme)
+          .tag(ColorScheme.system)
 
         Divider()
 
-        Text("Light").tag(.light as Scheme)
-        Text("Dark").tag(.dark as Scheme)
+        Text("Light")
+          .tag(ColorScheme.light)
+
+        Text("Dark")
+          .tag(ColorScheme.dark)
       }
       .labelsHidden()
       .frame(width: 160) // 128 - 192
-      .onChange(of: appearance) {
-        NSApp.appearance = appearance?.app()
+      .onChange(of: colorScheme) {
+        NSApp.appearance = colorScheme.appearance
       }
     }
 
@@ -80,14 +86,26 @@ struct SettingsGeneralView: View {
         Toggle("Show icon", isOn: $liveTextIcons)
           .disabled(!liveText)
       }
+      .disabled(!liveTextSupported)
+      .help(liveTextSupported ? "" : "This device does not support Live Text.")
     }
 
     LabeledContent("Main Canvas:") {
-      Toggle(isOn: $windowless) {
-        Text("Hide the toolbar when scrolling")
+      GroupBox {
+        HStack {
+          Toggle("Toolbar", isOn: $hideToolbar)
 
-        Text("Only relevant when the sidebar is not open.")
-      }
+          Toggle("Cursor", isOn: $hideCursor)
+
+          Toggle("Scroll bar", isOn: $hideScroll)
+        }
+      } label: {
+        Toggle(sources: [$hideToolbar, $hideCursor, $hideScroll], isOn: \.self) {
+          Text("Hide when scrolling:")
+
+          Text("Only relevant when the sidebar is not open.")
+        }
+      }.groupBoxStyle(.settingsLabeled)
 
       Toggle("Display the current image in the title", isOn: $displayTitleBarImage)
     }
@@ -101,22 +119,11 @@ struct SettingsGeneralView: View {
       }
 
       Button("Show Folders...") {
-        showingDestinations = true
-      }.sheet(isPresented: $showingDestinations) {
-        // We want the destinations to be sorted off-screen to not disrupt the user. The action is in a Task so it's
-        // not visible to the user while the sheet is dismissing.
-        Task {
-          copyDepot.bookmarks.sort { $0.url < $1.url }
-          copyDepot.update()
-        }
-      } content: {
-        SettingsDestinationsView()
-          .frame(minWidth: 512, minHeight: 160)
+        isPresentingCopyingSheet.toggle()
+      }.sheet(isPresented: $isPresentingCopyingSheet) {
+        SettingsCopyingView()
+          .frame(minWidth: 512, minHeight: 256)
       }
     }
   }
-}
-
-#Preview {
-  SettingsGeneralView()
 }

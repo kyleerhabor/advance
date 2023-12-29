@@ -5,9 +5,16 @@
 //  Created by Kyle Erhabor on 9/13/23.
 //
 
+import Defaults
 import Combine
 import OSLog
 import SwiftUI
+
+// MARK: - Environment keys
+
+struct ImageCollectionEnvironmentKey: EnvironmentKey {
+  static var defaultValue = UUID()
+}
 
 struct SelectionEnvironmentKey: EnvironmentKey {
   static var defaultValue = Binding.constant(ImageCollectionView.Selection())
@@ -18,6 +25,11 @@ struct VisibleEnvironmentKey: EnvironmentKey {
 }
 
 extension EnvironmentValues {
+  var id: ImageCollectionEnvironmentKey.Value {
+    get { self[ImageCollectionEnvironmentKey.self] }
+    set { self[ImageCollectionEnvironmentKey.self] = newValue }
+  }
+
   var selection: SelectionEnvironmentKey.Value {
     get { self[SelectionEnvironmentKey.self] }
     set { self[SelectionEnvironmentKey.self] = newValue }
@@ -29,18 +41,13 @@ extension EnvironmentValues {
   }
 }
 
-struct Scroller<Identity> where Identity: Equatable {
+// MARK: - Focused value keys
+
+struct Scroller<I> where I: Equatable {
   typealias Scroll = (ImageCollectionView.Selection) -> Void
 
-  // While we're not directly using this property, it helps SwiftUI not excessively re-evaluate the view body (presumably
-  // because a closure doesn't have an identity).
-  let identity: Identity
+  let identity: I
   let scroll: Scroll
-
-  init(identity: Identity, _ scroll: @escaping Scroll) {
-    self.identity = identity
-    self.scroll = scroll
-  }
 }
 
 extension Scroller: Equatable {
@@ -78,196 +85,7 @@ extension FocusedValues {
   }
 }
 
-struct ImageCollectionItemPhaseView: View {
-  @AppStorage(Keys.brightness.key) private var brightness = Keys.brightness.value
-  @AppStorage(Keys.grayscale.key) private var grayscale = Keys.grayscale.value
-  @State private var elapsed = false
-  private var imagePhase: ImagePhase {
-    .init(phase) ?? .empty
-  }
-
-  let phase: AsyncImagePhase
-
-  var body: some View {
-    // For transparent images, the fill is still useful to know that an image is supposed to be in the frame, but when
-    // the view's image has been cleared (see the .onDisappear), it's kind of weird to see the fill again. Maybe try
-    // and determine if the image is transparent and, if so, only display the fill on its first appearance? This would
-    // kind of be weird for collections that mix transparent and non-transparent images, however (since there's no
-    // clear separator).
-    Color.tertiaryFill
-      .visible(phase.image == nil)
-      .overlay {
-        if let image = phase.image {
-          image
-            .resizable()
-            .animation(.default) { content in
-              content
-                .brightness(brightness)
-                .grayscale(grayscale)
-            }
-        }
-      }.overlay {
-        ProgressView()
-          .visible(imagePhase == .empty && elapsed)
-          .animation(.default, value: elapsed)
-      }.overlay {
-        if case .failure = phase {
-          // We can't really get away with not displaying a failure view.
-          Image(systemName: "exclamationmark.triangle.fill")
-            .symbolRenderingMode(.multicolor)
-            .imageScale(.large)
-        }
-      }
-      .animation(.default, value: imagePhase)
-      .task {
-        do {
-          try await Task.sleep(for: .seconds(1))
-        } catch is CancellationError {
-          // Fallthrough
-        } catch {
-          Logger.ui.fault("Image elapse threw an error besides CancellationError: \(error)")
-        }
-
-        elapsed = true
-      }.onDisappear {
-        elapsed = false
-      }
-  }
-}
-
-struct ImageCollectionItemView<Overlay>: View where Overlay: View {
-  @Environment(\.pixelLength) private var pixel
-  @State private var phase = AsyncImagePhase.empty
-
-  let image: ImageCollectionItemImage
-  @ViewBuilder var overlay: (AsyncImagePhase) -> Overlay
-
-  var body: some View {
-    DisplayView { size in
-      // For some reason, some images in full screen mode can cause SwiftUI to believe there are more views on screen
-      // than there actually are (usually the first 21). This causes all the .onAppear and .task modifiers to fire,
-      // resulting in a massive memory spike (e.g. ~1.8 GB).
-      
-      let size = CGSize(
-        width: size.width / pixel,
-        height: size.height / pixel
-      )
-
-      Task {
-        guard let phase = await resample(image: image, size: size) else {
-          return
-        }
-        
-        if case let .failure(err) = phase {
-          Logger.ui.error("Could not resample image \"\(image.url.string)\": \(err)")
-        }
-
-        self.phase = phase
-      }
-    } content: {
-      ImageCollectionItemPhaseView(phase: phase)
-        .overlay {
-          overlay(phase)
-        }
-    }.aspectRatio(image.aspectRatio, contentMode: .fit)
-  }
-
-  @MainActor
-  func resample(image: ImageCollectionItemImage, size: CGSize) async -> AsyncImagePhase? {
-    let thumbnail: Image
-
-    do {
-      thumbnail = try await image.scoped { try await resample(url: image.url, size: size) }
-    } catch ImageError.thumbnail {
-      do {
-        let snapshot = try await resolve(image: image)
-
-        if let document = snapshot.document {
-          image.item.bookmark.document?.data = document.data
-          image.item.bookmark.document?.url = document.url
-        }
-
-        image.url = snapshot.image.bookmark.url
-        image.aspectRatio = snapshot.image.properties.width / snapshot.image.properties.height
-        image.orientation = snapshot.image.properties.orientation
-        image.item.bookmark.data = snapshot.image.bookmark.data
-        image.item.bookmark.url = snapshot.image.bookmark.url
-        image.analysis = nil
-
-        thumbnail = try await image.scoped { try await resample(url: image.url, size: size) }
-      } catch is CancellationError {
-        return nil
-      } catch {
-        return .failure(error)
-      }
-    } catch is CancellationError {
-      return nil
-    } catch {
-      return .failure(error)
-    }
-
-    return .success(thumbnail)
-  }
-
-  func resample(url: URL, size: CGSize) async throws -> Image {
-    guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
-      // FIXME: For some reason, if the user scrolls fast enough in the UI, source returns nil.
-      throw ImageError.undecodable
-    }
-
-    let thumbnail = try source.resample(to: size.length().rounded(.up))
-
-    Logger.ui.info("Created a resampled image from \"\(url.string)\" at dimensions \(thumbnail.width.description)x\(thumbnail.height.description) for size \(size.width) / \(size.height)")
-
-    try Task.checkCancellation()
-
-    return .init(nsImage: .init(cgImage: thumbnail, size: size))
-  }
-
-  func resolve(image: ImageCollectionItemImage) async throws -> ResolvedBookmarkImageSnapshot {
-    let document: Bookmark?
-    let bookmark: Bookmark
-
-    if let docu = image.item.bookmark.document {
-      let doc = try docu.resolve()
-
-      document = doc
-      bookmark = try doc.url.scoped {
-        try Bookmark(data: image.item.bookmark.data, resolving: [], relativeTo: doc.url) { url in
-          try url.scoped {
-            try url.bookmark(options: [], document: doc.url)
-          }
-        }
-      }
-    } else {
-      document = nil
-      bookmark = try image.item.bookmark.resolve()
-    }
-
-    guard image.url != bookmark.url else {
-      throw BookmarkResolutionError()
-    }
-
-    guard let properties = bookmark.url.scoped({ ImageProperties(at: bookmark.url) }) else {
-      throw ImageError.undecodable
-    }
-
-    return .init(
-      document: document,
-      image: .init(
-        id: image.id,
-        bookmark: bookmark,
-        properties: properties
-      )
-    )
-  }
-}
-
-extension ImageCollectionItemView where Overlay == EmptyView {
-  init(image: ImageCollectionItemImage) {
-    self.init(image: image) { _ in }
-  }
-}
+// MARK: - Views
 
 struct ImageCollectionNavigationSidebarView: View {
   @Environment(\.selection) @Binding private var selection
@@ -329,7 +147,7 @@ struct ImageCollectionNavigationDetailView: View {
 
           // https://stackoverflow.com/a/72808733/14695788
           Task {
-            // TODO: Figure out how to change the animation (the parameter is currently ignored).
+            // TODO: Figure out how to change the animation (the parameter is currently ignored)
             withAnimation {
               proxy.scrollTo(id, anchor: .top)
             }
@@ -342,12 +160,17 @@ struct ImageCollectionNavigationDetailView: View {
 struct ImageCollectionView: View {
   typealias Selection = Set<ImageCollectionItemImage.ID>
 
+  @Environment(ImageCollection.self) private var collection
   @Environment(Window.self) private var win
   @Environment(\.fullScreen) private var fullScreen
-  @Environment(\.collection) private var collection
-  @AppStorage(Keys.windowless.key) private var windowless = Keys.windowless.value
+  @Environment(\.id) private var id
+  @Environment(\.trackingMenu) private var trackingMenu
+  @Default(.hideToolbarScrolling) private var hideToolbar
+  @Default(.hideCursorScrolling) private var hideCursor
+  @Default(.hideScrollIndicator) private var hideScroll
   @SceneStorage("sidebar") private var columns = NavigationSplitViewVisibility.all
   @State private var selection = Selection()
+  @State private var visible = true
   private let scrollSubject = PassthroughSubject<CGPoint, Never>()
   private let cursorSubject = PassthroughSubject<Void, Never>()
   private let toolbarSubject = PassthroughSubject<Bool, Never>()
@@ -363,54 +186,16 @@ struct ImageCollectionView: View {
       ImageCollectionNavigationSidebarView(columns: $columns)
         .navigationSplitViewColumnWidth(min: 128, ideal: 192, max: 256)
     } detail: {
-      ImageCollectionNavigationDetailView(images: collection.wrappedValue.images)
+      ImageCollectionNavigationDetailView(images: collection.images)
+        .scrollIndicators(hideScroll && columns == .detailOnly ? .hidden : .automatic)
         .frame(minWidth: 256)
-    }
-    .toolbar(fullScreen ? .hidden : .automatic)
-    .task {
-      let resolved = await collection.wrappedValue.load()
-      let items = Dictionary(collection.wrappedValue.items.map { ($0.bookmark.id, $0) }) { _, item in item }
-      let results = resolved.map { bookmark in
-        switch bookmark {
-          case .document(let document):
-            let doc = BookmarkDocument(data: document.data, url: document.url)
-            let items = document.images.map { image in
-              ImageCollectionItem(
-                image: image,
-                document: doc,
-                bookmarked: items[image.id]?.bookmarked ?? false
-              )
-            }
-
-            doc.files = items.map(\.bookmark)
-
-            return (BookmarkKind.document(doc), items)
-          case .file(let image):
-            let item = ImageCollectionItem(
-              image: image,
-              document: nil,
-              bookmarked: items[image.id]?.bookmarked ?? false
-            )
-
-            return (BookmarkKind.file(item.bookmark), [item])
-        }
-      }
-
-      collection.wrappedValue.bookmarks = results.map(\.0)
-      collection.wrappedValue.items = results.flatMap(\.1)
-      collection.wrappedValue.updateImages()
-      collection.wrappedValue.updateBookmarks()
-    }
-    .environment(\.selection, $selection)
-    // Yes, the listed code below is dumb.
-    .backgroundPreferenceValue(ScrollOffsetPreferenceKey.self) { anchor in
+    }.backgroundPreferenceValue(ScrollOffsetPreferenceKey.self) { anchor in
       GeometryReader { proxy in
         if let anchor {
           let origin = proxy[anchor].origin
 
           Color.clear.onChange(of: origin) {
-            guard let window,
-                  !window.isFullScreen() && windowless && columns == .detailOnly else {
+            guard columns == .detailOnly else {
               return
             }
 
@@ -418,22 +203,58 @@ struct ImageCollectionView: View {
           }
         }
       }
-    }.onContinuousHover { _ in
+    }
+    .toolbar(fullScreen ? .hidden : .automatic)
+    .toolbarHidden(hideToolbar && !visible)
+    .cursorHidden(hideCursor && !visible)
+    .environment(\.selection, $selection)
+    .task(id: collection) {
+      let roots = collection.items.values.map(\.root)
+      let state = await Self.resolve(roots: roots, in: collection.store)
+      let items = collection.order.compactMap { id -> ImageCollectionItem? in
+        guard let root = collection.items[id]?.root,
+              let image = state.value[id] else {
+          return nil
+        }
+
+        return .init(root: root, image: image)
+      }
+
+      collection.store = state.store
+
+      items.forEach { item in
+        collection.items[item.root.bookmark] = item
+      }
+
+      let ids = items.map(\.root.bookmark)
+
+      collection.order.append(contentsOf: ids)
+      collection.update()
+
+      Task(priority: .medium) {
+        do {
+          try await collection.persist(id: id)
+        } catch {
+          Logger.model.error("Could not persist image collection \"\(id)\" (via initialization): \(error)")
+        }
+      }
+    }
+    // Yes, the code listed below is dumb.
+    .onContinuousHover { phase in
       guard let window, !window.inLiveResize else {
         return
       }
 
-      cursorSubject.send()
+      switch phase {
+        case .active: cursorSubject.send()
+        case .ended: visible = true
+      }
     }.onChange(of: columns) {
       toolbarSubject.send(true)
-    }.onChange(of: fullScreen) {
-      // We can't use toolbarSubject since duplicate elements are dropped. If the user has the toolbar visible (therefore,
-      // the last value is true) and tries to enter full screen, setToolbarVisibility won't be called, causing the title
-      // bar separator to be set to .automatic instead of .none (which is bad in light mode, where a thin line is drawn
-      // at the top of the screen)
-      setToolbarVisibility(true)
+    }.onChange(of: trackingMenu) {
+      toolbarSubject.send(true)
     }.onReceive(toolbarPublisher) { visible in
-      setToolbarVisibility(visible)
+      self.visible = visible
     }
   }
 
@@ -461,21 +282,17 @@ struct ImageCollectionView: View {
       .eraseToAnyPublisher()
   }
 
-  func setToolbarVisibility(_ visible: Bool) {
-    guard let window else {
-      return
-    }
+  static func resolve(
+    roots: [ImageCollectionItemRoot],
+    in store: BookmarkStore
+  ) async -> BookmarkStoreState<ImageCollection.Images> {
+    let bookmarks = roots.compactMap { store.bookmarks[$0.bookmark] }
 
-    Self.setToolbarVisibility(visible, for: window)
-  }
+    let books = await ImageCollection.resolving(bookmarks: bookmarks, in: store)
+    let roots = roots.filter { books.value.contains($0.bookmark) }
 
-  static func setToolbarVisibility(_ visible: Bool, for window: NSWindow) {
-    window.standardWindowButton(.closeButton)?.superview?.animator().alphaValue = visible ? 1 : 0
+    let images = await ImageCollection.resolve(roots: roots, in: books.store)
 
-    // For some reason, full screen windows in light mode draw a slight line under the top of the screen after
-    // scrolling for a bit. This doesn't occur in dark mode, which is interesting.
-    //
-    // FIXME: For some reason, the title bar separator does not animate.
-    window.animator().titlebarSeparatorStyle = visible && !window.isFullScreen() ? .automatic : .none
+    return .init(store: books.store, value: images)
   }
 }

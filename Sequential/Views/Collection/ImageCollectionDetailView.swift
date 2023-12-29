@@ -5,6 +5,7 @@
 //  Created by Kyle Erhabor on 9/13/23.
 //
 
+import Defaults
 import OSLog
 import SwiftUI
 
@@ -19,7 +20,7 @@ extension VisibleItem: Equatable where Item: Equatable {}
 struct VisiblePreferenceKey<Item>: PreferenceKey {
   typealias Value = [VisibleItem<Item>]
 
-  static var defaultValue: Value { [] }
+  static var defaultValue: Value { .init(minimumCapacity: 8) }
 
   static func reduce(value: inout Value, nextValue: () -> Value) {
     value.append(contentsOf: nextValue())
@@ -41,7 +42,8 @@ struct ScrollOffsetPreferenceKey: PreferenceKey {
 }
 
 struct ImageCollectionDetailItemBookmarkView: View {
-  @Environment(\.collection) private var collection
+  @Environment(ImageCollection.self) private var collection
+  @Environment(\.id) private var id
 
   @Binding var bookmarked: Bool
   var bookmark: Binding<Bool> {
@@ -50,7 +52,15 @@ struct ImageCollectionDetailItemBookmarkView: View {
     } set: { bookmarked in
       self.bookmarked = bookmarked
 
-      collection.wrappedValue.updateBookmarks()
+      collection.updateBookmarks()
+
+      Task(priority: .medium) {
+        do {
+          try await collection.persist(id: id)
+        } catch {
+          Logger.model.error("Could not persist image collection \"\(id)\" (via detail bookmark): \(error)")
+        }
+      }
     }
   }
 
@@ -75,10 +85,9 @@ struct ImageCollectionDetailItemSidebarView: View {
 }
 
 struct ImageCollectionDetailItemView: View {
-  @Environment(CopyDepot.self) private var copyDepot
   @AppStorage(Keys.collapseMargins.key) private var collapse = Keys.collapseMargins.value
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
-  @AppStorage(Keys.resolveCopyDestinationConflicts.key) private var resolveCopyConflicts = Keys.resolveCopyDestinationConflicts.value
+  @Default(.resolveCopyingConflicts) private var resolveConflicts
   @State private var isPresentingCopyDestinationPicker = false
   @State private var error: String?
   var isPresentingErrorAlert: Binding<Bool> {
@@ -107,7 +116,7 @@ struct ImageCollectionDetailItemView: View {
         if phase.image != nil && liveText {
           LiveTextView(
             scope: image,
-            orientation: image.orientation,
+            orientation: image.properties.orientation,
             highlight: $image.highlighted,
             analysis: $image.analysis
           ).supplementaryInterfaceHidden(!liveTextIcon)
@@ -116,6 +125,7 @@ struct ImageCollectionDetailItemView: View {
       .anchorPreference(key: VisiblePreferenceKey.self, value: .bounds) { [.init(item: image, anchor: $0)] }
       .anchorPreference(key: ScrollOffsetPreferenceKey.self, value: .bounds) { $0 }
     }
+    .transition(.opacity)
     .listRowInsets(.listRow + insets)
     .shadow(radius: margin / 2)
     .contextMenu {
@@ -134,7 +144,7 @@ struct ImageCollectionDetailItemView: View {
           }
         }
 
-        ImageCollectionCopyDestinationView(isPresented: $isPresentingCopyDestinationPicker, error: $error) { destination in
+        ImageCollectionCopyingView(isPresented: $isPresentingCopyDestinationPicker, error: $error) { destination in
           Task(priority: .medium) {
             do {
               try await save(image: image, to: destination)
@@ -167,11 +177,11 @@ struct ImageCollectionDetailItemView: View {
   }
 
   func save(image: ImageCollectionItemImage, to destination: URL) async throws {
-    try ImageCollectionCopyDestinationView.saving {
+    try ImageCollectionCopyingView.saving {
       try destination.scoped {
-        try ImageCollectionCopyDestinationView.saving(url: image, to: destination) { url in
+        try ImageCollectionCopyingView.saving(url: image, to: destination) { url in
           try image.scoped {
-            try ImageCollectionCopyDestinationView.save(url: url, to: destination, resolvingConflicts: resolveCopyConflicts)
+            try ImageCollectionCopyingView.save(url: url, to: destination, resolvingConflicts: resolveConflicts)
           }
         }
       }
@@ -183,27 +193,40 @@ struct ImageCollectionDetailCurrentView: View {
   @Environment(\.selection) @Binding private var selection
   @AppStorage(Keys.displayTitleBarImage.key) private var displayTitleBarImage = Keys.displayTitleBarImage.value
 
-  let images: [ImageCollectionItemImage]
+  let primary: ImageCollectionItemImage?
+//  let images: () -> [ImageCollectionItemImage]
   let scrollSidebar: Scroller.Scroll
+//  @Binding var highlight: Bool
 
   var body: some View {
-    let highlight = Binding {
-      if images.isEmpty {
-        return false
-      }
+//    let highlight = Binding {
+//      if images.isEmpty {
+//        return false
+//      }
+//
+//      return images.allSatisfy(\.highlighted)
+//    } set: { highlight in
+//      images.forEach(setter(keyPath: \.highlighted, value: highlight))
+//    }
+//
+//    // This code is really stupid, but really useful for one feature: toggling Live Text highlighting with Command-Shift-T.
+////    Toggle("Live Text Highlight", systemImage: "dot.viewfinder", isOn: highlight)
+//    Button("Live Text Highlight", systemImage: "dot.viewfinder") {
+//      let images = images()
+//
+//      let highlight = if images.isEmpty {
+//        false
+//      } else {
+//        images.allSatisfy(\.highlighted)
+//      }
+//
+//      images.forEach(setter(keyPath: \.highlighted, value: highlight))
+//    }
+////      .id(images)
+//      .hidden()
+//      .keyboardShortcut(.liveTextHighlight)
 
-      return images.allSatisfy(\.highlighted)
-    } set: { highlight in
-      images.forEach(setter(keyPath: \.highlighted, value: highlight))
-    }
-
-    // This code is really stupid, but really useful for one feature: toggling Live Text highlighting with Command-Shift-T.
-    Toggle("Live Text Highlight", systemImage: "dot.viewfinder", isOn: highlight)
-      .id(images)
-      .hidden()
-      .keyboardShortcut(.liveTextHighlight)
-
-    if let image = images.first, displayTitleBarImage {
+    if let image = primary, displayTitleBarImage {
       let url = image.url
 
       Color.clear
@@ -225,7 +248,7 @@ struct ImageCollectionDetailVisualView: View {
   @AppStorage(Keys.grayscale.key) private var grayscale = Keys.grayscale.value
 
   var body: some View {
-    // FIXME: Using .focusable on ResetButton allows users to select but not perform action.
+    // FIXME: Using .focusable on ResetButtonView allows users to select but not perform action.
     //
     // Using .focusable allows me to tab to the button, but not hit Space to perform the action. Sometimes, however,
     // I'll need to tab back once and hit Space for it to function.
@@ -245,7 +268,7 @@ struct ImageCollectionDetailVisualView: View {
           Text("Brightness:")
         }
 
-        ResetButton {
+        ResetButtonView {
           brightness = Keys.brightness.value
         }.disabled(brightness == Keys.brightness.value)
       }
@@ -266,7 +289,7 @@ struct ImageCollectionDetailVisualView: View {
           Text("Grayscale:")
         }
 
-        ResetButton {
+        ResetButtonView {
           grayscale = Keys.grayscale.value
         }.disabled(grayscale == Keys.grayscale.value)
       }
@@ -278,7 +301,6 @@ struct ImageCollectionDetailVisualView: View {
 }
 
 struct ImageCollectionDetailView: View {
-  @Environment(CopyDepot.self) private var copyDepot
   @AppStorage(Keys.margin.key) private var margins = Keys.margin.value
   @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
   @AppStorage(Keys.liveTextIcon.key) private var appLiveTextIcon = Keys.liveTextIcon.value
@@ -356,15 +378,12 @@ struct ImageCollectionDetailView: View {
     }.backgroundPreferenceValue(VisiblePreferenceKey<ImageCollectionItemImage>.self) { items in
       GeometryReader { proxy in
         let local = proxy.frame(in: .local)
-        let images = items
-          .filter { local.intersects(proxy[$0.anchor]) }
-          .map(\.item)
+        let primary = items
+          .first { local.intersects(proxy[$0.anchor]) }?
+          .item
 
-        ImageCollectionDetailCurrentView(images: images, scrollSidebar: scrollSidebar)
+        ImageCollectionDetailCurrentView(primary: primary, scrollSidebar: scrollSidebar)
       }
-    }.task {
-      copyDepot.bookmarks = await copyDepot.resolve()
-      copyDepot.update()
     }
   }
 }

@@ -5,6 +5,7 @@
 //  Created by Kyle Erhabor on 9/15/23.
 //
 
+import Defaults
 import OSLog
 import SwiftUI
 
@@ -22,14 +23,19 @@ struct ImageCollectionEmptySidebarLabelStyle: LabelStyle {
 }
 
 struct ImageCollectionSidebarEmptyView: View {
-  @Environment(\.collection) private var collection
-  @AppStorage(Keys.importHidden.key) private var importHidden = Keys.importHidden.value
-  @AppStorage(Keys.importSubdirectories.key) private var importSubdirectories = Keys.importSubdirectories.value
-  @State private var isFilePickerPresented = false
+  @Environment(ImageCollection.self) private var collection
+  @Environment(\.prerendering) private var prerendering
+  @Environment(\.id) private var id
+  @Default(.importHiddenFiles) private var importHidden
+  @Default(.importSubdirectories) private var importSubdirectories
+  @State private var isPresentingFileImporter = false
+  private var visible: Bool {
+    !prerendering && collection.order.isEmpty
+  }
 
   var body: some View {
     Button {
-      isFilePickerPresented.toggle()
+      isPresentingFileImporter.toggle()
     } label: {
       Label {
         Text("Drop images here")
@@ -42,87 +48,152 @@ struct ImageCollectionSidebarEmptyView: View {
     }
     .buttonStyle(.plain)
     .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .fileImporter(isPresented: $isFilePickerPresented, allowedContentTypes: [.image, .folder], allowsMultipleSelection: true) { result in
+    .fileImporter(isPresented: $isPresentingFileImporter, allowedContentTypes: [.image, .folder], allowsMultipleSelection: true) { result in
       switch result {
         case .success(let urls):
           Task {
-            do {
-              let resolved = try await resolve(urls: urls.enumerated())
+            let state = await resolve(urls: urls, in: collection.store)
+            let items = state.value
 
-              collection.wrappedValue.bookmarks.append(contentsOf: resolved.map(\.0))
-              collection.wrappedValue.items.append(contentsOf: resolved.flatMap(\.1))
-              collection.wrappedValue.updateImages()
-            } catch {
-              Logger.model.error("\(error)")
+            collection.store = state.store
+
+            items.forEach { item in
+              collection.items[item.root.bookmark] = item
+            }
+
+            let ids = items.map(\.root.bookmark)
+
+            collection.order.subtract(ids)
+            collection.order.append(contentsOf: ids)
+            collection.update()
+
+            Task(priority: .medium) {
+              do {
+              try await collection.persist(id: id)
+              } catch {
+                Logger.model.error("Could not persist image collection \"\(id)\" (via sidebar button): \(error)")
+              }
             }
           }
         case .failure(let err):
-          Logger.ui.error("Import images from sidebar failed: \(err)")
+          Logger.ui.error("Could not import files from sidebar button: \(err)")
       }
     }
     .fileDialogOpen()
-    .onDrop(of: [.image, .folder], isTargeted: nil) { providers in
-      NSApp.abortModal()
+    .disabled(!visible)
+    .overlay {
+      if visible {
+        Color.clear
+          .dropDestination(for: ImageTransferable.self) { items, offset in
+            Task {
+              let state = await resolve(items: items, in: collection.store)
+              let items = state.value
 
-      Task {
-        do {
-          let urls = try await withThrowingTaskGroup(of: Offset<URL>.self) { group in
-            providers.enumerated().forEach { (offset, provider) in
-              group.addTask { @MainActor in
-                // There's an interesting bug where some providers aren't loaded even when their UTType is correct.
+              collection.store = state.store
+
+              items.forEach { item in
+                collection.items[item.root.bookmark] = item
+              }
+
+              let ids = items.map(\.root.bookmark)
+
+              collection.order.append(contentsOf: ids)
+              collection.update()
+
+              Task(priority: .medium) {
                 do {
-                  return (offset, try await provider.resolve(.image))
+                  try await collection.persist(id: id)
                 } catch {
-                  return (offset, try await provider.resolve(.folder))
+                  Logger.model.error("Could not persist image collection \"\(id)\" (via sidebar drop): \(error)")
                 }
               }
             }
 
-            var results = [Offset<URL>]()
-            results.reserveCapacity(providers.count)
-
-            return try await group.reduce(into: results) { partialResult, offset in
-              partialResult.append(offset)
-            }
-          }
-
-          let resolved = try await resolve(urls: urls)
-
-          collection.wrappedValue.bookmarks = resolved.map(\.0)
-          collection.wrappedValue.items = resolved.flatMap(\.1)
-          collection.wrappedValue.updateImages()
-        } catch {
-          Logger.model.error("\(error)")
-        }
-      }
-
-      return true
-    }.focusedSceneValue(\.openFileImporter, .init(identity: .window) {
-      isFilePickerPresented.toggle()
-    })
-  }
-
-  func resolve(urls: some Sequence<Offset<URL>>) async throws -> [(BookmarkKind, [ImageCollectionItem])] {
-    let bookmarks = try await ImageCollection.resolve(urls: urls, hidden: importHidden, subdirectories: importSubdirectories).ordered()
-    let resolved = await ImageCollection.resolve(bookmarks: bookmarks.enumerated()).ordered()
-
-    // TODO: De-duplicate (see ImageCollectionView).
-    return resolved.map { bookmark in
-      switch bookmark {
-        case .document(let document):
-          let doc = BookmarkDocument(data: document.data, url: document.url)
-          let items = document.images.map { image in
-            ImageCollectionItem(image: image, document: doc)
-          }
-
-          doc.files = items.map(\.bookmark)
-
-          return (BookmarkKind.document(doc), items)
-        case .file(let image):
-          let item = ImageCollectionItem(image: image, document: nil)
-
-          return (BookmarkKind.file(item.bookmark), [item])
+            return true
+          }.focusedSceneValue(\.openFileImporter, .init(identity: .window) {
+            isPresentingFileImporter.toggle()
+          })
       }
     }
+  }
+
+  func prepare(url: URL) -> ImageCollection.Kind {
+    let source = URLSource(url: url, options: [.withReadOnlySecurityScope, .withoutImplicitSecurityScope])
+
+    if url.isDirectory() {
+      return .document(.init(
+        source: source,
+        files: url.scoped {
+          FileManager.default
+            .contents(at: url, options: .init(includingHiddenFiles: importHidden, includingSubdirectories: importSubdirectories))
+            .finderSort()
+            .map { .init(url: $0, options: .withoutImplicitSecurityScope) }
+        }
+      ))
+    }
+
+    return .file(source)
+  }
+
+  func prepare(item: ImageTransferable) -> ImageCollection.Kind {
+    let url = item.url
+    let source = URLSource(
+      url: url,
+      options: item.original ? [.withReadOnlySecurityScope, .withoutImplicitSecurityScope] : []
+    )
+
+    if item.type == .folder {
+      return .document(.init(
+        source: source,
+        files: url.scoped {
+          FileManager.default
+            .contents(at: url, options: .init(includingHiddenFiles: importHidden, includingSubdirectories: importSubdirectories))
+            .finderSort()
+            .map { .init(url: $0, options: []) }
+        }
+      ))
+    }
+
+    return .file(source)
+  }
+
+  static func resolve(
+    kinds: [ImageCollection.Kind],
+    in store: BookmarkStore
+  ) async -> BookmarkStoreState<[ImageCollectionItem]> {
+    let rooted = await ImageCollection.resolve(kinds: kinds, in: store)
+    let values = rooted.value.values
+    let bookmarks = values.compactMap { rooted.store.bookmarks[$0.bookmark] }
+
+    let books = await ImageCollection.resolving(bookmarks: bookmarks, in: rooted.store)
+    let vals = values.filter { books.value.contains($0.bookmark) }
+
+    let images = await ImageCollection.resolve(roots: vals, in: books.store)
+    let items = kinds.flatMap { kind in
+      kind.files.compactMap { source -> ImageCollectionItem? in
+        guard let root = rooted.value[source.url],
+              let image = images[root.bookmark] else {
+          return nil
+        }
+
+        return .init(root: root, image: image)
+      }
+    }
+
+    return .init(store: books.store, value: items)
+  }
+
+  // MARK: - Convenience (concurrency)
+
+  func resolve(urls: [URL], in store: BookmarkStore) async -> BookmarkStoreState<[ImageCollectionItem]> {
+    let kinds = urls.map(prepare(url:))
+
+    return await Self.resolve(kinds: kinds, in: store)
+  }
+
+  func resolve(items: [ImageTransferable], in store: BookmarkStore) async -> BookmarkStoreState<[ImageCollectionItem]> {
+    let kinds = items.map(prepare(item:))
+
+    return await Self.resolve(kinds: kinds, in: store)
   }
 }

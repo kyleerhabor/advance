@@ -11,7 +11,7 @@ import SwiftUI
 @main
 struct SequentialApp: App {
   @NSApplicationDelegateAdaptor private var delegate: AppDelegate
-  @State private var copyDepot = CopyDepot()
+  @State private var depot = CopyDepot()
 
   var body: some Scene {
     Group {
@@ -22,7 +22,8 @@ struct SequentialApp: App {
         SettingsView()
       }
     }
-    .environment(copyDepot)
+    .scened()
+    .environment(depot)
     .environmentObject(delegate)
   }
 
@@ -34,14 +35,11 @@ struct SequentialApp: App {
 
   static func initialize() async {
     do {
-      try FileManager.default.removeItem(at: .liveTextDownsampledDirectory)
+      try FileManager.default.removeItem(at: .temporaryLiveTextImagesDirectory)
+    } catch let err as CocoaError where err.code == .fileNoSuchFile {
+      // The directory does not exist, so we do not care.
     } catch {
-      if let err = error as? CocoaError, err.code == .fileNoSuchFile {
-        // The directory does not exist, so we don't care.
-        return
-      }
-
-      Logger.startup.error("Could not delete Live Text downsampled directory: \(error)")
+      Logger.standard.error("Could not remove Live Text images directory: \(error)")
     }
   }
 }

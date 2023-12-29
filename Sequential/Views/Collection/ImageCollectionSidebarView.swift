@@ -8,24 +8,23 @@
 import SwiftUI
 
 struct ImageCollectionSidebarView: View {
-  @Environment(CopyDepot.self) private var copyDepot
-  @Environment(\.collection) private var collection
+  @Environment(ImageCollection.self) private var collection
   @Environment(\.prerendering) private var prerendering
+  private var visible: Bool {
+    !prerendering && collection.order.isEmpty
+  }
 
   let scrollDetail: Scroller.Scroll
 
   var body: some View {
     ImageCollectionSidebarContentView(scrollDetail: scrollDetail)
       .overlay {
-        let visible = collection.wrappedValue.items.isEmpty && !prerendering
-
-        VStack {
-          if visible {
-            ImageCollectionSidebarEmptyView()
+        ImageCollectionSidebarEmptyView()
+          .visible(visible)
+          .animation(.default, value: visible)
+          .transaction(value: visible) { transaction in
+            transaction.disablesAnimations = !visible
           }
-        }
-        .visible(visible)
-        .animation(.default, value: visible)
       }
   }
 }

@@ -7,32 +7,6 @@
 
 import SwiftUI
 
-extension ColorScheme: RawRepresentable {
-  public init?(rawValue: Int) {
-    switch rawValue {
-      case 0: self = .light
-      case 1: self = .dark
-      default: return nil
-    }
-  }
-  
-  public var rawValue: Int {
-    switch self {
-      case .light: 0
-      case .dark: 1
-      @unknown default: -1
-    }
-  }
-
-  func app() -> NSAppearance? {
-    switch self {
-      case .light: .init(named: .aqua)
-      case .dark: .init(named: .darkAqua)
-      @unknown default: nil
-    }
-  }
-}
-
 struct SettingsGroupBoxStyle: GroupBoxStyle {
   func makeBody(configuration: Configuration) -> some View {
     VStack(alignment: .leading, spacing: 6) {
@@ -41,8 +15,25 @@ struct SettingsGroupBoxStyle: GroupBoxStyle {
   }
 }
 
+struct SettingsLabeledGroupBoxStyle: GroupBoxStyle {
+  func makeBody(configuration: Configuration) -> some View {
+    VStack(alignment: .leading, spacing: 6) {
+      configuration.label
+
+      VStack(alignment: .leading) {
+        configuration.content
+          .groupBoxStyle(.settings)
+      }.padding(.leading)
+    }
+  }
+}
+
 extension GroupBoxStyle where Self == SettingsGroupBoxStyle {
   static var settings: SettingsGroupBoxStyle { .init() }
+}
+
+extension GroupBoxStyle where Self == SettingsLabeledGroupBoxStyle {
+  static var settingsLabeled: SettingsLabeledGroupBoxStyle { .init() }
 }
 
 struct SettingsLabeledContentStyle: LabeledContentStyle {

@@ -9,6 +9,7 @@ import SwiftUI
 
 @Observable
 class Window {
+  // TODO: Don't make this optional.
   weak var window: NSWindow?
 }
 
@@ -26,6 +27,10 @@ struct PrerenderEnvironmentKey: EnvironmentKey {
   static var defaultValue = true
 }
 
+struct MenuTrackingEnvironmentKey: EnvironmentKey {
+  static var defaultValue = false
+}
+
 extension EnvironmentValues {
   var fullScreen: FullScreenEnvironmentKey.Value {
     get { self[FullScreenEnvironmentKey.self] }
@@ -35,6 +40,11 @@ extension EnvironmentValues {
   var prerendering: PrerenderEnvironmentKey.Value {
     get { self[PrerenderEnvironmentKey.self] }
     set { self[PrerenderEnvironmentKey.self] = newValue }
+  }
+
+  var trackingMenu: MenuTrackingEnvironmentKey.Value {
+    get { self[MenuTrackingEnvironmentKey.self] }
+    set { self[MenuTrackingEnvironmentKey.self] = newValue }
   }
 }
 
@@ -125,11 +135,26 @@ struct PrerenderViewModifier: ViewModifier {
   }
 }
 
+struct MenuTrackingViewModifier: ViewModifier {
+  @State private var tracking = MenuTrackingEnvironmentKey.defaultValue
+
+  func body(content: Content) -> some View {
+    content
+      .environment(\.trackingMenu, tracking)
+      .onReceive(NotificationCenter.default.publisher(for: NSMenu.didBeginTrackingNotification)) { _ in
+        tracking = true
+      }.onReceive(NotificationCenter.default.publisher(for: NSMenu.didEndTrackingNotification)) { _ in
+        tracking = false
+      }
+  }
+}
+
 extension View {
   func windowed() -> some View {
     self
       .modifier(PrerenderViewModifier())
       .modifier(WindowFullScreenViewModifier())
       .modifier(WindowViewModifier())
+      .modifier(MenuTrackingViewModifier())
   }
 }

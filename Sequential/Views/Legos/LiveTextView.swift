@@ -9,6 +9,10 @@ import OSLog
 import SwiftUI
 import VisionKit
 
+extension URL {
+  static let temporaryLiveTextImagesDirectory = Self.temporaryImagesDirectory.appending(component: "Live Text")
+}
+
 extension ImageAnalysisOverlayView {
   func setHighlightVisibility(highlight: Bool, supplementaryInterfaceHidden: Bool, animated: Bool) {
     let hidden = !highlight && supplementaryInterfaceHidden
@@ -107,42 +111,45 @@ struct LiveTextView<Scope>: NSViewRepresentable where Scope: URLScope {
     try Task.checkCancellation()
 
     // Is there a constant provided by Vision / VisionKit?
-    let maxSize = 8192.0
+//    let maxSize = 8192.0
+//
+//    guard let source = CGImageSourceCreateWithURL(scope.url as CFURL, nil) else {
+//      return scope.url
+//    }
 
-    guard let source = CGImageSourceCreateWithURL(scope.url as CFURL, nil) else {
-      return scope.url
-    }
-
-    let primary = CGImageSourceGetPrimaryImageIndex(source)
+//    let primary = CGImageSourceGetPrimaryImageIndex(source)
 
     // For those crazy enough to load an 8K+ image (i.e. me)
-    guard let properties = CGImageSourceCopyPropertiesAtIndex(source, primary, nil) as? Dictionary<CFString, Any>,
-          let imageSize = pixelSizeOfImageProperties(properties),
-          imageSize.length() >= maxSize else {
+    //
+    // FIXME: We should only downsample when the error indicates the image was too large.
+//    guard let properties = CGImageSourceCopyPropertiesAtIndex(source, primary, nil) as? Dictionary<CFString, Any>,
+//          let imageSize = pixelSizeOfImageProperties(properties),
+//          imageSize.length() >= maxSize else {
       return scope.url
-    }
-
-    let size = min(size, maxSize - 1)
-
-    Logger.livetext.info("Image at URL \"\(scope.url.string)\" has dimensions \(imageSize.width) / \(imageSize.height), exceeding Vision framework limit of \(maxSize.description); proceeding to downsample to size \(size.description)")
-
-    return try downsample(source: source, index: primary, size: size)
+//    }
+//
+//    let size = min(size, maxSize - 1)
+//
+//    Logger.ui.info("Image at URL \"\(scope.url.string)\" has dimensions \(imageSize.width) / \(imageSize.height), exceeding Vision framework limit of \(maxSize.description); proceeding to downsample to size \(size.description)")
+//
+//    return try downsample(source: source, index: primary, size: size)
   }
 
   func downsample(source: CGImageSource, index: Int, size: Double) throws -> URL {
     // We unfortunately can't just feed this to ImageAnalyzer since it results in a memory leak. Instead, we'll save
     // it to a file and feed the URL instead (which doesn't result in a memory leak!)
-    let thumbnail = try source.resample(to: size.rounded(.up), index: index)
+    guard let thumbnail = source.resample(to: size.rounded(.up), index: index) else {
+      throw ImageError.thumbnail
+    }
 
     guard let type = CGImageSourceGetType(source) else {
       throw ImageError.thumbnail
     }
 
-    let url = URL.liveTextDownsampledDirectory.appending(component: UUID().uuidString)
+    let directory = URL.temporaryLiveTextImagesDirectory
+    let url = directory.appending(component: UUID().uuidString)
 
-    Logger.livetext.info("Copying downsampled image of URL \"\(self.scope.url.string)\" to destination \"\(url.string)\"")
-
-    try FileManager.default.createDirectory(at: .liveTextDownsampledDirectory, withIntermediateDirectories: true)
+    Logger.ui.info("Copying downsampled image of URL \"\(self.scope.url.string)\" to destination \"\(url.string)\"")
 
     let count = 1
 
@@ -152,8 +159,10 @@ struct LiveTextView<Scope>: NSViewRepresentable where Scope: URLScope {
 
     CGImageDestinationAddImage(destination, thumbnail, nil)
 
-    guard CGImageDestinationFinalize(destination) else {
-      throw ImageError.thumbnail
+    try FileManager.default.creatingDirectories(at: directory, code: .fileNoSuchFile) {
+      guard CGImageDestinationFinalize(destination) else {
+        throw ImageError.thumbnail
+      }
     }
 
     return url

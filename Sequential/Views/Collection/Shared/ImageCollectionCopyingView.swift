@@ -1,29 +1,30 @@
 //
-//  ImageCollectionCopyDestinationView.swift
+//  ImageCollectionCopyingView.swift
 //  Sequential
 //
 //  Created by Kyle Erhabor on 9/27/23.
 //
 
+import Defaults
 import Algorithms
 import OSLog
 import SwiftUI
 
-struct ImageCollectionCopyDestinationView: View {
+struct ImageCollectionCopyingView: View {
   @Environment(CopyDepot.self) private var depot
-  @AppStorage(Keys.resolveCopyDestinationConflicts.key) private var resolveConflicts = Keys.resolveCopyDestinationConflicts.value
+  @Default(.resolveCopyingConflicts) private var resolveConflicts
 
   @Binding var isPresented: Bool
   @Binding var error: String?
   let action: (URL) -> Void
 
   var body: some View {
-    Menu("Copy to Folder", systemImage: "doc.on.doc") {
-      ForEach(depot.resolved, id: \.url) { destination in
+    Menu("Copy to Folder") {
+      ForEach(depot.main) { destination in
         Button {
           action(destination.url)
         } label: {
-          Text(destination.path)
+          Text(destination.string)
         }
       }
     } primaryAction: {
