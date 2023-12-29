@@ -45,7 +45,7 @@ struct LiveTextView<Scope>: NSViewRepresentable where Scope: URLScope {
   func makeNSView(context: Context) -> ImageAnalysisOverlayView {
     let overlayView = ImageAnalysisOverlayView()
     overlayView.delegate = context.coordinator
-    // .imageSubject seems to be very unreliable, so I'm limiting it to text only.
+    // .automatic would be nice, but it takes too long to activate. Maybe lock it behind a setting?
     overlayView.preferredInteractionTypes = .automaticTextOnly
 
     // If we enable highlighting on initialization, it'll immediately go away but the supplementary interface will
@@ -87,12 +87,12 @@ struct LiveTextView<Scope>: NSViewRepresentable where Scope: URLScope {
 
     context.coordinator.task = .init {
       do {
-        let frame = overlayView.frame
-        let size = max(frame.width, frame.height) / context.environment.pixelLength
+//        let frame = overlayView.frame
+//        let size = max(frame.width, frame.height) / context.environment.pixelLength
 
         try await scope.scoped {
-          let url = try await analysisURL(size: size)
-          let analysis = try await analyze(url: url)
+//          let url = try await analysisURL(size: size)
+          let analysis = try await analyze(url: scope.url)
 
           self.analysis = analysis
           overlayView.analysis = analysis
@@ -107,66 +107,71 @@ struct LiveTextView<Scope>: NSViewRepresentable where Scope: URLScope {
     }
   }
 
-  func analysisURL(size: Double) async throws -> URL {
-    try Task.checkCancellation()
-
-    // Is there a constant provided by Vision / VisionKit?
-//    let maxSize = 8192.0
+//  func analysisURL(size: Double) async throws -> URL {
+//    try Task.checkCancellation()
+//
+//    // Is there a constant provided by Vision / VisionKit?
+//    let maxSize = 8192
 //
 //    guard let source = CGImageSourceCreateWithURL(scope.url as CFURL, nil) else {
 //      return scope.url
 //    }
-
+//
 //    let primary = CGImageSourceGetPrimaryImageIndex(source)
-
-    // For those crazy enough to load an 8K+ image (i.e. me)
-    //
-    // FIXME: We should only downsample when the error indicates the image was too large.
-//    guard let properties = CGImageSourceCopyPropertiesAtIndex(source, primary, nil) as? Dictionary<CFString, Any>,
-//          let imageSize = pixelSizeOfImageProperties(properties),
-//          imageSize.length() >= maxSize else {
-      return scope.url
+//
+//    // For those crazy enough to load an 8K+ image (i.e. me)
+//    //
+//    // FIXME: We should only downsample when the error indicates the image was too large.
+//    guard let properties = source.properties() as? MapCF,
+//          let imageSize = ImageSize(from: properties) else {
+//      return scope.url
 //    }
 //
-//    let size = min(size, maxSize - 1)
+//    let length = imageSize.length
+//
+//    guard length >= maxSize else {
+//      return scope.url
+//    }
+//
+//    let size = min(length, maxSize - 1)
 //
 //    Logger.ui.info("Image at URL \"\(scope.url.string)\" has dimensions \(imageSize.width) / \(imageSize.height), exceeding Vision framework limit of \(maxSize.description); proceeding to downsample to size \(size.description)")
 //
 //    return try downsample(source: source, index: primary, size: size)
-  }
-
-  func downsample(source: CGImageSource, index: Int, size: Double) throws -> URL {
-    // We unfortunately can't just feed this to ImageAnalyzer since it results in a memory leak. Instead, we'll save
-    // it to a file and feed the URL instead (which doesn't result in a memory leak!)
-    guard let thumbnail = source.resample(to: size.rounded(.up), index: index) else {
-      throw ImageError.thumbnail
-    }
-
-    guard let type = CGImageSourceGetType(source) else {
-      throw ImageError.thumbnail
-    }
-
-    let directory = URL.temporaryLiveTextImagesDirectory
-    let url = directory.appending(component: UUID().uuidString)
-
-    Logger.ui.info("Copying downsampled image of URL \"\(self.scope.url.string)\" to destination \"\(url.string)\"")
-
-    let count = 1
-
-    guard let destination = CGImageDestinationCreateWithURL(url as CFURL, type, count, nil) else {
-      throw ImageError.thumbnail
-    }
-
-    CGImageDestinationAddImage(destination, thumbnail, nil)
-
-    try FileManager.default.creatingDirectories(at: directory, code: .fileNoSuchFile) {
-      guard CGImageDestinationFinalize(destination) else {
-        throw ImageError.thumbnail
-      }
-    }
-
-    return url
-  }
+//  }
+//
+//  func downsample(source: CGImageSource, index: Int, size: Int) throws -> URL {
+//    // We unfortunately can't just feed this to ImageAnalyzer since it results in a memory leak. Instead, we'll save
+//    // it to a file and feed the URL instead (which doesn't result in a memory leak!)
+//    guard let thumbnail = source.resample(to: size, index: index) else {
+//      throw ImageError.thumbnail
+//    }
+//
+//    guard let type = CGImageSourceGetType(source) else {
+//      throw ImageError.thumbnail
+//    }
+//
+//    let directory = URL.temporaryLiveTextImagesDirectory
+//    let url = directory.appending(component: UUID().uuidString)
+//
+//    Logger.ui.info("Copying downsampled image of URL \"\(self.scope.url.string)\" to destination \"\(url.string)\"")
+//
+//    let count = 1
+//
+//    guard let destination = CGImageDestinationCreateWithURL(url as CFURL, type, count, nil) else {
+//      throw ImageError.thumbnail
+//    }
+//
+//    CGImageDestinationAddImage(destination, thumbnail, nil)
+//
+//    try FileManager.default.creatingDirectories(at: directory, code: .fileNoSuchFile) {
+//      guard CGImageDestinationFinalize(destination) else {
+//        throw ImageError.thumbnail
+//      }
+//    }
+//
+//    return url
+//  }
 
   func analyze(url: URL) async throws -> ImageAnalysis {
     // FIXME: VisionKit sometimes complains about analyzing over 10 images.

@@ -361,7 +361,7 @@ struct ImageCollectionDetailView: View {
           ImageCollectionDetailVisualView()
         } label: {
           Label("Visual Effects", systemImage: "paintbrush.pointed")
-        }
+        }.help("Visual Effects")
       }
 
       ToolbarItem(id: "Live Text Icon") {

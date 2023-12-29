@@ -38,6 +38,10 @@ struct ImageSize {
   let width: Int
   let height: Int
 
+  var length: Int {
+    max(width, height)
+  }
+
   var aspectRatio: Double {
     Double(width) / Double(height)
   }
