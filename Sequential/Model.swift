@@ -34,9 +34,6 @@ extension NavigationSplitViewVisibility: RawRepresentable {
 }
 
 struct Keys {
-  static let margin = Item("margin", 1)
-  static let displayTitleBarImage = Item("displayTitleBarImage", true)
-  
   static let brightness = Item("brightness", 0.0)
   static let grayscale = Item("grayscale", 0.0)
 
@@ -72,6 +69,7 @@ extension ColorScheme: Defaults.Serializable {}
 extension Defaults.Keys {
   // Appearance
   static let colorScheme = Key("colorscheme", default: ColorScheme.system)
+  static let margins = Key("margins", default: 1)
   static let collapseMargins = Key("collapseMargins", default: true)
 
   // Live Text
@@ -80,6 +78,7 @@ extension Defaults.Keys {
   static let liveTextSearchWith = Key("liveTextSearchWith", default: false)
 
   // Visibility
+  static let displayTitleBarImage = Key("displayTitleBarImage", default: true)
   static let hideToolbarScrolling = Key("hideToolbarScrolling", default: false)
   static let hideCursorScrolling = Key("hideCursorScrolling", default: false)
   static let hideScrollIndicator = Key("hideScrollIndicator", default: false)

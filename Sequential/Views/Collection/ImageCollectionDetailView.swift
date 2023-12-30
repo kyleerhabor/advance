@@ -188,28 +188,28 @@ struct ImageCollectionDetailItemView: View {
   }
 }
 
-struct ImageCollectionDetailCurrentView: View {
-  @Environment(\.selection) @Binding private var selection
-  @AppStorage(Keys.displayTitleBarImage.key) private var displayTitleBarImage = Keys.displayTitleBarImage.value
-
-  let primary: ImageCollectionItemImage?
-//  let images: () -> [ImageCollectionItemImage]
-  let scrollSidebar: Scroller.Scroll
-//  @Binding var highlight: Bool
-
-  var body: some View {
-//    let highlight = Binding {
-//      if images.isEmpty {
-//        return false
-//      }
+//struct ImageCollectionDetailCurrentView: View {
+//  @Environment(\.selection) @Binding private var selection
+//  @AppStorage(Keys.displayTitleBarImage.key) private var displayTitleBarImage = Keys.displayTitleBarImage.value
 //
-//      return images.allSatisfy(\.highlighted)
-//    } set: { highlight in
-//      images.forEach(setter(keyPath: \.highlighted, value: highlight))
-//    }
+//  let primary: ImageCollectionItemImage?
+////  let images: () -> [ImageCollectionItemImage]
+//  let scrollSidebar: Scroller.Scroll
+////  @Binding var highlight: Bool
 //
-//    // This code is really stupid, but really useful for one feature: toggling Live Text highlighting with Command-Shift-T.
-//    Toggle("Live Text Highlight", systemImage: "dot.viewfinder", isOn: highlight)
+//  var body: some View {
+////    let highlight = Binding {
+////      if images.isEmpty {
+////        return false
+////      }
+////
+////      return images.allSatisfy(\.highlighted)
+////    } set: { highlight in
+////      images.forEach(setter(keyPath: \.highlighted, value: highlight))
+////    }
+////
+////    // This code is really stupid, but really useful for one feature: toggling Live Text highlighting with Command-Shift-T.
+////    Toggle("Live Text Highlight", systemImage: "dot.viewfinder", isOn: highlight)
 //    Button("Live Text Highlight", systemImage: "dot.viewfinder") {
 //      let images = images()
 //
@@ -221,31 +221,31 @@ struct ImageCollectionDetailCurrentView: View {
 //
 //      images.forEach(setter(keyPath: \.highlighted, value: highlight))
 //    }
-//      .id(images)
-//      .hidden()
-//      .keyboardShortcut(.liveTextHighlight)
-
-    if let image = primary, displayTitleBarImage {
-      let url = image.url
-
-      Color.clear
-        .navigationTitle(Text(url.deletingPathExtension().lastPathComponent))
-        // FIXME: This is a slow modifier.
-        //
-        // Just removing this modifier improves scrolling performance by about 5-10%. We could probably create a @State
-        // variable to keep track of the current image and apply the modifier outside either the GeometryReader or
-        // background preference view.
-        .navigationDocument(url)
-        .focusedSceneValue(\.openFinder, .init(enabled: true, menu: .init(identity: [image.id]) {
-          openFinder(selecting: image.url)
-        })).focusedSceneValue(\.jumpToCurrentImage, .init(identity: image.id) {
-          selection = [image.id]
-
-          scrollSidebar(selection)
-        })
-    }
-  }
-}
+//    .id(images)
+//    .hidden()
+//    .keyboardShortcut(.liveTextHighlight)
+//
+//    if let image = primary, displayTitleBarImage {
+//      let url = image.url
+//
+//      Color.clear
+//        .navigationTitle(Text(url.deletingPathExtension().lastPathComponent))
+//        // FIXME: This is a slow modifier.
+//        //
+//        // Just removing this modifier improves scrolling performance by about 5-10%. We could probably create a @State
+//        // variable to keep track of the current image and apply the modifier outside either the GeometryReader or
+//        // background preference view.
+//        .navigationDocument(url)
+//        .focusedSceneValue(\.openFinder, .init(enabled: true, menu: .init(identity: [image.id]) {
+//          openFinder(selecting: image.url)
+//        })).focusedSceneValue(\.jumpToCurrentImage, .init(identity: image.id) {
+//          selection = [image.id]
+//
+//          scrollSidebar(selection)
+//        })
+//    }
+//  }
+//}
 
 struct ImageCollectionDetailVisualView: View {
   @AppStorage(Keys.brightness.key) private var brightness = Keys.brightness.value
@@ -305,11 +305,14 @@ struct ImageCollectionDetailVisualView: View {
 }
 
 struct ImageCollectionDetailView: View {
-  @AppStorage(Keys.margin.key) private var margins = Keys.margin.value
+  @Environment(\.selection) @Binding private var selection
+  @Default(.margins) private var margins
   @Default(.collapseMargins) private var collapseMargins
   @Default(.liveText) private var liveText
   @Default(.liveTextIcon) private var appLiveTextIcon
+  @Default(.displayTitleBarImage) private var showTitleBarImage
   @SceneStorage(Defaults.Keys.liveTextIcon.name) private var liveTextIcon: Bool?
+  @State private var currentImage: ImageCollectionItemImage?
 
   let images: [ImageCollectionDetailImage]
   let scrollSidebar: Scroller.Scroll
@@ -366,15 +369,71 @@ struct ImageCollectionDetailView: View {
           .keyboardShortcut(.liveTextIcon)
           .help("\(icon ? "Hide" : "Show") Live Text icon")
       }
-    }.backgroundPreferenceValue(VisiblePreferenceKey<ImageCollectionItemImage>.self) { items in
-      GeometryReader { proxy in
-        let local = proxy.frame(in: .local)
-        let primary = items
-          .first { local.intersects(proxy[$0.anchor]) }?
-          .item
+    }.visibleImage(scrollSidebar: scrollSidebar)
+  }
+}
 
-        ImageCollectionDetailCurrentView(primary: primary, scrollSidebar: scrollSidebar)
+struct ImageCollectionDetailVisibilityViewModifier: ViewModifier {
+  typealias Scroll = SidebarScrollerFocusedValueKey.Value.Scroll
+
+  @Environment(\.selection) @Binding private var selection
+  @Default(.displayTitleBarImage) private var displayTitleBarImage
+  @State private var images = [ImageCollectionItemImage]()
+
+  let scrollSidebar: Scroll
+
+  func body(content: Content) -> some View {
+    content
+      .backgroundPreferenceValue(VisiblePreferenceKey<ImageCollectionItemImage>.self) { items in
+        GeometryReader { proxy in
+          let local = proxy.frame(in: .local)
+          let images = items
+            .filter { local.intersects(proxy[$0.anchor]) }
+            .map(\.item)
+
+          Color.clear.onChange(of: images) {
+            // The reason we're factoring the view into an overlay is because this view will be called on *every scroll*
+            // the user performs. While most modifiers are cheap, not all are—one being navigationDocument(_:). Just
+            // with this, CPU usage decreases from 60-68% to 47-52%, which is a major performance improvement. For
+            // reference, before the anchor preferences implementation, CPU usage was often around 42-48%.
+            self.images = images
+          }
+        }
+      }.overlay {
+        // Does Toggle have better accessibility?
+        Button("Live Text Highlight", systemImage: "dot.viewfinder") {
+          let highlight = !images.allSatisfy(\.highlighted)
+
+          images.forEach(setter(keyPath: \.highlighted, value: highlight))
+        }
+        .disabled(images.isEmpty)
+        .hidden()
+        .keyboardShortcut(.liveTextHighlight)
+
+        if let primary = images.first {
+          if displayTitleBarImage {
+            let url = primary.url
+
+            Color.clear
+              .navigationTitle(Text(url.deletingPathExtension().lastPathComponent))
+              .navigationDocument(url)
+          }
+
+          Color.clear
+            .focusedSceneValue(\.openFinder, .init(enabled: true, menu: .init(identity: [primary.id]) {
+              openFinder(selecting: primary.url)
+            })).focusedSceneValue(\.jumpToCurrentImage, .init(identity: primary.id) {
+              selection = [primary.id]
+
+              scrollSidebar(selection)
+            })
+        }
       }
-    }
+  }
+}
+
+extension View {
+  func visibleImage(scrollSidebar: @escaping ImageCollectionDetailVisibilityViewModifier.Scroll) -> some View {
+    self.modifier(ImageCollectionDetailVisibilityViewModifier(scrollSidebar: scrollSidebar))
   }
 }

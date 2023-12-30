@@ -12,13 +12,13 @@ struct SettingsGeneralView: View {
   typealias Scheme = ColorScheme?
 
   @Environment(\.liveTextSupported) private var liveTextSupported
-  @AppStorage(Keys.margin.key) private var margin = Keys.margin.value
-  @AppStorage(Keys.displayTitleBarImage.key) private var displayTitleBarImage = Keys.displayTitleBarImage.value
+  @Default(.margins) private var margins
   @Default(.colorScheme) private var colorScheme
   @Default(.collapseMargins) private var collapseMargins
   @Default(.liveText) private var liveText
   @Default(.liveTextIcon) private var liveTextIcon
   @Default(.liveTextSearchWith) private var liveTextSearchWith
+  @Default(.displayTitleBarImage) private var displayTitleBarImage
   @Default(.hideToolbarScrolling) private var hideToolbar
   @Default(.hideCursorScrolling) private var hideCursor
   @Default(.hideScrollIndicator) private var hideScroll
@@ -47,25 +47,25 @@ struct SettingsGeneralView: View {
       }
     }
 
-    let margin = Binding {
-      Double(self.margin)
-    } set: { margin in
-      self.margin = Int(margin)
-    }
-
     LabeledContent("Margins:") {
+      let margins = Binding {
+        Double(self.margins)
+      } set: { margins in
+        self.margins = Int(margins)
+      }
+
       VStack(spacing: 0) {
-        Slider(value: margin, in: range, step: 1)
+        Slider(value: margins, in: range, step: 1)
 
         HStack {
           Button("None") {
-            margin.wrappedValue = max(range.lowerBound, margin.wrappedValue - 1)
+            margins.wrappedValue = max(range.lowerBound, margins.wrappedValue - 1)
           }
 
           Spacer()
 
           Button("A lot") {
-            margin.wrappedValue = min(range.upperBound, margin.wrappedValue + 1)
+            margins.wrappedValue = min(range.upperBound, margins.wrappedValue + 1)
           }
         }
         .font(.caption)
@@ -77,7 +77,7 @@ struct SettingsGeneralView: View {
         Text("Collapse margins")
 
         Text("Images with adjacent borders will have their margins flattened into a single value.")
-      }.disabled(margin.wrappedValue == 0)
+      }.disabled(margins.wrappedValue == 0)
     }
 
     LabeledContent("Live Text:") {
