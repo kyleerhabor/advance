@@ -13,11 +13,12 @@ struct SettingsGeneralView: View {
 
   @Environment(\.liveTextSupported) private var liveTextSupported
   @AppStorage(Keys.margin.key) private var margin = Keys.margin.value
-  @AppStorage(Keys.collapseMargins.key) private var collapseMargins = Keys.collapseMargins.value
   @AppStorage(Keys.displayTitleBarImage.key) private var displayTitleBarImage = Keys.displayTitleBarImage.value
-  @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
-  @AppStorage(Keys.liveTextIcon.key) private var liveTextIcons = Keys.liveTextIcon.value
   @Default(.colorScheme) private var colorScheme
+  @Default(.collapseMargins) private var collapseMargins
+  @Default(.liveText) private var liveText
+  @Default(.liveTextIcon) private var liveTextIcon
+  @Default(.liveTextSearchWith) private var liveTextSearchWith
   @Default(.hideToolbarScrolling) private var hideToolbar
   @Default(.hideCursorScrolling) private var hideCursor
   @Default(.hideScrollIndicator) private var hideScroll
@@ -80,11 +81,19 @@ struct SettingsGeneralView: View {
     }
 
     LabeledContent("Live Text:") {
-      GroupBox {
-        Toggle("Enable Live Text", isOn: $liveText)
+      Group {
+        GroupBox {
+          Toggle("Enable Live Text", isOn: $liveText)
 
-        Toggle("Show icon", isOn: $liveTextIcons)
-          .disabled(!liveText)
+          Toggle("Show icon", isOn: $liveTextIcon)
+            .disabled(!liveText)
+        }
+
+        Toggle(isOn: $liveTextSearchWith) {
+          Text("Show menu item for search engine")
+
+          Text("This will always open in Safari.")
+        }
       }
       .disabled(!liveTextSupported)
       .help(liveTextSupported ? "" : "This device does not support Live Text.")
@@ -107,7 +116,7 @@ struct SettingsGeneralView: View {
         }
       }.groupBoxStyle(.settingsLabeled)
 
-      Toggle("Display the current image in the title", isOn: $displayTitleBarImage)
+      Toggle("Display current image in the title", isOn: $displayTitleBarImage)
     }
 
     LabeledContent("Copying:") {

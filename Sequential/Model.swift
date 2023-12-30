@@ -35,11 +35,6 @@ extension NavigationSplitViewVisibility: RawRepresentable {
 
 struct Keys {
   static let margin = Item("margin", 1)
-  static let collapseMargins = Item("collapseMargins", true)
-  // I think enabling Live Text by default but hiding the icon strikes a nice compromise between convenience (e.g.
-  // being able to select text) and UI simplicity (i.e. not having the buttons get in the way).
-  static let liveText = Item("liveText", true)
-  static let liveTextIcon = Item("liveTextIcon", false)
   static let displayTitleBarImage = Item("displayTitleBarImage", true)
   
   static let brightness = Item("brightness", 0.0)
@@ -75,14 +70,24 @@ enum ColorScheme: Int {
 extension ColorScheme: Defaults.Serializable {}
 
 extension Defaults.Keys {
+  // Appearance
   static let colorScheme = Key("colorscheme", default: ColorScheme.system)
+  static let collapseMargins = Key("collapseMargins", default: true)
 
-  static let importHiddenFiles = Key("importHiddenFiles", default: false)
-  static let importSubdirectories = Key("importSubdirectories", default: true)
+  // Live Text
+  static let liveText = Key("liveText", default: true)
+  static let liveTextIcon = Key("liveTextIcon", default: false)
+  static let liveTextSearchWith = Key("liveTextSearchWith", default: false)
 
+  // Visibility
   static let hideToolbarScrolling = Key("hideToolbarScrolling", default: false)
   static let hideCursorScrolling = Key("hideCursorScrolling", default: false)
   static let hideScrollIndicator = Key("hideScrollIndicator", default: false)
 
+  // Copying
   static let resolveCopyingConflicts = Key("resolveCopyingConflicts", default: true)
+
+  // Importing
+  static let importHiddenFiles = Key("importHiddenFiles", default: false)
+  static let importSubdirectories = Key("importSubdirectories", default: true)
 }

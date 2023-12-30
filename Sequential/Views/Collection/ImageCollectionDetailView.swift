@@ -85,10 +85,10 @@ struct ImageCollectionDetailItemSidebarView: View {
 }
 
 struct ImageCollectionDetailItemView: View {
-  @AppStorage(Keys.collapseMargins.key) private var collapse = Keys.collapseMargins.value
-  @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
+  @Default(.liveText) private var liveText
+  @Default(.liveTextSearchWith) private var liveTextSearchWith
   @Default(.resolveCopyingConflicts) private var resolveConflicts
-  @State private var isPresentingCopyDestinationPicker = false
+  @State private var isPresentingCopyingFileImporter = false
   @State private var error: String?
   var isPresentingErrorAlert: Binding<Bool> {
     .init {
@@ -101,14 +101,11 @@ struct ImageCollectionDetailItemView: View {
   }
 
   @Bindable var image: ImageCollectionItemImage
-  let margin: Double
-  let insets: EdgeInsets
   var liveTextIcon: Bool
   let scrollSidebar: Scroller.Scroll
 
   var body: some View {
     let url = image.url
-    let insets = collapse ? insets : .init(margin * 6)
 
     // For some reason, ImageCollectionItemView needs to be wrapped in a VStack for animations to apply.
     VStack {
@@ -119,15 +116,17 @@ struct ImageCollectionDetailItemView: View {
             orientation: image.properties.orientation,
             highlight: $image.highlighted,
             analysis: $image.analysis
-          ).supplementaryInterfaceHidden(!liveTextIcon)
+          )
+          .supplementaryInterfaceHidden(!liveTextIcon)
+          .searchEngineHidden(!liveTextSearchWith)
         }
       }
       .anchorPreference(key: VisiblePreferenceKey.self, value: .bounds) { [.init(item: image, anchor: $0)] }
       .anchorPreference(key: ScrollOffsetPreferenceKey.self, value: .bounds) { $0 }
     }
+    // I don't know if this actually does anything, but I want the view to always fade in with an opacity. Currently,
+    // it will *sometimes* use a scale.
     .transition(.opacity)
-    .listRowInsets(.listRow + insets)
-    .shadow(radius: margin / 2)
     .contextMenu {
       Section {
         Button("Show in Finder") {
@@ -144,7 +143,7 @@ struct ImageCollectionDetailItemView: View {
           }
         }
 
-        ImageCollectionCopyingView(isPresented: $isPresentingCopyDestinationPicker, error: $error) { destination in
+        ImageCollectionCopyingView(isPresented: $isPresentingCopyingFileImporter, error: $error) { destination in
           Task(priority: .medium) {
             do {
               try await save(image: image, to: destination)
@@ -158,7 +157,7 @@ struct ImageCollectionDetailItemView: View {
       Section {
         ImageCollectionDetailItemBookmarkView(bookmarked: $image.bookmarked)
       }
-    }.fileImporter(isPresented: $isPresentingCopyDestinationPicker, allowedContentTypes: [.folder]) { result in
+    }.fileImporter(isPresented: $isPresentingCopyingFileImporter, allowedContentTypes: [.folder]) { result in
       switch result {
         case .success(let url):
           Task(priority: .medium) {
@@ -210,7 +209,7 @@ struct ImageCollectionDetailCurrentView: View {
 //    }
 //
 //    // This code is really stupid, but really useful for one feature: toggling Live Text highlighting with Command-Shift-T.
-////    Toggle("Live Text Highlight", systemImage: "dot.viewfinder", isOn: highlight)
+//    Toggle("Live Text Highlight", systemImage: "dot.viewfinder", isOn: highlight)
 //    Button("Live Text Highlight", systemImage: "dot.viewfinder") {
 //      let images = images()
 //
@@ -222,7 +221,7 @@ struct ImageCollectionDetailCurrentView: View {
 //
 //      images.forEach(setter(keyPath: \.highlighted, value: highlight))
 //    }
-////      .id(images)
+//      .id(images)
 //      .hidden()
 //      .keyboardShortcut(.liveTextHighlight)
 
@@ -231,6 +230,11 @@ struct ImageCollectionDetailCurrentView: View {
 
       Color.clear
         .navigationTitle(Text(url.deletingPathExtension().lastPathComponent))
+        // FIXME: This is a slow modifier.
+        //
+        // Just removing this modifier improves scrolling performance by about 5-10%. We could probably create a @State
+        // variable to keep track of the current image and apply the modifier outside either the GeometryReader or
+        // background preference view.
         .navigationDocument(url)
         .focusedSceneValue(\.openFinder, .init(enabled: true, menu: .init(identity: [image.id]) {
           openFinder(selecting: image.url)
@@ -302,11 +306,12 @@ struct ImageCollectionDetailVisualView: View {
 
 struct ImageCollectionDetailView: View {
   @AppStorage(Keys.margin.key) private var margins = Keys.margin.value
-  @AppStorage(Keys.liveText.key) private var liveText = Keys.liveText.value
-  @AppStorage(Keys.liveTextIcon.key) private var appLiveTextIcon = Keys.liveTextIcon.value
-  @SceneStorage(Keys.liveTextIcon.key) private var liveTextIcon: Bool?
+  @Default(.collapseMargins) private var collapseMargins
+  @Default(.liveText) private var liveText
+  @Default(.liveTextIcon) private var appLiveTextIcon
+  @SceneStorage(Defaults.Keys.liveTextIcon.name) private var liveTextIcon: Bool?
 
-  let images: [ImageCollectionItemImage]
+  let images: [ImageCollectionDetailImage]
   let scrollSidebar: Scroller.Scroll
   var icon: Bool {
     liveTextIcon ?? appLiveTextIcon
@@ -316,43 +321,29 @@ struct ImageCollectionDetailView: View {
     let margin = Double(margins)
     let half = margin * 3
     let full = half * 2
+    let all = EdgeInsets(full)
+    let top = EdgeInsets(horizontal: full, top: full, bottom: half)
+    let middle = EdgeInsets(horizontal: full, top: half, bottom: half)
+    let bottom = EdgeInsets(horizontal: full, top: half, bottom: full)
 
-    List {
-      Group {
-        let top = EdgeInsets(horizontal: full, top: full, bottom: half)
-        let middle = EdgeInsets(horizontal: full, top: half, bottom: half)
-        let bottom = EdgeInsets(horizontal: full, top: half, bottom: full)
-
-        if let first = images.first {
-          ImageCollectionDetailItemView(
-            image: first,
-            margin: margin,
-            insets: top,
-            liveTextIcon: icon,
-            scrollSidebar: scrollSidebar
-          ).id(first.id)
+    List(images) { image in
+      let insets: EdgeInsets = if let edge = image.edge {
+        switch edge {
+          case .top: top
+          case .bottom: bottom
         }
+      } else {
+        middle
+      }
 
-        ForEach(images.dropFirst().dropLast()) { image in
-          ImageCollectionDetailItemView(
-            image: image,
-            margin: margin,
-            insets: middle,
-            liveTextIcon: icon,
-            scrollSidebar: scrollSidebar
-          )
-        }
-
-        if images.isMany, let last = images.last {
-          ImageCollectionDetailItemView(
-            image: last,
-            margin: margin,
-            insets: bottom,
-            liveTextIcon: icon,
-            scrollSidebar: scrollSidebar
-          ).id(last.id)
-        }
-      }.listRowSeparator(.hidden)
+      ImageCollectionDetailItemView(
+        image: image.image,
+        liveTextIcon: icon,
+        scrollSidebar: scrollSidebar
+      )
+      .shadow(radius: margin / 2)
+      .listRowInsets(.listRow + (collapseMargins ? insets : all))
+      .listRowSeparator(.hidden)
     }
     .listStyle(.plain)
     .toolbar(id: "Canvas") {

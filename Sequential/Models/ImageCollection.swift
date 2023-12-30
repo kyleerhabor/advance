@@ -178,6 +178,17 @@ extension ImageCollectionItem: Codable {
   }
 }
 
+struct ImageCollectionDetailImage {
+  let image: ImageCollectionItemImage
+  let edge: VerticalEdge?
+}
+
+extension ImageCollectionDetailImage: Identifiable {
+  var id: ImageCollectionItemImage.ID { image.id }
+}
+
+extension ImageCollectionDetailImage: Equatable {}
+
 @Observable
 class ImageCollection: Codable {
   typealias Order = OrderedSet<ImageCollectionItemRoot.ID>
@@ -187,8 +198,8 @@ class ImageCollection: Codable {
   @ObservationIgnored var items: Items
   @ObservationIgnored var order: Order
 
-  // The materialized state for the UI.
   var images = [ImageCollectionItemImage]()
+  var detail = [ImageCollectionDetailImage]()
   var bookmarks = [ImageCollectionItemImage]()
   var bookmarkings = Set<ImageCollectionItemRoot.ID>()
 
@@ -255,11 +266,11 @@ class ImageCollection: Codable {
                 return .document(.init(source: item, files: urbs))
               }
             case .file(let source):
-              return try source.scoped {
-                let item = try URLBookmark(url: source.url, options: source.options, relativeTo: nil)
-
-                return .file(item)
+              let item = try source.scoped {
+                try URLBookmark(url: source.url, options: source.options, relativeTo: nil)
               }
+
+              return .file(item)
           }
         }
       }
@@ -465,6 +476,16 @@ class ImageCollection: Codable {
 
   func update() {
     self.images = order.compactMap { items[$0]?.image }
+    self.detail = images.enumerated().map { pair in
+      .init(
+        image: pair.element,
+        edge: pair.offset == 0
+        ? .top
+        : pair.offset == images.count
+        ? .bottom
+        : nil
+      )
+    }
 
     updateBookmarks()
   }

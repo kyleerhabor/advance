@@ -142,6 +142,9 @@ extension URL: URLScope {
   }
 }
 
+// TODO: Remove.
+//
+// A URLSource with a URLScope is enough.
 struct URLSecurityScope {
   let url: URL
   let accessing: Bool

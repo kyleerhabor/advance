@@ -283,3 +283,10 @@ extension NSPasteboard {
     return self.writeObjects(items)
   }
 }
+
+extension NSMenuItem {
+  var isStandard: Bool {
+    // This is not safe from evolution.
+    !self.isSectionHeader && !self.isSeparatorItem
+  }
+}

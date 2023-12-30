@@ -22,6 +22,10 @@ extension ImageAnalysisOverlayView {
   }
 }
 
+extension ImageAnalysisOverlayView.MenuTag {
+  static let searchWith = 0
+}
+
 struct LiveTextView<Scope>: NSViewRepresentable where Scope: URLScope {
   private let analyzer = ImageAnalyzer()
 
@@ -29,7 +33,8 @@ struct LiveTextView<Scope>: NSViewRepresentable where Scope: URLScope {
   let orientation: CGImagePropertyOrientation
   @Binding var highlight: Bool
   @Binding var analysis: ImageAnalysis?
-  private var supplementaryInterfaceHidden: Bool
+  private var supplementaryInterfaceHidden = false
+  private var searchEngineHidden = false
   private var hidden: Bool {
     return !highlight && supplementaryInterfaceHidden
   }
@@ -39,7 +44,6 @@ struct LiveTextView<Scope>: NSViewRepresentable where Scope: URLScope {
     self.orientation = orientation
     self._highlight = highlight
     self._analysis = analysis
-    self.supplementaryInterfaceHidden = false
   }
 
   func makeNSView(context: Context) -> ImageAnalysisOverlayView {
@@ -59,6 +63,7 @@ struct LiveTextView<Scope>: NSViewRepresentable where Scope: URLScope {
 
   func updateNSView(_ overlayView: ImageAnalysisOverlayView, context: Context) {
     context.coordinator.setHighlight($highlight)
+    context.coordinator.searchEngineHidden = searchEngineHidden
 
     overlayView.setHighlightVisibility(highlight: highlight, supplementaryInterfaceHidden: supplementaryInterfaceHidden, animated: true)
 
@@ -70,7 +75,7 @@ struct LiveTextView<Scope>: NSViewRepresentable where Scope: URLScope {
   }
 
   func makeCoordinator() -> Coordinator {
-    Coordinator(highlight: $highlight)
+    Coordinator(highlight: $highlight, searchEngineHidden: searchEngineHidden)
   }
 
   @MainActor
@@ -193,10 +198,12 @@ struct LiveTextView<Scope>: NSViewRepresentable where Scope: URLScope {
     typealias Tag = ImageAnalysisOverlayView.MenuTag
 
     @Binding var highlight: Bool
+    var searchEngineHidden: Bool
     var task: Task<Void, Never>?
 
-    init(highlight: Binding<Bool>, task: Task<Void, Never>? = nil) {
+    init(highlight: Binding<Bool>, searchEngineHidden: Bool, task: Task<Void, Never>? = nil) {
       self._highlight = highlight
+      self.searchEngineHidden = searchEngineHidden
       self.task = task
     }
 
@@ -216,14 +223,18 @@ struct LiveTextView<Scope>: NSViewRepresentable where Scope: URLScope {
       // the superview (i.e. the SwiftUI view) to reimplement it (which wouldn't be as native, but likely more robust).
       // I tried the latter prior, but couldn't get NSHostingView to overlay the view. I wonder if NSHostingController
       // will work better...
-      let removing = [
+      var removing = [
         // Already implemented.
         menu.item(withTag: Tag.copyImage),
-        // Too unstable (and slow). This does not need VisionKit / Live Text to implement, anyway.
+        // Too unstable (and slow). This does not need VisionKit to implement, anyway.
         menu.item(withTag: Tag.shareImage),
         // Always opens in Safari, which is undesirable.
-        menu.items.first { $0.title.hasPrefix("Search With") }
       ].compactMap { $0 }
+
+      if searchEngineHidden,
+         let item = menu.items.first(where: { $0.tag == Tag.searchWith && $0.isStandard }) {
+        removing.append(item)
+      }
 
       removing.forEach(menu.removeItem)
 
@@ -250,6 +261,13 @@ extension LiveTextView {
     var this = self
     this.supplementaryInterfaceHidden = hidden
     
+    return this
+  }
+
+  func searchEngineHidden(_ hidden: Bool) -> Self {
+    var this = self
+    this.searchEngineHidden = hidden
+
     return this
   }
 }

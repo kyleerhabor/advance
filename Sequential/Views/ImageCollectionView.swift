@@ -65,7 +65,7 @@ struct SidebarScrollerFocusedValueKey: FocusedValueKey {
 }
 
 struct DetailScrollerIdentity: Equatable {
-  let images: [ImageCollectionItemImage]
+  let images: [ImageCollectionDetailImage]
   let selection: ImageCollectionView.Selection
 }
 
@@ -132,7 +132,7 @@ struct ImageCollectionNavigationDetailView: View {
   @Environment(\.selection) @Binding private var selection
   @FocusedValue(\.sidebarScroller) private var sidebarScroller
 
-  var images: [ImageCollectionItemImage]
+  var images: [ImageCollectionDetailImage]
 
   var body: some View {
     ScrollViewReader { proxy in
@@ -186,7 +186,7 @@ struct ImageCollectionView: View {
       ImageCollectionNavigationSidebarView(columns: $columns)
         .navigationSplitViewColumnWidth(min: 128, ideal: 192, max: 256)
     } detail: {
-      ImageCollectionNavigationDetailView(images: collection.images)
+      ImageCollectionNavigationDetailView(images: collection.detail)
         .scrollIndicators(hideScroll && columns == .detailOnly ? .hidden : .automatic)
         .frame(minWidth: 256)
     }.backgroundPreferenceValue(ScrollOffsetPreferenceKey.self) { anchor in
