@@ -103,6 +103,14 @@ struct SettingsView: View {
       .tabItem {
         Label("Import", systemImage: "square.and.arrow.down")
       }
+
+      Form {
+        SettingsExtraView()
+      }
+      .tag(Tab.extra)
+      .tabItem { 
+        Label("Extra", systemImage: "wand.and.stars")
+      }
     }
     .formStyle(SettingsFormStyle(spacing: 16))
     .frame(width: 384) // 256 - 512
@@ -111,6 +119,6 @@ struct SettingsView: View {
   }
 
   enum Tab {
-    case general, importing
+    case general, importing, extra
   }
 }

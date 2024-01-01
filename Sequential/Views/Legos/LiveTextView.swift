@@ -8,17 +8,18 @@
 import OSLog
 import SwiftUI
 import VisionKit
+import UniformTypeIdentifiers
 
 extension URL {
   static let temporaryLiveTextImagesDirectory = Self.temporaryImagesDirectory.appending(component: "Live Text")
 }
 
 extension ImageAnalysisOverlayView {
-  func setHighlightVisibility(highlight: Bool, supplementaryInterfaceHidden: Bool, animated: Bool) {
-    let hidden = !highlight && supplementaryInterfaceHidden
+  func setHighlightVisibility(_ visible: Bool, supplementaryInterfaceHidden: Bool, animated: Bool) {
+    let hidden = !visible && supplementaryInterfaceHidden
 
     self.setSupplementaryInterfaceHidden(hidden, animated: animated)
-    self.selectableItemsHighlighted = highlight
+    self.selectableItemsHighlighted = visible
   }
 }
 
@@ -26,37 +27,59 @@ extension ImageAnalysisOverlayView.MenuTag {
   static let searchWith = 0
 }
 
-struct LiveTextView<Scope>: NSViewRepresentable where Scope: URLScope {
-  private let analyzer = ImageAnalyzer()
+extension ImageAnalyzer {
+  static let maxSize = 8192
 
-  let scope: Scope
-  let orientation: CGImagePropertyOrientation
+  static let errorDomain = "com.apple.VisionKit.ImageAnalyzer"
+  static let errorCodeMaxSize = -10
+}
+
+extension ImageAnalyzer.AnalysisTypes {
+  init(_ interactions: ImageAnalysisOverlayView.InteractionTypes) {
+    self.init()
+
+    if !interactions.isDisjoint(with: [.automatic, .automaticTextOnly, .textSelection, .dataDetectors]) {
+      self.insert(.text)
+    }
+
+    if !interactions.isDisjoint(with: [.automatic, .visualLookUp]) {
+      self.insert(.visualLookUp)
+    }
+  }
+}
+
+struct LiveTextView: NSViewRepresentable {
+  let interactions: ImageAnalysisOverlayView.InteractionTypes
+  let analysis: ImageAnalysis?
   @Binding var highlight: Bool
-  @Binding var analysis: ImageAnalysis?
+
   private var supplementaryInterfaceHidden = false
   private var searchEngineHidden = false
   private var hidden: Bool {
     return !highlight && supplementaryInterfaceHidden
   }
 
-  init(scope: Scope, orientation: CGImagePropertyOrientation, highlight: Binding<Bool>, analysis: Binding<ImageAnalysis?>) {
-    self.scope = scope
-    self.orientation = orientation
+  init(
+    interactions: ImageAnalysisOverlayView.InteractionTypes,
+    analysis: ImageAnalysis?,
+    highlight: Binding<Bool>
+  ) {
+    self.interactions = interactions
+    self.analysis = analysis
     self._highlight = highlight
-    self._analysis = analysis
   }
 
   func makeNSView(context: Context) -> ImageAnalysisOverlayView {
     let overlayView = ImageAnalysisOverlayView()
     overlayView.delegate = context.coordinator
-    // .automatic would be nice, but it takes too long to activate. Maybe lock it behind a setting?
-    overlayView.preferredInteractionTypes = .automaticTextOnly
+
+    // For some reason, using .automatic for subjects doesn't work 90% of the time.
+    overlayView.preferredInteractionTypes = interactions
 
     // If we enable highlighting on initialization, it'll immediately go away but the supplementary interface will
     // be activated (i.e. have its accent color indicating the highlight state).
-    overlayView.setHighlightVisibility(highlight: false, supplementaryInterfaceHidden: supplementaryInterfaceHidden, animated: false)
-
-    analyze(overlayView, context: context)
+    overlayView.setHighlightVisibility(false, supplementaryInterfaceHidden: supplementaryInterfaceHidden, animated: false)
+    overlayView.analysis = analysis
 
     return overlayView
   }
@@ -65,133 +88,17 @@ struct LiveTextView<Scope>: NSViewRepresentable where Scope: URLScope {
     context.coordinator.setHighlight($highlight)
     context.coordinator.searchEngineHidden = searchEngineHidden
 
-    overlayView.setHighlightVisibility(highlight: highlight, supplementaryInterfaceHidden: supplementaryInterfaceHidden, animated: true)
+    if overlayView.preferredInteractionTypes != interactions {
+      overlayView.preferredInteractionTypes = interactions
+    }
+    
+    overlayView.setHighlightVisibility(highlight, supplementaryInterfaceHidden: supplementaryInterfaceHidden, animated: true)
 
-    analyze(overlayView, context: context)
-  }
-
-  static func dismantleNSView(_ overlayView: ImageAnalysisOverlayView, coordinator: Coordinator) {
-    coordinator.task?.cancel()
+    overlayView.analysis = analysis
   }
 
   func makeCoordinator() -> Coordinator {
     Coordinator(highlight: $highlight, searchEngineHidden: searchEngineHidden)
-  }
-
-  @MainActor
-  func analyze(_ overlayView: ImageAnalysisOverlayView, context: Context) {
-    guard analysis == nil else {
-      overlayView.analysis = analysis
-
-      return
-    }
-
-    guard context.coordinator.task == nil else {
-      return
-    }
-
-    context.coordinator.task = .init {
-      do {
-//        let frame = overlayView.frame
-//        let size = max(frame.width, frame.height) / context.environment.pixelLength
-
-        try await scope.scoped {
-//          let url = try await analysisURL(size: size)
-          let analysis = try await analyze(url: scope.url)
-
-          self.analysis = analysis
-          overlayView.analysis = analysis
-        }
-      } catch is CancellationError {
-        Logger.ui.info("Tried to analyze image, but Task was cancelled.")
-      } catch {
-        Logger.ui.error("Could not analyze image: \(error)")
-      }
-
-      context.coordinator.task = nil
-    }
-  }
-
-//  func analysisURL(size: Double) async throws -> URL {
-//    try Task.checkCancellation()
-//
-//    // Is there a constant provided by Vision / VisionKit?
-//    let maxSize = 8192
-//
-//    guard let source = CGImageSourceCreateWithURL(scope.url as CFURL, nil) else {
-//      return scope.url
-//    }
-//
-//    let primary = CGImageSourceGetPrimaryImageIndex(source)
-//
-//    // For those crazy enough to load an 8K+ image (i.e. me)
-//    //
-//    // FIXME: We should only downsample when the error indicates the image was too large.
-//    guard let properties = source.properties() as? MapCF,
-//          let imageSize = ImageSize(from: properties) else {
-//      return scope.url
-//    }
-//
-//    let length = imageSize.length
-//
-//    guard length >= maxSize else {
-//      return scope.url
-//    }
-//
-//    let size = min(length, maxSize - 1)
-//
-//    Logger.ui.info("Image at URL \"\(scope.url.string)\" has dimensions \(imageSize.width) / \(imageSize.height), exceeding Vision framework limit of \(maxSize.description); proceeding to downsample to size \(size.description)")
-//
-//    return try downsample(source: source, index: primary, size: size)
-//  }
-//
-//  func downsample(source: CGImageSource, index: Int, size: Int) throws -> URL {
-//    // We unfortunately can't just feed this to ImageAnalyzer since it results in a memory leak. Instead, we'll save
-//    // it to a file and feed the URL instead (which doesn't result in a memory leak!)
-//    guard let thumbnail = source.resample(to: size, index: index) else {
-//      throw ImageError.thumbnail
-//    }
-//
-//    guard let type = CGImageSourceGetType(source) else {
-//      throw ImageError.thumbnail
-//    }
-//
-//    let directory = URL.temporaryLiveTextImagesDirectory
-//    let url = directory.appending(component: UUID().uuidString)
-//
-//    Logger.ui.info("Copying downsampled image of URL \"\(self.scope.url.string)\" to destination \"\(url.string)\"")
-//
-//    let count = 1
-//
-//    guard let destination = CGImageDestinationCreateWithURL(url as CFURL, type, count, nil) else {
-//      throw ImageError.thumbnail
-//    }
-//
-//    CGImageDestinationAddImage(destination, thumbnail, nil)
-//
-//    try FileManager.default.creatingDirectories(at: directory, code: .fileNoSuchFile) {
-//      guard CGImageDestinationFinalize(destination) else {
-//        throw ImageError.thumbnail
-//      }
-//    }
-//
-//    return url
-//  }
-
-  func analyze(url: URL) async throws -> ImageAnalysis {
-    // FIXME: VisionKit sometimes complains about analyzing over 10 images.
-    //
-    // VisionKit's analyze method doesn't seem to check for cancellation itself. If we wanted to fix this, we'd need a
-    // handle from users, but it would be difficult to schedule, given we'd need to know when a slot becomes available
-    // and which view on-screen is most relevant to be given the priority (assuming we don't want to leave the user in
-    // a weird state).
-    let exec = try await time {
-      try await analyzer.analyze(imageAt: url, orientation: orientation, configuration: .init(.text))
-    }
-
-    Logger.ui.info("Took \(exec.duration) to analyze image at URL \"\(url.string)\"")
-
-    return exec.value
   }
 
   class Coordinator: NSObject, ImageAnalysisOverlayViewDelegate {
@@ -199,12 +106,10 @@ struct LiveTextView<Scope>: NSViewRepresentable where Scope: URLScope {
 
     @Binding var highlight: Bool
     var searchEngineHidden: Bool
-    var task: Task<Void, Never>?
 
-    init(highlight: Binding<Bool>, searchEngineHidden: Bool, task: Task<Void, Never>? = nil) {
+    init(highlight: Binding<Bool>, searchEngineHidden: Bool) {
       self._highlight = highlight
       self.searchEngineHidden = searchEngineHidden
-      self.task = task
     }
 
     func setHighlight(_ highlight: Binding<Bool>) {
@@ -228,7 +133,6 @@ struct LiveTextView<Scope>: NSViewRepresentable where Scope: URLScope {
         menu.item(withTag: Tag.copyImage),
         // Too unstable (and slow). This does not need VisionKit to implement, anyway.
         menu.item(withTag: Tag.shareImage),
-        // Always opens in Safari, which is undesirable.
       ].compactMap { $0 }
 
       if searchEngineHidden,

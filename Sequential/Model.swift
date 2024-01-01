@@ -76,6 +76,7 @@ extension Defaults.Keys {
   static let liveText = Key("liveText", default: true)
   static let liveTextIcon = Key("liveTextIcon", default: false)
   static let liveTextSearchWith = Key("liveTextSearchWith", default: false)
+  static let liveTextDownsample = Key("liveTextDownsample", default: false)
 
   // Visibility
   static let displayTitleBarImage = Key("displayTitleBarImage", default: true)

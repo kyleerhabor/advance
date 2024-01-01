@@ -162,6 +162,7 @@ struct ImageCollectionView: View {
 
   @Environment(ImageCollection.self) private var collection
   @Environment(Window.self) private var win
+  @Environment(\.prerendering) private var prerendering
   @Environment(\.fullScreen) private var fullScreen
   @Environment(\.id) private var id
   @Environment(\.trackingMenu) private var trackingMenu
@@ -176,6 +177,8 @@ struct ImageCollectionView: View {
   private let toolbarSubject = PassthroughSubject<Bool, Never>()
   private let toolbarPublisher: AnyPublisher<Bool, Never>
   private var window: NSWindow? { win.window }
+
+  let loads: Int
 
   var body: some View {
     NavigationSplitView(columnVisibility: $columns) {
@@ -208,7 +211,7 @@ struct ImageCollectionView: View {
     .toolbarHidden(hideToolbar && !visible)
     .cursorHidden(hideCursor && !visible)
     .environment(\.selection, $selection)
-    .task(id: collection) {
+    .task(id: loads) {
       let roots = collection.items.values.map(\.root)
       let state = await Self.resolve(roots: roots, in: collection.store)
       let items = collection.order.compactMap { id -> ImageCollectionItem? in
@@ -258,7 +261,9 @@ struct ImageCollectionView: View {
     }
   }
 
-  init() {
+  init(loads: Int) {
+    self.loads = loads
+    
     let cursor = cursorSubject
       .map { _ in true }
       .prepend(false)

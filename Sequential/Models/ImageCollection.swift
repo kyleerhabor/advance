@@ -86,7 +86,7 @@ class ImageCollectionItemImage {
   var bookmarked: Bool
 
   var analysis: ImageAnalysis?
-  var highlighted: Bool
+  var highlighted = false
 
   init(bookmark: BookmarkStoreItem.ID, url: URL, relative: URL?, properties: ImageProperties, bookmarked: Bool) {
     self.bookmark = bookmark
@@ -94,7 +94,6 @@ class ImageCollectionItemImage {
     self.relative = relative
     self.properties = properties
     self.bookmarked = bookmarked
-    self.analysis = nil
     self.highlighted = false
   }
 
@@ -479,9 +478,9 @@ class ImageCollection: Codable {
     self.detail = images.enumerated().map { pair in
       .init(
         image: pair.element,
-        edge: pair.offset == 0
+        edge: pair.offset == images.startIndex
         ? .top
-        : pair.offset == images.count
+        : pair.offset == images.endIndex - 1
         ? .bottom
         : nil
       )
@@ -529,7 +528,7 @@ class ImageCollection: Codable {
 
 extension ImageCollection {
   // MARK: - Convenience
-  
+
   static func resolving(
     bookmarks: [BookmarkStoreItem],
     in store: BookmarkStore

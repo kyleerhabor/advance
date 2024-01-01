@@ -8,6 +8,23 @@
 import SwiftUI
 import OSLog
 
+struct ImageResample {
+  let image: Image
+  let size: CGSize
+}
+
+enum ImageResamplePhase {
+  case empty, success(ImageResample), failure(Error)
+
+  var resample: ImageResample? {
+    guard case let .success(resample) = self else {
+      return nil
+    }
+
+    return resample
+  }
+}
+
 struct ImageCollectionItemPhaseView: View {
   @AppStorage(Keys.brightness.key) private var brightness = Keys.brightness.value
   @AppStorage(Keys.grayscale.key) private var grayscale = Keys.grayscale.value
@@ -16,7 +33,7 @@ struct ImageCollectionItemPhaseView: View {
     .init(phase) ?? .empty
   }
 
-  let phase: AsyncImagePhase
+  let phase: ImageResamplePhase
 
   var body: some View {
     // For transparent images, the fill is still useful to know that an image is supposed to be in the frame, but when
@@ -25,9 +42,9 @@ struct ImageCollectionItemPhaseView: View {
     // kind of be weird for collections that mix transparent and non-transparent images, however (since there's no
     // clear separator).
     Color.tertiaryFill
-      .visible(phase.image == nil)
+      .visible(phase.resample?.image == nil)
       .overlay {
-        if let image = phase.image {
+        if let image = phase.resample?.image {
           image
             .resizable()
             .animation(.smooth) { content in
@@ -55,7 +72,7 @@ struct ImageCollectionItemPhaseView: View {
         } catch is CancellationError {
           // Fallthrough
         } catch {
-          Logger.ui.fault("Image elapse threw an error besides CancellationError: \(error)")
+          Logger.standard.fault("Image elapse threw an error besides CancellationError: \(error)")
         }
 
         elapsed = true
@@ -71,10 +88,10 @@ struct ImageCollectionItemView<Overlay>: View where Overlay: View {
 
   @Environment(ImageCollection.self) private var collection
   @Environment(\.pixelLength) private var pixel
-  @State private var phase = AsyncImagePhase.empty
+  @State private var phase = ImageResamplePhase.empty
 
   let image: ImageCollectionItemImage
-  @ViewBuilder var overlay: (AsyncImagePhase) -> Overlay
+  @ViewBuilder var overlay: (ImageResamplePhase) -> Overlay
 
   var body: some View {
     DisplayView { size in
@@ -87,18 +104,16 @@ struct ImageCollectionItemView<Overlay>: View where Overlay: View {
         height: size.height / pixel
       )
 
-      Task {
-        do {
-          let image = try await resample(image: image, to: size)
+      do {
+        let image = try await resample(image: image, to: size)
 
-          phase = .success(image)
-        } catch is CancellationError {
-          return
-        } catch {
-          Logger.ui.error("Could not resample image at URL \"\(image.url.string)\": \(error)")
+        phase = .success(.init(image: image, size: size))
+      } catch is CancellationError {
+        return
+      } catch {
+        Logger.ui.error("Could not resample image at URL \"\(image.url.string)\": \(error)")
 
-          phase = .failure(error)
-        }
+        phase = .failure(error)
       }
     } content: {
       ImageCollectionItemPhaseView(phase: phase)

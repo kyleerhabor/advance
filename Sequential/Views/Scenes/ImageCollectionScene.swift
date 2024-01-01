@@ -13,9 +13,11 @@ struct ImageCollectionSceneView: View {
   @Environment(\.prerendering) private var prerendering
   @Environment(\.id) private var id
   @State private var collection = ImageCollection()
+  @State private var prior: UUID?
+  @State private var loads = 0
 
   var body: some View {
-    ImageCollectionView()
+    ImageCollectionView(loads: loads)
       .environment(collection)
       // The pre-rendering variable triggers SwiftUI to call the action with an up-to-date id when performing scene
       // restoration. It's weird we can't just bind id.
@@ -45,6 +47,19 @@ struct ImageCollectionSceneView: View {
         }
 
         self.collection = collection
+
+        // This is some really stupid code, and is not perfect (still results in an extra task call). In essence, we want
+        // to know when a new image collection is loaded without asking the collection itself (since we currently don't
+        // know the ID, unless we want to persist it).
+        if let prior {
+          if prior != id {
+            loads += 1
+          }
+        } else {
+          prior = id
+
+          loads += 1
+        }
       }.onDisappear {
         manager.collections[id] = nil
       }

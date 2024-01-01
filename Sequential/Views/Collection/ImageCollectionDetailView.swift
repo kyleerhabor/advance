@@ -6,8 +6,10 @@
 //
 
 import Defaults
+import ImageIO
 import OSLog
 import SwiftUI
+import VisionKit
 
 struct VisibleItem<Item> {
   let item: Item
@@ -87,6 +89,7 @@ struct ImageCollectionDetailItemSidebarView: View {
 struct ImageCollectionDetailItemView: View {
   @Default(.liveText) private var liveText
   @Default(.liveTextSearchWith) private var liveTextSearchWith
+  @Default(.liveTextDownsample) private var liveTextDownsample
   @Default(.resolveCopyingConflicts) private var resolveConflicts
   @State private var isPresentingCopyingFileImporter = false
   @State private var error: String?
@@ -103,6 +106,9 @@ struct ImageCollectionDetailItemView: View {
   @Bindable var image: ImageCollectionItemImage
   var liveTextIcon: Bool
   let scrollSidebar: Scroller.Scroll
+  var liveTextInteractions: ImageAnalysisOverlayView.InteractionTypes {
+    liveText ? .automaticTextOnly : []
+  }
 
   var body: some View {
     let url = image.url
@@ -110,15 +116,37 @@ struct ImageCollectionDetailItemView: View {
     // For some reason, ImageCollectionItemView needs to be wrapped in a VStack for animations to apply.
     VStack {
       ImageCollectionItemView(image: image) { phase in
-        if phase.image != nil && liveText {
+        if let resample = phase.resample {
+          let interactions = liveTextInteractions
+
           LiveTextView(
-            scope: image,
-            orientation: image.properties.orientation,
-            highlight: $image.highlighted,
-            analysis: $image.analysis
+            interactions: interactions,
+            analysis: image.analysis,
+            highlight: $image.highlighted
           )
           .supplementaryInterfaceHidden(!liveTextIcon)
           .searchEngineHidden(!liveTextSearchWith)
+          .task(id: image.url) {
+            let interactions = liveTextInteractions
+
+            if image.analysis != nil {
+              return
+            }
+
+            let analysis = await image.scoped {
+              await analyze(
+                url: image.url,
+                orientation: image.properties.orientation,
+                interactions: interactions,
+                resample: liveTextDownsample,
+                resampleTo: Int(resample.size.length.rounded(.up))
+              )
+            }
+
+            if let analysis {
+              image.analysis = analysis
+            }
+          }
         }
       }
       .anchorPreference(key: VisiblePreferenceKey.self, value: .bounds) { [.init(item: image, anchor: $0)] }
@@ -126,6 +154,8 @@ struct ImageCollectionDetailItemView: View {
     }
     // I don't know if this actually does anything, but I want the view to always fade in with an opacity. Currently,
     // it will *sometimes* use a scale.
+    //
+    // I don't think it does anything (at least, here).
     .transition(.opacity)
     .contextMenu {
       Section {
@@ -186,66 +216,104 @@ struct ImageCollectionDetailItemView: View {
       }
     }
   }
-}
 
-//struct ImageCollectionDetailCurrentView: View {
-//  @Environment(\.selection) @Binding private var selection
-//  @AppStorage(Keys.displayTitleBarImage.key) private var displayTitleBarImage = Keys.displayTitleBarImage.value
-//
-//  let primary: ImageCollectionItemImage?
-////  let images: () -> [ImageCollectionItemImage]
-//  let scrollSidebar: Scroller.Scroll
-////  @Binding var highlight: Bool
-//
-//  var body: some View {
-////    let highlight = Binding {
-////      if images.isEmpty {
-////        return false
-////      }
-////
-////      return images.allSatisfy(\.highlighted)
-////    } set: { highlight in
-////      images.forEach(setter(keyPath: \.highlighted, value: highlight))
-////    }
-////
-////    // This code is really stupid, but really useful for one feature: toggling Live Text highlighting with Command-Shift-T.
-////    Toggle("Live Text Highlight", systemImage: "dot.viewfinder", isOn: highlight)
-//    Button("Live Text Highlight", systemImage: "dot.viewfinder") {
-//      let images = images()
-//
-//      let highlight = if images.isEmpty {
-//        false
-//      } else {
-//        images.allSatisfy(\.highlighted)
-//      }
-//
-//      images.forEach(setter(keyPath: \.highlighted, value: highlight))
-//    }
-//    .id(images)
-//    .hidden()
-//    .keyboardShortcut(.liveTextHighlight)
-//
-//    if let image = primary, displayTitleBarImage {
-//      let url = image.url
-//
-//      Color.clear
-//        .navigationTitle(Text(url.deletingPathExtension().lastPathComponent))
-//        // FIXME: This is a slow modifier.
-//        //
-//        // Just removing this modifier improves scrolling performance by about 5-10%. We could probably create a @State
-//        // variable to keep track of the current image and apply the modifier outside either the GeometryReader or
-//        // background preference view.
-//        .navigationDocument(url)
-//        .focusedSceneValue(\.openFinder, .init(enabled: true, menu: .init(identity: [image.id]) {
-//          openFinder(selecting: image.url)
-//        })).focusedSceneValue(\.jumpToCurrentImage, .init(identity: image.id) {
-//          selection = [image.id]
-//
-//          scrollSidebar(selection)
-//        })
-//    }
-//  }
-//}
+  func analyze(
+    url: URL,
+    orientation: CGImagePropertyOrientation,
+    interactions: ImageAnalysisOverlayView.InteractionTypes,
+    resample: Bool,
+    resampleTo resampleSize: Int
+  ) async -> ImageAnalysis? {
+    let analyzer = ImageAnalyzer()
+    let maxSize = ImageAnalyzer.maxSize
+    let configuration = ImageAnalyzer.Configuration(.init(interactions))
+
+    do {
+      return try await analyze(analyzer: analyzer, imageAt: url, orientation: orientation, configuration: configuration)
+    } catch let err as NSError where err.domain == ImageAnalyzer.errorDomain && err.code == ImageAnalyzer.errorCodeMaxSize {
+      guard resample else {
+        Logger.ui.error("Could not analyze image at URL \"\(url.string)\" as its size is too large: \(err)")
+
+        return nil
+      }
+
+      let size = min(resampleSize, maxSize - 1)
+
+      guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+            let type = CGImageSourceGetType(source),
+            let image = source.resample(to: size) else {
+        return nil
+      }
+
+      let directory = URL.temporaryLiveTextImagesDirectory
+      let url = directory.appending(component: UUID().uuidString)
+      let count = 1
+      let destination: CGImageDestination
+
+      do {
+        let manager = FileManager.default
+        let dest: CGImageDestination? = try manager.creatingDirectories(at: directory, code: .fileNoSuchFile) {
+          guard let destination = CGImageDestinationCreateWithURL(url as CFURL, type, count, nil) else {
+            if manager.fileExists(atPath: url.string) {
+              return nil
+            }
+
+            throw CocoaError(.fileNoSuchFile)
+          }
+
+          return destination
+        }
+
+        guard let dest else {
+          return nil
+        }
+
+        destination = dest
+      } catch {
+        Logger.ui.error("Could not create destination for image analyzer replacement image: \(error)")
+
+        return nil
+      }
+
+      CGImageDestinationAddImage(destination, image, nil)
+
+      guard CGImageDestinationFinalize(destination) else {
+        Logger.ui.error("Could not finalize destination for image analyzer replacement image")
+
+        return nil
+      }
+
+      do {
+        return try await analyze(analyzer: analyzer, imageAt: url, orientation: orientation, configuration: configuration)
+      } catch {
+        Logger.ui.error("Could not analyze image at URL \"\(url.string)\": \(error)")
+
+        return nil
+      }
+    } catch {
+      Logger.ui.error("Could not analyze image at URL \"\(url.string)\": \(error)")
+
+      return nil
+    }
+  }
+
+  // For reference, I know VisionKit logs the analysis time in Console; this is just useful for always displaying the
+  // time in *our own logs*.
+  func analyze(
+    analyzer: ImageAnalyzer,
+    imageAt url: URL,
+    orientation: CGImagePropertyOrientation,
+    configuration: ImageAnalyzer.Configuration
+  ) async throws -> ImageAnalysis {
+    let exec = try await time {
+      try await analyzer.analyze(imageAt: url, orientation: orientation, configuration: configuration)
+    }
+
+    Logger.ui.info("Took \(exec.duration) to analyze image at URL \"\(url.string)\"")
+
+    return exec.value
+  }
+}
 
 struct ImageCollectionDetailVisualView: View {
   @AppStorage(Keys.brightness.key) private var brightness = Keys.brightness.value
@@ -301,6 +369,71 @@ struct ImageCollectionDetailVisualView: View {
     .formStyle(SettingsFormStyle())
     .padding()
     .frame(width: 384)
+  }
+}
+
+struct ImageCollectionDetailVisibilityViewModifier: ViewModifier {
+  typealias Scroll = SidebarScrollerFocusedValueKey.Value.Scroll
+
+  @Environment(\.selection) @Binding private var selection
+  @Default(.displayTitleBarImage) private var displayTitleBarImage
+  @State private var images = [ImageCollectionItemImage]()
+
+  let scrollSidebar: Scroll
+
+  func body(content: Content) -> some View {
+    content
+      .backgroundPreferenceValue(VisiblePreferenceKey<ImageCollectionItemImage>.self) { items in
+        GeometryReader { proxy in
+          let local = proxy.frame(in: .local)
+          let images = items
+            .filter { local.intersects(proxy[$0.anchor]) }
+            .map(\.item)
+
+          Color.clear.onChange(of: images) {
+            // The reason we're factoring the view into an overlay is because this view will be called on *every scroll*
+            // the user performs. While most modifiers are cheap, not all are—one being navigationDocument(_:). Just
+            // with this, CPU usage decreases from 60-68% to 47-52%, which is a major performance improvement. For
+            // reference, before the anchor preferences implementation, CPU usage was often around 42-48%.
+            self.images = images
+          }
+        }
+      }.overlay {
+        // Does Toggle have better accessibility?
+        Button("Live Text Highlight", systemImage: "dot.viewfinder") {
+          let highlight = !images.allSatisfy(\.highlighted)
+
+          images.forEach(setter(keyPath: \.highlighted, value: highlight))
+        }
+        .disabled(images.isEmpty)
+        .hidden()
+        .keyboardShortcut(.liveTextHighlight)
+
+        if let primary = images.first {
+          if displayTitleBarImage {
+            let url = primary.url
+
+            Color.clear
+              .navigationTitle(Text(url.deletingPathExtension().lastPathComponent))
+              .navigationDocument(url)
+          }
+
+          Color.clear
+            .focusedSceneValue(\.openFinder, .init(enabled: true, menu: .init(identity: [primary.id]) {
+              openFinder(selecting: primary.url)
+            })).focusedSceneValue(\.jumpToCurrentImage, .init(identity: primary.id) {
+              selection = [primary.id]
+
+              scrollSidebar(selection)
+            })
+        }
+      }
+  }
+}
+
+extension View {
+  func visibleImage(scrollSidebar: @escaping ImageCollectionDetailVisibilityViewModifier.Scroll) -> some View {
+    self.modifier(ImageCollectionDetailVisibilityViewModifier(scrollSidebar: scrollSidebar))
   }
 }
 
@@ -370,70 +503,5 @@ struct ImageCollectionDetailView: View {
           .help("\(icon ? "Hide" : "Show") Live Text icon")
       }
     }.visibleImage(scrollSidebar: scrollSidebar)
-  }
-}
-
-struct ImageCollectionDetailVisibilityViewModifier: ViewModifier {
-  typealias Scroll = SidebarScrollerFocusedValueKey.Value.Scroll
-
-  @Environment(\.selection) @Binding private var selection
-  @Default(.displayTitleBarImage) private var displayTitleBarImage
-  @State private var images = [ImageCollectionItemImage]()
-
-  let scrollSidebar: Scroll
-
-  func body(content: Content) -> some View {
-    content
-      .backgroundPreferenceValue(VisiblePreferenceKey<ImageCollectionItemImage>.self) { items in
-        GeometryReader { proxy in
-          let local = proxy.frame(in: .local)
-          let images = items
-            .filter { local.intersects(proxy[$0.anchor]) }
-            .map(\.item)
-
-          Color.clear.onChange(of: images) {
-            // The reason we're factoring the view into an overlay is because this view will be called on *every scroll*
-            // the user performs. While most modifiers are cheap, not all are—one being navigationDocument(_:). Just
-            // with this, CPU usage decreases from 60-68% to 47-52%, which is a major performance improvement. For
-            // reference, before the anchor preferences implementation, CPU usage was often around 42-48%.
-            self.images = images
-          }
-        }
-      }.overlay {
-        // Does Toggle have better accessibility?
-        Button("Live Text Highlight", systemImage: "dot.viewfinder") {
-          let highlight = !images.allSatisfy(\.highlighted)
-
-          images.forEach(setter(keyPath: \.highlighted, value: highlight))
-        }
-        .disabled(images.isEmpty)
-        .hidden()
-        .keyboardShortcut(.liveTextHighlight)
-
-        if let primary = images.first {
-          if displayTitleBarImage {
-            let url = primary.url
-
-            Color.clear
-              .navigationTitle(Text(url.deletingPathExtension().lastPathComponent))
-              .navigationDocument(url)
-          }
-
-          Color.clear
-            .focusedSceneValue(\.openFinder, .init(enabled: true, menu: .init(identity: [primary.id]) {
-              openFinder(selecting: primary.url)
-            })).focusedSceneValue(\.jumpToCurrentImage, .init(identity: primary.id) {
-              selection = [primary.id]
-
-              scrollSidebar(selection)
-            })
-        }
-      }
-  }
-}
-
-extension View {
-  func visibleImage(scrollSidebar: @escaping ImageCollectionDetailVisibilityViewModifier.Scroll) -> some View {
-    self.modifier(ImageCollectionDetailVisibilityViewModifier(scrollSidebar: scrollSidebar))
   }
 }

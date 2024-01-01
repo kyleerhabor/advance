@@ -111,18 +111,15 @@ extension View {
   }
 }
 
+// TODO: Rename to something more generic.
 enum ImagePhase: Equatable {
   case empty, success, failure
 
-  init?(_ phase: AsyncImagePhase) {
+  init?(_ phase: ImageResamplePhase) {
     switch phase {
       case .empty: self = .empty
       case .success: self = .success
       case .failure: self = .failure
-      @unknown default:
-        Logger.ui.error("AsyncImagePhase case was not recognized")
-
-        return nil
     }
   }
 }

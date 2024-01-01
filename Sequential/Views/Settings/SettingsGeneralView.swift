@@ -82,18 +82,11 @@ struct SettingsGeneralView: View {
 
     LabeledContent("Live Text:") {
       Group {
+        Toggle("Enable Live Text", isOn: $liveText)
+
         GroupBox {
-          Toggle("Enable Live Text", isOn: $liveText)
-
           Toggle("Show icon", isOn: $liveTextIcon)
-            .disabled(!liveText)
-        }
-
-        Toggle(isOn: $liveTextSearchWith) {
-          Text("Show menu item for search engine")
-
-          Text("This will always open in Safari.")
-        }
+        }.disabled(!liveText)
       }
       .disabled(!liveTextSupported)
       .help(liveTextSupported ? "" : "This device does not support Live Text.")
