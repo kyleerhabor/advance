@@ -44,11 +44,7 @@ extension KeyboardShortcut {
   static let open = Self("o")
   static let finder = Self("r")
   static let quicklook = Self("y")
-  static let bookmark = Self("d")
-  static let liveTextIcon = Self("t")
-  static let liveTextHighlight = Self("t", modifiers: [.command, .shift])
   static let fullScreen = Self("f", modifiers: [.command, .control])
-  static let jumpToCurrentImage = Self("l")
 }
 
 extension View {
@@ -64,12 +60,6 @@ extension Binding {
     } set: { value in
       base.wrappedValue = value
     }
-  }
-}
-
-extension Binding: Equatable where Value: Equatable {
-  public static func ==(lhs: Self, rhs: Self) -> Bool {
-    lhs.wrappedValue == rhs.wrappedValue
   }
 }
 
@@ -108,19 +98,6 @@ extension View {
 
   func fileDialogCopying() -> some View {
     self.modifier(FileDialogCopyingViewModifier())
-  }
-}
-
-// TODO: Rename to something more generic.
-enum ImagePhase: Equatable {
-  case empty, success, failure
-
-  init?(_ phase: ImageResamplePhase) {
-    switch phase {
-      case .empty: self = .empty
-      case .success: self = .success
-      case .failure: self = .failure
-    }
   }
 }
 

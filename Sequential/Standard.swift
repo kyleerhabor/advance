@@ -45,6 +45,10 @@ extension URL {
     self.path(percentEncoded: false)
   }
 
+  var lastPath: String {
+    self.deletingPathExtension().lastPathComponent
+  }
+
   func isDirectory() -> Bool {
     (try? self.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
   }
@@ -251,12 +255,6 @@ extension Matcher where Item == String, Path == [String?], Transform == URL {
     }
 
     return nil
-  }
-}
-
-extension CGSize {
-  var length: Double {
-    max(self.width, self.height)
   }
 }
 

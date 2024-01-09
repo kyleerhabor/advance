@@ -19,17 +19,6 @@ struct FullScreenFocusedValueKey: FocusedValueKey {
   typealias Value = Bool
 }
 
-struct AppMenu<Identity> where Identity: Equatable {
-  let identity: Identity
-  let perform: () -> Void
-}
-
-extension AppMenu: Equatable {
-  static func ==(lhs: Self, rhs: Self) -> Bool {
-    lhs.identity == rhs.identity
-  }
-}
-
 struct AppMenuAction<Identity>: Equatable where Identity: Equatable {
   let menu: AppMenu<Identity>
   let enabled: Bool
@@ -49,7 +38,7 @@ struct AppMenuOpenFocusedValueKey: FocusedValueKey {
 }
 
 struct AppMenuFinderFocusedValueKey: FocusedValueKey {
-  typealias Value = AppMenuAction<ImageCollectionView.Selection>
+  typealias Value = AppMenuAction<ImageCollectionSidebar.Selection>
 }
 
 struct AppMenuQuickLookFocusedValueKey: FocusedValueKey {
@@ -90,10 +79,10 @@ extension FocusedValues {
     set { self[AppMenuQuickLookFocusedValueKey.self] = newValue }
   }
 
-  var sidebarBookmarked: AppMenuBookmarkedFocusedValueKey.Value? {
-    get { self[AppMenuBookmarkedFocusedValueKey.self] }
-    set { self[AppMenuBookmarkedFocusedValueKey.self] = newValue }
-  }
+//  var sidebarBookmarked: AppMenuBookmarkedFocusedValueKey.Value? {
+//    get { self[AppMenuBookmarkedFocusedValueKey.self] }
+//    set { self[AppMenuBookmarkedFocusedValueKey.self] = newValue }
+//  }
 
   var jumpToCurrentImage: AppMenuJumpToCurrentImageFocusedValueKey.Value? {
     get { self[AppMenuJumpToCurrentImageFocusedValueKey.self] }
@@ -109,13 +98,16 @@ struct ImageCollectionCommands: Commands {
   @EnvironmentObject private var delegate: AppDelegate
   @Default(.importHiddenFiles) private var importHidden
   @Default(.importSubdirectories) private var importSubdirectories
-  @FocusedBinding(\.sidebarBookmarked) private var bookmarked
   @FocusedValue(\.window) private var win
   @FocusedValue(\.fullScreen) private var fullScreen
   @FocusedValue(\.openFileImporter) private var openFileImporter
   @FocusedValue(\.openFinder) private var finder
   @FocusedValue(\.sidebarQuicklook) private var quicklook
   @FocusedValue(\.jumpToCurrentImage) private var jumpToCurrentImage
+
+  @FocusedValue(\.searchSidebar) private var searchSidebar
+  @FocusedValue(\.liveTextIcon) private var liveTextIcon
+  @FocusedValue(\.liveTextHighlight) private var liveTextHighlight
   private var window: NSWindow? { win?.window }
   
   var body: some Commands {
@@ -127,13 +119,13 @@ struct ImageCollectionCommands: Commands {
     CommandGroup(after: .newItem) {
       Button("Open...") {
         if let openFileImporter {
-          openFileImporter.perform()
+          openFileImporter.action()
 
           return
         }
 
         let urls = Self.performImageFilePicker()
-        
+
         guard !urls.isEmpty else {
           return
         }
@@ -151,16 +143,22 @@ struct ImageCollectionCommands: Commands {
       Divider()
 
       Button("Show in Finder") {
-        finder?.menu.perform()
+        finder?.menu.action()
       }
       .keyboardShortcut(.finder)
       .disabled(finder?.enabled != true)
 
       Button("Quick Look", systemImage: "eye") {
-        quicklook?.menu.perform()
+        quicklook?.menu.action()
       }
       .keyboardShortcut(.quicklook)
       .disabled(quicklook?.enabled != true)
+    }
+
+    CommandGroup(after: .textEditing) {
+      Button("Search...") {
+        searchSidebar?.action()
+      }.keyboardShortcut(.searchSidebar)
     }
 
     CommandGroup(after: .sidebar) {
@@ -180,16 +178,36 @@ struct ImageCollectionCommands: Commands {
 
     CommandMenu("Image") {
       Button("Show in Sidebar") {
-        jumpToCurrentImage?.perform()
+        jumpToCurrentImage?.action()
       }
       .keyboardShortcut(.jumpToCurrentImage)
       .disabled(jumpToCurrentImage == nil)
 
-      Divider()
+      Section("Live Text") {
+        Button("\(liveTextIcon?.state == true ? "Hide" : "Show") Icon") {
+          liveTextIcon?.menu.action()
+        }
+        .disabled(liveTextIcon?.enabled != true)
+        .keyboardShortcut(.liveTextIcon)
 
-      Toggle("Bookmark", isOn: .init($bookmarked, defaultValue: false))
-        .keyboardShortcut(.bookmark)
-        .disabled(bookmarked == nil)
+        Button("\(liveTextHighlight?.state == true ? "Hide" : "Show") Highlights") {
+          liveTextHighlight?.menu.action()
+        }
+        .disabled(liveTextHighlight?.enabled != true)
+        .keyboardShortcut(.liveTextHighlight)
+      }
+
+//      Divider()
+//
+//      Toggle("Bookmark", isOn: .init($bookmarked, defaultValue: false))
+//        .keyboardShortcut(.bookmark)
+//        .disabled(bookmarked == nil)
+    }
+
+    CommandGroup(after: .windowSize) {
+      Button("Reset Size") {
+        window?.setContentSize(ImageCollectionScene.defaultSize)
+      }.keyboardShortcut(.resetWindowSize)
     }
 
     CommandGroup(after: .windowArrangement) {

@@ -72,16 +72,18 @@ struct ImageCollectionDetailItemBookmarkView: View {
 }
 
 struct ImageCollectionDetailItemSidebarView: View {
-  @Environment(\.selection) @Binding private var selection
+  @Environment(ImageCollectionSidebar.self) private var sidebar
+  @Environment(\.sidebarScroller) private var sidebarScroller
 
   let id: ImageCollectionItemImage.ID
-  let scroll: Scroller.Scroll
 
   var body: some View {
     Button("Show in Sidebar") {
-      selection = [id]
-
-      scroll(selection)
+      sidebarScroller.scroll(.init(id: id) {
+        Task {
+          sidebar.selection = [id]
+        }
+      })
     }
   }
 }
@@ -104,19 +106,17 @@ struct ImageCollectionDetailItemView: View {
   }
 
   @Bindable var image: ImageCollectionItemImage
-  var liveTextIcon: Bool
-  let scrollSidebar: Scroller.Scroll
-  var liveTextInteractions: ImageAnalysisOverlayView.InteractionTypes {
-    liveText ? .automaticTextOnly : []
+  let liveTextIcon: Bool
+  private var url: URL { image.url }
+  private var liveTextInteractions: ImageAnalysisOverlayView.InteractionTypes {
+    liveText ? .automaticTextOnly : .init()
   }
 
   var body: some View {
-    let url = image.url
-
     // For some reason, ImageCollectionItemView needs to be wrapped in a VStack for animations to apply.
     VStack {
       ImageCollectionItemView(image: image) { phase in
-        if let resample = phase.resample {
+        if let resample = phase.success {
           let interactions = liveTextInteractions
 
           LiveTextView(
@@ -151,19 +151,13 @@ struct ImageCollectionDetailItemView: View {
       }
       .anchorPreference(key: VisiblePreferenceKey.self, value: .bounds) { [.init(item: image, anchor: $0)] }
       .anchorPreference(key: ScrollOffsetPreferenceKey.self, value: .bounds) { $0 }
-    }
-    // I don't know if this actually does anything, but I want the view to always fade in with an opacity. Currently,
-    // it will *sometimes* use a scale.
-    //
-    // I don't think it does anything (at least, here).
-    .transition(.opacity)
-    .contextMenu {
+    }.contextMenu {
       Section {
         Button("Show in Finder") {
           openFinder(selecting: url)
         }
 
-        ImageCollectionDetailItemSidebarView(id: image.id, scroll: scrollSidebar)
+        ImageCollectionDetailItemSidebarView(id: image.id)
       }
 
       Section {
@@ -372,59 +366,77 @@ struct ImageCollectionDetailVisualView: View {
   }
 }
 
+struct VisibleImagesPreferenceKey: PreferenceKey {
+  static var defaultValue = [ImageCollectionItemImage]()
+
+  static func reduce(value: inout Value, nextValue: () -> Value) {
+    value = nextValue()
+  }
+}
+
 struct ImageCollectionDetailVisibilityViewModifier: ViewModifier {
   typealias Scroll = SidebarScrollerFocusedValueKey.Value.Scroll
 
-  @Environment(\.selection) @Binding private var selection
+  @Environment(ImageCollectionSidebar.self) private var sidebar
+  @Environment(\.sidebarScroller) private var sidebarScroller
   @Default(.displayTitleBarImage) private var displayTitleBarImage
-  @State private var images = [ImageCollectionItemImage]()
-
-  let scrollSidebar: Scroll
 
   func body(content: Content) -> some View {
     content
-      .backgroundPreferenceValue(VisiblePreferenceKey<ImageCollectionItemImage>.self) { items in
+      .overlayPreferenceValue(VisiblePreferenceKey<ImageCollectionItemImage>.self) { items in
         GeometryReader { proxy in
           let local = proxy.frame(in: .local)
           let images = items
             .filter { local.intersects(proxy[$0.anchor]) }
             .map(\.item)
 
-          Color.clear.onChange(of: images) {
-            // The reason we're factoring the view into an overlay is because this view will be called on *every scroll*
-            // the user performs. While most modifiers are cheap, not all are—one being navigationDocument(_:). Just
-            // with this, CPU usage decreases from 60-68% to 47-52%, which is a major performance improvement. For
-            // reference, before the anchor preferences implementation, CPU usage was often around 42-48%.
-            self.images = images
-          }
+          // The reason we're factoring the view into its own preference value is because the current one will be called
+          // on *every scroll* event the user performs. While views are cheap, there is a cost to always recreating
+          // them—and some are slower than others (navigationDocument(_:), for example). In my experience, this split
+          // causes CPU usage to decrease from 60-68% to 47-52%, which is a major performance improvement (before anchor
+          // preferences, CPU usage was often 42-48%).
+          //
+          // Now, the reason we're using preferences to report the filtered images (instead of, say, a @State variable),
+          // is because of SwiftUI's ability to track changes. @State, just from observing its effects, has no way of
+          // distinguishing itself from other observables besides reporting the change and letting SwiftUI diff them.
+          // As a result, users may experience slight hangs when the set of visible images changes (~55ms). A preference
+          // key, meanwhile, just floats up the view hierarchy and dispenses its value to an attached view. The result
+          // is that using preference values here results in no hangs, making it suitable for this case.
+          Color.clear.preference(key: VisibleImagesPreferenceKey.self, value: images)
         }
-      }.overlay {
-        // Does Toggle have better accessibility?
-        Button("Live Text Highlight", systemImage: "dot.viewfinder") {
-          let highlight = !images.allSatisfy(\.highlighted)
+      }.backgroundPreferenceValue(VisibleImagesPreferenceKey.self) { images in
+        let isNotEmpty = !images.isEmpty
+        var highlighted: Bool {
+          images.allSatisfy(\.highlighted)
+        }
 
-          images.forEach(setter(keyPath: \.highlighted, value: highlight))
-        }
-        .disabled(images.isEmpty)
-        .hidden()
-        .keyboardShortcut(.liveTextHighlight)
+        Color.clear.focusedSceneValue(\.liveTextHighlight, .init(
+          enabled: isNotEmpty,
+          state: isNotEmpty && highlighted,
+          menu: .init(identity: images) {
+            images.forEach(setter(keyPath: \.highlighted, value: !highlighted))
+          }
+        ))
 
         if let primary = images.first {
           if displayTitleBarImage {
             let url = primary.url
 
             Color.clear
-              .navigationTitle(Text(url.deletingPathExtension().lastPathComponent))
+              .navigationTitle(Text(url.lastPath))
               .navigationDocument(url)
           }
 
           Color.clear
             .focusedSceneValue(\.openFinder, .init(enabled: true, menu: .init(identity: [primary.id]) {
               openFinder(selecting: primary.url)
-            })).focusedSceneValue(\.jumpToCurrentImage, .init(identity: primary.id) {
-              selection = [primary.id]
+            }))
+            .focusedSceneValue(\.jumpToCurrentImage, .init(identity: primary.id) {
+              let id = primary.id
 
-              scrollSidebar(selection)
+              sidebarScroller.scroll(.init(id: id) {
+                sidebar.selection = [id]
+              })
             })
         }
       }
@@ -432,24 +444,21 @@ struct ImageCollectionDetailVisibilityViewModifier: ViewModifier {
 }
 
 extension View {
-  func visibleImage(scrollSidebar: @escaping ImageCollectionDetailVisibilityViewModifier.Scroll) -> some View {
-    self.modifier(ImageCollectionDetailVisibilityViewModifier(scrollSidebar: scrollSidebar))
+  func visibleImage() -> some View {
+    self.modifier(ImageCollectionDetailVisibilityViewModifier())
   }
 }
 
 struct ImageCollectionDetailView: View {
-  @Environment(\.selection) @Binding private var selection
   @Default(.margins) private var margins
   @Default(.collapseMargins) private var collapseMargins
   @Default(.liveText) private var liveText
   @Default(.liveTextIcon) private var appLiveTextIcon
   @Default(.displayTitleBarImage) private var showTitleBarImage
   @SceneStorage(Defaults.Keys.liveTextIcon.name) private var liveTextIcon: Bool?
-  @State private var currentImage: ImageCollectionItemImage?
 
   let images: [ImageCollectionDetailImage]
-  let scrollSidebar: Scroller.Scroll
-  var icon: Bool {
+  private var showLiveTextIcon: Bool {
     liveTextIcon ?? appLiveTextIcon
   }
 
@@ -474,8 +483,7 @@ struct ImageCollectionDetailView: View {
 
       ImageCollectionDetailItemView(
         image: image.image,
-        liveTextIcon: icon,
-        scrollSidebar: scrollSidebar
+        liveTextIcon: showLiveTextIcon
       )
       .shadow(radius: margin / 2)
       .listRowInsets(.listRow + (collapseMargins ? insets : all))
@@ -493,15 +501,19 @@ struct ImageCollectionDetailView: View {
 
       ToolbarItem(id: "Live Text Icon") {
         let icons = Binding {
-          icon
+          showLiveTextIcon
         } set: {
           liveTextIcon = $0
         }
 
         Toggle("Live Text Icon", systemImage: "text.viewfinder", isOn: icons)
           .keyboardShortcut(.liveTextIcon)
-          .help("\(icon ? "Hide" : "Show") Live Text icon")
+          .help("\(showLiveTextIcon ? "Hide" : "Show") Live Text icon")
       }
-    }.visibleImage(scrollSidebar: scrollSidebar)
+    }
+    .visibleImage()
+    .focusedSceneValue(\.liveTextIcon, .init(enabled: true, state: showLiveTextIcon, menu: .init(identity: true) {
+      liveTextIcon = !showLiveTextIcon
+    }))
   }
 }

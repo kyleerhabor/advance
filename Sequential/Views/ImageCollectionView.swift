@@ -7,17 +7,12 @@
 
 import Defaults
 import Combine
-import OSLog
 import SwiftUI
 
 // MARK: - Environment keys
 
 struct ImageCollectionEnvironmentKey: EnvironmentKey {
   static var defaultValue = UUID()
-}
-
-struct SelectionEnvironmentKey: EnvironmentKey {
-  static var defaultValue = Binding.constant(ImageCollectionView.Selection())
 }
 
 struct VisibleEnvironmentKey: EnvironmentKey {
@@ -30,121 +25,57 @@ extension EnvironmentValues {
     set { self[ImageCollectionEnvironmentKey.self] = newValue }
   }
 
-  var selection: SelectionEnvironmentKey.Value {
-    get { self[SelectionEnvironmentKey.self] }
-    set { self[SelectionEnvironmentKey.self] = newValue }
-  }
-
   var visible: VisibleEnvironmentKey.Value {
     get { self[VisibleEnvironmentKey.self] }
     set { self[VisibleEnvironmentKey.self] = newValue }
   }
 }
 
-// MARK: - Focused value keys
-
-struct Scroller<I> where I: Equatable {
-  typealias Scroll = (ImageCollectionView.Selection) -> Void
-
-  let identity: I
-  let scroll: Scroll
-}
-
-extension Scroller: Equatable {
-  static func ==(lhs: Self, rhs: Self) -> Bool {
-    lhs.identity == rhs.identity
-  }
-}
-
-enum SidebarScrollerIdentity: Equatable {
-  case sidebar
-}
-
-struct SidebarScrollerFocusedValueKey: FocusedValueKey {
-  typealias Value = Scroller<SidebarScrollerIdentity>
-}
-
-struct DetailScrollerIdentity: Equatable {
-  let images: [ImageCollectionDetailImage]
-  let selection: ImageCollectionView.Selection
-}
-
-struct DetailScrollerFocusedValueKey: FocusedValueKey {
-  typealias Value = Scroller<DetailScrollerIdentity>
-}
-
-extension FocusedValues {
-  var sidebarScroller: SidebarScrollerFocusedValueKey.Value? {
-    get { self[SidebarScrollerFocusedValueKey.self] }
-    set { self[SidebarScrollerFocusedValueKey.self] = newValue }
-  }
-
-  var detailScroller: DetailScrollerFocusedValueKey.Value? {
-    get { self[DetailScrollerFocusedValueKey.self] }
-    set { self[DetailScrollerFocusedValueKey.self] = newValue }
-  }
-}
-
 // MARK: - Views
 
 struct ImageCollectionNavigationSidebarView: View {
-  @Environment(\.selection) @Binding private var selection
-  @FocusedValue(\.detailScroller) private var detailScroller
+  @Environment(\.navigationColumns) @Binding private var columns
   @FocusState private var focused: Bool
-
-  @Binding var columns: NavigationSplitViewVisibility
 
   var body: some View {
     ScrollViewReader { proxy in
-      ImageCollectionSidebarView(scrollDetail: detailScroller?.scroll ?? noop)
+      ImageCollectionSidebarView()
         .focused($focused)
-        .focusedSceneValue(\.sidebarScroller, .init(identity: .sidebar) { selection in
-          let id = selection.first!
-
+        .focusedSceneValue(\.sidebarScroller, .init(identity: .sidebar) { item in
           Task {
-            scroll(proxy, to: id)
+            // We're using completion blocks to synchronize actions in the UI.
+            //
+            // If the sidebar is not open, the scroll should happen off-screen before presenting it to the user. In addition,
+            // we need the selected image to gain focus, which can only occur after the sidebar is fully open.
+            //
+            // There is unfortunately a slight continuation of the scroll animation that may occur during the columns animation,
+            // but it's subtle and miles ahead of the prior implementation.
+            withAnimation {
+              proxy.scrollTo(item.id, anchor: .center)
+            } completion: {
+              withAnimation {
+                columns = .all
+              } completion: {
+                focused = true
+
+                // With our current calls, this just sets the sidebar selection. We want to make sure the sidebar has
+                // focus beforehand so the selection is not given a muted background.
+                item.completion()
+              }
+            }
           }
         })
-    }
-  }
-
-  func scroll(_ proxy: ScrollViewProxy, to id: some Hashable) {
-    // We're using completion blocks to synchronize actions in the UI.
-    //
-    // If the sidebar is not open, the scroll should happen off-screen before presenting it to the user. In addition,
-    // we need the selected image to gain focus, which can only occur after the sidebar is fully open.
-    //
-    // There is unfortunately a slight continuation of the scroll animation that may occur during the columns animation,
-    // but it's subtle and miles ahead of the prior implementation.
-    withAnimation {
-      proxy.scrollTo(id, anchor: .center)
-    } completion: {
-      withAnimation {
-        columns = .all
-      } completion: {
-        focused = true
-      }
     }
   }
 }
 
 struct ImageCollectionNavigationDetailView: View {
-  @Environment(\.selection) @Binding private var selection
-  @FocusedValue(\.sidebarScroller) private var sidebarScroller
-
   var images: [ImageCollectionDetailImage]
 
   var body: some View {
     ScrollViewReader { proxy in
-      ImageCollectionDetailView(images: images, scrollSidebar: sidebarScroller?.scroll ?? noop)
-        .focusedSceneValue(\.detailScroller, .init(identity: .init(images: images, selection: selection)) { selection in
-          guard let id = images.filter(
-            in: selection.subtracting(self.selection),
-            by: \.id
-          ).last?.id else {
-            return
-          }
-
+      ImageCollectionDetailView(images: images)
+        .focusedSceneValue(\.detailScroller, .init(identity: .detail) { id in
           // https://stackoverflow.com/a/72808733/14695788
           Task {
             // TODO: Figure out how to change the animation (the parameter is currently ignored)
@@ -158,27 +89,26 @@ struct ImageCollectionNavigationDetailView: View {
 }
 
 struct ImageCollectionView: View {
-  typealias Selection = Set<ImageCollectionItemImage.ID>
-
   @Environment(ImageCollection.self) private var collection
   @Environment(Window.self) private var win
   @Environment(\.prerendering) private var prerendering
+  @Environment(\.trackingMenu) private var trackingMenu
   @Environment(\.fullScreen) private var fullScreen
   @Environment(\.id) private var id
-  @Environment(\.trackingMenu) private var trackingMenu
   @Default(.hideToolbarScrolling) private var hideToolbar
   @Default(.hideCursorScrolling) private var hideCursor
   @Default(.hideScrollIndicator) private var hideScroll
   @SceneStorage("sidebar") private var columns = NavigationSplitViewVisibility.all
-  @State private var selection = Selection()
+  @FocusedValue(\.sidebarScroller) private var sidebarScroller
+  @FocusedValue(\.detailScroller) private var detailScroller
   @State private var visible = true
+  private var window: NSWindow? { win.window }
+  private var isDetailOnly: Bool { columns == .detailOnly }
+
   private let scrollSubject = PassthroughSubject<CGPoint, Never>()
   private let cursorSubject = PassthroughSubject<Void, Never>()
   private let toolbarSubject = PassthroughSubject<Bool, Never>()
   private let toolbarPublisher: AnyPublisher<Bool, Never>
-  private var window: NSWindow? { win.window }
-
-  let loads: Int
 
   var body: some View {
     NavigationSplitView(columnVisibility: $columns) {
@@ -186,65 +116,37 @@ struct ImageCollectionView: View {
       //
       // This requires knowing the sidebar was explicitly opened by the user (and not through implicit means like scrolling
       // to a particular image, aka "Show in Sidebar")
-      ImageCollectionNavigationSidebarView(columns: $columns)
+      ImageCollectionNavigationSidebarView()
         .navigationSplitViewColumnWidth(min: 128, ideal: 192, max: 256)
+        .environment(\.detailScroller, detailScroller ?? .init(identity: .unknown, scroll: noop))
     } detail: {
       ImageCollectionNavigationDetailView(images: collection.detail)
-        .scrollIndicators(hideScroll && columns == .detailOnly ? .hidden : .automatic)
+        .scrollIndicators(hideScroll && isDetailOnly ? .hidden : .automatic)
         .frame(minWidth: 256)
+        .environment(\.sidebarScroller, sidebarScroller ?? .init(identity: .unknown, scroll: noop))
     }.backgroundPreferenceValue(ScrollOffsetPreferenceKey.self) { anchor in
       GeometryReader { proxy in
-        if let anchor {
-          let origin = proxy[anchor].origin
+        let origin = anchor.map { proxy[$0].origin }
 
-          Color.clear.onChange(of: origin) {
-            guard columns == .detailOnly else {
-              return
-            }
-
-            scrollSubject.send(origin)
+        Color.clear.onChange(of: origin) {
+          guard let origin,
+                isDetailOnly && !trackingMenu else {
+            return
           }
+
+          scrollSubject.send(origin)
         }
       }
     }
     .toolbar(fullScreen ? .hidden : .automatic)
     .toolbarHidden(hideToolbar && !visible)
     .cursorHidden(hideCursor && !visible)
-    .environment(\.selection, $selection)
-    .task(id: loads) {
-      let roots = collection.items.values.map(\.root)
-      let state = await Self.resolve(roots: roots, in: collection.store)
-      let items = collection.order.compactMap { id -> ImageCollectionItem? in
-        guard let root = collection.items[id]?.root,
-              let image = state.value[id] else {
-          return nil
-        }
-
-        return .init(root: root, image: image)
-      }
-
-      collection.store = state.store
-
-      items.forEach { item in
-        collection.items[item.root.bookmark] = item
-      }
-
-      let ids = items.map(\.root.bookmark)
-
-      collection.order.append(contentsOf: ids)
-      collection.update()
-
-      Task(priority: .medium) {
-        do {
-          try await collection.persist(id: id)
-        } catch {
-          Logger.model.error("Could not persist image collection \"\(id)\" (via initialization): \(error)")
-        }
-      }
-    }
+    .environment(collection.sidebar)
+    .environment(\.navigationColumns, $columns)
     // Yes, the code listed below is dumb.
     .onContinuousHover { phase in
-      guard let window, !window.inLiveResize else {
+      guard let window,
+            !window.inLiveResize  else {
         return
       }
 
@@ -261,9 +163,7 @@ struct ImageCollectionView: View {
     }
   }
 
-  init(loads: Int) {
-    self.loads = loads
-    
+  init() {
     let cursor = cursorSubject
       .map { _ in true }
       .prepend(false)
@@ -285,19 +185,5 @@ struct ImageCollectionView: View {
       .merge(with: toolbarSubject)
       .removeDuplicates()
       .eraseToAnyPublisher()
-  }
-
-  static func resolve(
-    roots: [ImageCollectionItemRoot],
-    in store: BookmarkStore
-  ) async -> BookmarkStoreState<ImageCollection.Images> {
-    let bookmarks = roots.compactMap { store.bookmarks[$0.bookmark] }
-
-    let books = await ImageCollection.resolving(bookmarks: bookmarks, in: store)
-    let roots = roots.filter { books.value.contains($0.bookmark) }
-
-    let images = await ImageCollection.resolve(roots: roots, in: books.store)
-
-    return .init(store: books.store, value: images)
   }
 }

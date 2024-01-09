@@ -22,7 +22,16 @@ struct BookmarkStoreItem {
     options: URL.BookmarkCreationOptions,
     relativeTo relative: URL?
   ) throws -> BookmarkResolution {
-    try .init(data: data, options: .init(options), relativeTo: relative) { url in
+    try .init(
+      data: data,
+      // In my experience, if the user has a volume that was created as an image in Disk Utility and it's not mounted,
+      // resolution will fail while prompting the user to unlock the volume. Now, we're not a file managing app, so we
+      // don't need to invest in making that work.
+      //
+      // Note there is also a .withoutUI option, but I haven't checked whether or not it performs the same action.
+      options: .init(options).union(.withoutMounting),
+      relativeTo: relative
+    ) { url in
       try url.scoped {
         try url.bookmark(options: options, relativeTo: relative)
       }

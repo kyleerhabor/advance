@@ -6,6 +6,7 @@
 //
 
 import Defaults
+import Combine
 import QuickLook
 import OSLog
 import SwiftUI
@@ -24,6 +25,84 @@ struct ImageCollectionSidebarBookmarkButtonView: View {
   }
 }
 
+struct ImageCollectionSidebarFilterView: View {
+  @Environment(ImageCollection.self) private var collection
+  @Environment(\.navigationColumns) @Binding private var columns
+  @FocusState private var isSearchFocused
+  private var isSearching: Bool {
+    !collection.sidebarSearch.isEmpty
+  }
+
+  var body: some View {
+    HStack(alignment: .top, spacing: 4) {
+      Button("Search...", systemImage: "magnifyingglass") {
+        // The reason we're doing it like this is because search may already be focused but not reflected in the sidebar.
+        // In other words, this button performs a search. We don't always need to, since isSearchFocused changing its
+        // state also triggers a search.
+        if isSearchFocused {
+          search()
+        } else {
+          isSearchFocused = true
+        }
+      }
+      .buttonStyle(.borderless)
+      .labelStyle(.iconOnly)
+      .help("Search...")
+
+      @Bindable var collect = collection
+
+      // TODO: Figure out how to disallow tabbing when the user is not searching
+      TextField("Search", text: $collect.sidebarSearch, prompt: Text(isSearchFocused ? "Search" : ""))
+        .textFieldStyle(.plain)
+        .font(.subheadline)
+        .focused($isSearchFocused)
+        .focusedSceneValue(\.searchSidebar, .init(identity: isSearchFocused) {
+          withAnimation {
+            columns = .all
+          } completion: {
+            isSearchFocused = true
+          }
+        })
+        .onSubmit {
+          search()
+        }.onChange(of: isSearchFocused) {
+          search()
+        }
+
+      let bookmark = Binding {
+        collection.sidebarPage == \.bookmarks
+      } set: { show in
+        collection.sidebarPage = show ? \.bookmarks : \.images
+
+        collection.updateBookmarks()
+      }
+
+      ImageCollectionSidebarBookmarkButtonView(bookmarks: bookmark)
+        .help("Show bookmarks")
+        .visible(!isSearching)
+        .disabled(isSearching)
+        .overlay {
+          Button("Clear", systemImage: "xmark.circle.fill", role: .cancel) {
+            collection.sidebarSearch = ""
+
+            search()
+          }
+          .buttonStyle(.borderless)
+          .labelStyle(.iconOnly)
+          .imageScale(.small)
+          .visible(isSearching)
+          .disabled(!isSearching)
+        }
+    }
+  }
+
+  func search() {
+    collection.sidebarPage = \.search
+
+    collection.updateBookmarks()
+  }
+}
+
 struct ImageCollectionSidebarItemView: View {
   let image: ImageCollectionItemImage
 
@@ -37,7 +116,7 @@ struct ImageCollectionSidebarItemView: View {
             .opacity(0.8)
             .imageScale(.large)
             .shadow(radius: 0.5)
-            .padding(4)
+            .padding(2)
             .visible(image.bookmarked)
         }
 
@@ -64,50 +143,50 @@ struct ImageCollectionSidebarItemView: View {
 
 struct ImageCollectionSidebarContentView: View {
   @Environment(ImageCollection.self) private var collection
+  @Environment(ImageCollectionSidebar.self) private var sidebar
   @Environment(\.prerendering) private var prerendering
   @Environment(\.id) private var id
-  @Environment(\.selection) @Binding private var selection
+  @Environment(\.loaded) private var loaded
+  @Environment(\.detailScroller) private var detailScroller
   @Default(.importHiddenFiles) private var importHidden
   @Default(.importSubdirectories) private var importSubdirectories
-  @Default(.resolveCopyingConflicts) private var resolveConflicts
-  @State private var item: ImageCollectionItemImage.ID?
-  @State private var bookmarks = false
-  @State private var selectedQuickLookItem: URL?
+  @Default(.resolveCopyingConflicts) private var resolveCopyingConflicts
   @State private var quickLookItems = [URL]()
+  @State private var selectedQuickLookItem: URL?
   @State private var quickLookScopes = [ImageCollectionItemImage: ImageCollectionItemImage.Scope]()
-  @State private var selectedCopyFiles = ImageCollectionView.Selection()
   @State private var isPresentingCopyFilePicker = false
+  @State private var selectedCopyFiles = ImageCollectionSidebar.Selection()
   @State private var error: String?
-  private var selected: Binding<ImageCollectionView.Selection> {
+  private var selection: ImageCollectionSidebar.Selection { sidebar.selection }
+  private var selected: Binding<ImageCollectionSidebar.Selection> {
     .init {
-      self.selection
+      sidebar.selection
     } set: { selection in
-      // FIXME: This is a noop on the first call.
-      scrollDetail(selection)
+      let id = images(from: selection.subtracting(sidebar.selection)).last?.id
 
-      self.selection = selection
+      if let id {
+        detailScroller.scroll(id)
+      }
+
+      sidebar.selection = selection
     }
   }
-  private var filtering: Bool { bookmarks }
-
-  let scrollDetail: Scroller.Scroll
-
-  var body: some View {
-    let error = Binding {
-      self.error != nil
+  private var isPresentingErrorAlert: Binding<Bool> {
+    .init {
+      error != nil
     } set: { present in
       if !present {
-        self.error = nil
+        error = nil
       }
     }
+  }
 
-    // TODO: Package certain variables into one state for the sidebar.
-    //
-    // The main point of this would be to separate selection state between non-filtered and filtered bookmarks. There
-    // may be states added later, which is why I want to package it into one simple interface.
+  
+
+  var body: some View {
     ScrollViewReader { proxy in
       List(selection: selected) {
-        ForEach(bookmarks ? collection.bookmarks : collection.images, id: \.id) { image in
+        ForEach(sidebar.images) { image in
           ImageCollectionSidebarItemView(image: image)
             .anchorPreference(key: VisiblePreferenceKey<ImageCollectionItemImage.ID>.self, value: .bounds) {
               [.init(item: image.id, anchor: $0)]
@@ -123,42 +202,34 @@ struct ImageCollectionSidebarContentView: View {
         }
       }.backgroundPreferenceValue(VisiblePreferenceKey<ImageCollectionItemImage.ID>.self) { items in
         GeometryReader { proxy in
-          Color.clear.onChange(of: items) {
-            guard !filtering else {
-              return
-            }
+          let local = proxy.frame(in: .local)
+          let id = items
+            .filter { local.contains(proxy[$0.anchor]) }
+            .middle?.item
 
-            let local = proxy.frame(in: .local)
-            let visibles = items
-              .filter { local.contains(proxy[$0.anchor]) }
-              .map(\.item)
-
-            self.item = visibles.middle
+          Color.clear.onChange(of: id) {
+            sidebar.current = id
           }
-        }.onChange(of: filtering) {
-          guard !filtering,
-                let item else {
-            return
-          }
-
-          // FIXME: When scrolling only the first few images (e.g. ~21) in a large collection (say, 200+), this may
-          // always scroll to the beginning.
-          proxy.scrollTo(item, anchor: .center)
         }
       }.onDeleteCommand {
-        collection.order.subtract(selection)
+        collection.order.subtract(sidebar.selection)
         collection.update()
+      }.onChange(of: collection.sidebarPage) {
+        guard let id = sidebar.current else {
+          return
+        }
+
+        proxy.scrollTo(id, anchor: .center)
       }
     }.safeAreaInset(edge: .bottom, spacing: 0) {
-      // I would *really* like this at the top, but I can't justify it since this is more a filter and not a new tab.
-      VStack(alignment: .trailing, spacing: 0) {
+      VStack(spacing: 0) {
         Divider()
 
-        ImageCollectionSidebarBookmarkButtonView(bookmarks: $bookmarks)
+        ImageCollectionSidebarFilterView()
           .padding(8)
       }
     }
-    .copyable(urls(from: selection))
+    .copyable(urls(from: sidebar.selection))
     // TODO: Figure out how to extract this.
     //
     // I tried moving this into a ViewModifier and View, but the passed binding for the selected item wouldn't always
@@ -170,9 +241,7 @@ struct ImageCollectionSidebarContentView: View {
           openFinder(selecting: urls(from: ids))
         }
 
-        // I tried replacing this for a Toggle, but the shift in items for the toggle icon didn't make it look right,
-        // defeating the purpose.
-        Button("Quick Look", systemImage: "eye") {
+        Button("Quick Look") {
           guard selectedQuickLookItem == nil else {
             selectedQuickLookItem = nil
 
@@ -211,13 +280,13 @@ struct ImageCollectionSidebarContentView: View {
       }
 
       Section {
-        let marked = Binding {
+        let bookmarked = Binding {
           isBookmarked(selection: ids)
         } set: { bookmarked in
           bookmark(images: images(from: ids), value: bookmarked)
         }
 
-        ImageCollectionBookmarkView(bookmarked: marked)
+        ImageCollectionBookmarkView(bookmarked: bookmarked)
       }
     }.fileImporter(isPresented: $isPresentingCopyFilePicker, allowedContentTypes: [.folder]) { result in
       switch result {
@@ -234,35 +303,33 @@ struct ImageCollectionSidebarContentView: View {
       }
     }
     .fileDialogCopy()
-    .alert(self.error ?? "", isPresented: error) {}
-    .focusedValue(\.openFinder, .init(enabled: !selection.isEmpty, menu: .init(identity: selection) {
-      openFinder(selecting: urls(from: selection))
-    })).focusedValue(\.sidebarQuicklook, .init(enabled: !selection.isEmpty, menu: .init(identity: quickLookItems) {
+    .alert(self.error ?? "", isPresented: isPresentingErrorAlert) {}
+    .focusedValue(\.openFinder, .init(enabled: !sidebar.selection.isEmpty, menu: .init(identity: sidebar.selection) {
+      openFinder(selecting: urls(from: sidebar.selection))
+    }))
+    .focusedValue(\.sidebarQuicklook, .init(enabled: !sidebar.selection.isEmpty, menu: .init(identity: quickLookItems) {
       guard selectedQuickLookItem == nil else {
         selectedQuickLookItem = nil
 
         return
       }
 
-      quicklook(images: images(from: selection))
-    })).focusedValue(\.sidebarBookmarked, .init {
-      isBookmarked(selection: selection)
-    } set: { bookmarked in
-      bookmark(images: images(from: selection), value: bookmarked)
-    }).onDisappear {
+      quicklook(images: images(from: sidebar.selection))
+    }))
+    .onDisappear {
       clearQuickLookItems()
     }.onKeyPress(.space, phases: .down) { _ in
-      quicklook(images: images(from: selection))
+      quicklook(images: images(from: sidebar.selection))
 
       return .handled
     }
   }
 
-  func images(from selection: ImageCollectionView.Selection) -> [ImageCollectionItemImage] {
+  func images(from selection: ImageCollectionSidebar.Selection) -> [ImageCollectionItemImage] {
     collection.images.filter(in: selection, by: \.id)
   }
 
-  func urls(from selection: ImageCollectionView.Selection) -> [URL] {
+  func urls(from selection: ImageCollectionSidebar.Selection) -> [URL] {
     images(from: selection).map(\.url)
   }
 
@@ -286,11 +353,11 @@ struct ImageCollectionSidebarContentView: View {
     selectedQuickLookItem = quickLookItems.first
   }
 
-  func bookmarked(selection: ImageCollectionView.Selection) -> Bool {
-    return selection.isSubset(of: collection.bookmarkings)
+  func bookmarked(selection: ImageCollectionSidebar.Selection) -> Bool {
+    return selection.isSubset(of: collection.bookmarks)
   }
 
-  func isBookmarked(selection: ImageCollectionView.Selection) -> Bool {
+  func isBookmarked(selection: ImageCollectionSidebar.Selection) -> Bool {
     if selection.isEmpty {
       return false
     }
@@ -318,7 +385,7 @@ struct ImageCollectionSidebarContentView: View {
         try images.forEach { image in
           try ImageCollectionCopyingView.saving(url: image, to: destination) { url in
             try image.scoped {
-              try ImageCollectionCopyingView.save(url: url, to: destination, resolvingConflicts: resolveConflicts)
+              try ImageCollectionCopyingView.save(url: url, to: destination, resolvingConflicts: resolveCopyingConflicts)
             }
           }
         }

@@ -177,6 +177,31 @@ extension ImageCollectionItem: Codable {
   }
 }
 
+@Observable
+class ImageCollectionSidebar {
+  typealias Selection = Set<ImageCollectionItemImage.ID>
+
+  var images: [ImageCollectionItemImage]
+  var selection: Selection
+  @ObservationIgnored var current: ImageCollectionItemImage.ID?
+
+  init(
+    images: [ImageCollectionItemImage] = [],
+    selection: Selection = [],
+    current: ImageCollectionItemImage.ID? = nil
+  ) {
+    self.images = images
+    self.selection = selection
+    self.current = current
+  }
+}
+
+struct ImageCollectionSidebars {
+  let images = ImageCollectionSidebar()
+  let bookmarks = ImageCollectionSidebar()
+  let search = ImageCollectionSidebar()
+}
+
 struct ImageCollectionDetailImage {
   let image: ImageCollectionItemImage
   let edge: VerticalEdge?
@@ -193,14 +218,23 @@ class ImageCollection: Codable {
   typealias Order = OrderedSet<ImageCollectionItemRoot.ID>
   typealias Items = [ImageCollectionItemRoot.ID: ImageCollectionItem]
 
+  // The source of truth for the collection.
+  //
+  // TODO: Remove unused bookmarks in store via items or order
   @ObservationIgnored var store: BookmarkStore
   @ObservationIgnored var items: Items
   @ObservationIgnored var order: Order
 
+  // The materialized state for the UI.
   var images = [ImageCollectionItemImage]()
   var detail = [ImageCollectionDetailImage]()
-  var bookmarks = [ImageCollectionItemImage]()
-  var bookmarkings = Set<ImageCollectionItemRoot.ID>()
+  var sidebar: ImageCollectionSidebar { sidebars[keyPath: sidebarPage] }
+
+  // Extra UI state.
+  var sidebarPage = \ImageCollectionSidebars.images
+  var sidebarSearch = ""
+  @ObservationIgnored var sidebars = ImageCollectionSidebars()
+  @ObservationIgnored var bookmarks = Set<ImageCollectionItemRoot.ID>()
 
   init() {
     self.store = .init()
@@ -214,8 +248,8 @@ class ImageCollection: Codable {
     self.order = order
   }
 
-  typealias Roots = [URL: ImageCollectionItemRoot]
   typealias Kind = ImageCollectionSourceKind<URLSource>
+  typealias Roots = [URL: ImageCollectionItemRoot]
 
   static func resolve(
     kinds: [Kind],
@@ -474,8 +508,8 @@ class ImageCollection: Codable {
   }
 
   func update() {
-    self.images = order.compactMap { items[$0]?.image }
-    self.detail = images.enumerated().map { pair in
+    images = order.compactMap { items[$0]?.image }
+    detail = images.enumerated().map { pair in
       .init(
         image: pair.element,
         edge: pair.offset == images.startIndex
@@ -490,8 +524,28 @@ class ImageCollection: Codable {
   }
 
   func updateBookmarks() {
-    self.bookmarks = images.filter(\.bookmarked)
-    self.bookmarkings = .init(bookmarks.map(\.bookmark))
+    let bookmarks = images.filter(\.bookmarked)
+    let bookmarked: [ImageCollectionItemImage]
+    let page = sidebarPage
+
+    switch page {
+      case \.images,
+           // An empty string never passes the later filter
+           \.search where sidebarSearch.isEmpty:
+        bookmarked = images
+      case \.search:
+        bookmarked = images.filter { $0.url.lastPath.localizedCaseInsensitiveContains(sidebarSearch) }
+      case \.bookmarks:
+        bookmarked = bookmarks
+      default:
+        Logger.standard.error("Unknown sidebar page \"\(page.debugDescription)\"; defaulting to all")
+
+        bookmarked = images
+    }
+
+    sidebars[keyPath: page].images = bookmarked
+
+    self.bookmarks = .init(bookmarks.map(\.bookmark))
   }
 
   func persist(to url: URL) throws {
@@ -552,11 +606,5 @@ extension ImageCollection {
 
   func persist(id: UUID) async throws {
     try self.persist(to: URL.collectionFile(for: id))
-  }
-}
-
-extension ImageCollection: Equatable {
-  static func ==(lhs: ImageCollection, rhs: ImageCollection) -> Bool {
-    lhs.items == rhs.items && lhs.order == rhs.order
   }
 }

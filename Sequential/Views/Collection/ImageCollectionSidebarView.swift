@@ -9,15 +9,13 @@ import SwiftUI
 
 struct ImageCollectionSidebarView: View {
   @Environment(ImageCollection.self) private var collection
-  @Environment(\.prerendering) private var prerendering
+  @Environment(\.loaded) private var loaded
   private var visible: Bool {
-    !prerendering && collection.order.isEmpty
+    loaded && collection.images.isEmpty
   }
 
-  let scrollDetail: Scroller.Scroll
-
   var body: some View {
-    ImageCollectionSidebarContentView(scrollDetail: scrollDetail)
+    ImageCollectionSidebarContentView()
       .overlay {
         ImageCollectionSidebarEmptyView()
           .visible(visible)

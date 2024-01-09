@@ -13,15 +13,21 @@ struct ImageCollectionSceneView: View {
   @Environment(\.prerendering) private var prerendering
   @Environment(\.id) private var id
   @State private var collection = ImageCollection()
-  @State private var prior: UUID?
-  @State private var loads = 0
+  @State private var loaded = false
 
   var body: some View {
-    ImageCollectionView(loads: loads)
+    ImageCollectionView()
       .environment(collection)
+      .environment(\.loaded, loaded)
       // The pre-rendering variable triggers SwiftUI to call the action with an up-to-date id when performing scene
       // restoration. It's weird we can't just bind id.
       .task(id: prerendering) {
+        loaded = false
+
+        defer {
+          loaded = true
+        }
+
         let collection: ImageCollection
 
         if let coll = manager.collections[id] {
@@ -32,7 +38,7 @@ struct ImageCollectionSceneView: View {
           let url = URL.collectionFile(for: id)
 
           do {
-            collection = try await fetch(from: url)
+            collection = try await Self.fetch(from: url)
 
             Logger.model.info("Fetched image collection \"\(id)\" from file at URL \"\(url.string)\"")
           } catch let err as CocoaError where err.code == .fileReadNoSuchFile {
@@ -46,36 +52,76 @@ struct ImageCollectionSceneView: View {
           }
         }
 
-        self.collection = collection
+        await Self.resolve(collection: collection)
 
-        // This is some really stupid code, and is not perfect (still results in an extra task call). In essence, we want
-        // to know when a new image collection is loaded without asking the collection itself (since we currently don't
-        // know the ID, unless we want to persist it).
-        if let prior {
-          if prior != id {
-            loads += 1
+        collection.update()
+
+        Task(priority: .medium) {
+          do {
+            try await collection.persist(id: id)
+          } catch {
+            Logger.model.error("Could not persist image collection \"\(id)\" (via initialization): \(error)")
           }
-        } else {
-          prior = id
-
-          loads += 1
         }
+
+        self.collection = collection
       }.onDisappear {
         manager.collections[id] = nil
       }
   }
 
-  func fetch(from url: URL) async throws -> ImageCollection {
+  static func fetch(from url: URL) async throws -> ImageCollection {
     let data = try Data(contentsOf: url)
     let decoder = PropertyListDecoder()
     let decoded = try decoder.decode(ImageCollection.self, from: data)
 
     return decoded
   }
+
+  static func resolve(
+    roots: [ImageCollectionItemRoot],
+    in store: BookmarkStore
+  ) async -> BookmarkStoreState<ImageCollection.Images> {
+    let bookmarks = roots.compactMap { store.bookmarks[$0.bookmark] }
+
+    let books = await ImageCollection.resolving(bookmarks: bookmarks, in: store)
+    let roots = roots.filter { books.value.contains($0.bookmark) }
+
+    let images = await ImageCollection.resolve(roots: roots, in: books.store)
+
+    return .init(store: books.store, value: images)
+  }
+
+  // Be careful here: we're asynchronously mutating variables on the image collection. The reason (I believe) it's safe
+  // to do so here is because, from our usage in task(id:_:), the collection isn't being used elsewhere.
+  static func resolve(collection: ImageCollection) async {
+    let roots = collection.items.values.map(\.root)
+    let state = await Self.resolve(roots: roots, in: collection.store)
+    let items = collection.order.compactMap { id -> ImageCollectionItem? in
+      guard let root = collection.items[id]?.root,
+            let image = state.value[id] else {
+        return nil
+      }
+
+      return .init(root: root, image: image)
+    }
+
+    collection.store = state.store
+
+    items.forEach { item in
+      collection.items[item.root.bookmark] = item
+    }
+
+    collection.order = .init(items.map(\.root.bookmark))
+  }
 }
 
 struct ImageCollectionScene: Scene {
   @State private var manager = ImageCollectionManager()
+
+  // This is the default size used by SwiftUI. I'm using it since I think it looks nice, but the constant is here for
+  // de-duplication and safeguarding from the future.
+  static let defaultSize = CGSize(width: 900, height: 450)
 
   var body: some Scene {
     WindowGroup(for: UUID.self) { $id in
@@ -86,6 +132,7 @@ struct ImageCollectionScene: Scene {
       .init()
     }
     .windowToolbarStyle(.unifiedCompact)
+    .defaultSize(Self.defaultSize)
     .commands {
       // The reason this is separated into its own struct is not for prettiness, but rather so changes to focus don't
       // re-evaluate the whole scene (which makes clicking when there are a lot of images not slow).
