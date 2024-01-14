@@ -8,13 +8,13 @@
 import SwiftUI
 
 struct ImageCollectionBookmarkView: View {
-  @Binding var bookmarked: Bool
+  @Binding var showing: Bool
 
   var body: some View {
     Button {
-      bookmarked.toggle()
+      showing.toggle()
     } label: {
-      if bookmarked {
+      if showing {
         Label("Bookmark", systemImage: "bookmark")
           .symbolVariant(.fill)
           .labelStyle(.titleAndIcon)

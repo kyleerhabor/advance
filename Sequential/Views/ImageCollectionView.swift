@@ -139,7 +139,7 @@ struct ImageCollectionView: View {
       }
     }
     .toolbar(fullScreen ? .hidden : .automatic)
-    .toolbarHidden(hideToolbar && !visible)
+    .toolbarHidden(hideToolbar && !fullScreen && !visible)
     .cursorHidden(hideCursor && !visible)
     .environment(collection.sidebar)
     .environment(\.navigationColumns, $columns)

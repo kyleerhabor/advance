@@ -27,10 +27,11 @@
 		0043C6052B40E78E0092AB71 /* SettingsExtraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0043C6042B40E78E0092AB71 /* SettingsExtraView.swift */; };
 		004D8FC02A76C1C900C0303E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 004D8FBF2A76C1C900C0303E /* SettingsView.swift */; };
 		0077AF922ABB8650002E3FF4 /* Image.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0077AF912ABB8650002E3FF4 /* Image.swift */; };
-		007FDD492A76E1C800A1E42B /* WindowViewModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 007FDD482A76E1C800A1E42B /* WindowViewModifier.swift */; };
+		007FDD492A76E1C800A1E42B /* Windowed.swift in Sources */ = {isa = PBXBuildFile; fileRef = 007FDD482A76E1C800A1E42B /* Windowed.swift */; };
 		008815F62B07DC8A00D8F3D8 /* Algorithms in Frameworks */ = {isa = PBXBuildFile; productRef = 008815F52B07DC8A00D8F3D8 /* Algorithms */; };
 		00A983A62B47B1F700A8E61C /* View+Keys.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00A983A52B47B1F600A8E61C /* View+Keys.swift */; };
 		00AE138E2B4C7A2600FE8A5D /* Quartz.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00AE138D2B4C7A2600FE8A5D /* Quartz.swift */; };
+		00BA40B72B4E353C0022C488 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 00BA40B62B4E353C0022C488 /* Localizable.xcstrings */; };
 		00C09BBF2A789D30006EB887 /* View.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00C09BBE2A789D30006EB887 /* View.swift */; };
 		00C127362A90CF7400B5452C /* LiveTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00C127352A90CF7400B5452C /* LiveTextView.swift */; };
 		00C369532AB766DC0033F10A /* ImageCollection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00C369522AB766DC0033F10A /* ImageCollection.swift */; };
@@ -69,10 +70,11 @@
 		0043C6042B40E78E0092AB71 /* SettingsExtraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsExtraView.swift; sourceTree = "<group>"; };
 		004D8FBF2A76C1C900C0303E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		0077AF912ABB8650002E3FF4 /* Image.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Image.swift; sourceTree = "<group>"; };
-		007FDD482A76E1C800A1E42B /* WindowViewModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowViewModifier.swift; sourceTree = "<group>"; };
+		007FDD482A76E1C800A1E42B /* Windowed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Windowed.swift; sourceTree = "<group>"; };
 		009A6D112AD6564F00436383 /* Children of the Whales.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Children of the Whales.png"; sourceTree = "<group>"; };
 		00A983A52B47B1F600A8E61C /* View+Keys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "View+Keys.swift"; sourceTree = "<group>"; };
 		00AE138D2B4C7A2600FE8A5D /* Quartz.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Quartz.swift; sourceTree = "<group>"; };
+		00BA40B62B4E353C0022C488 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		00C09BBE2A789D30006EB887 /* View.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = View.swift; sourceTree = "<group>"; };
 		00C127352A90CF7400B5452C /* LiveTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveTextView.swift; sourceTree = "<group>"; };
 		00C369522AB766DC0033F10A /* ImageCollection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollection.swift; sourceTree = "<group>"; };
@@ -152,6 +154,7 @@
 				00DC498E2A75B92000161495 /* Info.plist */,
 				001CB51F2A718D4200DBB6FA /* Assets.xcassets */,
 				001CB5242A718D4200DBB6FA /* Sequential.entitlements */,
+				00BA40B62B4E353C0022C488 /* Localizable.xcstrings */,
 			);
 			path = Sequential;
 			sourceTree = "<group>";
@@ -239,7 +242,7 @@
 				00CBAB592AB23E9C0045FF83 /* ImageCollectionScene.swift */,
 				0042B5DA2AB8C450009F251B /* ImageCollectionCommands.swift */,
 				002379082B3DFC9F00097BF0 /* SceneViewModifier.swift */,
-				007FDD482A76E1C800A1E42B /* WindowViewModifier.swift */,
+				007FDD482A76E1C800A1E42B /* Windowed.swift */,
 			);
 			path = Scenes;
 			sourceTree = "<group>";
@@ -332,6 +335,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				00BA40B72B4E353C0022C488 /* Localizable.xcstrings in Resources */,
 				001CB5202A718D4200DBB6FA /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -353,7 +357,7 @@
 				002379092B3DFC9F00097BF0 /* SceneViewModifier.swift in Sources */,
 				002FB7752B0BE0F900E930AF /* ImageCollectionBookmarkView.swift in Sources */,
 				0008556E2A7306CB00309905 /* Standard.swift in Sources */,
-				007FDD492A76E1C800A1E42B /* WindowViewModifier.swift in Sources */,
+				007FDD492A76E1C800A1E42B /* Windowed.swift in Sources */,
 				0033751A2B34EBC800423A58 /* ImageCollectionItemView.swift in Sources */,
 				00CF4C8B2B28C0AD0033C95B /* Button.swift in Sources */,
 				00C127362A90CF7400B5452C /* LiveTextView.swift in Sources */,
@@ -512,7 +516,6 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = UYJ357XWK6;
@@ -527,7 +530,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kyleerhabor.Sequential;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -545,7 +548,6 @@
 				CODE_SIGN_ENTITLEMENTS = Sequential/Sequential.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = UYJ357XWK6;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -559,7 +561,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kyleerhabor.Sequential;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_DISABLE_SAFETY_CHECKS = NO;

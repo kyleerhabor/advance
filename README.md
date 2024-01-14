@@ -15,12 +15,11 @@ Sequential is an app for reading images. It borrows heavily from Preview for its
 ## Features
 
 - A main canvas for viewing images, and a sidebar for managing them
-- Margins:
-  - Allow images to cover their whole frame, or make some room for yourself
-  - Hide elements in the interface to fully immerse yourself in the imagery
+- Configurable margins
 - Continuous scrolling
 - Support for Live Text
 - Bookmarking
+- Visibility controls to hide elements when scrolling
 - Copying:
   - Copy images as-is to select folders in a single action
   - No Finder dialog, no file conflicts; just copy
@@ -28,7 +27,41 @@ Sequential is an app for reading images. It borrows heavily from Preview for its
   - Only loads what is required up front, reducing initialization dramatically[^1]
   - Performs downsampling on images to match their on-screen size, improving CPU and memory usage while not compromising image quality.[^2] You can drop thousands of 4K+ images and Sequential won't complain
 
-## Screenshot
+## Use
+
+### Install
+
+You can either download a version of the app from the [Releases][releases] page or build the project from source in Xcode.
+
+Note that macOS Sonoma (14) or later is required.
+
+### Limitations
+
+Sequential is not capable of some functionality at the moment. The eventual goal is to add support for them, but due to programming constraints, they're tricky to implement.
+
+Note that the details get technical on Sequential's source code.
+
+<details>
+  <summary>Zooming in/out</summary>
+
+  Sequential does not support zooming in/out images.
+
+  The main canvas is implemented via a SwiftUI `List`, which has no built-in support for zooming (the underlying `NSScrollView` does not respond well to its resizing). A rational solution would be to use a `scaleEffect` modifier with a magnification gesture to manually implement zooming, but it would need to be applied on the `List`'s child container—and *not* the `List` itself. This would enable zooming the main canvas without impacting images or the `List` itself; however, SwiftUI does not expose such a container. Applying the modifier on either the `List` or individual images would cause the subjects to shrink vertically and horizontally, naturally approaching the center—a behavior we do not want, as it shrinks the canvas size.
+
+  SwiftUI does support a `ScrollView` that has underlying zooming support, but for Sequential, it's not practical to use:
+  - `ScrollView` has worse scrolling performance over `List`
+  - `ScrollView` does not maintain its height on changes to its frame, causing actions like full-screening to change the image the user sees.
+</details>
+
+<details>
+  <summary>Rotating images</summary>
+
+  Sequential does not support rotating images clockwise or counter-clockwise.
+
+  SwiftUI has a `rotationEffect` modifier, but it does not affect the size of the frame, causing images to exceed their bounds. To implement this behavior correctly, the image would need to be rotated and have its frame resized to fit the new bounds; however, the modifier is still dependent on the frame, so adjusting it causes rotation to exceed the bounds regardless. This feature could likely be implemented with more experimentation; but, at the moment, implementing it is tricky.
+</details>
+
+## Screenshots
 
 <details>
   <summary>An image collection featuring the manga series "Wonder Cat Kyuu-chan"</summary>
@@ -46,4 +79,5 @@ Sequential is an app for reading images. It borrows heavily from Preview for its
 [^2]: Downsampling involves processing an image to create a representation at a lower resolution. For Sequential, it's important to support displaying many images at many different sizes without sacrificing image quality or memory consumption. Before an image appears on-screen, it is downsampled at the size of the frame it's given with respect to how many pixels can fit in the frame. The result is that, at smaller frame sizes (e.g. in the sidebar), images appear roughly how they would at larger frame sizes while not introducing side effects like high pixelation.
 
 [live-text]: https://support.apple.com/guide/preview/interact-with-text-in-a-photo-prvw625a5b2c/mac
+[releases]: https://github.com/KyleErhabor/Sequential/releases
 [the-ancient-magus-bride]: https://en.wikipedia.org/wiki/The_Ancient_Magus%27_Bride

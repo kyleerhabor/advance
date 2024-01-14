@@ -12,16 +12,16 @@ import OSLog
 import SwiftUI
 
 struct ImageCollectionSidebarBookmarkButtonView: View {
-  @Binding var bookmarks: Bool
+  let title: LocalizedStringKey
+  @Binding var showing: Bool
 
   var body: some View {
-    // We could use ImageCollectionBookmarkView, but that uses a Button.
-    Toggle("\(bookmarks ? "Hide" : "Show") Bookmarks", systemImage: "bookmark", isOn: $bookmarks)
+    Toggle(title, systemImage: "bookmark", isOn: $showing)
       .labelStyle(.iconOnly)
       .buttonStyle(.plain)
       .toggleStyle(.button)
-      .symbolVariant(bookmarks ? .fill : .none)
-      .foregroundStyle(Color(bookmarks ? .controlAccentColor : .secondaryLabelColor))
+      .symbolVariant(showing ? .fill : .none)
+      .foregroundStyle(Color(showing ? .controlAccentColor : .secondaryLabelColor))
   }
 }
 
@@ -35,7 +35,7 @@ struct ImageCollectionSidebarFilterView: View {
 
   var body: some View {
     HStack(alignment: .top, spacing: 4) {
-      Button("Search...", systemImage: "magnifyingglass") {
+      Button("Search.Interaction", systemImage: "magnifyingglass") {
         // The reason we're doing it like this is because search may already be focused but not reflected in the sidebar.
         // In other words, this button performs a search. We don't always need to, since isSearchFocused changing its
         // state also triggers a search.
@@ -47,7 +47,7 @@ struct ImageCollectionSidebarFilterView: View {
       }
       .buttonStyle(.borderless)
       .labelStyle(.iconOnly)
-      .help("Search...")
+      .help("Search.Interaction")
 
       @Bindable var collect = collection
 
@@ -65,20 +65,27 @@ struct ImageCollectionSidebarFilterView: View {
         })
         .onSubmit {
           search()
-        }.onChange(of: isSearchFocused) {
+        }.onChange(of: isSearchFocused) { focusedPrior, _ in
+          guard focusedPrior else {
+            return
+          }
+
           search()
         }
 
-      let bookmark = Binding {
-        collection.sidebarPage == \.bookmarks
+      let showingBookmarks = collection.sidebarPage == \.bookmarks
+      let showing = Binding {
+        showingBookmarks
       } set: { show in
         collection.sidebarPage = show ? \.bookmarks : \.images
 
         collection.updateBookmarks()
       }
 
-      ImageCollectionSidebarBookmarkButtonView(bookmarks: bookmark)
-        .help("Show bookmarks")
+      let title: LocalizedStringKey = showingBookmarks ? "Images.Bookmarks.Hide" : "Images.Bookmarks.Show"
+
+      ImageCollectionSidebarBookmarkButtonView(title: title, showing: showing)
+        .help(title)
         .visible(!isSearching)
         .disabled(isSearching)
         .overlay {
@@ -237,7 +244,7 @@ struct ImageCollectionSidebarContentView: View {
     .quickLookPreview($selectedQuickLookItem, in: quickLookItems)
     .contextMenu { ids in
       Section {
-        Button("Show in Finder") {
+        Button("Finder.Show") {
           openFinder(selecting: urls(from: ids))
         }
 
@@ -286,7 +293,7 @@ struct ImageCollectionSidebarContentView: View {
           bookmark(images: images(from: ids), value: bookmarked)
         }
 
-        ImageCollectionBookmarkView(bookmarked: bookmarked)
+        ImageCollectionBookmarkView(showing: bookmarked)
       }
     }.fileImporter(isPresented: $isPresentingCopyFilePicker, allowedContentTypes: [.folder]) { result in
       switch result {

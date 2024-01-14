@@ -1,5 +1,5 @@
 //
-//  WindowViewModifier.swift
+//  Windowed.swift
 //  Sequential
 //
 //  Created by Kyle Erhabor on 7/30/23.
@@ -19,12 +19,12 @@ extension Window: Equatable {
   }
 }
 
-struct FullScreenEnvironmentKey: EnvironmentKey {
-  static var defaultValue = false
-}
-
 struct PrerenderEnvironmentKey: EnvironmentKey {
   static var defaultValue = true
+}
+
+struct FullScreenEnvironmentKey: EnvironmentKey {
+  static var defaultValue = false
 }
 
 struct MenuTrackingEnvironmentKey: EnvironmentKey {
@@ -125,6 +125,23 @@ struct WindowFullScreenViewModifier: ViewModifier {
   }
 }
 
+struct WindowFullScreenToggleViewModifier: ViewModifier {
+  @Environment(Window.self) private var window
+
+  func body(content: Content) -> some View {
+    content.background {
+      // This is a workaround for an odd behavior where the menu item to toggle full screen mode disappears. It's not a
+      // solution, since some existing behavior does not work (e.g. Fn-F to full screen); but it is something.
+      Button("Window.FullScreen.Toggle") {
+        window.window?.toggleFullScreen(nil)
+      }
+      .keyboardShortcut(.fullScreen)
+      .focusable(false)
+      .visible(false)
+    }
+  }
+}
+
 struct PrerenderViewModifier: ViewModifier {
   @State private var prerendering = true
 
@@ -149,12 +166,21 @@ struct MenuTrackingViewModifier: ViewModifier {
   }
 }
 
-extension View {
-  func windowed() -> some View {
-    self
+struct WindowedViewModifier: ViewModifier {
+  func body(content: Content) -> some View {
+    content
       .modifier(PrerenderViewModifier())
       .modifier(WindowFullScreenViewModifier())
+      .modifier(WindowFullScreenToggleViewModifier())
       .modifier(WindowViewModifier())
       .modifier(MenuTrackingViewModifier())
+  }
+}
+
+extension View {
+  func windowed() -> some View {
+    // We're extracting the view modifiers into one so SwiftUI persists just the 'windowed' view modifier. This will
+    // make it so modifications to the list won't cause scene restoration to fail.
+    self.modifier(WindowedViewModifier())
   }
 }

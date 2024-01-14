@@ -67,7 +67,7 @@ struct ImageCollectionDetailItemBookmarkView: View {
   }
 
   var body: some View {
-    ImageCollectionBookmarkView(bookmarked: bookmark)
+    ImageCollectionBookmarkView(showing: bookmark)
   }
 }
 
@@ -127,9 +127,7 @@ struct ImageCollectionDetailItemView: View {
           .supplementaryInterfaceHidden(!liveTextIcon)
           .searchEngineHidden(!liveTextSearchWith)
           .task(id: image.url) {
-            let interactions = liveTextInteractions
-
-            if image.analysis != nil {
+            guard image.analysis == nil else {
               return
             }
 
@@ -137,7 +135,7 @@ struct ImageCollectionDetailItemView: View {
               await analyze(
                 url: image.url,
                 orientation: image.properties.orientation,
-                interactions: interactions,
+                interactions: liveTextInteractions,
                 resample: liveTextDownsample,
                 resampleTo: Int(resample.size.length.rounded(.up))
               )
@@ -153,7 +151,7 @@ struct ImageCollectionDetailItemView: View {
       .anchorPreference(key: ScrollOffsetPreferenceKey.self, value: .bounds) { $0 }
     }.contextMenu {
       Section {
-        Button("Show in Finder") {
+        Button("Finder.Show") {
           openFinder(selecting: url)
         }
 
@@ -444,7 +442,7 @@ struct ImageCollectionDetailVisibilityViewModifier: ViewModifier {
 }
 
 extension View {
-  func visibleImage() -> some View {
+  func visibleImages() -> some View {
     self.modifier(ImageCollectionDetailVisibilityViewModifier())
   }
 }
@@ -485,9 +483,9 @@ struct ImageCollectionDetailView: View {
         image: image.image,
         liveTextIcon: showLiveTextIcon
       )
-      .shadow(radius: margin / 2)
       .listRowInsets(.listRow + (collapseMargins ? insets : all))
       .listRowSeparator(.hidden)
+      .shadow(radius: margin / 2)
     }
     .listStyle(.plain)
     .toolbar(id: "Canvas") {
@@ -507,11 +505,10 @@ struct ImageCollectionDetailView: View {
         }
 
         Toggle("Live Text Icon", systemImage: "text.viewfinder", isOn: icons)
-          .keyboardShortcut(.liveTextIcon)
           .help("\(showLiveTextIcon ? "Hide" : "Show") Live Text icon")
       }
     }
-    .visibleImage()
+    .visibleImages()
     .focusedSceneValue(\.liveTextIcon, .init(enabled: true, state: showLiveTextIcon, menu: .init(identity: true) {
       liveTextIcon = !showLiveTextIcon
     }))

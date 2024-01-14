@@ -534,6 +534,7 @@ class ImageCollection: Codable {
            \.search where sidebarSearch.isEmpty:
         bookmarked = images
       case \.search:
+        // Eventually, we want to expand search to analyze images for their transcripts.
         bookmarked = images.filter { $0.url.lastPath.localizedCaseInsensitiveContains(sidebarSearch) }
       case \.bookmarks:
         bookmarked = bookmarks

@@ -79,11 +79,6 @@ extension FocusedValues {
     set { self[AppMenuQuickLookFocusedValueKey.self] = newValue }
   }
 
-//  var sidebarBookmarked: AppMenuBookmarkedFocusedValueKey.Value? {
-//    get { self[AppMenuBookmarkedFocusedValueKey.self] }
-//    set { self[AppMenuBookmarkedFocusedValueKey.self] = newValue }
-//  }
-
   var jumpToCurrentImage: AppMenuJumpToCurrentImageFocusedValueKey.Value? {
     get { self[AppMenuJumpToCurrentImageFocusedValueKey.self] }
     set { self[AppMenuJumpToCurrentImageFocusedValueKey.self] = newValue }
@@ -99,7 +94,6 @@ struct ImageCollectionCommands: Commands {
   @Default(.importHiddenFiles) private var importHidden
   @Default(.importSubdirectories) private var importSubdirectories
   @FocusedValue(\.window) private var win
-  @FocusedValue(\.fullScreen) private var fullScreen
   @FocusedValue(\.openFileImporter) private var openFileImporter
   @FocusedValue(\.openFinder) private var finder
   @FocusedValue(\.sidebarQuicklook) private var quicklook
@@ -142,7 +136,7 @@ struct ImageCollectionCommands: Commands {
 
       Divider()
 
-      Button("Show in Finder") {
+      Button("Finder.Show") {
         finder?.menu.action()
       }
       .keyboardShortcut(.finder)
@@ -156,7 +150,7 @@ struct ImageCollectionCommands: Commands {
     }
 
     CommandGroup(after: .textEditing) {
-      Button("Search...") {
+      Button("Search.Interaction") {
         searchSidebar?.action()
       }.keyboardShortcut(.searchSidebar)
     }
@@ -164,48 +158,32 @@ struct ImageCollectionCommands: Commands {
     CommandGroup(after: .sidebar) {
       // The "Enter Full Screen" item is usually in its own space.
       Divider()
-
-      // FIXME: The "Enter/Exit Full Screen" option sometimes disappears.
-      //
-      // This is a workaround that still has issues, such as it appearing in the menu bar (which looks like a duplicate
-      // to the user), but at least it works.
-      Button("\(fullScreen == true ? "Exit" : "Enter") Full Screen") {
-        window?.toggleFullScreen(nil)
-      }
-      .keyboardShortcut(.fullScreen)
-      .disabled(fullScreen == nil || window == nil)
     }
 
-    CommandMenu("Image") {
-      Button("Show in Sidebar") {
+    CommandMenu("Command.Section.Image") {
+      Button("Command.Image.Sidebar") {
         jumpToCurrentImage?.action()
       }
       .keyboardShortcut(.jumpToCurrentImage)
       .disabled(jumpToCurrentImage == nil)
 
-      Section("Live Text") {
-        Button("\(liveTextIcon?.state == true ? "Hide" : "Show") Icon") {
+      Section("Command.Section.LiveText") {
+        Button(liveTextIcon?.state == true ? "Command.LiveText.Icon.Hide" : "Command.LiveText.Icon.Show") {
           liveTextIcon?.menu.action()
         }
         .disabled(liveTextIcon?.enabled != true)
         .keyboardShortcut(.liveTextIcon)
 
-        Button("\(liveTextHighlight?.state == true ? "Hide" : "Show") Highlights") {
+        Button(liveTextHighlight?.state == true ? "Command.LiveText.Highlight.Hide" : "Command.LiveText.Highlight.Show") {
           liveTextHighlight?.menu.action()
         }
         .disabled(liveTextHighlight?.enabled != true)
         .keyboardShortcut(.liveTextHighlight)
       }
-
-//      Divider()
-//
-//      Toggle("Bookmark", isOn: .init($bookmarked, defaultValue: false))
-//        .keyboardShortcut(.bookmark)
-//        .disabled(bookmarked == nil)
     }
 
     CommandGroup(after: .windowSize) {
-      Button("Reset Size") {
+      Button("Command.Window.Size.Reset") {
         window?.setContentSize(ImageCollectionScene.defaultSize)
       }.keyboardShortcut(.resetWindowSize)
     }

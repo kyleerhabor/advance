@@ -1,0 +1,322 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "" : {
+
+    },
+    " 0%" : {
+
+    },
+    "%@ Live Text icon" : {
+
+    },
+    "50%" : {
+
+    },
+    "100%" : {
+
+    },
+    "150%" : {
+
+    },
+    "A lot" : {
+
+    },
+    "Add" : {
+
+    },
+    "Add..." : {
+
+    },
+    "Appearance:" : {
+
+    },
+    "Bookmark" : {
+
+    },
+    "Brightness:" : {
+
+    },
+    "Clear" : {
+
+    },
+    "Close" : {
+
+    },
+    "Collapse margins" : {
+
+    },
+    "Command.Image.Sidebar" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show in Sidebar"
+          }
+        }
+      }
+    },
+    "Command.LiveText.Highlight.Hide" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide Highlight"
+          }
+        }
+      }
+    },
+    "Command.LiveText.Highlight.Show" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Highlight"
+          }
+        }
+      }
+    },
+    "Command.LiveText.Icon.Hide" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide Icon"
+          }
+        }
+      }
+    },
+    "Command.LiveText.Icon.Show" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Icon"
+          }
+        }
+      }
+    },
+    "Command.Section.Image" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Image"
+          }
+        }
+      }
+    },
+    "Command.Section.LiveText" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Live Text"
+          }
+        }
+      }
+    },
+    "Command.Window.Size.Reset" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset Size"
+          }
+        }
+      }
+    },
+    "Copy" : {
+
+    },
+    "Copy to Folder" : {
+
+    },
+    "Copying:" : {
+
+    },
+    "Cursor" : {
+
+    },
+    "Dark" : {
+
+    },
+    "Display current image in the title" : {
+
+    },
+    "Do not search subfolders" : {
+
+    },
+    "Downsample very large images" : {
+
+    },
+    "Drop images here" : {
+
+    },
+    "Enable Live Text" : {
+
+    },
+    "Extra" : {
+
+    },
+    "Files:" : {
+
+    },
+    "Finder.Show" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show in Finder"
+          }
+        }
+      }
+    },
+    "Folders:" : {
+
+    },
+    "General" : {
+
+    },
+    "Grayscale:" : {
+
+    },
+    "Hide when scrolling:" : {
+
+    },
+    "If a file already exists at the destination of a folder, the name of the image's enclosing folder will be appended to the destination." : {
+
+    },
+    "If an image is too large to be analyzed, a lower-resolution representation of the image will be used instead. This involves writing the image to disk, which will be cleared the next time the app is launched." : {
+
+    },
+    "Images with adjacent borders will have their margins flattened into a single value." : {
+
+    },
+    "Images.Bookmarks.Hide" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide bookmarks"
+          }
+        }
+      }
+    },
+    "Images.Bookmarks.Show" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show bookmarks"
+          }
+        }
+      }
+    },
+    "Import" : {
+
+    },
+    "Include hidden files" : {
+
+    },
+    "Light" : {
+
+    },
+    "Live Text Icon" : {
+
+    },
+    "Live Text:" : {
+
+    },
+    "Main Canvas:" : {
+
+    },
+    "Margins:" : {
+
+    },
+    "None" : {
+
+    },
+    "Only relevant when the sidebar is not open." : {
+
+    },
+    "Open in Finder" : {
+
+    },
+    "Open..." : {
+
+    },
+    "Quick Look" : {
+
+    },
+    "Remove" : {
+
+    },
+    "Reset" : {
+
+    },
+    "Resolve conflicts" : {
+
+    },
+    "Scroll bar" : {
+
+    },
+    "Search" : {
+
+    },
+    "Search.Interaction" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search..."
+          }
+        }
+      }
+    },
+    "Show Folders..." : {
+
+    },
+    "Show icon" : {
+
+    },
+    "Show in Sidebar" : {
+
+    },
+    "Show menu item for search engine" : {
+
+    },
+    "System" : {
+
+    },
+    "The folder at this path could not be found. This may happen when the folder has been deleted or is temporarily unavailable, such as when on a removable volume." : {
+
+    },
+    "Theme:" : {
+
+    },
+    "This device does not support Live Text." : {
+
+    },
+    "This will always open in Safari." : {
+
+    },
+    "Toolbar" : {
+
+    },
+    "Visual Effects" : {
+
+    },
+    "Window.FullScreen.Toggle" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toggle Full Screen"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}
