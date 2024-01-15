@@ -39,7 +39,7 @@ Note that macOS Sonoma (14) or later is required.
 
 Sequential is not capable of some functionality at the moment. The eventual goal is to add support for them, but due to programming constraints, they're tricky to implement.
 
-Note that the details are technical.
+Note that the details get technical.
 
 <details>
   <summary>Zooming in/out</summary>
