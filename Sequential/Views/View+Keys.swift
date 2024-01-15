@@ -99,7 +99,7 @@ struct AppMenuToggle<I> where I: Equatable {
 extension AppMenuToggle: Equatable {}
 
 struct SearchSidebarFocusedValueKey: FocusedValueKey {
-  typealias Value = AppMenu<Bool>
+  typealias Value = AppMenu<ImageCollectionEnvironmentKey.Value>
 }
 
 struct LiveTextIconFocusedValueKey: FocusedValueKey {

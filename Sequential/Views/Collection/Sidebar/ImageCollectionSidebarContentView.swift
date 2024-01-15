@@ -27,6 +27,7 @@ struct ImageCollectionSidebarBookmarkButtonView: View {
 
 struct ImageCollectionSidebarFilterView: View {
   @Environment(ImageCollection.self) private var collection
+  @Environment(\.id) private var id
   @Environment(\.navigationColumns) @Binding private var columns
   @FocusState private var isSearchFocused
   private var isSearching: Bool {
@@ -56,7 +57,7 @@ struct ImageCollectionSidebarFilterView: View {
         .textFieldStyle(.plain)
         .font(.subheadline)
         .focused($isSearchFocused)
-        .focusedSceneValue(\.searchSidebar, .init(identity: isSearchFocused) {
+        .focusedSceneValue(\.searchSidebar, .init(identity: id) {
           withAnimation {
             columns = .all
           } completion: {
@@ -123,7 +124,7 @@ struct ImageCollectionSidebarItemView: View {
             .opacity(0.8)
             .imageScale(.large)
             .shadow(radius: 0.5)
-            .padding(2)
+            .padding(4)
             .visible(image.bookmarked)
         }
 
@@ -288,7 +289,7 @@ struct ImageCollectionSidebarContentView: View {
 
       Section {
         let bookmarked = Binding {
-          isBookmarked(selection: ids)
+          !ids.isEmpty && isBookmarked(selection: ids)
         } set: { bookmarked in
           bookmark(images: images(from: ids), value: bookmarked)
         }
@@ -360,16 +361,8 @@ struct ImageCollectionSidebarContentView: View {
     selectedQuickLookItem = quickLookItems.first
   }
 
-  func bookmarked(selection: ImageCollectionSidebar.Selection) -> Bool {
-    return selection.isSubset(of: collection.bookmarks)
-  }
-
   func isBookmarked(selection: ImageCollectionSidebar.Selection) -> Bool {
-    if selection.isEmpty {
-      return false
-    }
-
-    return bookmarked(selection: selection)
+    return selection.isSubset(of: collection.bookmarks)
   }
 
   func bookmark(images: some Sequence<ImageCollectionItemImage>, value: Bool) {
