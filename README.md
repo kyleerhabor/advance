@@ -4,7 +4,7 @@ A macOS app for viewing a collection of images.
 
 ## Rationale
 
-The Preview app built-in to macOS is probably one of the most useful features the operating system has to offer. As an app, its capability of opening documents (here, PDFs and images) in a compact form with various options has allowed many people to rely on Preview in their basic workflows. A large, contributing factor to this is the level of integration Preview has with the rest of the system, allowing anyone who knows how to use a Mac to implicitly know how to use Preview.
+The Preview app built-in to macOS is probably one of the most useful features the operating system has to offer. As an app, its capability of opening documents (here, PDFs and images) in a compact form with various options has allowed many to rely on Preview in their basic workflows. A large, contributing factor to this is the level of integration Preview has with the rest of the system, allowing anyone who knows how to use a Mac to implicitly know how to use Preview.
 
 If Preview is such a great app, why does Sequential—an image viewing app in the same category—exist? Well, Preview has a catch: it excels at managing PDFs, yet is average when invoked with images.
 
@@ -39,7 +39,7 @@ Note that macOS Sonoma (14) or later is required.
 
 Sequential is not capable of some functionality at the moment. The eventual goal is to add support for them, but due to programming constraints, they're tricky to implement.
 
-Note that the details get technical on Sequential's source code.
+Note that the details are technical.
 
 <details>
   <summary>Zooming in/out</summary>

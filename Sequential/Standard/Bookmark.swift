@@ -81,7 +81,7 @@ extension URL.BookmarkResolutionOptions {
   }
 }
 
-protocol Scope {
+protocol SecurityScope {
   associatedtype Scope
 
   func startSecurityScope() -> Scope
@@ -93,7 +93,7 @@ protocol Scope {
   func scoped<T>(_ body: () async throws -> T) async rethrows -> T
 }
 
-extension Scope {
+extension SecurityScope {
   func scoped<T>(_ body: () throws -> T) rethrows -> T {
     let scope = startSecurityScope()
 
@@ -111,7 +111,7 @@ extension Scope {
   }
 }
 
-extension Optional: Scope where Wrapped: Scope {
+extension Optional: SecurityScope where Wrapped: SecurityScope {
   func startSecurityScope() -> Wrapped.Scope? {
     guard case .some(let wrapped) = self else {
       return nil
@@ -130,7 +130,7 @@ extension Optional: Scope where Wrapped: Scope {
   }
 }
 
-protocol URLScope: Scope {
+protocol URLScope: SecurityScope {
   var url: URL { get }
 }
 
@@ -142,17 +142,14 @@ extension URL: URLScope {
   }
 }
 
-// TODO: Remove.
-//
-// A URLSource with a URLScope is enough.
 struct URLSecurityScope {
   let url: URL
   let accessing: Bool
 }
 
 extension URLSecurityScope {
-  init(url: URL) {
-    self.init(url: url, accessing: url.startSecurityScope())
+  init(source: URLSource) {
+    self.init(url: source.url, accessing: source.startSecurityScope())
   }
 }
 

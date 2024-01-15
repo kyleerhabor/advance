@@ -79,8 +79,8 @@ extension ImageCollectionItemRoot: Codable {}
 class ImageCollectionItemImage {
   let bookmark: BookmarkStoreItem.ID
 
-  let url: URL
-  let relative: URL?
+  let source: URLSource
+  let relative: URLSource?
 
   var properties: ImageProperties
   var bookmarked: Bool
@@ -88,9 +88,9 @@ class ImageCollectionItemImage {
   var analysis: ImageAnalysis?
   var highlighted = false
 
-  init(bookmark: BookmarkStoreItem.ID, url: URL, relative: URL?, properties: ImageProperties, bookmarked: Bool) {
+  init(bookmark: BookmarkStoreItem.ID, source: URLSource, relative: URLSource?, properties: ImageProperties, bookmarked: Bool) {
     self.bookmark = bookmark
-    self.url = url
+    self.source = source
     self.relative = relative
     self.properties = properties
     self.bookmarked = bookmarked
@@ -113,24 +113,21 @@ extension ImageCollectionItemImage: Identifiable {
 
 extension ImageCollectionItemImage: Hashable {
   static func ==(lhs: ImageCollectionItemImage, rhs: ImageCollectionItemImage) -> Bool {
-    lhs.url == rhs.url
+    lhs.source.url == rhs.source.url
   }
 
   func hash(into hasher: inout Hasher) {
-    hasher.combine(url)
+    hasher.combine(source.url)
   }
 }
 
 extension ImageCollectionItemImage: URLScope {
-  struct Scope {
-    let image: URLSecurityScope
-    let relative: URLSecurityScope?
-  }
+  var url: URL { source.url }
 
   func startSecurityScope() -> Scope {
     .init(
-      image: .init(url: url),
-      relative: relative.map { .init(url: $0) }
+      image: .init(source: source),
+      relative: relative.map { .init(source: $0) }
     )
   }
 
@@ -143,6 +140,11 @@ extension ImageCollectionItemImage: URLScope {
        relative.accessing {
       relative.url.endSecurityScope()
     }
+  }
+
+  struct Scope {
+    let image: URLSecurityScope
+    let relative: URLSecurityScope?
   }
 }
 
@@ -364,7 +366,7 @@ class ImageCollection: Codable {
             return nil
           }
 
-          return URLSecurityScope(url: url)
+          return URLSecurityScope(source: .init(url: url, options: bookmark.bookmark.options))
         }
 
       bookmarks.forEach { item in
@@ -450,7 +452,7 @@ class ImageCollection: Codable {
             return nil
           }
 
-          return URLSecurityScope(url: url)
+          return URLSecurityScope(source: .init(url: url, options: bookmark.bookmark.options))
         }
 
       roots.forEach { root in
@@ -460,7 +462,8 @@ class ImageCollection: Codable {
             return nil
           }
 
-          let relative: URL?
+          let source = URLSource(url: url, options: bookmark.bookmark.options)
+          let relative: URLSource?
 
           if let id = bookmark.relative {
             guard let bookmark = store.bookmarks[id],
@@ -468,22 +471,20 @@ class ImageCollection: Codable {
               return nil
             }
 
-            relative = url
+            relative = .init(url: url, options: bookmark.bookmark.options)
           } else {
             relative = nil
           }
 
           let image = ImageCollectionItemImage(
             bookmark: bookmark.id,
-            url: url,
+            source: source,
             relative: relative,
             properties: .init(size: .init(width: 0, height: 0), orientation: .up),
             bookmarked: root.bookmarked
           )
 
-          let source = URLSource(url: url, options: bookmark.bookmark.options)
-
-          guard let properties = source.scoped({ image.resolve() }) else {
+          guard let properties = image.source.scoped({ image.resolve() }) else {
             return nil
           }
 
