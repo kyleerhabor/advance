@@ -36,10 +36,10 @@ struct ImageCollectionCopyingView: View {
   static func saving(action: () throws -> Void) rethrows {
     do {
       try action()
+    } catch let err as CocoaError where err.code == .fileWriteFileExists {
+      throw err
     } catch {
-      if let err = error as? CocoaError, err.code == .fileWriteFileExists {
-        throw error
-      }
+      // Ignored (TODO: remember why)
     }
   }
 
@@ -48,12 +48,10 @@ struct ImageCollectionCopyingView: View {
 
     do {
       try action(url)
+    } catch let err as CocoaError where err.code == .fileWriteFileExists {
+      throw err
     } catch {
-      if let err = error as? CocoaError, err.code == .fileWriteFileExists {
-        throw error
-      }
-
-      Logger.ui.info("Could not copy image \"\(url.string)\" to destination \"\(destination.string)\": \(error)")
+      Logger.ui.error("Could not copy image \"\(url.string)\" to destination \"\(destination.string)\": \(error)")
 
       throw error
     }

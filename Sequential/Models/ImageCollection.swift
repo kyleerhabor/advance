@@ -540,7 +540,7 @@ class ImageCollection: Codable {
       case \.bookmarks:
         bookmarked = bookmarks
       default:
-        Logger.standard.error("Unknown sidebar page \"\(page.debugDescription)\"; defaulting to all")
+        Logger.model.error("Unknown sidebar page \"\(page.debugDescription)\"; defaulting to all")
 
         bookmarked = images
     }

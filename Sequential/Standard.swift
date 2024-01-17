@@ -13,9 +13,9 @@ extension Bundle {
 }
 
 extension Logger {
+  static let standard = Self()
   static let ui = Self(subsystem: Bundle.identifier, category: "UI")
   static let model = Self(subsystem: Bundle.identifier, category: "Model")
-  static let standard = Self(subsystem: Bundle.identifier, category: "Standard")
   static let sandbox = Self(subsystem: Bundle.identifier, category: "Sandbox")
 }
 
@@ -60,7 +60,6 @@ extension URL {
     return ArraySlice(lhs) == rhs.prefix(upTo: min(rhs.count, lhs.count))
   }
 
-  // TODO: Change "components" to "paths"
   func appending(paths: some BidirectionalCollection<some StringProtocol>) -> URL {
     self.appending(path: paths.joined(separator: "/"))
   }
@@ -158,13 +157,6 @@ extension Collection where Index: FixedWidthInteger {
   }
 }
 
-// I have no idea if Swift will specialize if we implement this on Collection.
-extension RandomAccessCollection {
-  var isMany: Bool {
-    self.count > 1
-  }
-}
-
 extension Array {
   init(minimumCapacity capacity: Int) {
     self.init()
@@ -258,10 +250,19 @@ extension Matcher where Item == String, Path == [String?], Transform == URL {
   }
 }
 
-// Borrowed (but inverted) from https://www.swiftbysundell.com/articles/the-power-of-key-paths-in-swift/
+// Borrowed from https://www.swiftbysundell.com/articles/the-power-of-key-paths-in-swift/
+func setter<Object, Value>(
+  value: Value,
+  on keyPath: WritableKeyPath<Object, Value>
+) -> (inout Object) -> Void {
+  return { object in
+    object[keyPath: keyPath] = value
+  }
+}
+
 func setter<Object: AnyObject, Value>(
-  keyPath: ReferenceWritableKeyPath<Object, Value>,
-  value: Value
+  value: Value,
+  on keyPath: ReferenceWritableKeyPath<Object, Value>
 ) -> (Object) -> Void {
   return { object in
     object[keyPath: keyPath] = value

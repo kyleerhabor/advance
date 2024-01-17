@@ -90,7 +90,7 @@ struct ImageCollectionNavigationDetailView: View {
 
 struct ImageCollectionView: View {
   @Environment(ImageCollection.self) private var collection
-  @Environment(Window.self) private var win
+  @Environment(WindowCapture.self) private var capture
   @Environment(\.prerendering) private var prerendering
   @Environment(\.trackingMenu) private var trackingMenu
   @Environment(\.fullScreen) private var fullScreen
@@ -102,7 +102,7 @@ struct ImageCollectionView: View {
   @FocusedValue(\.sidebarScroller) private var sidebarScroller
   @FocusedValue(\.detailScroller) private var detailScroller
   @State private var visible = true
-  private var window: NSWindow? { win.window }
+  private var window: NSWindow? { capture.window }
   private var isDetailOnly: Bool { columns == .detailOnly }
 
   private let scrollSubject = PassthroughSubject<CGPoint, Never>()

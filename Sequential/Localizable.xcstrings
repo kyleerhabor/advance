@@ -213,6 +213,17 @@
         }
       }
     },
+    "Images.Command.Help.OpenHomepage" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Homepage..."
+          }
+        }
+      }
+    },
     "Import" : {
 
     },

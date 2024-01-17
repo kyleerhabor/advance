@@ -134,8 +134,7 @@ struct ImageCollectionSidebarItemView: View {
       Text(path)
         .font(.subheadline)
         .padding(.init(vertical: 4, horizontal: 8))
-        .background(Color.secondaryFill)
-        .clipShape(.rect(cornerRadius: 4))
+        .background(.fill.tertiary, in: .rect(cornerRadius: 4))
         // TODO: Replace this for an expansion tooltip (like how NSTableView has it)
         //
         // I tried this before, but couldn't get sizing or the trailing ellipsis to work properly.
@@ -244,6 +243,12 @@ struct ImageCollectionSidebarContentView: View {
     // be reflected.
     .quickLookPreview($selectedQuickLookItem, in: quickLookItems)
     .contextMenu { ids in
+      let bookmarked = Binding {
+        !ids.isEmpty && isBookmarked(selection: ids)
+      } set: { bookmarked in
+        bookmark(images: images(from: ids), value: bookmarked)
+      }
+
       Section {
         Button("Finder.Show") {
           openFinder(selecting: urls(from: ids))
@@ -288,12 +293,6 @@ struct ImageCollectionSidebarContentView: View {
       }
 
       Section {
-        let bookmarked = Binding {
-          !ids.isEmpty && isBookmarked(selection: ids)
-        } set: { bookmarked in
-          bookmark(images: images(from: ids), value: bookmarked)
-        }
-
         ImageCollectionBookmarkView(showing: bookmarked)
       }
     }.fileImporter(isPresented: $isPresentingCopyFilePicker, allowedContentTypes: [.folder]) { result in
@@ -366,7 +365,7 @@ struct ImageCollectionSidebarContentView: View {
   }
 
   func bookmark(images: some Sequence<ImageCollectionItemImage>, value: Bool) {
-    images.forEach(setter(keyPath: \.bookmarked, value: value))
+    images.forEach(setter(value: value, on: \.bookmarked))
     
     collection.updateBookmarks()
 

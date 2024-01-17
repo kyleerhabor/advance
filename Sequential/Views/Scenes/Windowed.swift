@@ -8,13 +8,13 @@
 import SwiftUI
 
 @Observable
-class Window {
+class WindowCapture {
   // TODO: Don't make this optional.
   weak var window: NSWindow?
 }
 
-extension Window: Equatable {
-  static func ==(lhs: Window, rhs: Window) -> Bool {
+extension WindowCapture: Equatable {
+  static func ==(lhs: WindowCapture, rhs: WindowCapture) -> Bool {
     lhs.window == rhs.window
   }
 }
@@ -48,11 +48,31 @@ extension EnvironmentValues {
   }
 }
 
-class AppearanceView: NSView {
-  var win: Window
+struct WindowFocusedValueKey: FocusedValueKey {
+  typealias Value = WindowCapture
+}
 
-  init(window: Window) {
-    self.win = window
+struct FullScreenFocusedValueKey: FocusedValueKey {
+  typealias Value = Bool
+}
+
+extension FocusedValues {
+  var window: WindowFocusedValueKey.Value? {
+    get { self[WindowFocusedValueKey.self] }
+    set { self[WindowFocusedValueKey.self] = newValue }
+  }
+
+  var fullScreen: FullScreenFocusedValueKey.Value? {
+    get { self[FullScreenFocusedValueKey.self] }
+    set { self[FullScreenFocusedValueKey.self] = newValue }
+  }
+}
+
+class AppearanceView: NSView {
+  var capture: WindowCapture
+
+  init(capture: WindowCapture) {
+    self.capture = capture
 
     super.init(frame: .zero)
   }
@@ -61,48 +81,49 @@ class AppearanceView: NSView {
     fatalError("init(coder:) has not been implemented")
   }
 
-  override func viewDidMoveToWindow() {
-    super.viewDidMoveToWindow()
+  override func viewWillMove(toWindow window: NSWindow?) {
+    super.viewWillMove(toWindow: window)
 
-    win.window = self.window
+    capture.window = window
   }
 }
 
 struct WindowCaptureView: NSViewRepresentable {
-  let window: Window
+  let capture: WindowCapture
 
   func makeNSView(context: Context) -> AppearanceView {
-    .init(window: window)
+    .init(capture: capture)
   }
 
   func updateNSView(_ appearanceView: AppearanceView, context: Context) {
-    appearanceView.win = window
+    appearanceView.capture = capture
   }
 }
 
 struct WindowViewModifier: ViewModifier {
-  @State private var window = Window()
+  @State private var capture = WindowCapture()
 
   func body(content: Content) -> some View {
     content
-      .environment(window)
-      .focusedSceneValue(\.window, window)
+      .environment(capture)
+      .focusedSceneValue(\.window, capture)
       .background {
-        WindowCaptureView(window: window)
+        WindowCaptureView(capture: capture)
       }
   }
 }
 
 struct WindowFullScreenViewModifier: ViewModifier {
-  @Environment(Window.self) private var window
+  @Environment(WindowCapture.self) private var capture
   @State private var fullScreen = FullScreenEnvironmentKey.defaultValue
+  private var window: NSWindow? { capture.window }
 
   func body(content: Content) -> some View {
     content
       .environment(\.fullScreen, fullScreen)
       .focusedSceneValue(\.fullScreen, fullScreen)
       .onChange(of: window) {
-        fullScreen = window.window?.isFullScreen() ?? FullScreenEnvironmentKey.defaultValue
+        fullScreen = window?.isFullScreen() ?? FullScreenEnvironmentKey.defaultValue
       }.onReceive(NotificationCenter.default.publisher(for: NSWindow.willEnterFullScreenNotification)) { notification in
         guard isCurrentWindow(notification) else {
           return
@@ -121,19 +142,19 @@ struct WindowFullScreenViewModifier: ViewModifier {
   func isCurrentWindow(_ notification: Notification) -> Bool {
     let window = notification.object as! NSWindow
 
-    return window == self.window.window
+    return window == self.window
   }
 }
 
 struct WindowFullScreenToggleViewModifier: ViewModifier {
-  @Environment(Window.self) private var window
+  @Environment(WindowCapture.self) private var capture
 
   func body(content: Content) -> some View {
     content.background {
       // This is a workaround for an odd behavior where the menu item to toggle full screen mode disappears. It's not a
       // solution, since some existing behavior does not work (e.g. Fn-F to full screen); but it is something.
       Button("Window.FullScreen.Toggle") {
-        window.window?.toggleFullScreen(nil)
+        capture.window?.toggleFullScreen(nil)
       }
       .keyboardShortcut(.fullScreen)
       .focusable(false)

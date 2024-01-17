@@ -11,14 +11,6 @@ import SwiftUI
 
 // MARK: - Focused value keys
 
-struct WindowFocusedValueKey: FocusedValueKey {
-  typealias Value = Window
-}
-
-struct FullScreenFocusedValueKey: FocusedValueKey {
-  typealias Value = Bool
-}
-
 struct AppMenuAction<Identity>: Equatable where Identity: Equatable {
   let menu: AppMenu<Identity>
   let enabled: Bool
@@ -54,16 +46,6 @@ struct AppMenuJumpToCurrentImageFocusedValueKey: FocusedValueKey {
 }
 
 extension FocusedValues {
-  var window: WindowFocusedValueKey.Value? {
-    get { self[WindowFocusedValueKey.self] }
-    set { self[WindowFocusedValueKey.self] = newValue }
-  }
-
-  var fullScreen: FullScreenFocusedValueKey.Value? {
-    get { self[FullScreenFocusedValueKey.self] }
-    set { self[FullScreenFocusedValueKey.self] = newValue }
-  }
-
   var openFileImporter: AppMenuOpenFocusedValueKey.Value? {
     get { self[AppMenuOpenFocusedValueKey.self] }
     set { self[AppMenuOpenFocusedValueKey.self] = newValue }

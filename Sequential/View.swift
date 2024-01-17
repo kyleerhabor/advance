@@ -35,9 +35,7 @@ extension EdgeInsets {
 }
 
 extension Color {
-  static let secondaryFill = Self(nsColor: .secondarySystemFill)
   static let tertiaryLabel = Self(nsColor: .tertiaryLabelColor)
-  static let tertiaryFill = Self(nsColor: .tertiarySystemFill)
 }
 
 extension KeyboardShortcut {
@@ -138,23 +136,23 @@ extension NSWindow {
 }
 
 struct ToolbarHiddenViewModifier: ViewModifier {
-  @Environment(Window.self) private var window
+  @Environment(WindowCapture.self) private var capture
   @Environment(\.fullScreen) private var fullScreen
 
   let hide: Bool
 
   func body(content: Content) -> some View {
     content.onChange(of: hide, initial: true) {
-      setToolbarVisibility(!hide)
+      setToolbarVisible(!hide)
     }.onChange(of: fullScreen) {
-      setToolbarVisibility(!hide)
+      setToolbarVisible(!hide)
     }.onDisappear {
-      setToolbarVisibility(true)
+      setToolbarVisible(true)
     }
   }
 
-  func setToolbarVisibility(_ visible: Bool) {
-    guard let window = window.window else {
+  func setToolbarVisible(_ visible: Bool) {
+    guard let window = capture.window else {
       return
     }
 

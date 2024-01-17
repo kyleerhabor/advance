@@ -39,18 +39,9 @@ struct BookmarkStoreItem {
   }
 
   // Swift's Hasher is pseudo-randomly seeded per-program execution, so it's not reliable to compute a bookmark's hash
-  // and persist it to always have a fast comparison. A SHA256, meanwhile, is persistent, so we can use it.
+  // and persist it to always have a fast lookup. A SHA256, meanwhile, is persistent, so we can use it.
   static func hash(data: Data) -> Hash {
     .init(SHA256.hash(data: data))
-  }
-
-  // TODO: Remove this.
-  func parent(in store: BookmarkStore) -> Self? {
-    guard let relative else {
-      return nil
-    }
-
-    return store.bookmarks[relative]
   }
 }
 

@@ -107,20 +107,19 @@ struct ImageCollectionDetailItemView: View {
 
   @Bindable var image: ImageCollectionItemImage
   let liveTextIcon: Bool
-  private var url: URL { image.url }
   private var liveTextInteractions: ImageAnalysisOverlayView.InteractionTypes {
     liveText ? .automaticTextOnly : .init()
   }
 
   var body: some View {
+    let bookmarked = $image.bookmarked
+
     // For some reason, ImageCollectionItemView needs to be wrapped in a VStack for animations to apply.
     VStack {
       ImageCollectionItemView(image: image) { phase in
         if let resample = phase.success {
-          let interactions = liveTextInteractions
-
           LiveTextView(
-            interactions: interactions,
+            interactions: liveTextInteractions,
             analysis: image.analysis,
             highlight: $image.highlighted
           )
@@ -152,7 +151,7 @@ struct ImageCollectionDetailItemView: View {
     }.contextMenu {
       Section {
         Button("Finder.Show") {
-          openFinder(selecting: url)
+          openFinder(selecting: image.url)
         }
 
         ImageCollectionDetailItemSidebarView(id: image.id)
@@ -160,8 +159,8 @@ struct ImageCollectionDetailItemView: View {
 
       Section {
         Button("Copy", systemImage: "doc.on.doc") {
-          if !NSPasteboard.general.write(items: [url as NSURL]) {
-            Logger.ui.error("Failed to write URL \"\(url.string)\" to pasteboard")
+          if !NSPasteboard.general.write(items: [image.url as NSURL]) {
+            Logger.ui.error("Failed to write URL \"\(image.url.string)\" to pasteboard")
           }
         }
 
@@ -177,7 +176,7 @@ struct ImageCollectionDetailItemView: View {
       }
 
       Section {
-        ImageCollectionDetailItemBookmarkView(bookmarked: $image.bookmarked)
+        ImageCollectionDetailItemBookmarkView(bookmarked: bookmarked)
       }
     }.fileImporter(isPresented: $isPresentingCopyingFileImporter, allowedContentTypes: [.folder]) { result in
       switch result {
@@ -412,7 +411,7 @@ struct ImageCollectionDetailVisibilityViewModifier: ViewModifier {
           enabled: isNotEmpty,
           state: isNotEmpty && highlighted,
           menu: .init(identity: images) {
-            images.forEach(setter(keyPath: \.highlighted, value: !highlighted))
+            images.forEach(setter(value: !highlighted, on: \.highlighted))
           }
         ))
 

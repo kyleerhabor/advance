@@ -24,13 +24,10 @@ struct ImageCollectionItemPhaseView: View {
   let phase: ImageResamplePhase
 
   var body: some View {
-    // For transparent images, the fill is still useful to know that an image is supposed to be in the frame, but when
-    // the view's image has been cleared (see the .onDisappear), it's kind of weird to see the fill again. Maybe try
-    // and determine if the image is transparent and, if so, only display the fill on its first appearance? This would
-    // kind of be weird for collections that mix transparent and non-transparent images, however (since there's no
-    // clear separator).
-    Color.tertiaryFill
+    Rectangle()
+      .fill(.fill.quaternary)
       .visible(phase.success?.image == nil)
+      .transaction(setter(value: true, on: \.disablesAnimations))
       .overlay {
         if let image = phase.success?.image {
           image
@@ -75,7 +72,7 @@ struct ImageCollectionItemView<Overlay>: View where Overlay: View {
   @State private var phase = ImageResamplePhase.empty
 
   let image: ImageCollectionItemImage
-  @ViewBuilder var overlay: (ImageResamplePhase) -> Overlay
+  @ViewBuilder let overlay: (ImageResamplePhase) -> Overlay
 
   var body: some View {
     DisplayView { size in
@@ -101,6 +98,7 @@ struct ImageCollectionItemView<Overlay>: View where Overlay: View {
       }
     } content: {
       ImageCollectionItemPhaseView(phase: phase)
+        // Do we still need this overlay?
         .overlay {
           overlay(phase)
         }
