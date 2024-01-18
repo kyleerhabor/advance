@@ -122,7 +122,7 @@ extension Sequence {
         pair.0 != pair.1
       }!
 
-      let count = index + 1
+      let count = index.inc()
 
       if ap.count > count && bp.count == count {
         return true
@@ -266,5 +266,15 @@ func setter<Object: AnyObject, Value>(
 ) -> (Object) -> Void {
   return { object in
     object[keyPath: keyPath] = value
+  }
+}
+
+extension Numeric {
+  func inc() -> Self {
+    self + 1
+  }
+
+  func dec() -> Self {
+    self - 1
   }
 }

@@ -117,6 +117,7 @@ struct ImageCollectionSidebarItemView: View {
   var body: some View {
     VStack {
       ImageCollectionItemView(image: image)
+        .aspectRatio(image.properties.sized.aspectRatio, contentMode: .fit)
         .overlay(alignment: .topTrailing) {
           Image(systemName: "bookmark")
             .symbolVariant(.fill)

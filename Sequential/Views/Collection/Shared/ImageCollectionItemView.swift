@@ -38,7 +38,8 @@ struct ImageCollectionItemPhaseView: View {
                 .grayscale(grayscale)
             }
         }
-      }.overlay {
+      }
+      .overlay {
         ProgressView()
           .visible(imagePhase == .empty && elapsed)
           .animation(.default, value: elapsed)
@@ -67,26 +68,16 @@ struct ImageCollectionItemPhaseView: View {
   }
 }
 
-struct ImageCollectionItemView<Overlay>: View where Overlay: View {
-  @Environment(\.pixelLength) private var pixel
+struct ImageCollectionItemView<Scope, Content>: View where Scope: URLScope, Content: View {
   @State private var phase = ImageResamplePhase.empty
 
-  let image: ImageCollectionItemImage
-  @ViewBuilder let overlay: (ImageResamplePhase) -> Overlay
+  let image: Scope
+  @ViewBuilder var content: (ImageResamplePhase) -> Content
 
   var body: some View {
-    DisplayView { size in
-      // For some reason, some images in full screen mode can cause SwiftUI to believe there are more views on screen
-      // than there actually are (usually the first 21). This causes all the .onAppear and .task modifiers to fire,
-      // resulting in a massive memory spike (e.g. ~1.8 GB).
-
-      let size = CGSize(
-        width: size.width / pixel,
-        height: size.height / pixel
-      )
-
+    DisplayImageView { size in
       do {
-        let image = try await resample(image: image, to: size)
+        let image = try await Self.resample(image: image, to: size)
 
         phase = .result(.success(.init(image: image, size: size)))
       } catch is CancellationError {
@@ -97,15 +88,11 @@ struct ImageCollectionItemView<Overlay>: View where Overlay: View {
         phase = .result(.failure(error))
       }
     } content: {
-      ImageCollectionItemPhaseView(phase: phase)
-        // Do we still need this overlay?
-        .overlay {
-          overlay(phase)
-        }
-    }.aspectRatio(image.properties.sized.aspectRatio, contentMode: .fit)
+      content(phase)
+    }
   }
 
-  func resample(imageAt url: URL, to size: CGSize) throws -> Image {
+  static func resample(imageAt url: URL, to size: CGSize) throws -> Image {
     guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
       // FIXME: For some reason, if the user scrolls fast enough in the UI, source returns nil.
       throw ImageError.undecodable
@@ -122,13 +109,15 @@ struct ImageCollectionItemView<Overlay>: View where Overlay: View {
     return .init(nsImage: .init(cgImage: thumbnail, size: size))
   }
 
-  func resample(image: ImageCollectionItemImage, to size: CGSize) async throws -> Image {
+  static func resample(image: Scope, to size: CGSize) async throws -> Image {
     try image.scoped { try resample(imageAt: image.url, to: size) }
   }
 }
 
-extension ImageCollectionItemView where Overlay == EmptyView {
-  init(image: ImageCollectionItemImage) {
-    self.init(image: image) { _ in }
+extension ImageCollectionItemView where Content == ImageCollectionItemPhaseView {
+  init(image: Scope) {
+    self.init(image: image) { phase in
+      ImageCollectionItemPhaseView(phase: phase)
+    }
   }
 }

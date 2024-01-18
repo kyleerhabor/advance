@@ -117,35 +117,39 @@ struct ImageCollectionDetailItemView: View {
     // For some reason, ImageCollectionItemView needs to be wrapped in a VStack for animations to apply.
     VStack {
       ImageCollectionItemView(image: image) { phase in
-        if let resample = phase.success {
-          LiveTextView(
-            interactions: liveTextInteractions,
-            analysis: image.analysis,
-            highlight: $image.highlighted
-          )
-          .supplementaryInterfaceHidden(!liveTextIcon)
-          .searchEngineHidden(!liveTextSearchWith)
-          .task(id: image.url) {
-            guard image.analysis == nil else {
-              return
-            }
-
-            let analysis = await image.scoped {
-              await analyze(
-                url: image.url,
-                orientation: image.properties.orientation,
+        ImageCollectionItemPhaseView(phase: phase)
+          .overlay {
+            if let resample = phase.success {
+              LiveTextView(
                 interactions: liveTextInteractions,
-                resample: liveTextDownsample,
-                resampleTo: Int(resample.size.length.rounded(.up))
+                analysis: image.analysis,
+                highlight: $image.highlighted
               )
-            }
+              .supplementaryInterfaceHidden(!liveTextIcon)
+              .searchEngineHidden(!liveTextSearchWith)
+              .task(id: image.url) {
+                guard image.analysis == nil else {
+                  return
+                }
 
-            if let analysis {
-              image.analysis = analysis
+                let analysis = await image.scoped {
+                  await analyze(
+                    url: image.url,
+                    orientation: image.properties.orientation,
+                    interactions: liveTextInteractions,
+                    resample: liveTextDownsample,
+                    resampleTo: Int(resample.size.length.rounded(.up))
+                  )
+                }
+
+                if let analysis {
+                  image.analysis = analysis
+                }
+              }
             }
           }
-        }
       }
+      .aspectRatio(image.properties.sized.aspectRatio, contentMode: .fit)
       .anchorPreference(key: VisiblePreferenceKey.self, value: .bounds) { [.init(item: image, anchor: $0)] }
       .anchorPreference(key: ScrollOffsetPreferenceKey.self, value: .bounds) { $0 }
     }.contextMenu {
@@ -228,7 +232,7 @@ struct ImageCollectionDetailItemView: View {
         return nil
       }
 
-      let size = min(resampleSize, maxSize - 1)
+      let size = min(resampleSize, maxSize.dec())
 
       guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
             let type = CGImageSourceGetType(source),
@@ -372,9 +376,8 @@ struct VisibleImagesPreferenceKey: PreferenceKey {
 }
 
 struct ImageCollectionDetailVisibilityViewModifier: ViewModifier {
-  typealias Scroll = SidebarScrollerFocusedValueKey.Value.Scroll
-
   @Environment(ImageCollectionSidebar.self) private var sidebar
+  @Environment(\.navigationColumns) @Binding private var columns
   @Environment(\.sidebarScroller) private var sidebarScroller
   @Default(.displayTitleBarImage) private var displayTitleBarImage
 
@@ -416,6 +419,8 @@ struct ImageCollectionDetailVisibilityViewModifier: ViewModifier {
         ))
 
         if let primary = images.first {
+          var id: ImageCollectionItemImage.ID { primary.id }
+
           if displayTitleBarImage {
             let url = primary.url
 
@@ -428,9 +433,7 @@ struct ImageCollectionDetailVisibilityViewModifier: ViewModifier {
             .focusedSceneValue(\.openFinder, .init(enabled: true, menu: .init(identity: [primary.id]) {
               openFinder(selecting: primary.url)
             }))
-            .focusedSceneValue(\.jumpToCurrentImage, .init(identity: primary.id) {
-              let id = primary.id
-
+            .focusedSceneValue(\.jumpToCurrentImage, .init(identity: id) {
               sidebarScroller.scroll(.init(id: id) {
                 sidebar.selection = [id]
               })
@@ -454,7 +457,7 @@ struct ImageCollectionDetailView: View {
   @Default(.displayTitleBarImage) private var showTitleBarImage
   @SceneStorage(Defaults.Keys.liveTextIcon.name) private var liveTextIcon: Bool?
 
-  let images: [ImageCollectionDetailImage]
+  let items: [ImageCollectionDetailItem]
   private var showLiveTextIcon: Bool {
     liveTextIcon ?? appLiveTextIcon
   }
@@ -468,8 +471,8 @@ struct ImageCollectionDetailView: View {
     let middle = EdgeInsets(horizontal: full, top: half, bottom: half)
     let bottom = EdgeInsets(horizontal: full, top: half, bottom: full)
 
-    List(images) { image in
-      let insets: EdgeInsets = if let edge = image.edge {
+    List(items) { item in
+      let insets: EdgeInsets = if let edge = item.edge {
         switch edge {
           case .top: top
           case .bottom: bottom
@@ -479,7 +482,7 @@ struct ImageCollectionDetailView: View {
       }
 
       ImageCollectionDetailItemView(
-        image: image.image,
+        image: item.image,
         liveTextIcon: showLiveTextIcon
       )
       .listRowInsets(.listRow + (collapseMargins ? insets : all))

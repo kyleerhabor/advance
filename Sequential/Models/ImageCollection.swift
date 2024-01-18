@@ -11,11 +11,6 @@ import OSLog
 import SwiftUI
 import VisionKit
 
-// TODO: Implement the following:
-//
-// Image:
-// - Bookmark index
-
 extension URL {
   static let collectionDirectory = dataDirectory.appending(component: "Collections")
 
@@ -23,23 +18,6 @@ extension URL {
     .collectionDirectory
     .appending(component: id.uuidString)
     .appendingPathExtension(for: .binaryPropertyList)
-  }
-}
-
-struct URLSource {
-  let url: URL
-  let options: URL.BookmarkCreationOptions
-}
-
-extension URLSource: URLScope {
-  func startSecurityScope() -> Bool {
-    options.contains(.withSecurityScope) && url.startSecurityScope()
-  }
-
-  func endSecurityScope(scope: Bool) {
-    if scope {
-      url.endSecurityScope()
-    }
   }
 }
 
@@ -108,16 +86,16 @@ class ImageCollectionItemImage {
 }
 
 extension ImageCollectionItemImage: Identifiable {
-  var id: UUID { bookmark }
+  var id: BookmarkStoreItem.ID { bookmark }
 }
 
 extension ImageCollectionItemImage: Hashable {
   static func ==(lhs: ImageCollectionItemImage, rhs: ImageCollectionItemImage) -> Bool {
-    lhs.source.url == rhs.source.url
+    lhs.url == rhs.url
   }
 
   func hash(into hasher: inout Hasher) {
-    hasher.combine(source.url)
+    hasher.combine(url)
   }
 }
 
@@ -204,16 +182,16 @@ struct ImageCollectionSidebars {
   let search = ImageCollectionSidebar()
 }
 
-struct ImageCollectionDetailImage {
+struct ImageCollectionDetailItem {
   let image: ImageCollectionItemImage
   let edge: VerticalEdge?
 }
 
-extension ImageCollectionDetailImage: Identifiable {
+extension ImageCollectionDetailItem: Identifiable {
   var id: ImageCollectionItemImage.ID { image.id }
 }
 
-extension ImageCollectionDetailImage: Equatable {}
+extension ImageCollectionDetailItem: Equatable {}
 
 @Observable
 class ImageCollection: Codable {
@@ -229,7 +207,7 @@ class ImageCollection: Codable {
 
   // The materialized state for the UI.
   var images = [ImageCollectionItemImage]()
-  var detail = [ImageCollectionDetailImage]()
+  var detail = [ImageCollectionDetailItem]()
   var sidebar: ImageCollectionSidebar { sidebars[keyPath: sidebarPage] }
 
   // Extra UI state.
@@ -484,6 +462,7 @@ class ImageCollection: Codable {
             bookmarked: root.bookmarked
           )
 
+          // We don't need to scope the whole image since the relative is already scoped.
           guard let properties = image.source.scoped({ image.resolve() }) else {
             return nil
           }
@@ -510,15 +489,14 @@ class ImageCollection: Codable {
 
   func update() {
     images = order.compactMap { items[$0]?.image }
-    detail = images.enumerated().map { pair in
-      .init(
-        image: pair.element,
-        edge: pair.offset == images.startIndex
-        ? .top
-        : pair.offset == images.endIndex - 1
-        ? .bottom
-        : nil
-      )
+    detail = images.enumerated().map { (offset, image) in
+      let edge: VerticalEdge? = switch offset {
+        case images.startIndex: .top
+        case images.endIndex - 1: .bottom
+        default: nil
+      }
+
+      return .init(image: image, edge: edge)
     }
 
     updateBookmarks()
@@ -608,5 +586,15 @@ extension ImageCollection {
 
   func persist(id: UUID) async throws {
     try self.persist(to: URL.collectionFile(for: id))
+  }
+}
+
+extension ImageCollection: Hashable {
+  static func ==(lhs: ImageCollection, rhs: ImageCollection) -> Bool {
+    lhs.order == rhs.order
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine(order)
   }
 }

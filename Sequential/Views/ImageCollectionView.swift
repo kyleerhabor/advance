@@ -70,11 +70,11 @@ struct ImageCollectionNavigationSidebarView: View {
 }
 
 struct ImageCollectionNavigationDetailView: View {
-  var images: [ImageCollectionDetailImage]
+  var images: [ImageCollectionDetailItem]
 
   var body: some View {
     ScrollViewReader { proxy in
-      ImageCollectionDetailView(images: images)
+      ImageCollectionDetailView(items: images)
         .focusedSceneValue(\.detailScroller, .init(identity: .detail) { id in
           // https://stackoverflow.com/a/72808733/14695788
           Task {

@@ -142,6 +142,23 @@ extension URL: URLScope {
   }
 }
 
+struct URLSource {
+  let url: URL
+  let options: URL.BookmarkCreationOptions
+}
+
+extension URLSource: URLScope {
+  func startSecurityScope() -> Bool {
+    options.contains(.withSecurityScope) && url.startSecurityScope()
+  }
+
+  func endSecurityScope(scope: Bool) {
+    if scope {
+      url.endSecurityScope()
+    }
+  }
+}
+
 struct URLSecurityScope {
   let url: URL
   let accessing: Bool

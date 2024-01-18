@@ -59,13 +59,13 @@ struct SettingsGeneralView: View {
 
         HStack {
           Button("None") {
-            margins.wrappedValue = max(range.lowerBound, margins.wrappedValue - 1)
+            margins.wrappedValue = max(range.lowerBound, margins.wrappedValue.dec())
           }
 
           Spacer()
 
           Button("A lot") {
-            margins.wrappedValue = min(range.upperBound, margins.wrappedValue + 1)
+            margins.wrappedValue = min(range.upperBound, margins.wrappedValue.inc())
           }
         }
         .font(.caption)

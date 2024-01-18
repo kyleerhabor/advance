@@ -122,7 +122,7 @@ struct WindowFullScreenViewModifier: ViewModifier {
     content
       .environment(\.fullScreen, fullScreen)
       .focusedSceneValue(\.fullScreen, fullScreen)
-      .onChange(of: window) {
+      .onChange(of: capture) {
         fullScreen = window?.isFullScreen() ?? FullScreenEnvironmentKey.defaultValue
       }.onReceive(NotificationCenter.default.publisher(for: NSWindow.willEnterFullScreenNotification)) { notification in
         guard isCurrentWindow(notification) else {
