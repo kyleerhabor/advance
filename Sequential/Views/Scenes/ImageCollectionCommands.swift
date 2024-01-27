@@ -11,16 +11,6 @@ import SwiftUI
 
 // MARK: - Focused value keys
 
-struct AppMenuAction<Identity>: Equatable where Identity: Equatable {
-  let menu: AppMenu<Identity>
-  let enabled: Bool
-
-  init(enabled: Bool, menu: AppMenu<Identity>) {
-    self.menu = menu
-    self.enabled = enabled
-  }
-}
-
 enum AppMenuOpen: Equatable {
   case window
 }
@@ -30,11 +20,11 @@ struct AppMenuOpenFocusedValueKey: FocusedValueKey {
 }
 
 struct AppMenuFinderFocusedValueKey: FocusedValueKey {
-  typealias Value = AppMenuAction<ImageCollectionSidebar.Selection>
+  typealias Value = AppMenuToggle<ImageCollectionSidebar.Selection>
 }
 
 struct AppMenuQuickLookFocusedValueKey: FocusedValueKey {
-  typealias Value = AppMenuAction<[URL]>
+  typealias Value = AppMenuToggle<[URL]>
 }
 
 struct AppMenuBookmarkedFocusedValueKey: FocusedValueKey {
@@ -71,6 +61,7 @@ extension FocusedValues {
 
 struct ImageCollectionCommands: Commands {
   @Environment(ImageCollectionManager.self) private var manager
+  @Environment(CopyDepot.self) private var depot
   @Environment(\.openWindow) private var openWindow
   @EnvironmentObject private var delegate: AppDelegate
   @Default(.importHiddenFiles) private var importHidden
@@ -80,7 +71,6 @@ struct ImageCollectionCommands: Commands {
   @FocusedValue(\.openFinder) private var finder
   @FocusedValue(\.sidebarQuicklook) private var quicklook
   @FocusedValue(\.jumpToCurrentImage) private var jumpToCurrentImage
-
   @FocusedValue(\.searchSidebar) private var searchSidebar
   @FocusedValue(\.liveTextIcon) private var liveTextIcon
   @FocusedValue(\.liveTextHighlight) private var liveTextHighlight
@@ -115,20 +105,22 @@ struct ImageCollectionCommands: Commands {
           openWindow(value: id)
         }
       }.keyboardShortcut(.open)
+    }
 
-      Divider()
+    CommandGroup(after: .saveItem) {
+      Section {
+        Button("Finder.Show") {
+          finder?.menu.action()
+        }
+        .keyboardShortcut(.finder)
+        .disabled(finder?.enabled != true)
 
-      Button("Finder.Show") {
-        finder?.menu.action()
+        Button("Quick Look") {
+          quicklook?.menu.action()
+        }
+        .keyboardShortcut(.quicklook)
+        .disabled(quicklook?.enabled != true)
       }
-      .keyboardShortcut(.finder)
-      .disabled(finder?.enabled != true)
-
-      Button("Quick Look", systemImage: "eye") {
-        quicklook?.menu.action()
-      }
-      .keyboardShortcut(.quicklook)
-      .disabled(quicklook?.enabled != true)
     }
 
     CommandGroup(after: .textEditing) {
@@ -205,13 +197,31 @@ struct ImageCollectionCommands: Commands {
     return panel.urls
   }
 
+  static func saving(
+    images: [ImageCollectionItemImage],
+    to destination: URL,
+    _ body: (URL) throws -> Void
+  ) throws -> Void {
+    try ImageCollectionCopyingView.saving {
+      try destination.withSecurityScope {
+        try images.forEach { image in
+          try ImageCollectionCopyingView.saving(url: image, to: destination) { url in
+            try image.withSecurityScope {
+              try body(url)
+            }
+          }
+        }
+      }
+    }
+  }
+
   func prepare(url: URL) -> ImageCollection.Kind {
     let source = URLSource(url: url, options: [.withReadOnlySecurityScope, .withoutImplicitSecurityScope])
 
     if url.isDirectory() {
       return .document(.init(
         source: source,
-        files: url.scoped {
+        files: url.withSecurityScope {
           FileManager.default
             .contents(at: url, options: .init(includingHiddenFiles: importHidden, includingSubdirectories: importSubdirectories))
             .finderSort()

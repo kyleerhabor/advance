@@ -15,11 +15,10 @@ struct ImageCollectionCopyingView: View {
   @Default(.resolveCopyingConflicts) private var resolveConflicts
 
   @Binding var isPresented: Bool
-  @Binding var error: String?
   let action: (URL) -> Void
 
   var body: some View {
-    Menu("Copy to Folder") {
+    Menu("Images.Copying.Action") {
       ForEach(depot.main) { destination in
         Button {
           action(destination.url)
@@ -28,7 +27,7 @@ struct ImageCollectionCopyingView: View {
         }
       }
     } primaryAction: {
-      isPresented.toggle()
+      isPresented = true
     }
   }
 

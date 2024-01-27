@@ -121,15 +121,12 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Reset Size"
+            "value" : "Return to Default Size"
           }
         }
       }
     },
     "Copy" : {
-
-    },
-    "Copy to Folder" : {
 
     },
     "Copying:" : {
@@ -213,13 +210,12 @@
         }
       }
     },
-    "Images.Command.Help.OpenHomepage" : {
-      "extractionState" : "stale",
+    "Images.Copying.Action" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open Homepage..."
+            "value" : "Copy to Folder"
           }
         }
       }

@@ -20,9 +20,7 @@ struct ImageCollectionSidebarView: View {
         ImageCollectionSidebarEmptyView()
           .visible(visible)
           .animation(.default, value: visible)
-          .transaction(value: visible) { transaction in
-            transaction.disablesAnimations = !visible
-          }
+          .transaction(value: visible, setter(value: !visible, on: \.disablesAnimations))
       }
   }
 }

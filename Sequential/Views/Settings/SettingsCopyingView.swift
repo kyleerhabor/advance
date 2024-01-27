@@ -90,7 +90,7 @@ struct SettingsCopyingView: View {
             case .success(let urls):
               let imports = urls.compactMap { url -> URLBookmark? in
                 do {
-                  return try url.scoped {
+                  return try url.withSecurityScope {
                     try .init(url: url, options: [.withSecurityScope, .withoutImplicitSecurityScope], relativeTo: nil)
                   }
                 } catch {
@@ -144,16 +144,16 @@ struct SettingsCopyingView: View {
       .forEach { item in
         let url = item.url
 
-        url.scoped { openFinder(at: url) }
+        url.withSecurityScope { openFinder(at: url) }
       }
   }
 
   func bookmark(items: some Sequence<CopyDepotItemTransferable>) -> [URLBookmark] {
     items.compactMap { item -> URLBookmark? in
       do {
-        return try item.scoped {
+        return try item.withSecurityScope {
           let options: URL.BookmarkCreationOptions = item.original
-          ? []
+          ? .init()
           : [.withSecurityScope, .withoutImplicitSecurityScope]
 
           return try .init(url: item.url, options: options, relativeTo: nil)

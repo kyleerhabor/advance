@@ -79,16 +79,18 @@ extension EnvironmentValues {
 
 // MARK: - Focus
 
-struct AppMenu<I> where I: Equatable {
+struct AppMenuAction<I, A> where I: Equatable {
   let identity: I
-  let action: () -> Void
+  let action: A
 }
 
-extension AppMenu: Equatable {
+extension AppMenuAction: Equatable {
   static func ==(lhs: Self, rhs: Self) -> Bool {
     lhs.identity == rhs.identity
   }
 }
+
+typealias AppMenu<I> = AppMenuAction<I, () -> Void> where I: Equatable
 
 struct AppMenuToggle<I> where I: Equatable {
   let enabled: Bool
@@ -124,16 +126,6 @@ extension FocusedValues {
     set { self[SearchSidebarFocusedValueKey.self] = newValue }
   }
 
-  var liveTextIcon: LiveTextIconFocusedValueKey.Value? {
-    get { self[LiveTextIconFocusedValueKey.self] }
-    set { self[LiveTextIconFocusedValueKey.self] = newValue }
-  }
-
-  var liveTextHighlight: LiveTextHighlightFocusedValueKey.Value? {
-    get { self[LiveTextHighlightFocusedValueKey.self] }
-    set { self[LiveTextHighlightFocusedValueKey.self] = newValue }
-  }
-
   var sidebarScroller: SidebarScrollerFocusedValueKey.Value? {
     get { self[SidebarScrollerFocusedValueKey.self] }
     set { self[SidebarScrollerFocusedValueKey.self] = newValue }
@@ -142,6 +134,16 @@ extension FocusedValues {
   var detailScroller: DetailScrollerFocusedValueKey.Value? {
     get { self[DetailScrollerFocusedValueKey.self] }
     set { self[DetailScrollerFocusedValueKey.self] = newValue }
+  }
+
+  var liveTextIcon: LiveTextIconFocusedValueKey.Value? {
+    get { self[LiveTextIconFocusedValueKey.self] }
+    set { self[LiveTextIconFocusedValueKey.self] = newValue }
+  }
+
+  var liveTextHighlight: LiveTextHighlightFocusedValueKey.Value? {
+    get { self[LiveTextHighlightFocusedValueKey.self] }
+    set { self[LiveTextHighlightFocusedValueKey.self] = newValue }
   }
 }
 

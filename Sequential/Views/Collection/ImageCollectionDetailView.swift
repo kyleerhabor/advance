@@ -118,8 +118,13 @@ struct ImageCollectionDetailItemView: View {
     VStack {
       ImageCollectionItemView(image: image) { phase in
         ImageCollectionItemPhaseView(phase: phase)
+          .aspectRatio(image.properties.sized.aspectRatio, contentMode: .fit)
           .overlay {
             if let resample = phase.success {
+              var factors: ImageCollectionItemImageAnalysis {
+                .init(url: image.url, downsample: liveTextDownsample)
+              }
+
               LiveTextView(
                 interactions: liveTextInteractions,
                 analysis: image.analysis,
@@ -127,12 +132,15 @@ struct ImageCollectionDetailItemView: View {
               )
               .supplementaryInterfaceHidden(!liveTextIcon)
               .searchEngineHidden(!liveTextSearchWith)
-              .task(id: image.url) {
-                guard image.analysis == nil else {
+              .task(id: Pair(left: liveText, right: factors)) {
+                let factors = factors
+
+                guard liveText,
+                      image.analysisFactors != factors else {
                   return
                 }
 
-                let analysis = await image.scoped {
+                let analysis = await image.withSecurityScope {
                   await analyze(
                     url: image.url,
                     orientation: image.properties.orientation,
@@ -144,12 +152,12 @@ struct ImageCollectionDetailItemView: View {
 
                 if let analysis {
                   image.analysis = analysis
+                  image.analysisFactors = factors
                 }
               }
             }
           }
       }
-      .aspectRatio(image.properties.sized.aspectRatio, contentMode: .fit)
       .anchorPreference(key: VisiblePreferenceKey.self, value: .bounds) { [.init(item: image, anchor: $0)] }
       .anchorPreference(key: ScrollOffsetPreferenceKey.self, value: .bounds) { $0 }
     }.contextMenu {
@@ -168,7 +176,7 @@ struct ImageCollectionDetailItemView: View {
           }
         }
 
-        ImageCollectionCopyingView(isPresented: $isPresentingCopyingFileImporter, error: $error) { destination in
+        ImageCollectionCopyingView(isPresented: $isPresentingCopyingFileImporter) { destination in
           Task(priority: .medium) {
             do {
               try await save(image: image, to: destination)
@@ -202,9 +210,9 @@ struct ImageCollectionDetailItemView: View {
 
   func save(image: ImageCollectionItemImage, to destination: URL) async throws {
     try ImageCollectionCopyingView.saving {
-      try destination.scoped {
+      try destination.withSecurityScope {
         try ImageCollectionCopyingView.saving(url: image, to: destination) { url in
-          try image.scoped {
+          try image.withSecurityScope {
             try ImageCollectionCopyingView.save(url: url, to: destination, resolvingConflicts: resolveConflicts)
           }
         }
@@ -430,7 +438,7 @@ struct ImageCollectionDetailVisibilityViewModifier: ViewModifier {
           }
 
           Color.clear
-            .focusedSceneValue(\.openFinder, .init(enabled: true, menu: .init(identity: [primary.id]) {
+            .focusedSceneValue(\.openFinder, .init(enabled: true, state: true, menu: .init(identity: [primary.id]) {
               openFinder(selecting: primary.url)
             }))
             .focusedSceneValue(\.jumpToCurrentImage, .init(identity: id) {

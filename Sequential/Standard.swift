@@ -169,6 +169,8 @@ struct Pair<Left, Right> {
   let right: Right
 }
 
+extension Pair: Equatable where Left: Equatable, Right: Equatable {}
+
 // MARK: - Others
 
 struct Execution<T> {

@@ -53,6 +53,13 @@ extension ImageCollectionItemRoot: Equatable {
 
 extension ImageCollectionItemRoot: Codable {}
 
+struct ImageCollectionItemImageAnalysis {
+  let url: URL
+  let downsample: Bool
+}
+
+extension ImageCollectionItemImageAnalysis: Equatable {}
+
 @Observable
 class ImageCollectionItemImage {
   let bookmark: BookmarkStoreItem.ID
@@ -64,6 +71,7 @@ class ImageCollectionItemImage {
   var bookmarked: Bool
 
   var analysis: ImageAnalysis?
+  var analysisFactors: ImageCollectionItemImageAnalysis?
   var highlighted = false
 
   init(bookmark: BookmarkStoreItem.ID, source: URLSource, relative: URLSource?, properties: ImageProperties, bookmarked: Bool) {
@@ -193,6 +201,28 @@ extension ImageCollectionDetailItem: Identifiable {
 
 extension ImageCollectionDetailItem: Equatable {}
 
+//@Observable
+//class ImageCollectionPath: Codable {
+//  typealias Items = OrderedSet<ImageCollectionItemImage.ID>
+//
+//  // The user will be scrolling through a collection, leaving us with a path they've taken. However, we don't want the
+//  // whole trail; we just care about a subset we'll call checkpoints. These checkpoints should currently count as
+//  // scrolling the main canvas via the sidebar and the current image in the main canvas. We could try recording both
+//  // the sidebar and current image paths in
+//  var items: Items
+//  var current: ImageCollectionItemImage.ID?
+//
+//  init() {
+//    self.items = .init()
+//    self.current = nil
+//  }
+//
+//  init(items: Items, current: ImageCollectionItemImage.ID?) {
+//    self.items = items
+//    self.current = current
+//  }
+//}
+
 @Observable
 class ImageCollection: Codable {
   typealias Order = OrderedSet<ImageCollectionItemRoot.ID>
@@ -214,7 +244,11 @@ class ImageCollection: Codable {
   var sidebarPage = \ImageCollectionSidebars.images
   var sidebarSearch = ""
   @ObservationIgnored var sidebars = ImageCollectionSidebars()
-  @ObservationIgnored var bookmarks = Set<ImageCollectionItemRoot.ID>()
+//  let path = ImageCollectionPath()
+
+  // ImageCollectionSidebarContentView uses this to efficiently check if a selection is bookmarked. It's not annotated
+  // as @ObservationIgnored since the contextMenu is dependent on it for its state.
+  var bookmarks = Set<ImageCollectionItemRoot.ID>()
 
   init() {
     self.store = .init()
@@ -240,7 +274,7 @@ class ImageCollection: Codable {
         group.addTask {
           switch kind {
             case .document(let document):
-              return try await document.source.scoped {
+              return try await document.source.withSecurityScope {
                 let item = try URLBookmark(
                   url: document.source.url,
                   options: document.source.options,
@@ -252,7 +286,7 @@ class ImageCollection: Codable {
 
                   files.forEach { source in
                     group.addTask {
-                      try source.scoped {
+                      try source.withSecurityScope {
                         try .init(
                           url: source.url,
                           options: source.options,
@@ -279,7 +313,7 @@ class ImageCollection: Codable {
                 return .document(.init(source: item, files: urbs))
               }
             case .file(let source):
-              let item = try source.scoped {
+              let item = try source.withSecurityScope {
                 try URLBookmark(url: source.url, options: source.options, relativeTo: nil)
               }
 
@@ -463,7 +497,7 @@ class ImageCollection: Codable {
           )
 
           // We don't need to scope the whole image since the relative is already scoped.
-          guard let properties = image.source.scoped({ image.resolve() }) else {
+          guard let properties = image.source.withSecurityScope({ image.resolve() }) else {
             return nil
           }
 

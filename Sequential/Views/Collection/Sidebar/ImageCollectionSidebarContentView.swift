@@ -189,8 +189,6 @@ struct ImageCollectionSidebarContentView: View {
     }
   }
 
-  
-
   var body: some View {
     ScrollViewReader { proxy in
       List(selection: selected) {
@@ -202,11 +200,27 @@ struct ImageCollectionSidebarContentView: View {
         }.onMove { from, to in
           collection.order.elements.move(fromOffsets: from, toOffset: to)
           collection.update()
+
+          Task(priority: .medium) {
+            do {
+              try await collection.persist(id: id)
+            } catch {
+              Logger.model.error("Could not persist image collection \"\(id)\" (via sidebar image move): \(error)")
+            }
+          }
         }
         // This adds a "Delete" menu item under Edit.
         .onDelete { offsets in
           collection.order.elements.remove(atOffsets: offsets)
           collection.update()
+
+          Task(priority: .medium) {
+            do {
+              try await collection.persist(id: id)
+            } catch {
+              Logger.model.error("Could not persist image collection \"\(id)\" (via menu bar delete): \(error)")
+            }
+          }
         }
       }.backgroundPreferenceValue(VisiblePreferenceKey<ImageCollectionItemImage.ID>.self) { items in
         GeometryReader { proxy in
@@ -222,6 +236,14 @@ struct ImageCollectionSidebarContentView: View {
       }.onDeleteCommand {
         collection.order.subtract(sidebar.selection)
         collection.update()
+
+        Task(priority: .medium) {
+          do {
+            try await collection.persist(id: id)
+          } catch {
+            Logger.model.error("Could not persist image collection \"\(id)\" (via delete key): \(error)")
+          }
+        }
       }.onChange(of: collection.sidebarPage) {
         guard let id = sidebar.current else {
           return
@@ -282,10 +304,10 @@ struct ImageCollectionSidebarContentView: View {
           selectedCopyFiles = ids
         }
 
-        ImageCollectionCopyingView(isPresented: isPresented, error: $error) { destination in
+        ImageCollectionCopyingView(isPresented: isPresented) { destination in
           Task(priority: .medium) {
             do {
-              try await save(images: images(from: ids), to: destination)
+              try await copy(images: images(from: ids), to: destination)
             } catch {
               self.error = error.localizedDescription
             }
@@ -301,7 +323,7 @@ struct ImageCollectionSidebarContentView: View {
         case .success(let url):
           Task(priority: .medium) {
             do {
-              try await save(images: images(from: selectedCopyFiles), to: url)
+              try await copy(images: images(from: selectedCopyFiles), to: url)
             } catch {
               self.error = error.localizedDescription
             }
@@ -312,10 +334,10 @@ struct ImageCollectionSidebarContentView: View {
     }
     .fileDialogCopy()
     .alert(self.error ?? "", isPresented: isPresentingErrorAlert) {}
-    .focusedValue(\.openFinder, .init(enabled: !sidebar.selection.isEmpty, menu: .init(identity: sidebar.selection) {
+    .focusedValue(\.openFinder, .init(enabled: !sidebar.selection.isEmpty, state: true, menu: .init(identity: sidebar.selection) {
       openFinder(selecting: urls(from: sidebar.selection))
     }))
-    .focusedValue(\.sidebarQuicklook, .init(enabled: !sidebar.selection.isEmpty, menu: .init(identity: quickLookItems) {
+    .focusedValue(\.sidebarQuicklook, .init(enabled: !sidebar.selection.isEmpty, state: true, menu: .init(identity: quickLookItems) {
       guard selectedQuickLookItem == nil else {
         selectedQuickLookItem = nil
 
@@ -379,12 +401,12 @@ struct ImageCollectionSidebarContentView: View {
     }
   }
 
-  func save(images: [ImageCollectionItemImage], to destination: URL) async throws {
+  func copy(images: [ImageCollectionItemImage], to destination: URL) async throws {
     try ImageCollectionCopyingView.saving {
-      try destination.scoped {
+      try destination.withSecurityScope {
         try images.forEach { image in
           try ImageCollectionCopyingView.saving(url: image, to: destination) { url in
-            try image.scoped {
+            try image.withSecurityScope {
               try ImageCollectionCopyingView.save(url: url, to: destination, resolvingConflicts: resolveCopyingConflicts)
             }
           }

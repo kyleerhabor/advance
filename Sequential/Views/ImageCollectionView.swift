@@ -101,14 +101,14 @@ struct ImageCollectionView: View {
   @SceneStorage("sidebar") private var columns = NavigationSplitViewVisibility.all
   @FocusedValue(\.sidebarScroller) private var sidebarScroller
   @FocusedValue(\.detailScroller) private var detailScroller
-  @State private var visible = true
+  @State private var isVisible = true
   private var window: NSWindow? { capture.window }
   private var isDetailOnly: Bool { columns == .detailOnly }
 
   private let scrollSubject = PassthroughSubject<CGPoint, Never>()
   private let cursorSubject = PassthroughSubject<Void, Never>()
-  private let toolbarSubject = PassthroughSubject<Bool, Never>()
-  private let toolbarPublisher: AnyPublisher<Bool, Never>
+  private let visibleSubject = PassthroughSubject<Bool, Never>()
+  private let visiblePublisher: AnyPublisher<Bool, Never>
 
   var body: some View {
     NavigationSplitView(columnVisibility: $columns) {
@@ -139,8 +139,8 @@ struct ImageCollectionView: View {
       }
     }
     .toolbar(fullScreen ? .hidden : .automatic)
-    .toolbarHidden(hideToolbar && !fullScreen && !visible)
-    .cursorHidden(hideCursor && !visible)
+    .toolbarHidden(hideToolbar && !fullScreen && !isVisible)
+    .cursorHidden(hideCursor && !isVisible)
     .environment(collection.sidebar)
     .environment(\.navigationColumns, $columns)
     // Yes, the code listed below is dumb.
@@ -152,14 +152,14 @@ struct ImageCollectionView: View {
 
       switch phase {
         case .active: cursorSubject.send()
-        case .ended: visible = true
+        case .ended: isVisible = true
       }
     }.onChange(of: columns) {
-      toolbarSubject.send(true)
+      visibleSubject.send(true)
     }.onChange(of: trackingMenu) {
-      toolbarSubject.send(true)
-    }.onReceive(toolbarPublisher) { visible in
-      self.visible = visible
+      visibleSubject.send(true)
+    }.onReceive(visiblePublisher) { isVisible in
+      self.isVisible = isVisible
     }
   }
 
@@ -179,10 +179,10 @@ struct ImageCollectionView: View {
         origins.dropFirst().allSatisfy { $0.x == origins.first?.x }
       }.map { _ in false }
 
-    self.toolbarPublisher = scroller
+    self.visiblePublisher = scroller
       .map { _ in cursor }
       .switchToLatest()
-      .merge(with: toolbarSubject)
+      .merge(with: visibleSubject)
       .removeDuplicates()
       .eraseToAnyPublisher()
   }

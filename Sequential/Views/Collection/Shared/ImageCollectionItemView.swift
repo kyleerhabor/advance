@@ -110,7 +110,7 @@ struct ImageCollectionItemView<Scope, Content>: View where Scope: URLScope, Cont
   }
 
   static func resample(image: Scope, to size: CGSize) async throws -> Image {
-    try image.scoped { try resample(imageAt: image.url, to: size) }
+    try image.withSecurityScope { try resample(imageAt: image.url, to: size) }
   }
 }
 

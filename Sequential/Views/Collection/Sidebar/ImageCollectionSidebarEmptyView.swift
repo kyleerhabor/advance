@@ -84,6 +84,9 @@ struct ImageCollectionSidebarEmptyView: View {
     .overlay {
       if visible {
         Color.clear
+          .focusedSceneValue(\.openFileImporter, .init(identity: .window) {
+            isPresentingFileImporter.toggle()
+          })
           .dropDestination(for: ImageTransferable.self) { items, offset in
             Task {
               let state = await resolve(items: items, in: collection.store)
@@ -110,9 +113,7 @@ struct ImageCollectionSidebarEmptyView: View {
             }
 
             return true
-          }.focusedSceneValue(\.openFileImporter, .init(identity: .window) {
-            isPresentingFileImporter.toggle()
-          })
+          }
       }
     }
   }
@@ -123,7 +124,7 @@ struct ImageCollectionSidebarEmptyView: View {
     if url.isDirectory() {
       return .document(.init(
         source: source,
-        files: url.scoped {
+        files: url.withSecurityScope {
           FileManager.default
             .contents(at: url, options: .init(includingHiddenFiles: importHidden, includingSubdirectories: importSubdirectories))
             .finderSort()
@@ -145,7 +146,7 @@ struct ImageCollectionSidebarEmptyView: View {
     if item.type == .folder {
       return .document(.init(
         source: source,
-        files: url.scoped {
+        files: url.withSecurityScope {
           FileManager.default
             .contents(at: url, options: .init(includingHiddenFiles: importHidden, includingSubdirectories: importSubdirectories))
             .finderSort()

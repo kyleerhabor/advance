@@ -32,7 +32,7 @@ struct BookmarkStoreItem {
       options: .init(options).union(.withoutMounting),
       relativeTo: relative
     ) { url in
-      try url.scoped {
+      try url.withSecurityScope {
         try url.bookmark(options: options, relativeTo: relative)
       }
     }

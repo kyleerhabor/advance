@@ -29,30 +29,6 @@ extension URL {
     Logger.sandbox.debug("Ended security scope for URL \"\(self.string)\"")
   }
 
-  func scoped<T>(_ body: () throws -> T) rethrows -> T {
-    let accessing = startSecurityScope()
-
-    defer {
-      if accessing {
-        endSecurityScope()
-      }
-    }
-
-    return try body()
-  }
-
-  func scoped<T>(_ body: () async throws -> T) async rethrows -> T {
-    let accessing = startSecurityScope()
-
-    defer {
-      if accessing {
-        endSecurityScope()
-      }
-    }
-
-    return try await body()
-  }
-
   func bookmark(options: BookmarkCreationOptions, relativeTo relative: URL?) throws -> Data {
     try self.bookmarkData(options: options, includingResourceValuesForKeys: [], relativeTo: relative)
   }
@@ -88,13 +64,13 @@ protocol SecurityScope {
 
   func endSecurityScope(scope: Scope)
 
-  func scoped<T>(_ body: () throws -> T) rethrows -> T
+  func withSecurityScope<T>(_ body: () throws -> T) rethrows -> T
 
-  func scoped<T>(_ body: () async throws -> T) async rethrows -> T
+  func withSecurityScope<T>(_ body: () async throws -> T) async rethrows -> T
 }
 
 extension SecurityScope {
-  func scoped<T>(_ body: () throws -> T) rethrows -> T {
+  func withSecurityScope<T>(_ body: () throws -> T) rethrows -> T {
     let scope = startSecurityScope()
 
     defer { endSecurityScope(scope: scope) }
@@ -102,7 +78,7 @@ extension SecurityScope {
     return try body()
   }
 
-  func scoped<T>(_ body: () async throws -> T) async rethrows -> T {
+  func withSecurityScope<T>(_ body: () async throws -> T) async rethrows -> T {
     let scope = startSecurityScope()
 
     defer { endSecurityScope(scope: scope) }
