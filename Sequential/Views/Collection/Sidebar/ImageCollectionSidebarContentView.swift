@@ -170,13 +170,27 @@ struct ImageCollectionSidebarContentView: View {
     .init {
       sidebar.selection
     } set: { selection in
-      let id = images(from: selection.subtracting(sidebar.selection)).last?.id
-
-      if let id {
-        detailScroller.scroll(id)
+      defer {
+        sidebar.selection = selection
       }
 
-      sidebar.selection = selection
+      let id = images(from: selection.subtracting(sidebar.selection)).last?.id
+
+      collection.path.item = id
+
+      guard let id else {
+        return
+      }
+
+      collection.path.items.appended(id)
+
+      let urls = collection.path.items
+        .compactMap { collection.items[$0]?.image }
+        .map { ($0.id, $0.url) }
+
+      collection.path.update(urls: .init(uniqueKeysWithValues: urls))
+
+      detailScroller.scroll(id)
     }
   }
   private var isPresentingErrorAlert: Binding<Bool> {
@@ -334,9 +348,9 @@ struct ImageCollectionSidebarContentView: View {
     }
     .fileDialogCopy()
     .alert(self.error ?? "", isPresented: isPresentingErrorAlert) {}
-    .focusedValue(\.openFinder, .init(enabled: !sidebar.selection.isEmpty, state: true, menu: .init(identity: sidebar.selection) {
+    .focusedValue(\.showFinder, .init(identity: sidebar.selection, enabled: !sidebar.selection.isEmpty) {
       openFinder(selecting: urls(from: sidebar.selection))
-    }))
+    })
     .focusedValue(\.sidebarQuicklook, .init(enabled: !sidebar.selection.isEmpty, state: true, menu: .init(identity: quickLookItems) {
       guard selectedQuickLookItem == nil else {
         selectedQuickLookItem = nil

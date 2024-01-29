@@ -59,20 +59,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
   }
 }
 
-func openFinder(selecting url: URL) {
-  openFinder(selecting: [url])
-}
-
 func openFinder(selecting urls: [URL]) {
   NSWorkspace.shared.activateFileViewerSelecting(urls)
 }
 
-func openFinder(in url: URL) -> Bool {
+func openFinder(selecting url: URL) {
+  openFinder(selecting: [url])
+}
+
+func openFinder(at url: URL) -> Bool {
   NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: url.string)
 }
 
-func openFinder(at url: URL) {
-  if !openFinder(in: url) {
+func openFinder(for url: URL) {
+  if !openFinder(at: url) {
     Logger.ui.info("Failed to open Finder in directory \"\(url.string)\"; defaulting to selection...")
 
     openFinder(selecting: url)

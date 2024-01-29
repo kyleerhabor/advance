@@ -60,7 +60,7 @@ struct SettingsCopyingView: View {
     .animation(.default, value: resolutions)
     .contextMenu(forSelectionType: CopyDepotItemDestination.ID.self) { ids in
       Section {
-        Button("Open in Finder") {
+        Button("Finder.Open") {
           open(selection: ids)
         }
       }
@@ -122,18 +122,12 @@ struct SettingsCopyingView: View {
       depot.update()
 
       return true
-    }.onDeleteCommand {
+    }.focusedValue(\.openFinder, .init(identity: selection, enabled: !selection.isEmpty) {
+      open(selection: selection)
+    })
+    .onDeleteCommand {
       delete(selection: selection)
       depot.update()
-    }.onKeyPress(.return, phases: .down) { press in
-      guard press.modifiers == .command,
-            !selection.isEmpty else {
-        return .ignored
-      }
-
-      open(selection: selection)
-
-      return .handled
     }
   }
 
@@ -144,7 +138,7 @@ struct SettingsCopyingView: View {
       .forEach { item in
         let url = item.url
 
-        url.withSecurityScope { openFinder(at: url) }
+        url.withSecurityScope { openFinder(for: url) }
       }
   }
 

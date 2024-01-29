@@ -438,9 +438,9 @@ struct ImageCollectionDetailVisibilityViewModifier: ViewModifier {
           }
 
           Color.clear
-            .focusedSceneValue(\.openFinder, .init(enabled: true, state: true, menu: .init(identity: [primary.id]) {
+            .focusedSceneValue(\.showFinder, .init(identity: [primary.id], enabled: true) {
               openFinder(selecting: primary.url)
-            }))
+            })
             .focusedSceneValue(\.jumpToCurrentImage, .init(identity: id) {
               sidebarScroller.scroll(.init(id: id) {
                 sidebar.selection = [id]

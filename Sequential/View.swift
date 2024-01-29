@@ -40,7 +40,6 @@ extension Color {
 
 extension KeyboardShortcut {
   static let open = Self("o")
-  static let finder = Self("r")
   static let quicklook = Self("y")
   static let fullScreen = Self("f", modifiers: [.command, .control])
 }
@@ -110,7 +109,7 @@ extension FileManager {
 extension FileManager.DirectoryEnumerationOptions {
   init(includingHiddenFiles hidden: Bool, includingSubdirectories subdirectories: Bool) {
     // Packages are directories presented as files in Finder (e.g. an app). Generally, there is no reason to descend
-    // into them, as their structures are usually unique and meant for installers.
+    // into them, as their structures are usually distinct.
     self = .skipsPackageDescendants
 
     if !hidden {

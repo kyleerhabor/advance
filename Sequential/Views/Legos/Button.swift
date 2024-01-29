@@ -43,3 +43,23 @@ struct PopoverButtonView<Label, Content>: View where Label: View, Content: View 
     self.edge = edge
   }
 }
+
+struct MenuItemButton<I, Label>: View where I: Equatable, Label: View {
+  typealias Item = AppMenuItem<I>
+
+  private let item: Item
+  private let label: Label
+
+  var body: some View {
+    Button {
+      item()
+    } label: {
+      label
+    }.disabled(!item.enabled)
+  }
+
+  init(item: Item, @ViewBuilder label: () -> Label) {
+    self.item = item
+    self.label = label()
+  }
+}

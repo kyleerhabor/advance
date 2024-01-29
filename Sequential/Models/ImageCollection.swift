@@ -201,27 +201,68 @@ extension ImageCollectionDetailItem: Identifiable {
 
 extension ImageCollectionDetailItem: Equatable {}
 
-//@Observable
-//class ImageCollectionPath: Codable {
-//  typealias Items = OrderedSet<ImageCollectionItemImage.ID>
-//
-//  // The user will be scrolling through a collection, leaving us with a path they've taken. However, we don't want the
-//  // whole trail; we just care about a subset we'll call checkpoints. These checkpoints should currently count as
-//  // scrolling the main canvas via the sidebar and the current image in the main canvas. We could try recording both
-//  // the sidebar and current image paths in
-//  var items: Items
-//  var current: ImageCollectionItemImage.ID?
-//
-//  init() {
-//    self.items = .init()
-//    self.current = nil
-//  }
-//
-//  init(items: Items, current: ImageCollectionItemImage.ID?) {
-//    self.items = items
-//    self.current = current
-//  }
-//}
+struct ImageCollectionPathItem {
+  let id: ImageCollectionItemImage.ID
+  let url: URL
+}
+
+extension ImageCollectionPathItem: Identifiable {}
+
+@Observable
+class ImageCollectionPath: Codable {
+  typealias Items = OrderedSet<ImageCollectionItemImage.ID>
+
+  var items: Items
+  var item: ImageCollectionItemImage.ID?
+
+  var back = [ImageCollectionPathItem]()
+  var forward = [ImageCollectionPathItem]()
+
+  init() {
+    self.items = .init()
+  }
+
+  init(items: Items) {
+    self.items = items
+  }
+
+  func update(urls: [ImageCollectionItemImage.ID: URL]) {
+    let index = item.flatMap { items.firstIndex(of: $0) } ?? items.endIndex
+    let before = items[..<index]
+    let after = items[(index + 1)...]
+
+    back = before.compactMap { id in
+      guard let url = urls[id] else {
+        return nil
+      }
+
+      return .init(id: id, url: url)
+    }
+
+    forward = after.compactMap { id in
+      guard let url = urls[id] else {
+        return nil
+      }
+
+      return .init(id: id, url: url)
+    }
+  }
+
+  // MARK: - Codable conformance
+
+  required init(from decoder: any Decoder) throws {
+    let container = try decoder.singleValueContainer()
+
+    self.items = try container.decode(Items.self)
+    self.item = items.last
+  }
+
+  func encode(to encoder: any Encoder) throws {
+    var container = encoder.singleValueContainer()
+
+    try container.encode(items)
+  }
+}
 
 @Observable
 class ImageCollection: Codable {
@@ -244,7 +285,7 @@ class ImageCollection: Codable {
   var sidebarPage = \ImageCollectionSidebars.images
   var sidebarSearch = ""
   @ObservationIgnored var sidebars = ImageCollectionSidebars()
-//  let path = ImageCollectionPath()
+  let path = ImageCollectionPath()
 
   // ImageCollectionSidebarContentView uses this to efficiently check if a selection is bookmarked. It's not annotated
   // as @ObservationIgnored since the contextMenu is dependent on it for its state.

@@ -31,6 +31,9 @@
     "Appearance:" : {
 
     },
+    "Back" : {
+
+    },
     "Bookmark" : {
 
     },
@@ -159,6 +162,16 @@
     "Files:" : {
 
     },
+    "Finder.Open" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open in Finder"
+          }
+        }
+      }
+    },
     "Finder.Show" : {
       "localizations" : {
         "en" : {
@@ -170,6 +183,9 @@
       }
     },
     "Folders:" : {
+
+    },
+    "Forward" : {
 
     },
     "General" : {
@@ -210,12 +226,52 @@
         }
       }
     },
+    "Images.Command.Navigation.Back" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Go Back"
+          }
+        }
+      }
+    },
+    "Images.Command.Navigation.Forward" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Go Forward"
+          }
+        }
+      }
+    },
     "Images.Copying.Action" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Copy to Folder"
+          }
+        }
+      }
+    },
+    "Images.Navigation.Back.Help" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show the previous image"
+          }
+        }
+      }
+    },
+    "Images.Navigation.Forward.Help" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show the next image"
           }
         }
       }
@@ -241,13 +297,13 @@
     "Margins:" : {
 
     },
+    "Navigate" : {
+
+    },
     "None" : {
 
     },
     "Only relevant when the sidebar is not open." : {
-
-    },
-    "Open in Finder" : {
 
     },
     "Open..." : {

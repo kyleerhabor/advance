@@ -55,6 +55,14 @@ struct DetailScrollerFocusedValueKey: FocusedValueKey {
   typealias Value = Scroller<ScrollerIdentity, ImageCollectionItemImage.ID>
 }
 
+struct SidebarScrollerEnvironmentKey: EnvironmentKey {
+  static var defaultValue = SidebarScrollerFocusedValueKey.Value(identity: .sidebar, scroll: noop)
+}
+
+struct DetailScrollerEnvironmentKey: EnvironmentKey {
+  static var defaultValue = DetailScrollerFocusedValueKey.Value(identity: .detail, scroll: noop)
+}
+
 extension EnvironmentValues {
   var loaded: LoadedEnvironmentKey.Value {
     get { self[LoadedEnvironmentKey.self] }
@@ -78,6 +86,42 @@ extension EnvironmentValues {
 }
 
 // MARK: - Focus
+
+struct AppMenuItem<I> where I: Equatable {
+  typealias Action = () -> Void
+
+  let identity: I
+  let enabled: Bool
+  let action: Action
+
+  func callAsFunction() {
+    action()
+  }
+}
+
+extension AppMenuItem: Equatable {
+  static func ==(lhs: AppMenuItem<I>, rhs: AppMenuItem<I>) -> Bool {
+    lhs.identity == rhs.identity && lhs.enabled == rhs.enabled
+  }
+}
+
+struct ShowFinderFocusedValueKey: FocusedValueKey {
+  typealias Value = AppMenuItem<ImageCollectionSidebar.Selection>
+}
+
+struct OpenFinderFocusedValueKey: FocusedValueKey {
+  typealias Value = AppMenuItem<SettingsCopyingView.Selection>
+}
+
+struct BackFocusedValueKey: FocusedValueKey {
+  typealias Value = AppMenuItem<ImageCollectionItemImage.ID?>
+}
+
+struct ForwardFocusedValueKey: FocusedValueKey {
+  typealias Value = AppMenuItem<ImageCollectionItemImage.ID?>
+}
+
+// MARK: - Focus (legacy)
 
 struct AppMenuAction<I, A> where I: Equatable {
   let identity: I
@@ -112,15 +156,29 @@ struct LiveTextHighlightFocusedValueKey: FocusedValueKey {
   typealias Value = AppMenuToggle<[ImageCollectionItemImage]>
 }
 
-struct SidebarScrollerEnvironmentKey: EnvironmentKey {
-  static var defaultValue = SidebarScrollerFocusedValueKey.Value(identity: .sidebar, scroll: noop)
-}
-
-struct DetailScrollerEnvironmentKey: EnvironmentKey {
-  static var defaultValue = DetailScrollerFocusedValueKey.Value(identity: .detail, scroll: noop)
-}
+// MARK: - Focus (continued)
 
 extension FocusedValues {
+  var showFinder: ShowFinderFocusedValueKey.Value? {
+    get { self[ShowFinderFocusedValueKey.self] }
+    set { self[ShowFinderFocusedValueKey.self] = newValue }
+  }
+
+  var openFinder: OpenFinderFocusedValueKey.Value? {
+    get { self[OpenFinderFocusedValueKey.self] }
+    set { self[OpenFinderFocusedValueKey.self] = newValue }
+  }
+
+  var back: BackFocusedValueKey.Value? {
+    get { self[BackFocusedValueKey.self] }
+    set { self[BackFocusedValueKey.self] = newValue }
+  }
+
+  var forward: ForwardFocusedValueKey.Value? {
+    get { self[ForwardFocusedValueKey.self] }
+    set { self[ForwardFocusedValueKey.self] = newValue }
+  }
+
   var searchSidebar: SearchSidebarFocusedValueKey.Value? {
     get { self[SearchSidebarFocusedValueKey.self] }
     set { self[SearchSidebarFocusedValueKey.self] = newValue }
@@ -149,6 +207,12 @@ extension FocusedValues {
 
 // MARK: - Keyboard Shortcuts
 extension KeyboardShortcut {
+  static let showFinder = Self("r", modifiers: .command)
+  static let openFinder = Self("r", modifiers: [.command, .option])
+
+  static let back = Self("[", modifiers: .command)
+  static let forward = Self("]", modifiers: .command)
+
   static let searchSidebar = Self("f", modifiers: .command)
   static let jumpToCurrentImage = Self("l", modifiers: .command)
 

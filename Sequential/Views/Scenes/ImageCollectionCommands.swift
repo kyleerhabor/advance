@@ -19,10 +19,6 @@ struct AppMenuOpenFocusedValueKey: FocusedValueKey {
   typealias Value = AppMenu<AppMenuOpen>
 }
 
-struct AppMenuFinderFocusedValueKey: FocusedValueKey {
-  typealias Value = AppMenuToggle<ImageCollectionSidebar.Selection>
-}
-
 struct AppMenuQuickLookFocusedValueKey: FocusedValueKey {
   typealias Value = AppMenuToggle<[URL]>
 }
@@ -39,11 +35,6 @@ extension FocusedValues {
   var openFileImporter: AppMenuOpenFocusedValueKey.Value? {
     get { self[AppMenuOpenFocusedValueKey.self] }
     set { self[AppMenuOpenFocusedValueKey.self] = newValue }
-  }
-
-  var openFinder: AppMenuFinderFocusedValueKey.Value? {
-    get { self[AppMenuFinderFocusedValueKey.self] }
-    set { self[AppMenuFinderFocusedValueKey.self] = newValue }
   }
 
   var sidebarQuicklook: AppMenuQuickLookFocusedValueKey.Value? {
@@ -67,8 +58,11 @@ struct ImageCollectionCommands: Commands {
   @Default(.importHiddenFiles) private var importHidden
   @Default(.importSubdirectories) private var importSubdirectories
   @FocusedValue(\.window) private var win
+  @FocusedValue(\.back) private var back
+  @FocusedValue(\.forward) private var forward
   @FocusedValue(\.openFileImporter) private var openFileImporter
-  @FocusedValue(\.openFinder) private var finder
+  @FocusedValue(\.showFinder) private var showFinder
+  @FocusedValue(\.openFinder) private var openFinder
   @FocusedValue(\.sidebarQuicklook) private var quicklook
   @FocusedValue(\.jumpToCurrentImage) private var jumpToCurrentImage
   @FocusedValue(\.searchSidebar) private var searchSidebar
@@ -109,17 +103,21 @@ struct ImageCollectionCommands: Commands {
 
     CommandGroup(after: .saveItem) {
       Section {
-        Button("Finder.Show") {
-          finder?.menu.action()
-        }
-        .keyboardShortcut(.finder)
-        .disabled(finder?.enabled != true)
+        MenuItemButton(item: showFinder ?? .init(identity: [], enabled: false, action: noop)) {
+          Text("Finder.Show")
+        }.keyboardShortcut(.showFinder)
 
         Button("Quick Look") {
           quicklook?.menu.action()
         }
         .keyboardShortcut(.quicklook)
         .disabled(quicklook?.enabled != true)
+      }
+
+      Section {
+        MenuItemButton(item: openFinder ?? .init(identity: [], enabled: false, action: noop)) {
+          Text("Finder.Open")
+        }.keyboardShortcut(.openFinder)
       }
     }
 
@@ -153,6 +151,16 @@ struct ImageCollectionCommands: Commands {
         }
         .disabled(liveTextHighlight?.enabled != true)
         .keyboardShortcut(.liveTextHighlight)
+      }
+
+      Section {
+        MenuItemButton(item: back ?? .init(identity: nil, enabled: false, action: noop)) {
+          Text("Images.Command.Navigation.Back")
+        }.keyboardShortcut(.back)
+
+        MenuItemButton(item: forward ?? .init(identity: nil, enabled: false, action: noop)) {
+          Text("Images.Command.Navigation.Forward")
+        }.keyboardShortcut(.forward)
       }
     }
 

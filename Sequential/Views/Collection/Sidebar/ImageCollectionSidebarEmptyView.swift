@@ -63,8 +63,7 @@ struct ImageCollectionSidebarEmptyView: View {
 
             let ids = items.map(\.root.bookmark)
 
-            collection.order.subtract(ids)
-            collection.order.append(contentsOf: ids)
+            collection.order.appended(ids)
             collection.update()
 
             Task(priority: .medium) {

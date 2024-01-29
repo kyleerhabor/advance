@@ -69,22 +69,103 @@ struct ImageCollectionNavigationSidebarView: View {
   }
 }
 
+struct ImageCollectionNavigationDetailItemView<Label>: View where Label: View {
+  typealias Action = (ImageCollectionItemImage.ID?) -> Void
+
+  private let items: [ImageCollectionPathItem]
+  private let action: Action
+  private let label: Label
+
+  var body: some View {
+    Menu {
+      ForEach(items) { item in
+        Button(item.url.lastPath) {
+          action(item.id)
+        }
+      }
+    } label: {
+      label
+    } primaryAction: {
+      action(items.first?.id)
+    }.disabled(items.isEmpty)
+  }
+
+  init(items: [ImageCollectionPathItem], action: @escaping Action, @ViewBuilder label: () -> Label) {
+    self.action = action
+    self.items = items
+    self.label = label()
+  }
+}
+
 struct ImageCollectionNavigationDetailView: View {
-  var images: [ImageCollectionDetailItem]
+  @Environment(ImageCollection.self) private var collection
 
   var body: some View {
     ScrollViewReader { proxy in
-      ImageCollectionDetailView(items: images)
-        .focusedSceneValue(\.detailScroller, .init(identity: .detail) { id in
-          // https://stackoverflow.com/a/72808733/14695788
-          Task {
-            // TODO: Figure out how to change the animation (the parameter is currently ignored)
-            withAnimation {
-              proxy.scrollTo(id, anchor: .top)
-            }
+      var back: ImageCollectionItemImage.ID? { collection.path.back.last?.id }
+      var forward: ImageCollectionItemImage.ID? { collection.path.forward.first?.id }
+
+      ImageCollectionDetailView(items: collection.detail)
+        .toolbar(id: "Navigation") {
+          ToolbarItem(id: "Navigation", placement: .navigation) {
+            // For some reason, the title is not used in the customize toolbar modal.
+            ControlGroup("Navigate") {
+              ImageCollectionNavigationDetailItemView(items: collection.path.back.reversed()) { id in
+                navigate(proxy: proxy, to: id)
+              } label: {
+                Label("Back", systemImage: "chevron.backward")
+              }.help("Images.Navigation.Back.Help")
+
+              ImageCollectionNavigationDetailItemView(items: collection.path.forward) { id in
+                navigate(proxy: proxy, to: id)
+              } label: {
+                Label("Forward", systemImage: "chevron.forward")
+              }.help("Images.Navigation.Forward.Help")
+            }.controlGroupStyle(.navigation)
           }
+        }
+        .focusedSceneValue(\.detailScroller, .init(identity: .detail) { id in
+          scroll(proxy: proxy, to: id)
+        })
+        .focusedSceneValue(\.back, .init(identity: back, enabled: back != nil) {
+          navigate(proxy: proxy, to: back)
+        })
+        .focusedSceneValue(\.forward, .init(identity: forward, enabled: forward != nil) {
+          navigate(proxy: proxy, to: forward)
         })
     }
+  }
+
+  func navigate(id: ImageCollectionItemImage.ID?) {
+    collection.path.item = id
+
+    let urls = collection.path.items
+      .compactMap { collection.items[$0]?.image }
+      .map { ($0.id, $0.url) }
+
+    collection.path.update(urls: .init(uniqueKeysWithValues: urls))
+  }
+
+  @MainActor
+  func scroll(proxy: ScrollViewProxy, to id: ImageCollectionItemImage.ID) {
+    // https://stackoverflow.com/a/72808733/14695788
+    Task {
+      // TODO: Figure out how to change the animation (the parameter is currently ignored)
+      withAnimation {
+        proxy.scrollTo(id, anchor: .top)
+      }
+    }
+  }
+
+  @MainActor
+  func navigate(proxy: ScrollViewProxy, to id: ImageCollectionItemImage.ID?) {
+    navigate(id: id)
+
+    guard let id else {
+      return
+    }
+
+    scroll(proxy: proxy, to: id)
   }
 }
 
@@ -101,14 +182,16 @@ struct ImageCollectionView: View {
   @SceneStorage("sidebar") private var columns = NavigationSplitViewVisibility.all
   @FocusedValue(\.sidebarScroller) private var sidebarScroller
   @FocusedValue(\.detailScroller) private var detailScroller
-  @State private var isVisible = true
+  @State private var isHovering = false
+  @State private var isScrolling = false
+  private var isVisible: Bool { !(isHovering && isScrolling) }
   private var window: NSWindow? { capture.window }
   private var isDetailOnly: Bool { columns == .detailOnly }
 
-  private let scrollSubject = PassthroughSubject<CGPoint, Never>()
   private let cursorSubject = PassthroughSubject<Void, Never>()
-  private let visibleSubject = PassthroughSubject<Bool, Never>()
-  private let visiblePublisher: AnyPublisher<Bool, Never>
+  private let scrollSubject = PassthroughSubject<CGPoint, Never>()
+  private let scrollingSubject = PassthroughSubject<Bool, Never>()
+  private let scrollingPublisher: AnyPublisher<Bool, Never>
 
   var body: some View {
     NavigationSplitView(columnVisibility: $columns) {
@@ -120,10 +203,27 @@ struct ImageCollectionView: View {
         .navigationSplitViewColumnWidth(min: 128, ideal: 192, max: 256)
         .environment(\.detailScroller, detailScroller ?? .init(identity: .unknown, scroll: noop))
     } detail: {
-      ImageCollectionNavigationDetailView(images: collection.detail)
+      ImageCollectionNavigationDetailView()
         .scrollIndicators(hideScroll && isDetailOnly ? .hidden : .automatic)
         .frame(minWidth: 256)
         .environment(\.sidebarScroller, sidebarScroller ?? .init(identity: .unknown, scroll: noop))
+        .onContinuousHover { phase in
+          guard let window,
+                !window.inLiveResize  else {
+            return
+          }
+
+          switch phase {
+            case .active:
+              isHovering = true
+
+              cursorSubject.send()
+            case .ended:
+              isHovering = false
+
+              scrollingSubject.send(false)
+          }
+        }
     }.backgroundPreferenceValue(ScrollOffsetPreferenceKey.self) { anchor in
       GeometryReader { proxy in
         let origin = anchor.map { proxy[$0].origin }
@@ -144,29 +244,19 @@ struct ImageCollectionView: View {
     .environment(collection.sidebar)
     .environment(\.navigationColumns, $columns)
     // Yes, the code listed below is dumb.
-    .onContinuousHover { phase in
-      guard let window,
-            !window.inLiveResize  else {
-        return
-      }
-
-      switch phase {
-        case .active: cursorSubject.send()
-        case .ended: isVisible = true
-      }
-    }.onChange(of: columns) {
-      visibleSubject.send(true)
+    .onChange(of: columns) {
+      scrollingSubject.send(false)
     }.onChange(of: trackingMenu) {
-      visibleSubject.send(true)
-    }.onReceive(visiblePublisher) { isVisible in
-      self.isVisible = isVisible
+      scrollingSubject.send(false)
+    }.onReceive(scrollingPublisher) { isScrolling in
+      self.isScrolling = isScrolling
     }
   }
 
   init() {
     let cursor = cursorSubject
-      .map { _ in true }
-      .prepend(false)
+      .map { _ in false }
+      .prepend(true)
       // This, combined (pun) with the joining of the scroller publisher, is to prevent instances where the cursor
       // slightly moves when the user meant to scroll. Note that this currently best suits trackpads, as the duration
       // is too short to effectively counter a physical mouse (especially if it's heavy).
@@ -177,12 +267,12 @@ struct ImageCollectionView: View {
       .collect(6)
       .filter { origins in
         origins.dropFirst().allSatisfy { $0.x == origins.first?.x }
-      }.map { _ in false }
+      }.map { _ in true }
 
-    self.visiblePublisher = scroller
+    self.scrollingPublisher = scroller
       .map { _ in cursor }
       .switchToLatest()
-      .merge(with: visibleSubject)
+      .merge(with: scrollingSubject)
       .removeDuplicates()
       .eraseToAnyPublisher()
   }
