@@ -7,12 +7,13 @@
 
 import Defaults
 import SwiftUI
+import VisionKit
 
 struct SettingsExtraView: View {
-  @Environment(\.liveTextSupported) private var liveTextSupported
   @Default(.liveText) private var liveText
   @Default(.liveTextSearchWith) private var liveTextSearchWith
   @Default(.liveTextDownsample) private var liveTextDownsample
+  private let liveTextSupported = ImageAnalyzer.isSupported
 
   var body: some View {
     LabeledContent("Live Text:") {

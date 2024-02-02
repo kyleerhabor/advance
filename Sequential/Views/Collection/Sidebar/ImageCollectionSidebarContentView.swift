@@ -152,6 +152,7 @@ struct ImageCollectionSidebarItemView: View {
 struct ImageCollectionSidebarContentView: View {
   @Environment(ImageCollection.self) private var collection
   @Environment(ImageCollectionSidebar.self) private var sidebar
+  @Environment(ImageCollectionPath.self) private var path
   @Environment(\.prerendering) private var prerendering
   @Environment(\.id) private var id
   @Environment(\.loaded) private var loaded
@@ -168,27 +169,22 @@ struct ImageCollectionSidebarContentView: View {
   private var selection: ImageCollectionSidebar.Selection { sidebar.selection }
   private var selected: Binding<ImageCollectionSidebar.Selection> {
     .init {
-      sidebar.selection
+      selection
     } set: { selection in
       defer {
         sidebar.selection = selection
       }
 
-      let id = images(from: selection.subtracting(sidebar.selection)).last?.id
+      let difference = selection.subtracting(self.selection)
+      let id = sidebar.images.last { difference.contains($0.id) }?.id
 
-      collection.path.item = id
+      path.item = id
 
       guard let id else {
         return
       }
 
-      collection.path.items.appended(id)
-
-      let urls = collection.path.items
-        .compactMap { collection.items[$0]?.image }
-        .map { ($0.id, $0.url) }
-
-      collection.path.update(urls: .init(uniqueKeysWithValues: urls))
+      path.items.insert(id)
 
       detailScroller.scroll(id)
     }
@@ -248,7 +244,7 @@ struct ImageCollectionSidebarContentView: View {
           }
         }
       }.onDeleteCommand {
-        collection.order.subtract(sidebar.selection)
+        collection.order.subtract(selection)
         collection.update()
 
         Task(priority: .medium) {
@@ -273,7 +269,7 @@ struct ImageCollectionSidebarContentView: View {
           .padding(8)
       }
     }
-    .copyable(urls(from: sidebar.selection))
+    .copyable(urls(from: selection))
     // TODO: Figure out how to extract this.
     //
     // I tried moving this into a ViewModifier and View, but the passed binding for the selected item wouldn't always
@@ -348,22 +344,22 @@ struct ImageCollectionSidebarContentView: View {
     }
     .fileDialogCopy()
     .alert(self.error ?? "", isPresented: isPresentingErrorAlert) {}
-    .focusedValue(\.showFinder, .init(identity: sidebar.selection, enabled: !sidebar.selection.isEmpty) {
-      openFinder(selecting: urls(from: sidebar.selection))
+    .focusedValue(\.showFinder, .init(identity: selection, enabled: !selection.isEmpty) {
+      openFinder(selecting: urls(from: selection))
     })
-    .focusedValue(\.sidebarQuicklook, .init(enabled: !sidebar.selection.isEmpty, state: true, menu: .init(identity: quickLookItems) {
+    .focusedValue(\.sidebarQuicklook, .init(enabled: !selection.isEmpty, state: true, menu: .init(identity: quickLookItems) {
       guard selectedQuickLookItem == nil else {
         selectedQuickLookItem = nil
 
         return
       }
 
-      quicklook(images: images(from: sidebar.selection))
+      quicklook(images: images(from: selection))
     }))
     .onDisappear {
       clearQuickLookItems()
     }.onKeyPress(.space, phases: .down) { _ in
-      quicklook(images: images(from: sidebar.selection))
+      quicklook(images: images(from: selection))
 
       return .handled
     }

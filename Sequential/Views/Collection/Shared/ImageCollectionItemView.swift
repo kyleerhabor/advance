@@ -13,7 +13,15 @@ struct ImageResample {
   let size: CGSize
 }
 
-typealias ImageResamplePhase = ResultPhase<ImageResample, Error>
+extension ImageResample: Equatable {}
+
+enum ImageResampleError {
+  case failed
+}
+
+extension ImageResampleError: Error, Equatable {}
+
+typealias ImageResamplePhase = ResultPhase<ImageResample, ImageResampleError>
 
 struct ImageCollectionItemPhaseView: View {
   @AppStorage(Keys.brightness.key) private var brightness = Keys.brightness.value
@@ -38,11 +46,12 @@ struct ImageCollectionItemPhaseView: View {
                 .grayscale(grayscale)
             }
         }
-      }
-      .overlay {
+      }.overlay {
+        let visible = imagePhase == .empty && elapsed
+
         ProgressView()
-          .visible(imagePhase == .empty && elapsed)
-          .animation(.default, value: elapsed)
+          .visible(visible)
+          .animation(.default, value: visible)
       }.overlay {
         if phase.failure != nil {
           // We can't really get away with not displaying a failure view.
@@ -72,7 +81,7 @@ struct ImageCollectionItemView<Scope, Content>: View where Scope: URLScope, Cont
   @State private var phase = ImageResamplePhase.empty
 
   let image: Scope
-  @ViewBuilder var content: (ImageResamplePhase) -> Content
+  @ViewBuilder let content: (ImageResamplePhase) -> Content
 
   var body: some View {
     DisplayImageView { size in
@@ -85,7 +94,7 @@ struct ImageCollectionItemView<Scope, Content>: View where Scope: URLScope, Cont
       } catch {
         Logger.ui.error("Could not resample image at URL \"\(image.url.string)\": \(error)")
 
-        phase = .result(.failure(error))
+        phase = .result(.failure(.failed))
       }
     } content: {
       content(phase)

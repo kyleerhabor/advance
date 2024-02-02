@@ -55,6 +55,7 @@ extension ImageCollectionItemRoot: Codable {}
 
 struct ImageCollectionItemImageAnalysis {
   let url: URL
+  let phase: ResultPhaseItem
   let downsample: Bool
 }
 
@@ -71,6 +72,7 @@ class ImageCollectionItemImage {
   var bookmarked: Bool
 
   var analysis: ImageAnalysis?
+  var analysisHasResults: Bool
   var analysisFactors: ImageCollectionItemImageAnalysis?
   var highlighted = false
 
@@ -80,6 +82,7 @@ class ImageCollectionItemImage {
     self.relative = relative
     self.properties = properties
     self.bookmarked = bookmarked
+    self.analysisHasResults = false
     self.highlighted = false
   }
 
@@ -210,10 +213,10 @@ extension ImageCollectionPathItem: Identifiable {}
 
 @Observable
 class ImageCollectionPath: Codable {
-  typealias Items = OrderedSet<ImageCollectionItemImage.ID>
+  typealias Items = ImageCollectionSidebar.Selection
 
-  var items: Items
-  var item: ImageCollectionItemImage.ID?
+  @ObservationIgnored var items: Items
+  @ObservationIgnored var item: ImageCollectionItemImage.ID?
 
   var back = [ImageCollectionPathItem]()
   var forward = [ImageCollectionPathItem]()
@@ -222,30 +225,18 @@ class ImageCollectionPath: Codable {
     self.items = .init()
   }
 
-  init(items: Items) {
-    self.items = items
-  }
+  func update(images: [ImageCollectionItemImage]) {
+    let images = images.filter { items.contains($0.id) }
+    let index = item.flatMap { item in
+      images.firstIndex { $0.id == item }
+    } ?? images.startIndex
 
-  func update(urls: [ImageCollectionItemImage.ID: URL]) {
-    let index = item.flatMap { items.firstIndex(of: $0) } ?? items.endIndex
-    let before = items[..<index]
-    let after = items[(index + 1)...]
+    let before = images[..<index]
+    // We don't want the current item in the collection
+    let after = images[min(images.endIndex, index.inc())...]
 
-    back = before.compactMap { id in
-      guard let url = urls[id] else {
-        return nil
-      }
-
-      return .init(id: id, url: url)
-    }
-
-    forward = after.compactMap { id in
-      guard let url = urls[id] else {
-        return nil
-      }
-
-      return .init(id: id, url: url)
-    }
+    back = before.map { .init(id: $0.id, url: $0.url) }
+    forward = after.map { .init(id: $0.id, url: $0.url) }
   }
 
   // MARK: - Codable conformance
@@ -254,7 +245,6 @@ class ImageCollectionPath: Codable {
     let container = try decoder.singleValueContainer()
 
     self.items = try container.decode(Items.self)
-    self.item = items.last
   }
 
   func encode(to encoder: any Encoder) throws {
@@ -285,7 +275,8 @@ class ImageCollection: Codable {
   var sidebarPage = \ImageCollectionSidebars.images
   var sidebarSearch = ""
   @ObservationIgnored var sidebars = ImageCollectionSidebars()
-  let path = ImageCollectionPath()
+  
+  let path: ImageCollectionPath
 
   // ImageCollectionSidebarContentView uses this to efficiently check if a selection is bookmarked. It's not annotated
   // as @ObservationIgnored since the contextMenu is dependent on it for its state.
@@ -295,12 +286,14 @@ class ImageCollection: Codable {
     self.store = .init()
     self.items = .init()
     self.order = .init()
+    self.path = .init()
   }
 
   init(store: BookmarkStore, items: Items, order: Order) {
     self.store = store
     self.items = items
     self.order = order
+    self.path = .init()
   }
 
   typealias Kind = ImageCollectionSourceKind<URLSource>
@@ -575,6 +568,8 @@ class ImageCollection: Codable {
     }
 
     updateBookmarks()
+
+    path.update(images: images)
   }
 
   func updateBookmarks() {
@@ -621,6 +616,7 @@ class ImageCollection: Codable {
     self.store = try container.decode(BookmarkStore.self, forKey: .store)
     self.items = .init(uniqueKeysWithValues: roots.map { ($0.root.bookmark, $0) })
     self.order = try container.decode(Order.self, forKey: .order)
+    self.path = try container.decode(ImageCollectionPath.self, forKey: .path)
   }
 
   func encode(to encoder: Encoder) throws {
@@ -628,10 +624,12 @@ class ImageCollection: Codable {
     try container.encode(store, forKey: .store)
     try container.encode(Array(items.values), forKey: .items)
     try container.encode(order, forKey: .order)
+    try container.encode(path, forKey: .path)
   }
 
   enum CodingKeys: CodingKey {
     case store, items, order
+    case path
   }
 }
 

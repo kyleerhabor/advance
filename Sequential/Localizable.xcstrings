@@ -59,26 +59,6 @@
         }
       }
     },
-    "Command.LiveText.Highlight.Hide" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hide Highlight"
-          }
-        }
-      }
-    },
-    "Command.LiveText.Highlight.Show" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show Highlight"
-          }
-        }
-      }
-    },
     "Command.LiveText.Icon.Hide" : {
       "localizations" : {
         "en" : {
@@ -226,6 +206,26 @@
         }
       }
     },
+    "Images.Command.LiveText.Highlight.Hide" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide Highlight"
+          }
+        }
+      }
+    },
+    "Images.Command.LiveText.Highlight.Show" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Highlight"
+          }
+        }
+      }
+    },
     "Images.Command.Navigation.Back" : {
       "localizations" : {
         "en" : {
@@ -236,12 +236,32 @@
         }
       }
     },
+    "Images.Command.Navigation.Back.All" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Go Back All"
+          }
+        }
+      }
+    },
     "Images.Command.Navigation.Forward" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Go Forward"
+          }
+        }
+      }
+    },
+    "Images.Command.Navigation.Forward.All" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Go Forward All"
           }
         }
       }

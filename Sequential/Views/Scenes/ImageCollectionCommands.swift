@@ -59,7 +59,9 @@ struct ImageCollectionCommands: Commands {
   @Default(.importSubdirectories) private var importSubdirectories
   @FocusedValue(\.window) private var win
   @FocusedValue(\.back) private var back
+  @FocusedValue(\.backAll) private var backAll
   @FocusedValue(\.forward) private var forward
+  @FocusedValue(\.forwardAll) private var forwardAll
   @FocusedValue(\.openFileImporter) private var openFileImporter
   @FocusedValue(\.showFinder) private var showFinder
   @FocusedValue(\.openFinder) private var openFinder
@@ -146,11 +148,9 @@ struct ImageCollectionCommands: Commands {
         .disabled(liveTextIcon?.enabled != true)
         .keyboardShortcut(.liveTextIcon)
 
-        Button(liveTextHighlight?.state == true ? "Command.LiveText.Highlight.Hide" : "Command.LiveText.Highlight.Show") {
-          liveTextHighlight?.menu.action()
-        }
-        .disabled(liveTextHighlight?.enabled != true)
-        .keyboardShortcut(.liveTextHighlight)
+        MenuItemButton(item: liveTextHighlight?.item ?? .init(identity: [], enabled: false, action: noop)) {
+          Text(liveTextHighlight?.state == true ? "Images.Command.LiveText.Highlight.Hide" : "Images.Command.LiveText.Highlight.Show")
+        }.keyboardShortcut(.liveTextHighlight)
       }
 
       Section {
@@ -158,9 +158,17 @@ struct ImageCollectionCommands: Commands {
           Text("Images.Command.Navigation.Back")
         }.keyboardShortcut(.back)
 
+        MenuItemButton(item: backAll ?? .init(identity: nil, enabled: false, action: noop)) {
+          Text("Images.Command.Navigation.Back.All")
+        }.keyboardShortcut(.backAll)
+
         MenuItemButton(item: forward ?? .init(identity: nil, enabled: false, action: noop)) {
           Text("Images.Command.Navigation.Forward")
         }.keyboardShortcut(.forward)
+
+        MenuItemButton(item: forwardAll ?? .init(identity: nil, enabled: false, action: noop)) {
+          Text("Images.Command.Navigation.Forward.All")
+        }.keyboardShortcut(.forwardAll)
       }
     }
 

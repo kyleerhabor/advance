@@ -28,6 +28,10 @@ struct ImageCollectionSceneView: View {
           loaded = true
         }
 
+        Logger.standard.info("Woah (inserting): \(id)")
+
+        manager.ids.insert(id)
+
         let collection: ImageCollection
 
         if let coll = manager.collections[id] {
@@ -137,6 +141,36 @@ struct ImageCollectionScene: Scene {
       // The reason this is separated into its own struct is not for prettiness, but rather so changes to focus don't
       // re-evaluate the whole scene (which makes clicking when there are a lot of images not slow).
       ImageCollectionCommands()
-    }.environment(manager)
+    }
+    .environment(manager)
+    .deferred {
+      Task(priority: .background) {
+        await removeUnusedCollections()
+      }
+    }
+  }
+
+  func removeUnusedCollections() async {
+    let directory = URL.collectionDirectory
+    let collections: [URL]
+
+    do {
+      collections = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [])
+    } catch let err as CocoaError where err.code == .fileReadNoSuchFile {
+      // The directory does not exist, so we don't care.
+      return
+    } catch {
+      Logger.standard.error("Could not read contents of collections directory \"\(directory.string)\": \(error)")
+
+      return
+    }
+
+    collections.forEach { url in
+      do {
+        try FileManager.default.removeItem(at: url)
+      } catch {
+        Logger.standard.error("Could not delete collection at URL \"\(url.string)\": \(error)")
+      }
+    }
   }
 }

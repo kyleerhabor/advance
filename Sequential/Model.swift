@@ -79,6 +79,8 @@ enum ResultPhase<Success, Failure> where Failure: Error {
   }
 }
 
+extension ResultPhase: Equatable where Success: Equatable, Failure: Equatable {}
+
 enum ResultPhaseItem: Equatable {
   case empty, success, failure
 

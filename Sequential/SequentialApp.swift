@@ -22,7 +22,6 @@ struct SequentialApp: App {
         SettingsView()
       }
     }
-    .scened()
     .environment(depot)
     .environmentObject(delegate)
   }

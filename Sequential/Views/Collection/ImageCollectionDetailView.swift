@@ -73,6 +73,7 @@ struct ImageCollectionDetailItemBookmarkView: View {
 
 struct ImageCollectionDetailItemSidebarView: View {
   @Environment(ImageCollectionSidebar.self) private var sidebar
+  @Environment(ImageCollectionPath.self) private var path
   @Environment(\.sidebarScroller) private var sidebarScroller
 
   let id: ImageCollectionItemImage.ID
@@ -82,6 +83,7 @@ struct ImageCollectionDetailItemSidebarView: View {
       sidebarScroller.scroll(.init(id: id) {
         Task {
           sidebar.selection = [id]
+          path.item = id
         }
       })
     }
@@ -92,10 +94,13 @@ struct ImageCollectionDetailItemView: View {
   @Default(.liveText) private var liveText
   @Default(.liveTextSearchWith) private var liveTextSearchWith
   @Default(.liveTextDownsample) private var liveTextDownsample
-  @Default(.resolveCopyingConflicts) private var resolveConflicts
-  @State private var isPresentingCopyingFileImporter = false
+  @Default(.resolveCopyingConflicts) private var resolveCopyingConflicts
+  @State private var isCopyingFileImporterPresented = false
   @State private var error: String?
-  var isPresentingErrorAlert: Binding<Bool> {
+  private var liveTextInteractions: ImageAnalysisOverlayView.InteractionTypes {
+    liveText ? .automaticTextOnly : .init()
+  }
+  private var isErrorPresented: Binding<Bool> {
     .init {
       self.error != nil
     } set: { present in
@@ -107,9 +112,6 @@ struct ImageCollectionDetailItemView: View {
 
   @Bindable var image: ImageCollectionItemImage
   let liveTextIcon: Bool
-  private var liveTextInteractions: ImageAnalysisOverlayView.InteractionTypes {
-    liveText ? .automaticTextOnly : .init()
-  }
 
   var body: some View {
     let bookmarked = $image.bookmarked
@@ -120,40 +122,50 @@ struct ImageCollectionDetailItemView: View {
         ImageCollectionItemPhaseView(phase: phase)
           .aspectRatio(image.properties.sized.aspectRatio, contentMode: .fit)
           .overlay {
-            if let resample = phase.success {
-              var factors: ImageCollectionItemImageAnalysis {
-                .init(url: image.url, downsample: liveTextDownsample)
+            var length: Int {
+              phase.success.map { Int($0.size.length.rounded(.up)) } ?? 0
+            }
+            
+            var factors: ImageCollectionItemImageAnalysis {
+              .init(
+                url: image.url,
+                phase: .init(phase),
+                downsample: liveTextDownsample && length != 0
+              )
+            }
+
+            LiveTextView(
+              interactions: liveTextInteractions,
+              analysis: image.analysis,
+              highlight: $image.highlighted
+            )
+            .supplementaryInterfaceHidden(!liveTextIcon)
+            .searchEngineHidden(!liveTextSearchWith)
+            .task(id: Pair(left: liveText, right: factors)) {
+              guard liveText else {
+                return
               }
 
-              LiveTextView(
-                interactions: liveTextInteractions,
-                analysis: image.analysis,
-                highlight: $image.highlighted
-              )
-              .supplementaryInterfaceHidden(!liveTextIcon)
-              .searchEngineHidden(!liveTextSearchWith)
-              .task(id: Pair(left: liveText, right: factors)) {
-                let factors = factors
+              let factors = factors
 
-                guard liveText,
-                      image.analysisFactors != factors else {
-                  return
-                }
+              guard image.analysisFactors != factors && factors.phase == .success else {
+                return
+              }
 
-                let analysis = await image.withSecurityScope {
-                  await analyze(
-                    url: image.url,
-                    orientation: image.properties.orientation,
-                    interactions: liveTextInteractions,
-                    resample: liveTextDownsample,
-                    resampleTo: Int(resample.size.length.rounded(.up))
-                  )
-                }
+              let analysis = await image.withSecurityScope {
+                await analyze(
+                  url: image.url,
+                  orientation: image.properties.orientation,
+                  interactions: liveTextInteractions,
+                  resample: factors.downsample,
+                  resampleSize: min(length, ImageAnalyzer.maxSize)
+                )
+              }
 
-                if let analysis {
-                  image.analysis = analysis
-                  image.analysisFactors = factors
-                }
+              if let analysis {
+                image.analysis = analysis
+                image.analysisHasResults = analysis.hasOutput
+                image.analysisFactors = factors
               }
             }
           }
@@ -176,10 +188,10 @@ struct ImageCollectionDetailItemView: View {
           }
         }
 
-        ImageCollectionCopyingView(isPresented: $isPresentingCopyingFileImporter) { destination in
+        ImageCollectionCopyingView(isPresented: $isCopyingFileImporterPresented) { destination in
           Task(priority: .medium) {
             do {
-              try await save(image: image, to: destination)
+              try await copy(image: image, to: destination)
             } catch {
               self.error = error.localizedDescription
             }
@@ -190,12 +202,12 @@ struct ImageCollectionDetailItemView: View {
       Section {
         ImageCollectionDetailItemBookmarkView(bookmarked: bookmarked)
       }
-    }.fileImporter(isPresented: $isPresentingCopyingFileImporter, allowedContentTypes: [.folder]) { result in
+    }.fileImporter(isPresented: $isCopyingFileImporterPresented, allowedContentTypes: [.folder]) { result in
       switch result {
         case .success(let url):
           Task(priority: .medium) {
             do {
-              try await save(image: image, to: url)
+              try await copy(image: image, to: url)
             } catch {
               self.error = error.localizedDescription
             }
@@ -205,15 +217,15 @@ struct ImageCollectionDetailItemView: View {
       }
     }
     .fileDialogCopy()
-    .alert(error ?? "", isPresented: isPresentingErrorAlert) {}
+    .alert(error ?? "", isPresented: isErrorPresented) {}
   }
 
-  func save(image: ImageCollectionItemImage, to destination: URL) async throws {
+  func copy(image: ImageCollectionItemImage, to destination: URL) async throws {
     try ImageCollectionCopyingView.saving {
       try destination.withSecurityScope {
         try ImageCollectionCopyingView.saving(url: image, to: destination) { url in
           try image.withSecurityScope {
-            try ImageCollectionCopyingView.save(url: url, to: destination, resolvingConflicts: resolveConflicts)
+            try ImageCollectionCopyingView.save(url: url, to: destination, resolvingConflicts: resolveCopyingConflicts)
           }
         }
       }
@@ -225,7 +237,7 @@ struct ImageCollectionDetailItemView: View {
     orientation: CGImagePropertyOrientation,
     interactions: ImageAnalysisOverlayView.InteractionTypes,
     resample: Bool,
-    resampleTo resampleSize: Int
+    resampleSize: Int
   ) async -> ImageAnalysis? {
     let analyzer = ImageAnalyzer()
     let maxSize = ImageAnalyzer.maxSize
@@ -376,7 +388,9 @@ struct ImageCollectionDetailVisualView: View {
 }
 
 struct VisibleImagesPreferenceKey: PreferenceKey {
-  static var defaultValue = [ImageCollectionItemImage]()
+  typealias Value = [ImageCollectionItemImage]
+
+  static var defaultValue = Value()
 
   static func reduce(value: inout Value, nextValue: () -> Value) {
     value = nextValue()
@@ -384,7 +398,10 @@ struct VisibleImagesPreferenceKey: PreferenceKey {
 }
 
 struct ImageCollectionDetailVisibilityViewModifier: ViewModifier {
+  @Environment(ImageCollection.self) private var collection
+  @Environment(ImageCollectionPath.self) private var path
   @Environment(ImageCollectionSidebar.self) private var sidebar
+  @Environment(\.id) private var id
   @Environment(\.navigationColumns) @Binding private var columns
   @Environment(\.sidebarScroller) private var sidebarScroller
   @Default(.displayTitleBarImage) private var displayTitleBarImage
@@ -413,18 +430,19 @@ struct ImageCollectionDetailVisibilityViewModifier: ViewModifier {
           Color.clear.preference(key: VisibleImagesPreferenceKey.self, value: images)
         }
       }.backgroundPreferenceValue(VisibleImagesPreferenceKey.self) { images in
-        let isNotEmpty = !images.isEmpty
+        let highlights = images.filter(\.analysisHasResults)
+        let hasHighlights = !highlights.isEmpty
         var highlighted: Bool {
-          images.allSatisfy(\.highlighted)
+          highlights.allSatisfy(\.highlighted)
         }
 
         Color.clear.focusedSceneValue(\.liveTextHighlight, .init(
-          enabled: isNotEmpty,
-          state: isNotEmpty && highlighted,
-          menu: .init(identity: images) {
-            images.forEach(setter(value: !highlighted, on: \.highlighted))
-          }
-        ))
+          identity: images,
+          enabled: hasHighlights,
+          state: hasHighlights && highlighted
+        ) {
+          images.forEach(setter(value: !highlighted, on: \.highlighted))
+        })
 
         if let primary = images.first {
           var id: ImageCollectionItemImage.ID { primary.id }
@@ -444,8 +462,26 @@ struct ImageCollectionDetailVisibilityViewModifier: ViewModifier {
             .focusedSceneValue(\.jumpToCurrentImage, .init(identity: id) {
               sidebarScroller.scroll(.init(id: id) {
                 sidebar.selection = [id]
+                path.item = id
               })
             })
+            .onChange(of: Pair(left: collection.sidebarPage, right: sidebar.selection)) { prior, pair in
+              // If the page changed, ignore.
+              guard pair.left == prior.left else {
+                return
+              }
+
+              path.items.insert(primary.id)
+              path.update(images: collection.images)
+
+              Task {
+                do {
+                  try await collection.persist(id: self.id)
+                } catch {
+                  Logger.model.error("Could not persist image collection \"\(self.id)\" (via navigation): \(error)")
+                }
+              }
+            }
         }
       }
   }

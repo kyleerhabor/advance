@@ -7,11 +7,11 @@
 
 import Defaults
 import SwiftUI
+import VisionKit
 
 struct SettingsGeneralView: View {
   typealias Scheme = ColorScheme?
 
-  @Environment(\.liveTextSupported) private var liveTextSupported
   @Default(.margins) private var margins
   @Default(.colorScheme) private var colorScheme
   @Default(.collapseMargins) private var collapseMargins
@@ -24,6 +24,7 @@ struct SettingsGeneralView: View {
   @Default(.hideScrollIndicator) private var hideScroll
   @Default(.resolveCopyingConflicts) private var resolveConflicts
   @State private var isPresentingCopyingSheet = false
+  private let liveTextSupported = ImageAnalyzer.isSupported
   private let range = 0.0...4.0
 
   var body: some View {
@@ -81,12 +82,11 @@ struct SettingsGeneralView: View {
     }
 
     LabeledContent("Live Text:") {
-      Group {
+      GroupBox {
         Toggle("Enable Live Text", isOn: $liveText)
 
-        GroupBox {
-          Toggle("Show icon", isOn: $liveTextIcon)
-        }.disabled(!liveText)
+        Toggle("Show icon", isOn: $liveTextIcon)
+          .disabled(!liveText)
       }
       .disabled(!liveTextSupported)
       .help(liveTextSupported ? "" : "This device does not support Live Text.")

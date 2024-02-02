@@ -5,10 +5,8 @@
 //  Created by Kyle Erhabor on 8/19/23.
 //
 
-import OSLog
 import SwiftUI
 import VisionKit
-import UniformTypeIdentifiers
 
 extension URL {
   static let temporaryLiveTextImagesDirectory = Self.temporaryImagesDirectory.appending(component: "Live Text")
@@ -48,10 +46,16 @@ extension ImageAnalyzer.AnalysisTypes {
   }
 }
 
+extension ImageAnalysis {
+  var hasOutput: Bool {
+    hasResults(for: [.text, .visualLookUp, .machineReadableCode])
+  }
+}
+
 struct LiveTextView: NSViewRepresentable {
-  let interactions: ImageAnalysisOverlayView.InteractionTypes
-  let analysis: ImageAnalysis?
-  @Binding var highlight: Bool
+  private let interactions: ImageAnalysisOverlayView.InteractionTypes
+  private let analysis: ImageAnalysis?
+  @Binding private var highlight: Bool
 
   private var supplementaryInterfaceHidden = false
   private var searchEngineHidden = false
@@ -104,7 +108,7 @@ struct LiveTextView: NSViewRepresentable {
   class Coordinator: NSObject, ImageAnalysisOverlayViewDelegate {
     typealias Tag = ImageAnalysisOverlayView.MenuTag
 
-    @Binding var highlight: Bool
+    @Binding private var highlight: Bool
     var searchEngineHidden: Bool
 
     init(highlight: Binding<Bool>, searchEngineHidden: Bool) {
@@ -122,12 +126,6 @@ struct LiveTextView: NSViewRepresentable {
         return menu
       }
 
-      // TODO: Make this safer by only keeping known items.
-      //
-      // This could be done either by filtering this collection alone, or forgoing this whole process and requiring
-      // the superview (i.e. the SwiftUI view) to reimplement it (which wouldn't be as native, but likely more robust).
-      // I tried the latter prior, but couldn't get NSHostingView to overlay the view. I wonder if NSHostingController
-      // will work better...
       var removing = [
         // Already implemented.
         menu.item(withTag: Tag.copyImage),

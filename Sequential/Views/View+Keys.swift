@@ -87,10 +87,26 @@ extension EnvironmentValues {
 
 // MARK: - Focus
 
-struct AppMenuItem<I> where I: Equatable {
+struct AppMenuItemAction<I> where I: Equatable {
   typealias Action = () -> Void
 
   let identity: I
+  let action: Action
+
+  func callAsFunction() {
+    action()
+  }
+}
+
+extension AppMenuItemAction: Equatable {
+  static func ==(lhs: Self, rhs: Self) -> Bool {
+    lhs.identity == rhs.identity
+  }
+}
+
+struct AppMenuItem<I> where I: Equatable {
+  typealias Action = AppMenuItemAction<I>
+
   let enabled: Bool
   let action: Action
 
@@ -99,11 +115,28 @@ struct AppMenuItem<I> where I: Equatable {
   }
 }
 
-extension AppMenuItem: Equatable {
-  static func ==(lhs: AppMenuItem<I>, rhs: AppMenuItem<I>) -> Bool {
-    lhs.identity == rhs.identity && lhs.enabled == rhs.enabled
+extension AppMenuItem {
+  init(identity: I, enabled: Bool, action: @escaping Action.Action) {
+    self.init(enabled: enabled, action: .init(identity: identity, action: action))
   }
 }
+
+extension AppMenuItem: Equatable {}
+
+struct AppMenuToggleItem<I> where I: Equatable {
+  typealias Item = AppMenuItem<I>
+
+  let state: Bool
+  let item: Item
+}
+
+extension AppMenuToggleItem {
+  init(identity: I, enabled: Bool, state: Bool, action: @escaping Item.Action.Action) {
+    self.init(state: state, item: .init(identity: identity, enabled: enabled, action: action))
+  }
+}
+
+extension AppMenuToggleItem: Equatable {}
 
 struct ShowFinderFocusedValueKey: FocusedValueKey {
   typealias Value = AppMenuItem<ImageCollectionSidebar.Selection>
@@ -117,8 +150,20 @@ struct BackFocusedValueKey: FocusedValueKey {
   typealias Value = AppMenuItem<ImageCollectionItemImage.ID?>
 }
 
+struct BackAllFocusedValueKey: FocusedValueKey {
+  typealias Value = AppMenuItem<ImageCollectionItemImage.ID?>
+}
+
 struct ForwardFocusedValueKey: FocusedValueKey {
   typealias Value = AppMenuItem<ImageCollectionItemImage.ID?>
+}
+
+struct ForwardAllFocusedValueKey: FocusedValueKey {
+  typealias Value = AppMenuItem<ImageCollectionItemImage.ID?>
+}
+
+struct LiveTextHighlightFocusedValueKey: FocusedValueKey {
+  typealias Value = AppMenuToggleItem<[ImageCollectionItemImage]>
 }
 
 // MARK: - Focus (legacy)
@@ -152,10 +197,6 @@ struct LiveTextIconFocusedValueKey: FocusedValueKey {
   typealias Value = AppMenuToggle<Bool>
 }
 
-struct LiveTextHighlightFocusedValueKey: FocusedValueKey {
-  typealias Value = AppMenuToggle<[ImageCollectionItemImage]>
-}
-
 // MARK: - Focus (continued)
 
 extension FocusedValues {
@@ -174,9 +215,19 @@ extension FocusedValues {
     set { self[BackFocusedValueKey.self] = newValue }
   }
 
+  var backAll: BackAllFocusedValueKey.Value? {
+    get { self[BackAllFocusedValueKey.self] }
+    set { self[BackAllFocusedValueKey.self] = newValue }
+  }
+
   var forward: ForwardFocusedValueKey.Value? {
     get { self[ForwardFocusedValueKey.self] }
     set { self[ForwardFocusedValueKey.self] = newValue }
+  }
+
+  var forwardAll: ForwardAllFocusedValueKey.Value? {
+    get { self[ForwardAllFocusedValueKey.self] }
+    set { self[ForwardAllFocusedValueKey.self] = newValue }
   }
 
   var searchSidebar: SearchSidebarFocusedValueKey.Value? {
@@ -211,7 +262,9 @@ extension KeyboardShortcut {
   static let openFinder = Self("r", modifiers: [.command, .option])
 
   static let back = Self("[", modifiers: .command)
+  static let backAll = Self("[", modifiers: [.command, .option])
   static let forward = Self("]", modifiers: .command)
+  static let forwardAll = Self("]", modifiers: [.command, .option])
 
   static let searchSidebar = Self("f", modifiers: .command)
   static let jumpToCurrentImage = Self("l", modifiers: .command)

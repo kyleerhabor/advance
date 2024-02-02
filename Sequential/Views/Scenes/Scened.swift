@@ -8,19 +8,35 @@
 import SwiftUI
 import VisionKit
 
-struct LiveTextSupportEnvironmentKey: EnvironmentKey {
-  static var defaultValue = true
-}
+struct DeferredScene<Content>: Scene where Content: Scene {
+  typealias Action = () -> Void
 
-extension EnvironmentValues {
-  var liveTextSupported: LiveTextSupportEnvironmentKey.Value {
-    get { self[LiveTextSupportEnvironmentKey.self] }
-    set { self[LiveTextSupportEnvironmentKey.self] = newValue }
+  @State private var first = false
+  let action: Action
+  let content: Content
+
+  var body: some Scene {
+    content
+      .onChange(of: true, initial: true) {
+        Task {
+          first = true
+        }
+      }.onChange(of: first) {
+        Task {
+          if first {
+            first.toggle()
+
+            return
+          }
+
+          action()
+        }
+      }
   }
 }
 
 extension Scene {
-  func scened() -> some Scene {
-    self.environment(\.liveTextSupported, ImageAnalyzer.isSupported)
+  func deferred(action: @escaping DeferredScene<Self>.Action) -> some Scene {
+    DeferredScene(action: action, content: self)
   }
 }
