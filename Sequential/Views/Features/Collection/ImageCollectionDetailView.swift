@@ -252,7 +252,7 @@ struct ImageCollectionDetailItemView: View {
         return nil
       }
 
-      let size = min(resampleSize, maxSize.dec())
+      let size = min(resampleSize, maxSize.decremented())
 
       guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
             let type = CGImageSourceGetType(source),

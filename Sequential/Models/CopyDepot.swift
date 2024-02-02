@@ -8,7 +8,6 @@
 import Algorithms
 import OSLog
 import SwiftUI
-import UniformTypeIdentifiers
 
 extension NSWorkspace {
   func icon(forFileAt url: URL) -> NSImage {
@@ -27,7 +26,7 @@ struct CopyDepotItemDestination {
   }
 
   static func normalize(url: URL) -> URL {
-    let matchers = [Matcher.trash, Matcher.home, Matcher.volumeTrash]
+    let matchers = [Matcher.trashNormalize, Matcher.homeClearStrict, Matcher.volumeTrashNormalize]
 
     return matchers.reduce(url) { url, matcher in
       matcher.match(items: url.pathComponents) ?? url

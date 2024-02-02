@@ -114,12 +114,8 @@
 			isa = PBXGroup;
 			children = (
 				00A983A52B47B1F600A8E61C /* View+Keys.swift */,
-				00CBAB562AB23E1F0045FF83 /* ImageCollectionView.swift */,
-				004D8FBF2A76C1C900C0303E /* SettingsView.swift */,
-				00E0ECBF2A76A8000030A0DC /* AppDelegate.swift */,
-				00CBAB582AB23E790045FF83 /* Collection */,
 				00E0ECBE2A7633100030A0DC /* Scenes */,
-				00FF84982A995B9D007A4C69 /* Settings */,
+				004C319E2B6D435C005BD099 /* Features */,
 				00C127322A90925800B5452C /* Legos */,
 			);
 			path = Views;
@@ -170,6 +166,17 @@
 				00D38C302AD73671005505F5 /* ImageCollectionSidebarContentView.swift */,
 			);
 			path = Sidebar;
+			sourceTree = "<group>";
+		};
+		004C319E2B6D435C005BD099 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				00CBAB562AB23E1F0045FF83 /* ImageCollectionView.swift */,
+				004D8FBF2A76C1C900C0303E /* SettingsView.swift */,
+				00CBAB582AB23E790045FF83 /* Collection */,
+				00FF84982A995B9D007A4C69 /* Settings */,
+			);
+			path = Features;
 			sourceTree = "<group>";
 		};
 		005B45022A8FFE1F00699AF0 /* Documentation */ = {
@@ -245,10 +252,11 @@
 		00E0ECBE2A7633100030A0DC /* Scenes */ = {
 			isa = PBXGroup;
 			children = (
-				00CBAB592AB23E9C0045FF83 /* ImageCollectionScene.swift */,
-				0042B5DA2AB8C450009F251B /* ImageCollectionCommands.swift */,
 				002379082B3DFC9F00097BF0 /* Scened.swift */,
 				007FDD482A76E1C800A1E42B /* Windowed.swift */,
+				00E0ECBF2A76A8000030A0DC /* AppDelegate.swift */,
+				00CBAB592AB23E9C0045FF83 /* ImageCollectionScene.swift */,
+				0042B5DA2AB8C450009F251B /* ImageCollectionCommands.swift */,
 			);
 			path = Scenes;
 			sourceTree = "<group>";

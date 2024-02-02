@@ -28,8 +28,6 @@ struct ImageCollectionSceneView: View {
           loaded = true
         }
 
-        Logger.standard.info("Woah (inserting): \(id)")
-
         manager.ids.insert(id)
 
         let collection: ImageCollection
@@ -64,7 +62,7 @@ struct ImageCollectionSceneView: View {
           do {
             try await collection.persist(id: id)
           } catch {
-            Logger.model.error("Could not persist image collection \"\(id)\" (via initialization): \(error)")
+            Logger.model.error("Could not persist image collection \"\(id)\" from initialization: \(error)")
           }
         }
 
@@ -138,19 +136,18 @@ struct ImageCollectionScene: Scene {
     .windowToolbarStyle(.unifiedCompact)
     .defaultSize(Self.defaultSize)
     .commands {
-      // The reason this is separated into its own struct is not for prettiness, but rather so changes to focus don't
-      // re-evaluate the whole scene (which makes clicking when there are a lot of images not slow).
+      // This is given its own struct so focus states don't re-evaluate the whole scene.
       ImageCollectionCommands()
     }
     .environment(manager)
-    .deferred {
+    .deferred(count: 2) {
       Task(priority: .background) {
-        await removeUnusedCollections()
+        await initialize()
       }
     }
   }
 
-  func removeUnusedCollections() async {
+  func initialize() async {
     let directory = URL.collectionDirectory
     let collections: [URL]
 

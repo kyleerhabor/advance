@@ -273,7 +273,7 @@ struct ImageCollectionSidebarContentView: View {
     // TODO: Figure out how to extract this.
     //
     // I tried moving this into a ViewModifier and View, but the passed binding for the selected item wouldn't always
-    // be reflected.
+    // be reflected (or sometimes just crash).
     .quickLookPreview($selectedQuickLookItem, in: quickLookItems)
     .contextMenu { ids in
       let bookmarked = Binding {

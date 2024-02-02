@@ -60,13 +60,13 @@ struct SettingsGeneralView: View {
 
         HStack {
           Button("None") {
-            margins.wrappedValue = max(range.lowerBound, margins.wrappedValue.dec())
+            margins.wrappedValue = max(range.lowerBound, margins.wrappedValue.decremented())
           }
 
           Spacer()
 
           Button("A lot") {
-            margins.wrappedValue = min(range.upperBound, margins.wrappedValue.inc())
+            margins.wrappedValue = min(range.upperBound, margins.wrappedValue.incremented())
           }
         }
         .font(.caption)
@@ -113,7 +113,7 @@ struct SettingsGeneralView: View {
     }
 
     LabeledContent("Copying:") {
-      // TODO: Add a setting to not flip the direction for multiple resolutions.
+      // TODO: Add a setting to not flip the direction.
       Toggle(isOn: $resolveConflicts) {
         Text("Resolve conflicts")
 

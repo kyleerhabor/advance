@@ -122,7 +122,7 @@ extension Sequence {
         pair.0 != pair.1
       }!
 
-      let count = index.inc()
+      let count = index.incremented()
 
       if ap.count > count && bp.count == count {
         return true
@@ -194,8 +194,8 @@ func time<T>(
   )
 }
 
-struct Matcher<Item, Path, Transform> where Item: Equatable, Path: Sequence<Item?> {
-  typealias Items = Sequence<Item>
+struct Matcher<Item, Path, Transform> where Item: Equatable, Path: Collection<Item?> {
+  typealias Items = Collection<Item>
 
   let path: Path
   let transform: ([Item]) -> Transform
@@ -209,6 +209,10 @@ struct Matcher<Item, Path, Transform> where Item: Equatable, Path: Sequence<Item
   }
 
   static func match(path: Path, items: some Items) -> [Item]? {
+    guard path.count <= items.count else {
+      return nil
+    }
+
     let paths = zip(items, path)
     let satisfied = paths.allSatisfy { (component, path) in
       if let path {
@@ -229,16 +233,25 @@ struct Matcher<Item, Path, Transform> where Item: Equatable, Path: Sequence<Item
 extension Matcher where Item == String, Path == [String?], Transform == URL {
   typealias URLItems = BidirectionalCollection<Item>
 
-  static let home = Matcher(path: ["/", "Users", nil], transform: constantly(.rootDirectory))
-  // "/Users/<user>/.Trash" -> "/Users/<...>/Trash"
-  static let trash = Matcher(path: ["/", "Users", nil, ".Trash"]) { matches in
+  // "/Users/<user>/<...>" -> "/<...>"
+  //
+  // If we just match "/Users/<user>", an item matching the path exactly will be transformed into "/". This is not
+  // desirable for e.g. the image copying sheet.
+  static let homeClearStrict = Matcher(path: ["/", "Users", nil, nil]) { matches in
+    .rootDirectory.appending(component: matches.last!)
+  }
+
+  // "/Users/<user>/.Trash" -> "/Users/<user>/Trash"
+  static let trashNormalize = Matcher(path: ["/", "Users", nil, ".Trash"]) { matches in
     .rootDirectory.appending(components: "Users", matches.first!, "Trash")
   }
 
-  static let volume = Matcher(path: ["/", "Volumes", nil], transform: constantly(.rootDirectory))
-  // "/Volumes/<volume>/.Trashes/<uid>" -> "/Volumes/<...>/Trash"
-  static let volumeTrash = Matcher(path: ["/", "Volumes", nil, ".Trashes", nil]) { matched in
-    .rootDirectory.appending(components: "Volumes", matched.first!, "Trash")
+  // "/Volumes/<volume>" -> "/"
+  static let volumeClear = Matcher(path: ["/", "Volumes", nil], transform: constantly(.rootDirectory))
+  
+  // "/Volumes/<volume>/.Trashes/<uid>" -> "/Volumes/<volume>/Trash"
+  static let volumeTrashNormalize = Matcher(path: ["/", "Volumes", nil, ".Trashes", nil]) { matches in
+    .rootDirectory.appending(components: "Volumes", matches.first!, "Trash")
   }
 
   func match(items: some URLItems) -> Transform? {
@@ -272,11 +285,15 @@ func setter<Object: AnyObject, Value>(
 }
 
 extension Numeric {
-  func inc() -> Self {
+  mutating func increment() {
+    self += 1
+  }
+
+  func incremented() -> Self {
     self + 1
   }
 
-  func dec() -> Self {
+  func decremented() -> Self {
     self - 1
   }
 }

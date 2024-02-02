@@ -233,7 +233,7 @@ class ImageCollectionPath: Codable {
 
     let before = images[..<index]
     // We don't want the current item in the collection
-    let after = images[min(images.endIndex, index.inc())...]
+    let after = images[min(images.endIndex, index.incremented())...]
 
     back = before.map { .init(id: $0.id, url: $0.url) }
     forward = after.map { .init(id: $0.id, url: $0.url) }

@@ -7,7 +7,6 @@
 
 import ImageIO
 import OSLog
-import UniformTypeIdentifiers
 
 typealias MapCF = [CFString: Any]
 

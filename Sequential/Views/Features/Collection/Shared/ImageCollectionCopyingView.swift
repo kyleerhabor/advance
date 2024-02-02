@@ -107,7 +107,7 @@ struct ImageCollectionCopyingView: View {
   }
 
   static func normalize(url: URL) -> URL {
-    let matchers = [Matcher.trash, Matcher.home, Matcher.volumeTrash, Matcher.volume]
+    let matchers = [Matcher.trashNormalize, Matcher.homeClearStrict, Matcher.volumeTrashNormalize, Matcher.volumeClear]
 
     return matchers.reduce(url) { url, matcher in
       matcher.match(items: url.pathComponents) ?? url
