@@ -99,7 +99,7 @@ struct ImageCollectionDetailItemView: View {
   @State private var error: String?
   private var liveTextInteractions: ImageAnalysisOverlayView.InteractionTypes {
     // For some reason, .automatic only works on new scenes (and not scene restoration).
-    liveText ? .automatic : .init()
+    liveText ? .automaticTextOnly : .init()
   }
   private var isErrorPresented: Binding<Bool> {
     .init {
