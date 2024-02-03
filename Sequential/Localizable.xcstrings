@@ -49,66 +49,6 @@
     "Collapse margins" : {
 
     },
-    "Command.Image.Sidebar" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show in Sidebar"
-          }
-        }
-      }
-    },
-    "Command.LiveText.Icon.Hide" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hide Icon"
-          }
-        }
-      }
-    },
-    "Command.LiveText.Icon.Show" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show Icon"
-          }
-        }
-      }
-    },
-    "Command.Section.Image" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Image"
-          }
-        }
-      }
-    },
-    "Command.Section.LiveText" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Live Text"
-          }
-        }
-      }
-    },
-    "Command.Window.Size.Reset" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Return to Default Size"
-          }
-        }
-      }
-    },
     "Copy" : {
 
     },
@@ -226,6 +166,26 @@
         }
       }
     },
+    "Images.Command.LiveText.Icon.Hide" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide Icon"
+          }
+        }
+      }
+    },
+    "Images.Command.LiveText.Icon.Show" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Icon"
+          }
+        }
+      }
+    },
     "Images.Command.Navigation.Back" : {
       "localizations" : {
         "en" : {
@@ -262,6 +222,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Go Forward All"
+          }
+        }
+      }
+    },
+    "Images.Command.Section.Image" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Image"
+          }
+        }
+      }
+    },
+    "Images.Command.Section.LiveText" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Live Text"
+          }
+        }
+      }
+    },
+    "Images.Command.Window.Size.Reset" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Return to Default Size"
           }
         }
       }
@@ -326,8 +316,15 @@
     "Only relevant when the sidebar is not open." : {
 
     },
-    "Open..." : {
-
+    "Open.Interactive" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open..."
+          }
+        }
+      }
     },
     "Quick Look" : {
 
@@ -363,11 +360,18 @@
     "Show icon" : {
 
     },
-    "Show in Sidebar" : {
-
-    },
     "Show menu item for search engine" : {
 
+    },
+    "Sidebar.Item.Show" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show in Sidebar"
+          }
+        }
+      }
     },
     "System" : {
 

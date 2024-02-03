@@ -9,7 +9,6 @@ import SwiftUI
 
 struct ImageCollectionSidebarView: View {
   @Environment(ImageCollection.self) private var collection
-  @Environment(\.navigationColumns) @Binding private var columns
   @Environment(\.loaded) private var loaded
   private var isEmpty: Bool {
     loaded && collection.images.isEmpty
@@ -20,7 +19,7 @@ struct ImageCollectionSidebarView: View {
       .overlay {
         let empty = isEmpty
 
-        ImageCollectionSidebarEmptyView()
+        ImageCollectionSidebarEmptyView(visible: empty)
           .visible(empty)
           .animation(.default, value: empty)
           .transaction(value: empty, setter(value: !empty, on: \.disablesAnimations))

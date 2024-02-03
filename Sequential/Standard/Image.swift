@@ -25,8 +25,8 @@ extension CGImageSource {
 
   func resample(to size: some Numeric, index: Int) -> CGImage? {
     let options: [CFString: Any] = [
-      kCGImageSourceCreateThumbnailFromImageAlways: true,
       kCGImageSourceThumbnailMaxPixelSize: size,
+      kCGImageSourceCreateThumbnailFromImageAlways: true,
       kCGImageSourceCreateThumbnailWithTransform: true
     ]
 

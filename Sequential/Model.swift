@@ -15,20 +15,24 @@ enum ImageError: Error {
 
 extension NavigationSplitViewVisibility: RawRepresentable {
   public typealias RawValue = Int
+  
+  private static var unknownRaw: Int { -1 }
+  private static var allRaw: Int { 1 }
+  private static var detailOnlyRaw: Int { 3 }
 
   public init?(rawValue: RawValue) {
     switch rawValue {
-      case 0: self = .all
-      case 1: self = .detailOnly
+      case Self.allRaw: self = .all
+      case Self.detailOnlyRaw: self = .detailOnly
       default: return nil
     }
   }
 
   public var rawValue: RawValue {
     switch self {
-      case .all: 0
-      case .detailOnly: 1
-      default: -1
+      case .all: Self.allRaw
+      case .detailOnly: Self.detailOnlyRaw
+      default: Self.unknownRaw
     }
   }
 }

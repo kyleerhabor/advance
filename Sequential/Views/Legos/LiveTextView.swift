@@ -22,14 +22,14 @@ extension ImageAnalysisOverlayView {
 }
 
 extension ImageAnalysisOverlayView.MenuTag {
-  static let searchWith = 0
+  static let search = 0
 }
 
 extension ImageAnalyzer {
   static let maxSize = 8192
 
   static let errorDomain = "com.apple.VisionKit.ImageAnalyzer"
-  static let errorCodeMaxSize = -10
+  static let errorMaxSizeCode = -10
 }
 
 extension ImageAnalyzer.AnalysisTypes {
@@ -59,9 +59,6 @@ struct LiveTextView: NSViewRepresentable {
 
   private var supplementaryInterfaceHidden = false
   private var searchEngineHidden = false
-  private var hidden: Bool {
-    return !highlight && supplementaryInterfaceHidden
-  }
 
   init(
     interactions: ImageAnalysisOverlayView.InteractionTypes,
@@ -77,7 +74,6 @@ struct LiveTextView: NSViewRepresentable {
     let overlayView = ImageAnalysisOverlayView()
     overlayView.delegate = context.coordinator
 
-    // For some reason, using .automatic for subjects doesn't work 90% of the time.
     overlayView.preferredInteractionTypes = interactions
 
     // If we enable highlighting on initialization, it'll immediately go away but the supplementary interface will
@@ -92,12 +88,8 @@ struct LiveTextView: NSViewRepresentable {
     context.coordinator.setHighlight($highlight)
     context.coordinator.searchEngineHidden = searchEngineHidden
 
-    if overlayView.preferredInteractionTypes != interactions {
-      overlayView.preferredInteractionTypes = interactions
-    }
-    
+    overlayView.preferredInteractionTypes = interactions
     overlayView.setHighlightVisibility(highlight, supplementaryInterfaceHidden: supplementaryInterfaceHidden, animated: true)
-
     overlayView.analysis = analysis
   }
 
@@ -134,7 +126,7 @@ struct LiveTextView: NSViewRepresentable {
       ].compactMap { $0 }
 
       if searchEngineHidden,
-         let item = menu.items.first(where: { $0.tag == Tag.searchWith && $0.isStandard }) {
+         let item = menu.items.first(where: { $0.tag == Tag.search && $0.isStandard }) {
         removing.append(item)
       }
 

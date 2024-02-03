@@ -79,7 +79,7 @@ struct ImageCollectionDetailItemSidebarView: View {
   let id: ImageCollectionItemImage.ID
 
   var body: some View {
-    Button("Show in Sidebar") {
+    Button("Sidebar.Item.Show") {
       sidebarScroller.scroll(.init(id: id) {
         Task {
           sidebar.selection = [id]
@@ -98,6 +98,7 @@ struct ImageCollectionDetailItemView: View {
   @State private var isCopyingFileImporterPresented = false
   @State private var error: String?
   private var liveTextInteractions: ImageAnalysisOverlayView.InteractionTypes {
+    // For some reason, .automatic only works on new scenes (and not scene restoration).
     liveText ? .automaticTextOnly : .init()
   }
   private var isErrorPresented: Binding<Bool> {
@@ -245,7 +246,7 @@ struct ImageCollectionDetailItemView: View {
 
     do {
       return try await analyze(analyzer: analyzer, imageAt: url, orientation: orientation, configuration: configuration)
-    } catch let err as NSError where err.domain == ImageAnalyzer.errorDomain && err.code == ImageAnalyzer.errorCodeMaxSize {
+    } catch let err as NSError where err.domain == ImageAnalyzer.errorDomain && err.code == ImageAnalyzer.errorMaxSizeCode {
       guard resample else {
         Logger.ui.error("Could not analyze image at URL \"\(url.string)\" as its size is too large: \(err)")
 
@@ -430,23 +431,65 @@ struct ImageCollectionDetailVisibilityViewModifier: ViewModifier {
           Color.clear.preference(key: VisibleImagesPreferenceKey.self, value: images)
         }
       }.backgroundPreferenceValue(VisibleImagesPreferenceKey.self) { images in
+        let primary = images.first
         let highlights = images.filter(\.analysisHasResults)
         let hasHighlights = !highlights.isEmpty
         var highlighted: Bool {
           highlights.allSatisfy(\.highlighted)
         }
 
-        Color.clear.focusedSceneValue(\.liveTextHighlight, .init(
-          identity: images,
-          enabled: hasHighlights,
-          state: hasHighlights && highlighted
-        ) {
-          images.forEach(setter(value: !highlighted, on: \.highlighted))
-        })
+        let finderShowIdent: Set<ImageCollectionItemImage.ID> = if let primary {
+          [primary.id]
+        } else {
+          []
+        }
 
-        if let primary = images.first {
-          var id: ImageCollectionItemImage.ID { primary.id }
+        Color.clear
+          .focusedSceneValue(\.liveTextHighlight, .init(
+            identity: highlights.map(\.id),
+            enabled: hasHighlights,
+            state: hasHighlights && highlighted
+          ) {
+            images.forEach(setter(value: !highlighted, on: \.highlighted))
+          })
+          .focusedSceneValue(\.finderShow, .init(identity: finderShowIdent, enabled: primary != nil) {
+            guard let primary else {
+              return
+            }
 
+            openFinder(selecting: primary.url)
+          })
+          .focusedSceneValue(\.currentImageShow, .init(identity: primary?.id, enabled: primary != nil) {
+            guard let primary else {
+              return
+            }
+
+            sidebarScroller.scroll(.init(id: primary.id) {
+              sidebar.selection = [primary.id]
+              path.item = primary.id
+            })
+          })
+          .focusedSceneValue(\.bookmark, .init(
+            identity: primary?.id,
+            enabled: primary != nil,
+            state: primary?.bookmarked ?? false
+          ) {
+            guard let primary else {
+              return
+            }
+
+            primary.bookmarked.toggle()
+
+            Task {
+              do {
+                try await collection.persist(id: id)
+              } catch {
+                Logger.model.error("Could not persist image collection \"\(id)\" via bookmark focus: \(error)")
+              }
+            }
+          })
+
+        if let primary {
           if displayTitleBarImage {
             let url = primary.url
 
@@ -455,33 +498,23 @@ struct ImageCollectionDetailVisibilityViewModifier: ViewModifier {
               .navigationDocument(url)
           }
 
-          Color.clear
-            .focusedSceneValue(\.showFinder, .init(identity: [primary.id], enabled: true) {
-              openFinder(selecting: primary.url)
-            })
-            .focusedSceneValue(\.jumpToCurrentImage, .init(identity: id) {
-              sidebarScroller.scroll(.init(id: id) {
-                sidebar.selection = [id]
-                path.item = id
-              })
-            })
-            .onChange(of: Pair(left: collection.sidebarPage, right: sidebar.selection)) { prior, pair in
-              // If the page changed, ignore.
-              guard pair.left == prior.left else {
-                return
-              }
+          Color.clear.onChange(of: Pair(left: collection.sidebarPage, right: sidebar.selection)) { prior, pair in
+            // If the page changed, ignore.
+            guard pair.left == prior.left else {
+              return
+            }
 
-              path.items.insert(primary.id)
-              path.update(images: collection.images)
+            path.items.insert(primary.id)
+            path.update(images: collection.images)
 
-              Task {
-                do {
-                  try await collection.persist(id: self.id)
-                } catch {
-                  Logger.model.error("Could not persist image collection \"\(self.id)\" (via navigation): \(error)")
-                }
+            Task {
+              do {
+                try await collection.persist(id: id)
+              } catch {
+                Logger.model.error("Could not persist image collection \"\(id)\" (via navigation): \(error)")
               }
             }
+          }
         }
       }
   }
@@ -494,6 +527,7 @@ extension View {
 }
 
 struct ImageCollectionDetailView: View {
+  @Environment(\.id) private var id
   @Default(.margins) private var margins
   @Default(.collapseMargins) private var collapseMargins
   @Default(.liveText) private var liveText
@@ -555,8 +589,8 @@ struct ImageCollectionDetailView: View {
       }
     }
     .visibleImages()
-    .focusedSceneValue(\.liveTextIcon, .init(enabled: true, state: showLiveTextIcon, menu: .init(identity: true) {
+    .focusedSceneValue(\.liveTextIcon, .init(identity: id, enabled: true, state: showLiveTextIcon) {
       liveTextIcon = !showLiveTextIcon
-    }))
+    })
   }
 }

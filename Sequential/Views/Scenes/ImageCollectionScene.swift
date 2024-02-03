@@ -9,16 +9,21 @@ import OSLog
 import SwiftUI
 
 struct ImageCollectionSceneView: View {
+  @Environment(Windowed.self) private var windowed
   @Environment(ImageCollectionManager.self) private var manager
   @Environment(\.prerendering) private var prerendering
   @Environment(\.id) private var id
   @State private var collection = ImageCollection()
   @State private var loaded = false
+  private var window: NSWindow? { windowed.window }
 
   var body: some View {
     ImageCollectionView()
       .environment(collection)
       .environment(\.loaded, loaded)
+      .focusedSceneValue(\.windowSizeReset, .init(identity: id, enabled: window != nil) {
+        window?.setContentSize(ImageCollectionScene.defaultSize)
+      })
       // The pre-rendering variable triggers SwiftUI to call the action with an up-to-date id when performing scene
       // restoration. It's weird we can't just bind id.
       .task(id: prerendering) {
@@ -140,14 +145,18 @@ struct ImageCollectionScene: Scene {
       ImageCollectionCommands()
     }
     .environment(manager)
-    .deferred(count: 2) {
+    // It seems delaying the action to the next cycle in SwiftUI creates enough time for the task in ImageCollectionSceneView
+    // to collect all the collection IDs before initialize(allowing:) gets called. Personally, I wonder if this may
+    // result in a rare race condition where the view does not report its ID in time and tries reading from a file
+    // that's about to be deleted.
+    .deferred(count: 1) {
       Task(priority: .background) {
-        await initialize()
+        await Self.initialize(allowing: manager.ids)
       }
     }
   }
 
-  func initialize() async {
+  static func initialize(allowing ids: Set<UUID>) async {
     let directory = URL.collectionDirectory
     let collections: [URL]
 
@@ -162,12 +171,23 @@ struct ImageCollectionScene: Scene {
       return
     }
 
-    collections.forEach { url in
-      do {
-        try FileManager.default.removeItem(at: url)
-      } catch {
-        Logger.standard.error("Could not delete collection at URL \"\(url.string)\": \(error)")
+    collections
+      .compactMap { url -> Pair<URL, UUID>? in
+        guard let id = UUID(uuidString: url.lastPath) else {
+          return nil
+        }
+
+        return Pair(left: url, right: id)
       }
-    }
+      .filter { !ids.contains($0.right) }
+      .forEach { pair in
+        let url = pair.left
+
+        do {
+          try FileManager.default.removeItem(at: url)
+        } catch {
+          Logger.standard.error("Could not delete collection at URL \"\(url.string)\": \(error)")
+        }
+      }
   }
 }

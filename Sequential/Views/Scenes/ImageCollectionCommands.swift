@@ -6,47 +6,7 @@
 //
 
 import Defaults
-import OSLog
 import SwiftUI
-
-// MARK: - Focused value keys
-
-enum AppMenuOpen: Equatable {
-  case window
-}
-
-struct AppMenuOpenFocusedValueKey: FocusedValueKey {
-  typealias Value = AppMenu<AppMenuOpen>
-}
-
-struct AppMenuQuickLookFocusedValueKey: FocusedValueKey {
-  typealias Value = AppMenuToggle<[URL]>
-}
-
-struct AppMenuBookmarkedFocusedValueKey: FocusedValueKey {
-  typealias Value = Binding<Bool>
-}
-
-struct AppMenuJumpToCurrentImageFocusedValueKey: FocusedValueKey {
-  typealias Value = AppMenu<ImageCollectionItemImage.ID>
-}
-
-extension FocusedValues {
-  var openFileImporter: AppMenuOpenFocusedValueKey.Value? {
-    get { self[AppMenuOpenFocusedValueKey.self] }
-    set { self[AppMenuOpenFocusedValueKey.self] = newValue }
-  }
-
-  var sidebarQuicklook: AppMenuQuickLookFocusedValueKey.Value? {
-    get { self[AppMenuQuickLookFocusedValueKey.self] }
-    set { self[AppMenuQuickLookFocusedValueKey.self] = newValue }
-  }
-
-  var jumpToCurrentImage: AppMenuJumpToCurrentImageFocusedValueKey.Value? {
-    get { self[AppMenuJumpToCurrentImageFocusedValueKey.self] }
-    set { self[AppMenuJumpToCurrentImageFocusedValueKey.self] = newValue }
-  }
-}
 
 // MARK: - Views
 
@@ -57,20 +17,20 @@ struct ImageCollectionCommands: Commands {
   @EnvironmentObject private var delegate: AppDelegate
   @Default(.importHiddenFiles) private var importHidden
   @Default(.importSubdirectories) private var importSubdirectories
-  @FocusedValue(\.window) private var win
+  @FocusedValue(\.windowSizeReset) private var windowSizeReset
+  @FocusedValue(\.open) private var open
+  @FocusedValue(\.finderShow) private var showFinder
+  @FocusedValue(\.finderOpen) private var openFinder
+  @FocusedValue(\.quicklook) private var quicklook
+  @FocusedValue(\.sidebarSearch) private var sidebarSearch
+  @FocusedValue(\.currentImageShow) private var currentImageShow
+  @FocusedValue(\.bookmark) private var bookmark
   @FocusedValue(\.back) private var back
   @FocusedValue(\.backAll) private var backAll
   @FocusedValue(\.forward) private var forward
   @FocusedValue(\.forwardAll) private var forwardAll
-  @FocusedValue(\.openFileImporter) private var openFileImporter
-  @FocusedValue(\.showFinder) private var showFinder
-  @FocusedValue(\.openFinder) private var openFinder
-  @FocusedValue(\.sidebarQuicklook) private var quicklook
-  @FocusedValue(\.jumpToCurrentImage) private var jumpToCurrentImage
-  @FocusedValue(\.searchSidebar) private var searchSidebar
   @FocusedValue(\.liveTextIcon) private var liveTextIcon
   @FocusedValue(\.liveTextHighlight) private var liveTextHighlight
-  private var window: NSWindow? { win?.window }
   
   var body: some Commands {
     // TODO: Figure out how to remove the "Show/Hide Toolbar" item.
@@ -79,13 +39,7 @@ struct ImageCollectionCommands: Commands {
     SidebarCommands()
 
     CommandGroup(after: .newItem) {
-      Button("Open...") {
-        if let openFileImporter {
-          openFileImporter.action()
-
-          return
-        }
-
+      MenuItemButton(item: open ?? .init(identity: nil, enabled: true) {
         let urls = Self.performImageFilePicker()
 
         guard !urls.isEmpty else {
@@ -100,6 +54,8 @@ struct ImageCollectionCommands: Commands {
 
           openWindow(value: id)
         }
+      }) {
+        Text("Open.Interactive")
       }.keyboardShortcut(.open)
     }
 
@@ -109,11 +65,9 @@ struct ImageCollectionCommands: Commands {
           Text("Finder.Show")
         }.keyboardShortcut(.showFinder)
 
-        Button("Quick Look") {
-          quicklook?.menu.action()
-        }
-        .keyboardShortcut(.quicklook)
-        .disabled(quicklook?.enabled != true)
+        MenuItemToggle(toggle: quicklook ?? .init(identity: [], enabled: false, state: false, action: noop)) {
+          Text("Quick Look")
+        }.keyboardShortcut(.quicklook)
       }
 
       Section {
@@ -124,8 +78,8 @@ struct ImageCollectionCommands: Commands {
     }
 
     CommandGroup(after: .textEditing) {
-      Button("Search.Interaction") {
-        searchSidebar?.action()
+      MenuItemButton(item: sidebarSearch ?? .init(identity: nil, enabled: false, action: noop)) {
+        Text("Search.Interaction")
       }.keyboardShortcut(.searchSidebar)
     }
 
@@ -134,19 +88,23 @@ struct ImageCollectionCommands: Commands {
       Divider()
     }
 
-    CommandMenu("Command.Section.Image") {
-      Button("Command.Image.Sidebar") {
-        jumpToCurrentImage?.action()
+    CommandMenu("Images.Command.Section.Image") {
+      Section {
+        MenuItemButton(item: currentImageShow ?? .init(identity: nil, enabled: false, action: noop)) {
+          Text("Sidebar.Item.Show")
+        }.keyboardShortcut(.showCurrentImage)
       }
-      .keyboardShortcut(.jumpToCurrentImage)
-      .disabled(jumpToCurrentImage == nil)
 
-      Section("Command.Section.LiveText") {
-        Button(liveTextIcon?.state == true ? "Command.LiveText.Icon.Hide" : "Command.LiveText.Icon.Show") {
-          liveTextIcon?.menu.action()
-        }
-        .disabled(liveTextIcon?.enabled != true)
-        .keyboardShortcut(.liveTextIcon)
+      Section {
+        MenuItemToggle(toggle: bookmark ?? .init(identity: nil, enabled: false, state: false, action: noop)) { $isOn in
+          ImageCollectionBookmarkView(showing: $isOn)
+        }.keyboardShortcut(.bookmark)
+      }
+
+      Section("Images.Command.Section.LiveText") {
+        MenuItemButton(item: liveTextIcon?.item ?? .init(identity: nil, enabled: false, action: noop)) {
+          Text(liveTextIcon?.state == true ? "Images.Command.LiveText.Icon.Hide" : "Images.Command.LiveText.Icon.Show")
+        }.keyboardShortcut(.liveTextIcon)
 
         MenuItemButton(item: liveTextHighlight?.item ?? .init(identity: [], enabled: false, action: noop)) {
           Text(liveTextHighlight?.state == true ? "Images.Command.LiveText.Highlight.Hide" : "Images.Command.LiveText.Highlight.Show")
@@ -173,8 +131,8 @@ struct ImageCollectionCommands: Commands {
     }
 
     CommandGroup(after: .windowSize) {
-      Button("Command.Window.Size.Reset") {
-        window?.setContentSize(ImageCollectionScene.defaultSize)
+      MenuItemButton(item: windowSizeReset ?? .init(identity: nil, enabled: false, action: noop)) {
+        Text("Images.Command.Window.Size.Reset")
       }.keyboardShortcut(.resetWindowSize)
     }
 
@@ -206,6 +164,10 @@ struct ImageCollectionCommands: Commands {
     // We don't want panel.begin() since it creating a modeless window causes SwiftUI to not treat it like a window.
     // This is most obvious when there are no windows but the open dialog and the app is activated, creating a new
     // window for the scene.
+    //
+    // FIXME: For some reason, entering Command-Shit-. to show hidden files causes the service to crash.
+    //
+    // This only happens when using identifier. Interestingly, it happens in SwiftUI, too.
     guard panel.runModal() == .OK else {
       return []
     }

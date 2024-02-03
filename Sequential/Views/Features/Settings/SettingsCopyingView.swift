@@ -122,7 +122,7 @@ struct SettingsCopyingView: View {
       depot.update()
 
       return true
-    }.focusedValue(\.openFinder, .init(identity: selection, enabled: !selection.isEmpty) {
+    }.focusedValue(\.finderOpen, .init(identity: selection, enabled: !selection.isEmpty) {
       open(selection: selection)
     })
     .onDeleteCommand {

@@ -144,7 +144,7 @@ struct ImageCollectionNavigationDetailPathView: View {
       do {
         try await collection.persist(id: id)
       } catch {
-        Logger.model.error("Could not persist image collection \"\(self.id)\" (via detail navigation): \(error)")
+        Logger.model.error("Could not persist image collection \"\(id)\" (via detail navigation): \(error)")
       }
     }
   }
@@ -197,7 +197,7 @@ struct ImageCollectionNavigationDetailView: View {
 
 struct ImageCollectionView: View {
   @Environment(ImageCollection.self) private var collection
-  @Environment(WindowCapture.self) private var capture
+  @Environment(Windowed.self) private var windowed
   @Environment(\.prerendering) private var prerendering
   @Environment(\.trackingMenu) private var trackingMenu
   @Environment(\.fullScreen) private var fullScreen
@@ -210,8 +210,8 @@ struct ImageCollectionView: View {
   @FocusedValue(\.detailScroller) private var detailScroller
   @State private var isHovering = false
   @State private var isScrolling = false
+  private var window: NSWindow? { windowed.window }
   private var isVisible: Bool { !(isHovering && isScrolling) }
-  private var window: NSWindow? { capture.window }
   private var isDetailOnly: Bool { columns == .detailOnly }
 
   private let cursorSubject = PassthroughSubject<Void, Never>()

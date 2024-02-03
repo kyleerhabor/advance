@@ -72,7 +72,7 @@ class ImageCollectionItemImage {
   var bookmarked: Bool
 
   var analysis: ImageAnalysis?
-  var analysisHasResults: Bool
+  var analysisHasResults = false
   var analysisFactors: ImageCollectionItemImageAnalysis?
   var highlighted = false
 
@@ -82,8 +82,6 @@ class ImageCollectionItemImage {
     self.relative = relative
     self.properties = properties
     self.bookmarked = bookmarked
-    self.analysisHasResults = false
-    self.highlighted = false
   }
 
   func resolve() -> ImageProperties? {

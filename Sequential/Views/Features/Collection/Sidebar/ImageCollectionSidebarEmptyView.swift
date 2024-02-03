@@ -28,14 +28,13 @@ struct ImageCollectionSidebarEmptyView: View {
   @Environment(\.id) private var id
   @Default(.importHiddenFiles) private var importHidden
   @Default(.importSubdirectories) private var importSubdirectories
-  @State private var isPresentingFileImporter = false
-  private var visible: Bool {
-    !prerendering && collection.order.isEmpty
-  }
+  @State private var isFileImporterPresented = false
+
+  let visible: Bool
 
   var body: some View {
     Button {
-      isPresentingFileImporter.toggle()
+      isFileImporterPresented.toggle()
     } label: {
       Label {
         Text("Drop images here")
@@ -48,7 +47,7 @@ struct ImageCollectionSidebarEmptyView: View {
     }
     .buttonStyle(.plain)
     .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .fileImporter(isPresented: $isPresentingFileImporter, allowedContentTypes: [.image, .folder], allowsMultipleSelection: true) { result in
+    .fileImporter(isPresented: $isFileImporterPresented, allowedContentTypes: [.image, .folder], allowsMultipleSelection: true) { result in
       switch result {
         case .success(let urls):
           Task {
@@ -83,10 +82,10 @@ struct ImageCollectionSidebarEmptyView: View {
     .overlay {
       if visible {
         Color.clear
-          .focusedSceneValue(\.openFileImporter, .init(identity: .window) {
-            isPresentingFileImporter.toggle()
+          .focusedSceneValue(\.open, .init(identity: id, enabled: true) {
+            isFileImporterPresented = true
           })
-          .dropDestination(for: ImageTransferable.self) { items, offset in
+          .dropDestination(for: ImageTransferable.self) { items, _ in
             Task {
               let state = await resolve(items: items, in: collection.store)
               let items = state.value

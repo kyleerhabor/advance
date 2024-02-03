@@ -45,8 +45,11 @@ extension KeyboardShortcut {
 }
 
 extension View {
+  private var transparent: Double { 0 }
+  private var opaque: Double { 1 }
+
   func visible(_ visible: Bool) -> some View {
-    self.opacity(visible ? 1 : 0)
+    self.opacity(visible ? opaque : transparent)
   }
 }
 
@@ -135,8 +138,9 @@ extension NSWindow {
 }
 
 struct ToolbarHiddenViewModifier: ViewModifier {
-  @Environment(WindowCapture.self) private var capture
+  @Environment(Windowed.self) private var windowed
   @Environment(\.fullScreen) private var fullScreen
+  private var window: NSWindow? { windowed.window }
 
   let hide: Bool
 
@@ -151,11 +155,7 @@ struct ToolbarHiddenViewModifier: ViewModifier {
   }
 
   func setToolbarVisible(_ visible: Bool) {
-    guard let window = capture.window else {
-      return
-    }
-
-    window.setToolbarVisibility(visible)
+    window?.setToolbarVisibility(visible)
   }
 }
 

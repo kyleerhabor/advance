@@ -30,6 +30,7 @@ struct ImageCollectionSidebarFilterView: View {
   @Environment(\.id) private var id
   @Environment(\.navigationColumns) @Binding private var columns
   @FocusState private var isSearchFocused
+  @State private var priorSearch: String?
   private var isSearching: Bool {
     !collection.sidebarSearch.isEmpty
   }
@@ -57,7 +58,7 @@ struct ImageCollectionSidebarFilterView: View {
         .textFieldStyle(.plain)
         .font(.subheadline)
         .focused($isSearchFocused)
-        .focusedSceneValue(\.searchSidebar, .init(identity: id) {
+        .focusedSceneValue(\.sidebarSearch, .init(identity: id, enabled: true) {
           withAnimation {
             columns = .all
           } completion: {
@@ -66,8 +67,18 @@ struct ImageCollectionSidebarFilterView: View {
         })
         .onSubmit {
           search()
-        }.onChange(of: isSearchFocused) { focusedPrior, _ in
-          guard focusedPrior else {
+        }.onChange(of: isSearchFocused) {
+          if isSearchFocused {
+            priorSearch = collection.sidebarSearch
+
+            return
+          }
+
+          // If the search hasn't changes, don't bother. This (partially) prevents an annoyance where the user will
+          // start searching, cancel the operation, and see the list move from the page of the current image changing
+          // (i.e. going from .images to .search). It's more-so an issue with the current image tracker, but something
+          // we can mitigate here. In the future, we should patch the actual problem.
+          if collection.sidebarSearch == priorSearch {
             return
           }
 
@@ -160,11 +171,14 @@ struct ImageCollectionSidebarContentView: View {
   @Default(.importHiddenFiles) private var importHidden
   @Default(.importSubdirectories) private var importSubdirectories
   @Default(.resolveCopyingConflicts) private var resolveCopyingConflicts
-  @State private var quickLookItems = [URL]()
-  @State private var selectedQuickLookItem: URL?
-  @State private var quickLookScopes = [ImageCollectionItemImage: ImageCollectionItemImage.Scope]()
-  @State private var isPresentingCopyFilePicker = false
-  @State private var selectedCopyFiles = ImageCollectionSidebar.Selection()
+  
+  @State private var quicklookItem: URL?
+  @State private var quicklookItems = [URL]()
+  @State private var quicklookSelection = Set<ImageCollectionItemImage.ID>()
+  @State private var quicklookScopes = [ImageCollectionItemImage: ImageCollectionItemImage.Scope]()
+
+  @State private var isCopyingFileImporterPresented = false
+  @State private var copyingSelection = ImageCollectionSidebar.Selection()
   @State private var error: String?
   private var selection: ImageCollectionSidebar.Selection { sidebar.selection }
   private var selected: Binding<ImageCollectionSidebar.Selection> {
@@ -189,7 +203,7 @@ struct ImageCollectionSidebarContentView: View {
       detailScroller.scroll(id)
     }
   }
-  private var isPresentingErrorAlert: Binding<Bool> {
+  private var isErrorPresented: Binding<Bool> {
     .init {
       error != nil
     } set: { present in
@@ -274,7 +288,7 @@ struct ImageCollectionSidebarContentView: View {
     //
     // I tried moving this into a ViewModifier and View, but the passed binding for the selected item wouldn't always
     // be reflected (or sometimes just crash).
-    .quickLookPreview($selectedQuickLookItem, in: quickLookItems)
+    .quickLookPreview($quicklookItem, in: quicklookItems)
     .contextMenu { ids in
       let bookmarked = Binding {
         !ids.isEmpty && isBookmarked(selection: ids)
@@ -288,13 +302,8 @@ struct ImageCollectionSidebarContentView: View {
         }
 
         Button("Quick Look") {
-          guard selectedQuickLookItem == nil else {
-            selectedQuickLookItem = nil
-
-            return
-          }
-
-          quicklook(images: images(from: ids))
+          clearQuicklook()
+          setQuicklook(images: images(from: ids))
         }
       }
 
@@ -308,10 +317,10 @@ struct ImageCollectionSidebarContentView: View {
         }
 
         let isPresented = Binding {
-          isPresentingCopyFilePicker
+          isCopyingFileImporterPresented
         } set: { isPresenting in
-          isPresentingCopyFilePicker = isPresenting
-          selectedCopyFiles = ids
+          isCopyingFileImporterPresented = isPresenting
+          copyingSelection = ids
         }
 
         ImageCollectionCopyingView(isPresented: isPresented) { destination in
@@ -328,12 +337,12 @@ struct ImageCollectionSidebarContentView: View {
       Section {
         ImageCollectionBookmarkView(showing: bookmarked)
       }
-    }.fileImporter(isPresented: $isPresentingCopyFilePicker, allowedContentTypes: [.folder]) { result in
+    }.fileImporter(isPresented: $isCopyingFileImporterPresented, allowedContentTypes: [.folder]) { result in
       switch result {
         case .success(let url):
           Task(priority: .medium) {
             do {
-              try await copy(images: images(from: selectedCopyFiles), to: url)
+              try await copy(images: images(from: copyingSelection), to: url)
             } catch {
               self.error = error.localizedDescription
             }
@@ -343,23 +352,28 @@ struct ImageCollectionSidebarContentView: View {
       }
     }
     .fileDialogCopy()
-    .alert(self.error ?? "", isPresented: isPresentingErrorAlert) {}
-    .focusedValue(\.showFinder, .init(identity: selection, enabled: !selection.isEmpty) {
+    .alert(self.error ?? "", isPresented: isErrorPresented) {}
+    .focusedValue(\.finderShow, .init(identity: selection, enabled: !selection.isEmpty) {
       openFinder(selecting: urls(from: selection))
     })
-    .focusedValue(\.sidebarQuicklook, .init(enabled: !selection.isEmpty, state: true, menu: .init(identity: quickLookItems) {
-      guard selectedQuickLookItem == nil else {
-        selectedQuickLookItem = nil
+    .focusedValue(\.quicklook, .init(identity: quicklookSelection, enabled: !selection.isEmpty, state: quicklookItem != nil) {
+      clearQuicklook()
+
+      // Is it possible for this action to be called where quicklookItem is nil two times in a row? If so, we'd be
+      // leaking security scoped resources.
+      guard quicklookItem == nil else {
+        quicklookItem = nil
 
         return
       }
 
-      quicklook(images: images(from: selection))
-    }))
+      setQuicklook(images: images(from: selection))
+    })
     .onDisappear {
-      clearQuickLookItems()
+      clearQuicklook()
     }.onKeyPress(.space, phases: .down) { _ in
-      quicklook(images: images(from: selection))
+      clearQuicklook()
+      setQuicklook(images: images(from: selection))
 
       return .handled
     }
@@ -373,25 +387,22 @@ struct ImageCollectionSidebarContentView: View {
     images(from: selection).map(\.url)
   }
 
-  func clearQuickLookItems() {
-    quickLookScopes.forEach { (image, scope) in
+  func clearQuicklook() {
+    quicklookScopes.forEach { (image, scope) in
       image.endSecurityScope(scope: scope)
     }
-
-    quickLookScopes = [:]
   }
 
-  func quicklook(images: [ImageCollectionItemImage]) {
-    clearQuickLookItems()
-
-    images.forEach { image in
-      // If we hooked into Quick Look directly, we could likely avoid this lifetime juggling taking place here.
-      quickLookScopes[image] = image.startSecurityScope()
-    }
-
-    quickLookItems = images.map(\.url)
-    selectedQuickLookItem = quickLookItems.first
+  func setQuicklook(images: [ImageCollectionItemImage]) {
+    quicklookScopes = .init(uniqueKeysWithValues: images.map { ($0, $0.startSecurityScope()) })
+    quicklookItems = images.map(\.url)
+    quicklookItem = quicklookItems.first
   }
+
+//  func quicklook(images: [ImageCollectionItemImage]) {
+//    clearQuicklook()
+//    setQuicklook(images: images)
+//  }
 
   func isBookmarked(selection: ImageCollectionSidebar.Selection) -> Bool {
     return selection.isSubset(of: collection.bookmarks)

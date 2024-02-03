@@ -8,13 +8,12 @@
 import SwiftUI
 
 @Observable
-class WindowCapture {
-  // TODO: Don't make this optional.
+class Windowed {
   weak var window: NSWindow?
 }
 
-extension WindowCapture: Equatable {
-  static func ==(lhs: WindowCapture, rhs: WindowCapture) -> Bool {
+extension Windowed: Equatable {
+  static func ==(lhs: Windowed, rhs: Windowed) -> Bool {
     lhs.window == rhs.window
   }
 }
@@ -48,31 +47,11 @@ extension EnvironmentValues {
   }
 }
 
-struct WindowFocusedValueKey: FocusedValueKey {
-  typealias Value = WindowCapture
-}
+class WindowCaptureView: NSView {
+  var windowed: Windowed
 
-struct FullScreenFocusedValueKey: FocusedValueKey {
-  typealias Value = Bool
-}
-
-extension FocusedValues {
-  var window: WindowFocusedValueKey.Value? {
-    get { self[WindowFocusedValueKey.self] }
-    set { self[WindowFocusedValueKey.self] = newValue }
-  }
-
-  var fullScreen: FullScreenFocusedValueKey.Value? {
-    get { self[FullScreenFocusedValueKey.self] }
-    set { self[FullScreenFocusedValueKey.self] = newValue }
-  }
-}
-
-class AppearanceView: NSView {
-  var capture: WindowCapture
-
-  init(capture: WindowCapture) {
-    self.capture = capture
+  init(windowed: Windowed) {
+    self.windowed = windowed
 
     super.init(frame: .zero)
   }
@@ -84,45 +63,43 @@ class AppearanceView: NSView {
   override func viewWillMove(toWindow window: NSWindow?) {
     super.viewWillMove(toWindow: window)
 
-    capture.window = window
+    windowed.window = window
   }
 }
 
-struct WindowCaptureView: NSViewRepresentable {
-  let capture: WindowCapture
+struct WindowingView: NSViewRepresentable {
+  let windowed: Windowed
 
-  func makeNSView(context: Context) -> AppearanceView {
-    .init(capture: capture)
+  func makeNSView(context: Context) -> WindowCaptureView {
+    .init(windowed: windowed)
   }
 
-  func updateNSView(_ appearanceView: AppearanceView, context: Context) {
-    appearanceView.capture = capture
+  func updateNSView(_ captureView: WindowCaptureView, context: Context) {
+    captureView.windowed = windowed
   }
 }
 
 struct WindowViewModifier: ViewModifier {
-  @State private var capture = WindowCapture()
+  @State private var windowed = Windowed()
 
   func body(content: Content) -> some View {
     content
-      .environment(capture)
-      .focusedSceneValue(\.window, capture)
+      .environment(windowed)
       .background {
-        WindowCaptureView(capture: capture)
+        WindowingView(windowed: windowed)
       }
   }
 }
 
 struct WindowFullScreenViewModifier: ViewModifier {
-  @Environment(WindowCapture.self) private var capture
+  @Environment(Windowed.self) private var windowed
   @State private var fullScreen = FullScreenEnvironmentKey.defaultValue
-  private var window: NSWindow? { capture.window }
+  private var window: NSWindow? { windowed.window }
 
   func body(content: Content) -> some View {
     content
       .environment(\.fullScreen, fullScreen)
-      .focusedSceneValue(\.fullScreen, fullScreen)
-      .onChange(of: capture) {
+      .onChange(of: windowed) {
         fullScreen = window?.isFullScreen() ?? FullScreenEnvironmentKey.defaultValue
       }.onReceive(NotificationCenter.default.publisher(for: NSWindow.willEnterFullScreenNotification)) { notification in
         guard isCurrentWindow(notification) else {
@@ -147,14 +124,15 @@ struct WindowFullScreenViewModifier: ViewModifier {
 }
 
 struct WindowFullScreenToggleViewModifier: ViewModifier {
-  @Environment(WindowCapture.self) private var capture
+  @Environment(Windowed.self) private var windowed
+  private var window: NSWindow? { windowed.window }
 
   func body(content: Content) -> some View {
     content.background {
       // This is a workaround for an odd behavior where the menu item to toggle full screen mode disappears. It's not a
       // solution, since some existing behavior does not work (e.g. Fn-F to full screen); but it is something.
       Button("Window.FullScreen.Toggle") {
-        capture.window?.toggleFullScreen(nil)
+        window?.toggleFullScreen(window)
       }
       .keyboardShortcut(.fullScreen)
       .focusable(false)
