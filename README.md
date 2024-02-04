@@ -1,5 +1,9 @@
 # Advance
 
+> **advance** verb.
+>
+> [(intransitive)][dictionary] To move forward in time; to progress towards completion. [from 16th c.]
+
 A macOS app for viewing a collection of images.
 
 ## Rationale
@@ -78,6 +82,7 @@ Note that the details get technical.
 [^1]: A local copy of the 1st volume of the manga [The Ancient Magus' Bride][the-ancient-magus-bride] (177 images, ~350 MB) loads in under 1 second on my 2019 MacBook Pro. To compare, Preview loads the same set of images in 7 seconds, and continues to heavily utilize the CPU in the background for much longer.
 [^2]: Downsampling involves processing an image to create a representation at a lower resolution. For Advance, it's important to support displaying many images at many different sizes without sacrificing image quality or memory consumption. Before an image appears on-screen, it is downsampled at the size of the frame it's given with respect to how many pixels can fit in the frame. The result is that, at smaller frame sizes (e.g. in the sidebar), images appear roughly how they would at larger frame sizes while not introducing side effects like high pixelation.
 
+[dictionary]: https://en.wiktionary.org/wiki/advance#Verb
 [live-text]: https://support.apple.com/guide/preview/interact-with-text-in-a-photo-prvw625a5b2c/mac
 [releases]: https://github.com/KyleErhabor/Advance/releases
 [the-ancient-magus-bride]: https://en.wikipedia.org/wiki/The_Ancient_Magus%27_Bride
