@@ -12,7 +12,6 @@ import SwiftUI
 
 struct ImageCollectionCopyingView: View {
   @Environment(CopyDepot.self) private var depot
-  @Default(.resolveCopyingConflicts) private var resolveConflicts
 
   @Binding var isPresented: Bool
   let action: (URL) -> Void

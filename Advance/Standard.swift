@@ -194,6 +194,39 @@ func time<T>(
   )
 }
 
+func race<T>(
+  lhs: @escaping () async -> T,
+  rhs: @escaping () async -> T
+) async -> T {
+  await withCheckedContinuation { continuation in
+    // TODO: Figure out a way to cancel this task when the outer operation is cancelled.
+    Task {
+      await withTaskGroup(of: T.self) { group in
+        // Borrowed from https://forums.swift.org/t/running-an-async-task-with-a-timeout/49733/21
+        await withCheckedContinuation { continuation in
+          group.addTask {
+            continuation.resume()
+
+            return await lhs()
+          }
+        }
+
+        group.addTask {
+          await Task.yield()
+
+          return await rhs()
+        }
+
+        let value = await group.next()!
+
+        group.cancelAll()
+
+        continuation.resume(returning: value)
+      }
+    }
+  }
+}
+
 struct Matcher<Item, Path, Transform> where Item: Equatable, Path: Collection<Item?> {
   typealias Items = Collection<Item>
 

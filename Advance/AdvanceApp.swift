@@ -14,16 +14,9 @@ struct AdvanceApp: App {
   @State private var depot = CopyDepot()
 
   var body: some Scene {
-    Group {
-      ImageCollectionScene()
-        .handlesExternalEvents(matching: [])
-
-      Settings {
-        SettingsView()
-      }
-    }
-    .environment(depot)
-    .environmentObject(delegate)
+    AppScene()
+      .environment(depot)
+      .environmentObject(delegate)
   }
 
   init() {
@@ -32,7 +25,7 @@ struct AdvanceApp: App {
     }
   }
 
-  static func initialize() async {
+  static nonisolated func initialize() async {
     do {
       try FileManager.default.removeItem(at: .temporaryLiveTextImagesDirectory)
     } catch let err as CocoaError where err.code == .fileNoSuchFile {

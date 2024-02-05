@@ -53,13 +53,29 @@ extension ImageCollectionItemRoot: Equatable {
 
 extension ImageCollectionItemRoot: Codable {}
 
-struct ImageCollectionItemImageAnalysis {
+//struct ImageCollectionItemImageAnalysis {
+//  let url: URL
+//  let phase: ResultPhaseItem
+//  let downsample: Bool
+//}
+//
+//extension ImageCollectionItemImageAnalysis: Equatable {}
+
+struct ImageCollectionItemImageAnalysisInput {
   let url: URL
-  let phase: ResultPhaseItem
+  let interactions: ImageAnalysisOverlayView.InteractionTypes
   let downsample: Bool
+  let isSuccessPhase: Bool
 }
 
-extension ImageCollectionItemImageAnalysis: Equatable {}
+extension ImageCollectionItemImageAnalysisInput: Equatable {}
+
+struct ImageCollectionItemImageAnalysis {
+  let input: ImageCollectionItemImageAnalysisInput
+  let output: ImageAnalysisResult
+
+  var hasResults: Bool { output.analysis.hasOutput }
+}
 
 @Observable
 class ImageCollectionItemImage {
@@ -71,9 +87,7 @@ class ImageCollectionItemImage {
   var properties: ImageProperties
   var bookmarked: Bool
 
-  var analysis: ImageAnalysis?
-  var analysisHasResults = false
-  var analysisFactors: ImageCollectionItemImageAnalysis?
+  var analysis: ImageCollectionItemImageAnalysis?
   var highlighted = false
 
   init(bookmark: BookmarkStoreItem.ID, source: URLSource, relative: URLSource?, properties: ImageProperties, bookmarked: Bool) {
@@ -633,6 +647,27 @@ class ImageCollection: Codable {
 
 extension ImageCollection {
   // MARK: - Convenience
+  static func prepare(
+    url: URL,
+    includingHiddenFiles importHidden: Bool,
+    includingSubdirectories importSubdirectories: Bool
+  ) -> ImageCollection.Kind {
+    let source = URLSource(url: url, options: [.withReadOnlySecurityScope, .withoutImplicitSecurityScope])
+
+    if url.isDirectory() {
+      return .document(.init(
+        source: source,
+        files: url.withSecurityScope {
+          FileManager.default
+            .contents(at: url, options: .init(includingHiddenFiles: importHidden, includingSubdirectories: importSubdirectories))
+            .finderSort()
+            .map { .init(url: $0, options: .withoutImplicitSecurityScope) }
+        }
+      ))
+    }
+
+    return .file(source)
+  }
 
   static func resolving(
     bookmarks: [BookmarkStoreItem],

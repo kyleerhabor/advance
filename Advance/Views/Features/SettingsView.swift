@@ -15,15 +15,25 @@ struct SettingsGroupBoxStyle: GroupBoxStyle {
   }
 }
 
-struct SettingsLabeledGroupBoxStyle: GroupBoxStyle {
+struct ContainerSettingsGroupBoxStyle: GroupBoxStyle {
+  func makeBody(configuration: Configuration) -> some View {
+    VStack(alignment: .leading) {
+      configuration.content
+        .groupBoxStyle(.settings)
+    }
+  }
+}
+
+struct LabeledSettingsGroupBoxStyle: GroupBoxStyle {
   func makeBody(configuration: Configuration) -> some View {
     VStack(alignment: .leading, spacing: 6) {
       configuration.label
 
-      VStack(alignment: .leading) {
+      GroupBox {
         configuration.content
-          .groupBoxStyle(.settings)
-      }.padding(.leading)
+      }
+      .groupBoxStyle(.containerSettings)
+      .padding(.leading)
     }
   }
 }
@@ -32,8 +42,12 @@ extension GroupBoxStyle where Self == SettingsGroupBoxStyle {
   static var settings: SettingsGroupBoxStyle { .init() }
 }
 
-extension GroupBoxStyle where Self == SettingsLabeledGroupBoxStyle {
-  static var settingsLabeled: SettingsLabeledGroupBoxStyle { .init() }
+extension GroupBoxStyle where Self == LabeledSettingsGroupBoxStyle {
+  static var labeledSettings: LabeledSettingsGroupBoxStyle { .init() }
+}
+
+extension GroupBoxStyle where Self == ContainerSettingsGroupBoxStyle {
+  static var containerSettings: ContainerSettingsGroupBoxStyle { .init() }
 }
 
 struct SettingsLabeledContentStyle: LabeledContentStyle {
@@ -82,8 +96,23 @@ struct SettingsFormStyle: FormStyle {
   }
 }
 
+enum SettingsTab {
+  case general, importing, extra
+}
+
+struct SettingsTabEnvironmentKey: EnvironmentKey {
+  static var defaultValue = Binding.constant(SettingsTab.general)
+}
+
+extension EnvironmentValues {
+  var settingsTab: SettingsTabEnvironmentKey.Value {
+    get { self[SettingsTabEnvironmentKey.self] }
+    set { self[SettingsTabEnvironmentKey.self] = newValue }
+  }
+}
+
 struct SettingsView: View {
-  @State private var tab = Tab.general
+  @State private var tab = SettingsTab.general
 
   var body: some View {
     // TODO: Figure out how to animate tab changes.
@@ -91,7 +120,7 @@ struct SettingsView: View {
       Form {
         SettingsGeneralView()
       }
-      .tag(Tab.general)
+      .tag(SettingsTab.general)
       .tabItem {
         Label("General", systemImage: "gearshape")
       }
@@ -99,7 +128,7 @@ struct SettingsView: View {
       Form {
         SettingsImportView()
       }
-      .tag(Tab.importing)
+      .tag(SettingsTab.importing)
       .tabItem {
         Label("Import", systemImage: "square.and.arrow.down")
       }
@@ -107,8 +136,8 @@ struct SettingsView: View {
       Form {
         SettingsExtraView()
       }
-      .tag(Tab.extra)
-      .tabItem { 
+      .tag(SettingsTab.extra)
+      .tabItem {
         Label("Extra", systemImage: "wand.and.stars")
       }
     }
@@ -116,9 +145,6 @@ struct SettingsView: View {
     .frame(width: 384) // 256 - 512
     .scenePadding()
     .frame(width: 576) // 512 - 640
-  }
-
-  enum Tab {
-    case general, importing, extra
+    .environment(\.settingsTab, $tab)
   }
 }

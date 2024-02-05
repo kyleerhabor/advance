@@ -85,7 +85,7 @@ enum ResultPhase<Success, Failure> where Failure: Error {
 
 extension ResultPhase: Equatable where Success: Equatable, Failure: Equatable {}
 
-enum ResultPhaseItem: Equatable {
+enum ResultPhaseItem {
   case empty, success, failure
 
   init(_ phase: ImageResamplePhase) {
@@ -99,6 +99,8 @@ enum ResultPhaseItem: Equatable {
     }
   }
 }
+
+extension ResultPhaseItem: Equatable {}
 
 enum ColorScheme: Int {
   case system, light, dark
@@ -123,6 +125,7 @@ extension Defaults.Keys {
   // Live Text
   static let liveText = Key("liveText", default: true)
   static let liveTextIcon = Key("liveTextIcon", default: false)
+  static let liveTextSubject = Key("liveTextSubject", default: false)
   static let liveTextSearchWith = Key("liveTextSearchWith", default: false)
   static let liveTextDownsample = Key("liveTextDownsample", default: false)
 

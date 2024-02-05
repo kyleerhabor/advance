@@ -64,10 +64,8 @@ struct ImageCollectionItemPhaseView: View {
       .task {
         do {
           try await Task.sleep(for: .seconds(1))
-        } catch is CancellationError {
-          // Fallthrough
         } catch {
-          Logger.standard.fault("Image elapse threw an error besides CancellationError: \(error)")
+          // Fallthrough
         }
 
         elapsed = true

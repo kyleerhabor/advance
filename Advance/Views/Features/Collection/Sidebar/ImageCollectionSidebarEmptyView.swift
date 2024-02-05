@@ -116,24 +116,6 @@ struct ImageCollectionSidebarEmptyView: View {
     }
   }
 
-  func prepare(url: URL) -> ImageCollection.Kind {
-    let source = URLSource(url: url, options: [.withReadOnlySecurityScope, .withoutImplicitSecurityScope])
-
-    if url.isDirectory() {
-      return .document(.init(
-        source: source,
-        files: url.withSecurityScope {
-          FileManager.default
-            .contents(at: url, options: .init(includingHiddenFiles: importHidden, includingSubdirectories: importSubdirectories))
-            .finderSort()
-            .map { .init(url: $0, options: .withoutImplicitSecurityScope) }
-        }
-      ))
-    }
-
-    return .file(source)
-  }
-
   func prepare(item: ImageTransferable) -> ImageCollection.Kind {
     let url = item.url
     let source = URLSource(
@@ -185,7 +167,13 @@ struct ImageCollectionSidebarEmptyView: View {
   // MARK: - Convenience (concurrency)
 
   func resolve(urls: [URL], in store: BookmarkStore) async -> BookmarkStoreState<[ImageCollectionItem]> {
-    let kinds = urls.map(prepare(url:))
+    let kinds = urls.map { url in
+      ImageCollection.prepare(
+        url: url,
+        includingHiddenFiles: importHidden,
+        includingSubdirectories: importSubdirectories
+      )
+    }
 
     return await Self.resolve(kinds: kinds, in: store)
   }

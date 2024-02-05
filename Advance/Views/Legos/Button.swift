@@ -73,8 +73,8 @@ struct MenuItemToggle<I, Label, Content>: View where I: Equatable, Label: View, 
   private var isOn: Binding<Bool> {
     .init {
       toggle.state
-    } set: { _ in
-      toggle.item()
+    } set: { isOn in
+      toggle(state: isOn)
     }
   }
 

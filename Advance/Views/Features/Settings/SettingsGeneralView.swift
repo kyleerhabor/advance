@@ -7,7 +7,6 @@
 
 import Defaults
 import SwiftUI
-import VisionKit
 
 struct SettingsGeneralView: View {
   typealias Scheme = ColorScheme?
@@ -17,6 +16,7 @@ struct SettingsGeneralView: View {
   @Default(.collapseMargins) private var collapseMargins
   @Default(.liveText) private var liveText
   @Default(.liveTextIcon) private var liveTextIcon
+  @Default(.liveTextSubject) private var liveTextSubject
   @Default(.liveTextSearchWith) private var liveTextSearchWith
   @Default(.displayTitleBarImage) private var displayTitleBarImage
   @Default(.hideToolbarScrolling) private var hideToolbar
@@ -24,7 +24,6 @@ struct SettingsGeneralView: View {
   @Default(.hideScrollIndicator) private var hideScroll
   @Default(.resolveCopyingConflicts) private var resolveConflicts
   @State private var isPresentingCopyingSheet = false
-  private let liveTextSupported = ImageAnalyzer.isSupported
   private let range = 0.0...4.0
 
   var body: some View {
@@ -81,15 +80,23 @@ struct SettingsGeneralView: View {
       }.disabled(margins.wrappedValue == 0)
     }
 
-    LabeledContent("Live Text:") {
+    LabeledContent("Settings.Section.LiveText") {
       GroupBox {
-        Toggle("Enable Live Text", isOn: $liveText)
+        GroupBox {
+          Toggle("Settings.LiveText.Enable", isOn: $liveText)
 
-        Toggle("Show icon", isOn: $liveTextIcon)
-          .disabled(!liveText)
+          Toggle("Settings.LiveText.Icon", isOn: $liveTextIcon)
+            .disabled(!liveText)
+        }
+
+        Toggle(isOn: $liveTextSubject) {
+          Text("Settings.LiveText.Subject.Label")
+
+          Text("Settings.LiveText.Subject.Note")
+        }.disabled(!liveText)
       }
-      .disabled(!liveTextSupported)
-      .help(liveTextSupported ? "" : "This device does not support Live Text.")
+      .groupBoxStyle(.containerSettings)
+      .liveTextSupport()
     }
 
     LabeledContent("Main Canvas:") {
@@ -107,7 +114,7 @@ struct SettingsGeneralView: View {
 
           Text("Only relevant when the sidebar is not open.")
         }
-      }.groupBoxStyle(.settingsLabeled)
+      }.groupBoxStyle(.labeledSettings)
 
       Toggle("Display current image in the title", isOn: $displayTitleBarImage)
     }

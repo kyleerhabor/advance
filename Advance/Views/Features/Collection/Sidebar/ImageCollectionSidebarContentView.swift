@@ -356,12 +356,14 @@ struct ImageCollectionSidebarContentView: View {
     .focusedValue(\.finderShow, .init(identity: selection, enabled: !selection.isEmpty) {
       openFinder(selecting: urls(from: selection))
     })
-    .focusedValue(\.quicklook, .init(identity: quicklookSelection, enabled: !selection.isEmpty, state: quicklookItem != nil) {
+    .focusedValue(\.quicklook, .init(
+      identity: quicklookSelection,
+      enabled: quicklookItem != nil || !selection.isEmpty,
+      state: quicklookItem != nil
+    ) { quicklook in
       clearQuicklook()
 
-      // Is it possible for this action to be called where quicklookItem is nil two times in a row? If so, we'd be
-      // leaking security scoped resources.
-      guard quicklookItem == nil else {
+      guard quicklook else {
         quicklookItem = nil
 
         return
@@ -422,13 +424,21 @@ struct ImageCollectionSidebarContentView: View {
     }
   }
 
-  func copy(images: [ImageCollectionItemImage], to destination: URL) async throws {
+  nonisolated func copy(images: [ImageCollectionItemImage], to destination: URL) async throws {
+    try await Self.copy(images: images, to: destination, resolvingConflicts: resolveCopyingConflicts)
+  }
+
+  static nonisolated func copy(
+    images: [ImageCollectionItemImage],
+    to destination: URL,
+    resolvingConflicts resolveConflicts: Bool
+  ) async throws {
     try ImageCollectionCopyingView.saving {
       try destination.withSecurityScope {
         try images.forEach { image in
           try ImageCollectionCopyingView.saving(url: image, to: destination) { url in
             try image.withSecurityScope {
-              try ImageCollectionCopyingView.save(url: url, to: destination, resolvingConflicts: resolveCopyingConflicts)
+              try ImageCollectionCopyingView.save(url: url, to: destination, resolvingConflicts: resolveConflicts)
             }
           }
         }

@@ -13,25 +13,25 @@ struct SettingsExtraView: View {
   @Default(.liveText) private var liveText
   @Default(.liveTextSearchWith) private var liveTextSearchWith
   @Default(.liveTextDownsample) private var liveTextDownsample
-  private let liveTextSupported = ImageAnalyzer.isSupported
 
   var body: some View {
-    LabeledContent("Live Text:") {
-      Group {
+    LabeledContent("Settings.Section.LiveText") {
+      GroupBox {
         Toggle(isOn: $liveTextSearchWith) {
-          Text("Show menu item for search engine")
+          Text("Settings.LiveText.Search.Label")
 
-          Text("This will always open in Safari.")
+          Text("Settings.LiveText.Search.Note")
         }
 
         Toggle(isOn: $liveTextDownsample) {
-          Text("Downsample very large images")
+          Text("Settings.LiveText.Downsample.Label")
 
-          Text("If an image is too large to be analyzed, a lower-resolution representation of the image will be used instead. This involves writing the image to disk, which will be cleared the next time the app is launched.")
+          Text("Settings.LiveText.Downsample.Note")
         }
       }
-      .disabled(!liveTextSupported || !liveText)
-      .help(liveTextSupported ? "" : "This device does not support Live Text.")
+      .groupBoxStyle(.containerSettings)
+      .disabled(!liveText)
+      .liveTextSupport()
     }
   }
 }

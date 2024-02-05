@@ -149,6 +149,8 @@ struct ImageCollectionScene: Scene {
     // to collect all the collection IDs before initialize(allowing:) gets called. Personally, I wonder if this may
     // result in a rare race condition where the view does not report its ID in time and tries reading from a file
     // that's about to be deleted.
+    //
+    // Maybe increase to 2 just to be safe?
     .deferred(count: 1) {
       Task(priority: .background) {
         await Self.initialize(allowing: manager.ids)

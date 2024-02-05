@@ -1,5 +1,5 @@
 //
-//  View+Keys.swift
+//  View+Key.swift
 //  Advance
 //
 //  Created by Kyle Erhabor on 1/4/24.
@@ -89,15 +89,9 @@ extension EnvironmentValues {
 
 // MARK: - Focus
 
-struct AppMenuItemAction<I> where I: Equatable {
-  typealias Action = () -> Void
-
+struct AppMenuItemAction<I, A> where I: Equatable {
   let identity: I
-  let action: Action
-
-  func callAsFunction() {
-    action()
-  }
+  let action: A
 }
 
 extension AppMenuItemAction: Equatable {
@@ -106,34 +100,47 @@ extension AppMenuItemAction: Equatable {
   }
 }
 
-struct AppMenuItem<I> where I: Equatable {
-  typealias Action = AppMenuItemAction<I>
-
+struct AppMenuItemActionable<I, A> where I: Equatable {
   let enabled: Bool
-  let action: Action
-
-  func callAsFunction() {
-    action()
-  }
+  let action: AppMenuItemAction<I, A>
 }
 
-extension AppMenuItem {
-  init(identity: I, enabled: Bool, action: @escaping Action.Action) {
+extension AppMenuItemActionable {
+  init(identity: I, enabled: Bool, action: A) {
     self.init(enabled: enabled, action: .init(identity: identity, action: action))
   }
 }
 
+extension AppMenuItemActionable where A == () -> Void {
+  init(toggle: AppMenuToggleItem<I>) {
+    self.init(identity: toggle.item.action.identity, enabled: toggle.item.enabled) {
+      toggle(state: !toggle.state)
+    }
+  }
+
+  func callAsFunction() {
+    action.action()
+  }
+}
+
+typealias AppMenuItem<I> = AppMenuItemActionable<I, () -> Void> where I: Equatable
+
 extension AppMenuItem: Equatable {}
 
 struct AppMenuToggleItem<I> where I: Equatable {
-  typealias Item = AppMenuItem<I>
+  typealias Action = (Bool) -> Void
+  typealias Item = AppMenuItemActionable<I, Action>
 
   let state: Bool
   let item: Item
+
+  func callAsFunction(state: Bool) {
+    item.action.action(state)
+  }
 }
 
 extension AppMenuToggleItem {
-  init(identity: I, enabled: Bool, state: Bool, action: @escaping Item.Action.Action) {
+  init(identity: I, enabled: Bool, state: Bool, action: @escaping Action) {
     self.init(state: state, item: .init(identity: identity, enabled: enabled, action: action))
   }
 }
