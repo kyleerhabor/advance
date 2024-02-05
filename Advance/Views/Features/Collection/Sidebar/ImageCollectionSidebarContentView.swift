@@ -123,7 +123,7 @@ struct ImageCollectionSidebarFilterView: View {
 }
 
 struct ImageCollectionSidebarItemView: View {
-  let image: ImageCollectionItemImage
+  @Bindable var image: ImageCollectionItemImage
 
   var body: some View {
     VStack {
@@ -292,8 +292,8 @@ struct ImageCollectionSidebarContentView: View {
     .contextMenu { ids in
       let bookmarked = Binding {
         !ids.isEmpty && isBookmarked(selection: ids)
-      } set: { bookmarked in
-        bookmark(images: images(from: ids), value: bookmarked)
+      } set: { isOn in
+        self.bookmark(images: images(from: ids), value: isOn)
       }
 
       Section {
@@ -301,10 +301,15 @@ struct ImageCollectionSidebarContentView: View {
           openFinder(selecting: urls(from: ids))
         }
 
-        Button("Quick Look") {
-          clearQuicklook()
-          setQuicklook(images: images(from: ids))
+        let quicklook = Binding<Bool> {
+          quicklookItem != nil && ids.isSubset(of: quicklookSelection)
+        } set: { isOn in
+          quicklookSelection = isOn ? ids : []
+
+          updateQuicklook()
         }
+
+        ImageCollectionQuickLookView(isOn: quicklook)
       }
 
       Section {
@@ -335,7 +340,7 @@ struct ImageCollectionSidebarContentView: View {
       }
 
       Section {
-        ImageCollectionBookmarkView(showing: bookmarked)
+        ImageCollectionBookmarkView(isOn: bookmarked)
       }
     }.fileImporter(isPresented: $isCopyingFileImporterPresented, allowedContentTypes: [.folder]) { result in
       switch result {
@@ -348,7 +353,7 @@ struct ImageCollectionSidebarContentView: View {
             }
           }
         case .failure(let err):
-          Logger.ui.info("\(err)")
+          Logger.ui.error("Could not import folder for copying operation: \(err)")
       }
     }
     .fileDialogCopy()
@@ -361,21 +366,25 @@ struct ImageCollectionSidebarContentView: View {
       enabled: quicklookItem != nil || !selection.isEmpty,
       state: quicklookItem != nil
     ) { quicklook in
-      clearQuicklook()
+      quicklookSelection = quicklook ? selection : []
 
-      guard quicklook else {
-        quicklookItem = nil
-
-        return
-      }
-
-      setQuicklook(images: images(from: selection))
+      updateQuicklook()
+    })
+    .focusedValue(\.bookmark, .init(
+      identity: selection,
+      enabled: !selection.isEmpty,
+      state: !selection.isEmpty && isBookmarked(selection: selection)
+    ) { isOn in
+      self.bookmark(images: images(from: selection), value: isOn)
     })
     .onDisappear {
-      clearQuicklook()
+      quicklookSelection.removeAll()
+
+      updateQuicklook()
     }.onKeyPress(.space, phases: .down) { _ in
-      clearQuicklook()
-      setQuicklook(images: images(from: selection))
+      quicklookSelection = selection
+
+      updateQuicklook()
 
       return .handled
     }
@@ -389,24 +398,33 @@ struct ImageCollectionSidebarContentView: View {
     images(from: selection).map(\.url)
   }
 
-  func clearQuicklook() {
+  func updateQuicklook() {
     quicklookScopes.forEach { (image, scope) in
+      if quicklookSelection.contains(image.id) {
+        return
+      }
+
       image.endSecurityScope(scope: scope)
+      quicklookScopes[image] = nil
+    }
+
+    let images = images(from: quicklookSelection)
+
+    images
+      .filter { quicklookScopes[$0] == nil }
+      .forEach { image in
+        quicklookScopes[image] = image.startSecurityScope()
+      }
+
+    quicklookItems = images.map(\.url)
+    quicklookItem = if let url = quicklookItem, quicklookItems.contains(where: { $0 == url }) {
+      quicklookItem
+    } else {
+      quicklookItems.first
     }
   }
 
-  func setQuicklook(images: [ImageCollectionItemImage]) {
-    quicklookScopes = .init(uniqueKeysWithValues: images.map { ($0, $0.startSecurityScope()) })
-    quicklookItems = images.map(\.url)
-    quicklookItem = quicklookItems.first
-  }
-
-//  func quicklook(images: [ImageCollectionItemImage]) {
-//    clearQuicklook()
-//    setQuicklook(images: images)
-//  }
-
-  func isBookmarked(selection: ImageCollectionSidebar.Selection) -> Bool {
+  func isBookmarked(selection: Set<ImageCollectionItemImage.ID>) -> Bool {
     return selection.isSubset(of: collection.bookmarks)
   }
 
@@ -419,17 +437,17 @@ struct ImageCollectionSidebarContentView: View {
       do {
         try await collection.persist(id: id)
       } catch {
-        Logger.model.error("Could not persist image collection \"\(id)\" (via sidebar bookmark): \(error)")
+        Logger.model.error("Could not persist image collection \"\(id)\" from sidebar bookmark: \(error)")
       }
     }
   }
 
-  nonisolated func copy(images: [ImageCollectionItemImage], to destination: URL) async throws {
+  nonisolated func copy(images: some Sequence<ImageCollectionItemImage>, to destination: URL) async throws {
     try await Self.copy(images: images, to: destination, resolvingConflicts: resolveCopyingConflicts)
   }
 
   static nonisolated func copy(
-    images: [ImageCollectionItemImage],
+    images: some Sequence<ImageCollectionItemImage>,
     to destination: URL,
     resolvingConflicts resolveConflicts: Bool
   ) async throws {

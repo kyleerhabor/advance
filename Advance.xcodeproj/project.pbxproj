@@ -54,6 +54,7 @@
 		00E42E992B33A39400BC05A7 /* BookmarkStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E42E982B33A39400BC05A7 /* BookmarkStore.swift */; };
 		00E42E9B2B33EB8000BC05A7 /* ImageCollectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E42E9A2B33EB8000BC05A7 /* ImageCollectionManager.swift */; };
 		00F9069B2B3F5F0700B0CAE2 /* OrderedCollections in Frameworks */ = {isa = PBXBuildFile; productRef = 00F9069A2B3F5F0700B0CAE2 /* OrderedCollections */; };
+		00FD27A12B715111000F38CE /* ImageCollectionQuickLookView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00FD27A02B715111000F38CE /* ImageCollectionQuickLookView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -108,6 +109,7 @@
 		00E42E902B339E0700BC05A7 /* Bookmark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Bookmark.swift; sourceTree = "<group>"; };
 		00E42E982B33A39400BC05A7 /* BookmarkStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkStore.swift; sourceTree = "<group>"; };
 		00E42E9A2B33EB8000BC05A7 /* ImageCollectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionManager.swift; sourceTree = "<group>"; };
+		00FD27A02B715111000F38CE /* ImageCollectionQuickLookView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionQuickLookView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -248,6 +250,7 @@
 				003375192B34EBC800423A58 /* ImageCollectionItemView.swift */,
 				002FB7742B0BE0F900E930AF /* ImageCollectionBookmarkView.swift */,
 				001E1E682AC4DEC8005EE188 /* ImageCollectionCopyingView.swift */,
+				00FD27A02B715111000F38CE /* ImageCollectionQuickLookView.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -424,6 +427,7 @@
 				00C127362A90CF7400B5452C /* LiveTextView.swift in Sources */,
 				00E0ECC02A76A8000030A0DC /* AppDelegate.swift in Sources */,
 				00AE138E2B4C7A2600FE8A5D /* Quartz.swift in Sources */,
+				00FD27A12B715111000F38CE /* ImageCollectionQuickLookView.swift in Sources */,
 				0077AF922ABB8650002E3FF4 /* Image.swift in Sources */,
 				000855692A72FE2C00309905 /* AdvanceApp.swift in Sources */,
 				003763CC2AB40FD800D53F2E /* ImageCollectionSidebarEmptyView.swift in Sources */,
@@ -518,7 +522,6 @@
 				SDKROOT = macosx;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				SWIFT_STRICT_CONCURRENCY = minimal;
 			};
 			name = Debug;
 		};
@@ -578,7 +581,6 @@
 				MTL_FAST_MATH = YES;
 				SDKROOT = macosx;
 				SWIFT_COMPILATION_MODE = wholemodule;
-				SWIFT_STRICT_CONCURRENCY = minimal;
 			};
 			name = Release;
 		};

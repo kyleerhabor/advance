@@ -19,8 +19,8 @@ struct ImageCollectionExternalCommands: Commands {
           Text("Finder.Show")
         }.keyboardShortcut(.showFinder)
 
-        MenuItemToggle(toggle: quicklook ?? .init(identity: [], enabled: false, state: false, action: noop)) {
-          Text("Quick Look")
+        MenuItemToggle(toggle: quicklook ?? .init(identity: [], enabled: false, state: false, action: noop)) { $isOn in
+          ImageCollectionQuickLookView(isOn: $isOn)
         }.keyboardShortcut(.quicklook)
       }
 

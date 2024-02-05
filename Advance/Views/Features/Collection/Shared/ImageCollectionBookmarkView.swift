@@ -8,19 +8,21 @@
 import SwiftUI
 
 struct ImageCollectionBookmarkView: View {
-  @Binding var showing: Bool
+  @Binding var isOn: Bool
 
   var body: some View {
     Button {
-      showing.toggle()
+      isOn.toggle()
     } label: {
-      if showing {
-        Label("Bookmark", systemImage: "bookmark")
-          .symbolVariant(.fill)
-          .labelStyle(.titleAndIcon)
+      if isOn {
+        label.labelStyle(.titleAndIcon)
       } else {
-        Label("Bookmark", systemImage: "bookmark")
+        label
       }
-    }
+    }.symbolVariant(isOn ? .fill : .none)
+  }
+
+  var label: some View {
+    Label("Bookmark", systemImage: "bookmark")
   }
 }

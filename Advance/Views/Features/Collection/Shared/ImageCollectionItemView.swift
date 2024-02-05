@@ -35,7 +35,7 @@ struct ImageCollectionItemPhaseView: View {
     Rectangle()
       .fill(.fill.quaternary)
       .visible(phase.success?.image == nil)
-      .transaction(setter(value: true, on: \.disablesAnimations))
+//      .transaction(setter(value: true, on: \.disablesAnimations))
       .overlay {
         if let image = phase.success?.image {
           image
@@ -79,21 +79,11 @@ struct ImageCollectionItemView<Scope, Content>: View where Scope: URLScope, Cont
   @State private var phase = ImageResamplePhase.empty
 
   let image: Scope
-  @ViewBuilder let content: (ImageResamplePhase) -> Content
+  @ViewBuilder var content: (ImageResamplePhase) -> Content
 
   var body: some View {
     DisplayImageView { size in
-      do {
-        let image = try await Self.resample(image: image, to: size)
-
-        phase = .result(.success(.init(image: image, size: size)))
-      } catch is CancellationError {
-        return
-      } catch {
-        Logger.ui.error("Could not resample image at URL \"\(image.url.string)\": \(error)")
-
-        phase = .result(.failure(.failed))
-      }
+      await resample(size: size)
     } content: {
       content(phase)
     }
@@ -118,6 +108,20 @@ struct ImageCollectionItemView<Scope, Content>: View where Scope: URLScope, Cont
 
   static func resample(image: Scope, to size: CGSize) async throws -> Image {
     try image.withSecurityScope { try resample(imageAt: image.url, to: size) }
+  }
+
+  func resample(size: CGSize) async {
+    do {
+      let image = try await Self.resample(image: image, to: size)
+
+      phase = .result(.success(.init(image: image, size: size)))
+    } catch is CancellationError {
+      return
+    } catch {
+      Logger.ui.error("Could not resample image at URL \"\(image.url.string)\": \(error)")
+
+      phase = .result(.failure(.failed))
+    }
   }
 }
 

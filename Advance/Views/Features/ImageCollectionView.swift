@@ -175,7 +175,7 @@ struct ImageCollectionNavigationDetailView: View {
   var body: some View {
     ScrollViewReader { proxy in
       ImageCollectionDetailView(items: collection.detail)
-        .backgroundPreferenceValue(VisibleImagesPreferenceKey.self) { images in
+        .backgroundPreferenceValue(ImageCollectionVisiblePreferenceKey.self) { images in
           ImageCollectionNavigationDetailPathView(image: images.first, proxy: proxy)
         }.focusedSceneValue(\.detailScroller, .init(identity: .detail) { id in
           Self.scroll(proxy: proxy, to: id)

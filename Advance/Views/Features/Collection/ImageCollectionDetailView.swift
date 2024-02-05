@@ -67,7 +67,7 @@ struct ImageCollectionDetailItemBookmarkView: View {
   }
 
   var body: some View {
-    ImageCollectionBookmarkView(showing: bookmark)
+    ImageCollectionBookmarkView(isOn: bookmark)
   }
 }
 
@@ -96,6 +96,7 @@ struct ImageCollectionDetailItemView: View {
   @Default(.liveTextSearchWith) private var liveTextSearchWith
   @Default(.liveTextDownsample) private var liveTextDownsample
   @Default(.resolveCopyingConflicts) private var resolveCopyingConflicts
+  @State private var analysis: ImageCollectionItemImageAnalysis?
   @State private var isCopyingFileImporterPresented = false
   @State private var error: String?
   private var isErrorPresented: Binding<Bool> {
@@ -112,17 +113,12 @@ struct ImageCollectionDetailItemView: View {
   let liveTextIcon: Bool
 
   var body: some View {
-    let bookmarked = $image.bookmarked
-
     // For some reason, ImageCollectionItemView needs to be wrapped in a VStack for animations to apply.
     VStack {
       ImageCollectionItemView(image: image) { phase in
-        var isSuccess: Bool {
-          phase.success != nil
-        }
+        var isSuccess: Bool { phase.success != nil }
 
         ImageCollectionItemPhaseView(phase: phase)
-          .aspectRatio(image.properties.sized.aspectRatio, contentMode: .fit)
           .overlay {
             let none = 0
             var length: Int {
@@ -156,7 +152,7 @@ struct ImageCollectionDetailItemView: View {
 
             LiveTextView(
               interactions: interactions,
-              result: image.analysis?.output,
+              result: analysis?.output,
               highlight: $image.highlighted
             ) { handler in
               await image.withSecurityScope(handler)
@@ -170,7 +166,7 @@ struct ImageCollectionDetailItemView: View {
 
               let input = input
 
-              guard image.analysis?.input != input && input.isSuccessPhase else {
+              guard analysis?.input != input && input.isSuccessPhase else {
                 return
               }
 
@@ -188,13 +184,13 @@ struct ImageCollectionDetailItemView: View {
                 return
               }
 
-              image.analysis = .init(
+              self.analysis = .init(
                 input: input,
                 output: .init(id: .init(), analysis: analysis)
               )
             }
           }
-      }
+      }.aspectRatio(image.properties.sized.aspectRatio, contentMode: .fit)
     }.contextMenu {
       Section {
         Button("Finder.Show") {
@@ -223,7 +219,7 @@ struct ImageCollectionDetailItemView: View {
       }
 
       Section {
-        ImageCollectionDetailItemBookmarkView(bookmarked: bookmarked)
+        ImageCollectionDetailItemBookmarkView(bookmarked: $image.bookmarked)
       }
     }.fileImporter(isPresented: $isCopyingFileImporterPresented, allowedContentTypes: [.folder]) { result in
       switch result {
@@ -264,7 +260,7 @@ struct ImageCollectionDetailItemView: View {
     }
   }
 
-  static func analyze(
+  static nonisolated func analyze(
     url: URL,
     orientation: CGImagePropertyOrientation,
     interactions: ImageAnalysisOverlayView.InteractionTypes,
@@ -346,7 +342,7 @@ struct ImageCollectionDetailItemView: View {
 
   // For reference, I know VisionKit logs the analysis time in Console; this is just useful for always displaying the
   // time in *our own logs*.
-  static func analyze(
+  static nonisolated func analyze(
     analyzer: ImageAnalyzer,
     imageAt url: URL,
     orientation: CGImagePropertyOrientation,
@@ -419,7 +415,7 @@ struct ImageCollectionDetailVisualView: View {
   }
 }
 
-struct VisibleImagesPreferenceKey: PreferenceKey {
+struct ImageCollectionVisiblePreferenceKey: PreferenceKey {
   typealias Value = [ImageCollectionItemImage]
 
   static var defaultValue = Value()
@@ -429,128 +425,102 @@ struct VisibleImagesPreferenceKey: PreferenceKey {
   }
 }
 
-struct ImageCollectionDetailVisibilityViewModifier: ViewModifier {
+struct ImageCollectionDetailVisibleView: View {
   @Environment(ImageCollection.self) private var collection
   @Environment(ImageCollectionPath.self) private var path
   @Environment(ImageCollectionSidebar.self) private var sidebar
   @Environment(\.id) private var id
-  @Environment(\.navigationColumns) @Binding private var columns
   @Environment(\.sidebarScroller) private var sidebarScroller
   @Default(.displayTitleBarImage) private var displayTitleBarImage
 
-  func body(content: Content) -> some View {
-    content
-      .overlayPreferenceValue(VisiblePreferenceKey<ImageCollectionItemImage>.self) { items in
-        GeometryReader { proxy in
-          let local = proxy.frame(in: .local)
-          let images = items
-            .filter { local.intersects(proxy[$0.anchor]) }
-            .map(\.item)
+  let images: [ImageCollectionItemImage]
 
-          // The reason we're factoring the view into its own preference value is because the current one will be called
-          // on *every scroll* event the user performs. While views are cheap, there is a cost to always recreating
-          // them—and some are slower than others (navigationDocument(_:), for example). In my experience, this split
-          // causes CPU usage to decrease from 60-68% to 47-52%, which is a major performance improvement (before anchor
-          // preferences, CPU usage was often 42-48%).
-          //
-          // Now, the reason we're using preferences to report the filtered images (instead of, say, a @State variable),
-          // is because of SwiftUI's ability to track changes. @State, just from observing its effects, has no way of
-          // distinguishing itself from other observables besides reporting the change and letting SwiftUI diff them.
-          // As a result, users may experience slight hangs when the set of visible images changes (~55ms). A preference
-          // key, meanwhile, just floats up the view hierarchy and dispenses its value to an attached view. The result
-          // is that using preference values here results in no hangs, making it suitable for this case.
-          Color.clear.preference(key: VisibleImagesPreferenceKey.self, value: images)
+  private var primary: ImageCollectionItemImage? { images.first }
+
+  var body: some View {
+    let highlights = images.filter { $0.analysis?.hasResults ?? false }
+    let hasHighlights = !highlights.isEmpty
+    let highlighted = highlights.allSatisfy(\.highlighted)
+    let identity: Set<ImageCollectionItemImage.ID> = if let primary {
+      [primary.id]
+    } else {
+      []
+    }
+
+    Color.clear
+      .focusedSceneValue(\.liveTextHighlight, .init(
+        identity: highlights.map(\.id),
+        enabled: hasHighlights,
+        state: hasHighlights && highlighted
+      ) { highlight in
+        images.forEach(setter(value: highlight, on: \.highlighted))
+      })
+      .focusedSceneValue(\.finderShow, .init(identity: identity, enabled: primary != nil) {
+        guard let primary else {
+          return
         }
-      }.backgroundPreferenceValue(VisibleImagesPreferenceKey.self) { images in
-        let primary = images.first
-        let highlights = images.filter { $0.analysis?.hasResults ?? false }
-        let hasHighlights = !highlights.isEmpty
-        let highlighted = highlights.allSatisfy(\.highlighted)
-        let finderShowIdent: Set<ImageCollectionItemImage.ID> = if let primary {
-          [primary.id]
-        } else {
-          []
+
+        openFinder(selecting: primary.url)
+      })
+      .focusedSceneValue(\.currentImageShow, .init(identity: primary?.id, enabled: primary != nil) {
+        guard let primary else {
+          return
         }
+
+        sidebarScroller.scroll(.init(id: primary.id) {
+          sidebar.selection = [primary.id]
+          path.item = primary.id
+        })
+      })
+      .focusedSceneValue(\.bookmark, .init(
+        identity: identity,
+        enabled: primary != nil,
+        state: primary?.bookmarked ?? false
+      ) { bookmark in
+        guard let primary else {
+          return
+        }
+
+        primary.bookmarked = bookmark
+
+        collection.updateBookmarks()
+
+        Task {
+          do {
+            try await collection.persist(id: id)
+          } catch {
+            Logger.model.error("Could not persist image collection \"\(id)\" via bookmark focus: \(error)")
+          }
+        }
+      })
+
+    if let primary {
+      if displayTitleBarImage {
+        let url = primary.url
 
         Color.clear
-          .focusedSceneValue(\.liveTextHighlight, .init(
-            identity: highlights.map(\.id),
-            enabled: hasHighlights,
-            state: hasHighlights && highlighted
-          ) { highlight in
-            images.forEach(setter(value: highlight, on: \.highlighted))
-          })
-          .focusedSceneValue(\.finderShow, .init(identity: finderShowIdent, enabled: primary != nil) {
-            guard let primary else {
-              return
-            }
+          .navigationTitle(Text(url.lastPath))
+          .navigationDocument(url)
+      }
 
-            openFinder(selecting: primary.url)
-          })
-          .focusedSceneValue(\.currentImageShow, .init(identity: primary?.id, enabled: primary != nil) {
-            guard let primary else {
-              return
-            }
+      Color.clear.onChange(of: Pair(left: collection.sidebarPage, right: sidebar.selection)) { prior, pair in
+        // If the page changed, ignore.
+        guard pair.left == prior.left else {
+          return
+        }
 
-            sidebarScroller.scroll(.init(id: primary.id) {
-              sidebar.selection = [primary.id]
-              path.item = primary.id
-            })
-          })
-          .focusedSceneValue(\.bookmark, .init(
-            identity: primary?.id,
-            enabled: primary != nil,
-            state: primary?.bookmarked ?? false
-          ) { bookmark in
-            guard let primary else {
-              return
-            }
+        path.items.insert(primary.id)
+        path.update(images: collection.images)
 
-            primary.bookmarked = bookmark
-
-            Task {
-              do {
-                try await collection.persist(id: id)
-              } catch {
-                Logger.model.error("Could not persist image collection \"\(id)\" via bookmark focus: \(error)")
-              }
-            }
-          })
-
-        if let primary {
-          if displayTitleBarImage {
-            let url = primary.url
-
-            Color.clear
-              .navigationTitle(Text(url.lastPath))
-              .navigationDocument(url)
-          }
-
-          Color.clear.onChange(of: Pair(left: collection.sidebarPage, right: sidebar.selection)) { prior, pair in
-            // If the page changed, ignore.
-            guard pair.left == prior.left else {
-              return
-            }
-
-            path.items.insert(primary.id)
-            path.update(images: collection.images)
-
-            Task {
-              do {
-                try await collection.persist(id: id)
-              } catch {
-                Logger.model.error("Could not persist image collection \"\(id)\" (via navigation): \(error)")
-              }
-            }
+        Task {
+          do {
+            try await collection.persist(id: id)
+          } catch {
+            Logger.model.error("Could not persist image collection \"\(id)\" (via navigation): \(error)")
           }
         }
       }
-  }
-}
-
-extension View {
-  func visibleImages() -> some View {
-    self.modifier(ImageCollectionDetailVisibilityViewModifier())
+    }
   }
 }
 
@@ -598,10 +568,30 @@ struct ImageCollectionDetailView: View {
       .anchorPreference(key: VisiblePreferenceKey.self, value: .bounds) { [.init(item: image, anchor: $0)] }
     }
     .listStyle(.plain)
-    .backgroundPreferenceValue(VisiblePreferenceKey<ImageCollectionItemImage>.self) { images in
-      Color.clear.preference(key: ScrollOffsetPreferenceKey.self, value: images.last?.anchor)
-    }
-    .toolbar(id: "Canvas") {
+    .overlayPreferenceValue(VisiblePreferenceKey<ImageCollectionItemImage>.self) { items in
+      GeometryReader { proxy in
+        let local = proxy.frame(in: .local)
+        let images = items
+          .filter { local.intersects(proxy[$0.anchor]) }
+          .map(\.item)
+
+        // The reason we're factoring the view into its own preference value is because the current one will be called
+        // on *every scroll* event the user performs. While views are cheap, there is a cost to always recreating
+        // them—and some are slower than others (navigationDocument(_:), for example). In my experience, this split
+        // causes CPU usage to decrease from 60-68% to 47-52%, which is a major performance improvement (before anchor
+        // preferences, CPU usage was often 42-48%).
+        //
+        // Now, the reason we're using preferences to report the filtered images (instead of, say, a @State variable),
+        // is because of SwiftUI's ability to track changes. @State, just from observing its effects, has no way of
+        // distinguishing itself from other observables besides reporting the change and letting SwiftUI diff them.
+        // As a result, users may experience slight hangs when the set of visible images changes (~55ms). A preference
+        // key, meanwhile, just floats up the view hierarchy and dispenses its value to an attached view. The result
+        // is that using preference values here results in no hangs, making it suitable for this case.
+        Color.clear.preference(key: ImageCollectionVisiblePreferenceKey.self, value: images)
+      }.preference(key: ScrollOffsetPreferenceKey.self, value: items.last?.anchor)
+    }.backgroundPreferenceValue(ImageCollectionVisiblePreferenceKey.self) { images in
+      ImageCollectionDetailVisibleView(images: images)
+    }.toolbar(id: "Canvas") {
       ToolbarItem(id: "Visual") {
         PopoverButtonView(edge: .bottom) {
           ImageCollectionDetailVisualView()
@@ -621,7 +611,7 @@ struct ImageCollectionDetailView: View {
           .help("\(showLiveTextIcon ? "Hide" : "Show") Live Text icon")
       }
     }
-    .visibleImages()
+
     .focusedSceneValue(\.liveTextIcon, .init(identity: id, enabled: true, state: showLiveTextIcon) { icon in
       liveTextIcon = icon
     })

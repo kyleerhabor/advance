@@ -172,7 +172,7 @@ struct CurrentImageShowFocusedValueKey: FocusedValueKey {
 }
 
 struct BookmarkFocusedValueKey: FocusedValueKey {
-  typealias Value = AppMenuToggleItem<ImageCollectionItemImage.ID?>
+  typealias Value = AppMenuToggleItem<Set<ImageCollectionItemImage.ID>>
 }
 
 struct BackFocusedValueKey: FocusedValueKey {

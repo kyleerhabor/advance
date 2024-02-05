@@ -26,8 +26,10 @@ struct ImageCollectionImageCommands: Commands {
       }
 
       Section {
-        MenuItemToggle(toggle: bookmark ?? .init(identity: nil, enabled: false, state: false, action: noop)) { $isOn in
-          ImageCollectionBookmarkView(showing: $isOn)
+        MenuItemToggle(toggle: bookmark ?? .init(identity: [], enabled: false, state: false, action: noop)) { $isOn in
+          Button(isOn ? "Images.Command.Bookmark.Remove" : "Images.Command.Bookmark.Add") {
+            isOn.toggle()
+          }
         }.keyboardShortcut(.bookmark)
       }
 

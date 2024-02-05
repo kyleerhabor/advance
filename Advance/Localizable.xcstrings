@@ -137,6 +137,26 @@
         }
       }
     },
+    "Images.Command.Bookmark.Add" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Bookmark"
+          }
+        }
+      }
+    },
+    "Images.Command.Bookmark.Remove" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove Bookmark"
+          }
+        }
+      }
+    },
     "Images.Command.LiveText.Highlight.Hide" : {
       "localizations" : {
         "en" : {
@@ -314,8 +334,25 @@
         }
       }
     },
-    "Quick Look" : {
-
+    "QuickLook.Hide" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close Quick Look"
+          }
+        }
+      }
+    },
+    "QuickLook.Show" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quick Look"
+          }
+        }
+      }
     },
     "Remove" : {
 

@@ -115,7 +115,7 @@ struct LiveTextView: NSViewRepresentable {
     if overlayView.preferredInteractionTypes != interactions {
       overlayView.preferredInteractionTypes = interactions
     } else {
-      overlayView.setHighlightVisibility(highlight, supplementaryInterfaceHidden: supplementaryInterfaceHidden, animated: false)
+      overlayView.setHighlightVisibility(highlight, supplementaryInterfaceHidden: supplementaryInterfaceHidden, animated: true)
     }
 
     overlayView.analysis = result?.analysis

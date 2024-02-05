@@ -67,7 +67,7 @@ struct ImageCollectionSidebarEmptyView: View {
 
             Task(priority: .medium) {
               do {
-              try await collection.persist(id: id)
+                try await collection.persist(id: id)
               } catch {
                 Logger.model.error("Could not persist image collection \"\(id)\" (via sidebar button): \(error)")
               }
@@ -116,7 +116,11 @@ struct ImageCollectionSidebarEmptyView: View {
     }
   }
 
-  func prepare(item: ImageTransferable) -> ImageCollection.Kind {
+  static nonisolated func prepare(
+    item: ImageTransferable,
+    includingHiddenFiles importHidden: Bool,
+    includingSubdirectories importSubdirectories: Bool
+  ) -> ImageCollection.Kind {
     let url = item.url
     let source = URLSource(
       url: url,
@@ -138,7 +142,7 @@ struct ImageCollectionSidebarEmptyView: View {
     return .file(source)
   }
 
-  static func resolve(
+  static nonisolated func resolve(
     kinds: [ImageCollection.Kind],
     in store: BookmarkStore
   ) async -> BookmarkStoreState<[ImageCollectionItem]> {
@@ -166,7 +170,12 @@ struct ImageCollectionSidebarEmptyView: View {
 
   // MARK: - Convenience (concurrency)
 
-  func resolve(urls: [URL], in store: BookmarkStore) async -> BookmarkStoreState<[ImageCollectionItem]> {
+  static nonisolated func resolve(
+    urls: [URL],
+    in store: BookmarkStore,
+    includingHiddenFiles importHidden: Bool,
+    includingSubdirectories importSubdirectories: Bool
+  ) async -> BookmarkStoreState<[ImageCollectionItem]> {
     let kinds = urls.map { url in
       ImageCollection.prepare(
         url: url,
@@ -178,9 +187,29 @@ struct ImageCollectionSidebarEmptyView: View {
     return await Self.resolve(kinds: kinds, in: store)
   }
 
-  func resolve(items: [ImageTransferable], in store: BookmarkStore) async -> BookmarkStoreState<[ImageCollectionItem]> {
-    let kinds = items.map(prepare(item:))
+  static nonisolated func resolve(
+    items: [ImageTransferable],
+    in store: BookmarkStore,
+    includingHiddenFiles importHidden: Bool,
+    includingSubdirectories importSubdirectories: Bool
+  ) async -> BookmarkStoreState<[ImageCollectionItem]> {
+    // TODO: Extract this.
+    let kinds = items.map { Self.prepare(item: $0, includingHiddenFiles: importHidden, includingSubdirectories: importSubdirectories) }
 
     return await Self.resolve(kinds: kinds, in: store)
+  }
+
+  func resolve(
+    urls: [URL],
+    in store: BookmarkStore
+  ) async -> BookmarkStoreState<[ImageCollectionItem]> {
+    await Self.resolve(urls: urls, in: store, includingHiddenFiles: importHidden, includingSubdirectories: importSubdirectories)
+  }
+
+  func resolve(
+    items: [ImageTransferable],
+    in store: BookmarkStore
+  ) async -> BookmarkStoreState<[ImageCollectionItem]> {
+    await Self.resolve(items: items, in: store, includingHiddenFiles: importHidden, includingSubdirectories: importSubdirectories)
   }
 }

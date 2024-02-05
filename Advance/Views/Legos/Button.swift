@@ -64,12 +64,12 @@ struct MenuItemButton<I, Label>: View where I: Equatable, Label: View {
   }
 }
 
-struct MenuItemToggle<I, Label, Content>: View where I: Equatable, Label: View, Content: View {
+struct MenuItemToggle<I, Content>: View where I: Equatable, Content: View {
   typealias Item = AppMenuToggleItem<I>
-  typealias ContentBuilder = (Binding<Bool>) -> Content
 
-  private let toggle: Item
-  @ViewBuilder private var content: ContentBuilder
+  let toggle: Item
+  @ViewBuilder var content: (Binding<Bool>) -> Content
+
   private var isOn: Binding<Bool> {
     .init {
       toggle.state
@@ -81,24 +81,5 @@ struct MenuItemToggle<I, Label, Content>: View where I: Equatable, Label: View, 
   var body: some View {
     content(isOn)
       .disabled(!toggle.item.enabled)
-  }
-}
-
-extension MenuItemToggle where Label == EmptyView {
-  init(toggle: Item, @ViewBuilder content: @escaping ContentBuilder) {
-    self.toggle = toggle
-    self.content = content
-  }
-}
-
-extension MenuItemToggle where Content == Toggle<Label> {
-  init(toggle: Item, @ViewBuilder label: () -> Label) {
-    let label = label()
-
-    self.init(toggle: toggle) { $isOn in
-      Toggle(isOn: $isOn) {
-        label
-      }
-    }
   }
 }

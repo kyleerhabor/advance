@@ -53,14 +53,6 @@ extension ImageCollectionItemRoot: Equatable {
 
 extension ImageCollectionItemRoot: Codable {}
 
-//struct ImageCollectionItemImageAnalysis {
-//  let url: URL
-//  let phase: ResultPhaseItem
-//  let downsample: Bool
-//}
-//
-//extension ImageCollectionItemImageAnalysis: Equatable {}
-
 struct ImageCollectionItemImageAnalysisInput {
   let url: URL
   let interactions: ImageAnalysisOverlayView.InteractionTypes
@@ -287,11 +279,7 @@ class ImageCollection: Codable {
   var sidebarPage = \ImageCollectionSidebars.images
   var sidebarSearch = ""
   @ObservationIgnored var sidebars = ImageCollectionSidebars()
-  
   let path: ImageCollectionPath
-
-  // ImageCollectionSidebarContentView uses this to efficiently check if a selection is bookmarked. It's not annotated
-  // as @ObservationIgnored since the contextMenu is dependent on it for its state.
   var bookmarks = Set<ImageCollectionItemRoot.ID>()
 
   init() {
