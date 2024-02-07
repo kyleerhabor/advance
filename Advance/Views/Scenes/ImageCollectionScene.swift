@@ -12,6 +12,7 @@ struct ImageCollectionSceneView: View {
   @Environment(Windowed.self) private var windowed
   @Environment(ImageCollectionManager.self) private var manager
   @Environment(\.prerendering) private var prerendering
+  @Environment(\.fullScreen) private var fullScreen
   @Environment(\.id) private var id
   @State private var collection = ImageCollection()
   @State private var loaded = false
@@ -21,7 +22,8 @@ struct ImageCollectionSceneView: View {
     ImageCollectionView()
       .environment(collection)
       .environment(\.loaded, loaded)
-      .focusedSceneValue(\.windowSizeReset, .init(identity: id, enabled: window != nil) {
+      // Sizing a full-screen window will make the screen extending its rectangle black.
+      .focusedSceneValue(\.windowSizeReset, .init(identity: id, enabled: window != nil && !fullScreen) {
         window?.setContentSize(ImageCollectionScene.defaultSize)
       })
       // The pre-rendering variable triggers SwiftUI to call the action with an up-to-date id when performing scene

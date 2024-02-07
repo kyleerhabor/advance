@@ -67,9 +67,6 @@
     "Do not search subfolders" : {
 
     },
-    "Drop images here" : {
-
-    },
     "Extra" : {
 
     },
@@ -297,6 +294,16 @@
         }
       }
     },
+    "Images.Sidebar.Import" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drop images here"
+          }
+        }
+      }
+    },
     "Import" : {
 
     },
@@ -506,16 +513,6 @@
     },
     "Visual Effects" : {
 
-    },
-    "Window.FullScreen.Toggle" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Toggle Full Screen"
-          }
-        }
-      }
     }
   },
   "version" : "1.0"

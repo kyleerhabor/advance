@@ -295,6 +295,7 @@ extension KeyboardShortcut {
   static let quicklook = Self("y", modifiers: .command)
 
   static let fullScreen = Self("f", modifiers: [.command, .control])
+  static let systemFullScreen = Self("f", modifiers: .function) // See WindowFullScreenToggleViewModifier
 
   static let back = Self("[", modifiers: .command)
   static let backAll = Self("[", modifiers: [.command, .option])

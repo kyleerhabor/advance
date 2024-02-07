@@ -130,30 +130,25 @@ struct WindowFullScreenToggleViewModifier: ViewModifier {
 
   func body(content: Content) -> some View {
     // This is a workaround for an odd behavior in SwiftUI where the "Enter/Exit Full Screen" menu item disappears.
-    // It's not a solution (it relies on the deprecated EventModifiers.function modifier, and does not match one-to-one
-    // with the menu item), but it is something.
-    content
-      .background {
-        Button("Window.FullScreen.Toggle") {
-          toggleFullScreen()
-        }
-        .keyboardShortcut(.fullScreen)
-        .focusable(false)
-        .visible(false)
-      }.onKeyPress("f", phases: .down) { press in
-        // See the comment above on the deprecation.
-        guard press.modifiers == .function else {
-          return .ignored
-        }
+    // It's not a solution (it relies on the deprecated EventModifiers.function modifier and overrides the default menu
+    // item's key equivalent in the responder chain), but it is *something*.
+    content.background {
+      Group {
+        Button(action: toggleFullScreen) {
+          // Empty
+        }.keyboardShortcut(.fullScreen)
 
-        toggleFullScreen()
-
-        return .handled
+        Button(action: toggleFullScreen) {
+          // Empty
+        }.keyboardShortcut(.systemFullScreen)
       }
+      .focusable(false)
+      .visible(false)
+    }
   }
 
   func toggleFullScreen() {
-    window?.toggleFullScreen(window)
+    window?.toggleFullScreen(nil)
   }
 }
 

@@ -34,10 +34,10 @@ struct ImageCollectionSidebarEmptyView: View {
 
   var body: some View {
     Button {
-      isFileImporterPresented.toggle()
+      isFileImporterPresented = true
     } label: {
       Label {
-        Text("Drop images here")
+        Text("Images.Sidebar.Import")
       } icon: {
         Image(systemName: "square.and.arrow.down")
           .resizable()
@@ -47,38 +47,6 @@ struct ImageCollectionSidebarEmptyView: View {
     }
     .buttonStyle(.plain)
     .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .fileImporter(isPresented: $isFileImporterPresented, allowedContentTypes: [.image, .folder], allowsMultipleSelection: true) { result in
-      switch result {
-        case .success(let urls):
-          Task {
-            let state = await resolve(urls: urls, in: collection.store)
-            let items = state.value
-
-            collection.store = state.store
-
-            items.forEach { item in
-              collection.items[item.root.bookmark] = item
-            }
-
-            let ids = items.map(\.root.bookmark)
-
-            collection.order.appended(ids)
-            collection.update()
-
-            Task(priority: .medium) {
-              do {
-                try await collection.persist(id: id)
-              } catch {
-                Logger.model.error("Could not persist image collection \"\(id)\" (via sidebar button): \(error)")
-              }
-            }
-          }
-        case .failure(let err):
-          Logger.ui.error("Could not import files from sidebar button: \(err)")
-      }
-    }
-    .fileDialogOpen()
-    .disabled(!visible)
     .overlay {
       if visible {
         Color.clear
@@ -113,7 +81,38 @@ struct ImageCollectionSidebarEmptyView: View {
             return true
           }
       }
+    }.fileImporter(isPresented: $isFileImporterPresented, allowedContentTypes: [.image, .folder], allowsMultipleSelection: true) { result in
+      switch result {
+        case .success(let urls):
+          Task {
+            let state = await resolve(urls: urls, in: collection.store)
+            let items = state.value
+
+            collection.store = state.store
+
+            items.forEach { item in
+              collection.items[item.root.bookmark] = item
+            }
+
+            let ids = items.map(\.root.bookmark)
+
+            collection.order.appended(ids)
+            collection.update()
+
+            Task(priority: .medium) {
+              do {
+                try await collection.persist(id: id)
+              } catch {
+                Logger.model.error("Could not persist image collection \"\(id)\" (via sidebar button): \(error)")
+              }
+            }
+          }
+        case .failure(let err):
+          Logger.ui.error("Could not import files from sidebar button: \(err)")
+      }
     }
+    .fileDialogOpen()
+    .disabled(!visible)
   }
 
   static nonisolated func prepare(

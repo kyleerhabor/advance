@@ -80,11 +80,8 @@ extension FileManager {
 extension FileManager.DirectoryEnumerator {
   func contents() -> [URL] {
     self.compactMap { element -> URL? in
-      guard let url = element as? URL else {
-        return nil
-      }
-
-      if url.isDirectory() {
+      guard let url = element as? URL,
+            !url.isDirectory() else {
         return nil
       }
 
@@ -199,7 +196,7 @@ func race<T>(
   rhs: @escaping () async -> T
 ) async -> T {
   await withCheckedContinuation { continuation in
-    // TODO: Figure out a way to cancel this task when the outer operation is cancelled.
+    // TODO: Figure out a way to cancel this task when the outer operation is cancelled (and the other way around).
     Task {
       await withTaskGroup(of: T.self) { group in
         // Borrowed from https://forums.swift.org/t/running-an-async-task-with-a-timeout/49733/21

@@ -210,8 +210,8 @@ struct ImageCollectionView: View {
   @FocusedValue(\.detailScroller) private var detailScroller
   @State private var isHovering = false
   @State private var isScrolling = false
-  private var window: NSWindow? { windowed.window }
   private var isVisible: Bool { !(isHovering && isScrolling) }
+  private var window: NSWindow? { windowed.window }
   private var isDetailOnly: Bool { columns == .detailOnly }
 
   private let cursorSubject = PassthroughSubject<Void, Never>()

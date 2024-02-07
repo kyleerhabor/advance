@@ -91,7 +91,6 @@ struct ImageCollectionItemView<Scope, Content>: View where Scope: URLScope, Cont
 
   static func resample(imageAt url: URL, to size: CGSize) throws -> Image {
     guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
-      // FIXME: For some reason, if the user scrolls fast enough in the UI, source returns nil.
       throw ImageError.undecodable
     }
 

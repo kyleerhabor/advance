@@ -9,7 +9,6 @@ import SwiftUI
 
 struct ImageCollectionCommands: Commands {
   var body: some Commands {
-    // TODO: Figure out how to remove the "Show/Hide Toolbar" item.
     ToolbarCommands()
     SidebarCommands()
 

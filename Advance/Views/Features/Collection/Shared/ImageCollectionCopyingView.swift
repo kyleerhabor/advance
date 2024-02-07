@@ -37,7 +37,7 @@ struct ImageCollectionCopyingView: View {
     } catch let err as CocoaError where err.code == .fileWriteFileExists {
       throw err
     } catch {
-      // Ignored (TODO: remember why)
+      // Ignored (we only handle conflicts)
     }
   }
 
