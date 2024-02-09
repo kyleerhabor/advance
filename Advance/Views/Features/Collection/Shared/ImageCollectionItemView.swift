@@ -38,6 +38,7 @@ struct ImageCollectionItemPhaseView: View {
 //      .transaction(setter(value: true, on: \.disablesAnimations))
       .overlay {
         if let image = phase.success?.image {
+          // TODO: Add accessibility labels.
           image
             .resizable()
             .animation(.smooth) { content in
@@ -89,7 +90,7 @@ struct ImageCollectionItemView<Scope, Content>: View where Scope: URLScope, Cont
     }
   }
 
-  static func resample(imageAt url: URL, to size: CGSize) throws -> Image {
+  static func resample(imageAt url: URL, to size: CGSize) throws -> CGImage {
     guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
       throw ImageError.undecodable
     }
@@ -102,18 +103,23 @@ struct ImageCollectionItemView<Scope, Content>: View where Scope: URLScope, Cont
 
     try Task.checkCancellation()
 
-    return .init(nsImage: .init(cgImage: thumbnail, size: size))
+    return thumbnail
   }
 
-  static func resample(image: Scope, to size: CGSize) async throws -> Image {
-    try image.withSecurityScope { try resample(imageAt: image.url, to: size) }
+  static nonisolated func resample(image: Scope, to size: CGSize) async throws -> ImageResample {
+    let thumbnail = try image.withSecurityScope { try resample(imageAt: image.url, to: size) }
+
+    return .init(
+      image: .init(nsImage: .init(cgImage: thumbnail, size: size)),
+      size: size
+    )
   }
 
-  func resample(size: CGSize) async {
+  nonisolated func resample(size: CGSize) async {
     do {
-      let image = try await Self.resample(image: image, to: size)
+      let resample = try await Self.resample(image: image, to: size)
 
-      phase = .result(.success(.init(image: image, size: size)))
+      phase = .result(.success(resample))
     } catch is CancellationError {
       return
     } catch {

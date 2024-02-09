@@ -153,7 +153,7 @@ struct ImageCollectionDetailItemView: View {
             LiveTextView(
               interactions: interactions,
               result: analysis?.output,
-              highlight: $image.highlighted
+              isHighlighted: $image.isAnalysisHighlighted
             ) { handler in
               await image.withSecurityScope(handler)
             }
@@ -172,7 +172,7 @@ struct ImageCollectionDetailItemView: View {
 
               let analysis = await image.withSecurityScope {
                 await Self.analyze(
-                  url: image.url,
+                  url: input.url,
                   orientation: image.properties.orientation,
                   interactions: input.interactions,
                   resample: input.downsample,
@@ -188,6 +188,8 @@ struct ImageCollectionDetailItemView: View {
                 input: input,
                 output: .init(id: .init(), analysis: analysis)
               )
+            }.onChange(of: analysis?.hasResults) {
+              image.hasAnalysisResults = analysis?.hasResults ?? false
             }
           }
       }.aspectRatio(image.properties.sized.aspectRatio, contentMode: .fit)
@@ -415,16 +417,6 @@ struct ImageCollectionDetailVisualView: View {
   }
 }
 
-struct ImageCollectionVisiblePreferenceKey: PreferenceKey {
-  typealias Value = [ImageCollectionItemImage]
-
-  static var defaultValue = Value()
-
-  static func reduce(value: inout Value, nextValue: () -> Value) {
-    value = nextValue()
-  }
-}
-
 struct ImageCollectionDetailVisibleView: View {
   @Environment(ImageCollection.self) private var collection
   @Environment(ImageCollectionPath.self) private var path
@@ -438,10 +430,12 @@ struct ImageCollectionDetailVisibleView: View {
   private var primary: ImageCollectionItemImage? { images.first }
 
   var body: some View {
-    let highlights = images.filter { $0.analysis?.hasResults ?? false }
-    let hasHighlights = !highlights.isEmpty
-    let highlighted = highlights.allSatisfy(\.highlighted)
-    let identity: Set<ImageCollectionItemImage.ID> = if let primary {
+    let analysis = images.filter(\.hasAnalysisResults)
+    let hasAnalysis = !analysis.isEmpty
+    let highlights = analysis.filter(\.isAnalysisHighlighted)
+    let isHighlighted = analysis.count == highlights.count
+
+    let primaryID: Set<ImageCollectionItemImage.ID> = if let primary {
       [primary.id]
     } else {
       []
@@ -449,13 +443,13 @@ struct ImageCollectionDetailVisibleView: View {
 
     Color.clear
       .focusedSceneValue(\.liveTextHighlight, .init(
-        identity: highlights.map(\.id),
-        enabled: hasHighlights,
-        state: hasHighlights && highlighted
+        identity: analysis.map(\.id),
+        enabled: hasAnalysis,
+        state: hasAnalysis && isHighlighted
       ) { highlight in
-        images.forEach(setter(value: highlight, on: \.highlighted))
+        analysis.forEach(setter(value: highlight, on: \.isAnalysisHighlighted))
       })
-      .focusedSceneValue(\.finderShow, .init(identity: identity, enabled: primary != nil) {
+      .focusedSceneValue(\.finderShow, .init(identity: primaryID, enabled: primary != nil) {
         guard let primary else {
           return
         }
@@ -473,7 +467,7 @@ struct ImageCollectionDetailVisibleView: View {
         })
       })
       .focusedSceneValue(\.bookmark, .init(
-        identity: identity,
+        identity: primaryID,
         enabled: primary != nil,
         state: primary?.bookmarked ?? false
       ) { bookmark in
@@ -521,6 +515,16 @@ struct ImageCollectionDetailVisibleView: View {
         }
       }
     }
+  }
+}
+
+struct ImageCollectionVisiblePreferenceKey: PreferenceKey {
+  typealias Value = [ImageCollectionItemImage]
+
+  static var defaultValue = Value()
+
+  static func reduce(value: inout Value, nextValue: () -> Value) {
+    value = nextValue()
   }
 }
 
@@ -610,9 +614,7 @@ struct ImageCollectionDetailView: View {
         Toggle("Live Text Icon", systemImage: "text.viewfinder", isOn: icons)
           .help("\(showLiveTextIcon ? "Hide" : "Show") Live Text icon")
       }
-    }
-
-    .focusedSceneValue(\.liveTextIcon, .init(identity: id, enabled: true, state: showLiveTextIcon) { icon in
+    }.focusedSceneValue(\.liveTextIcon, .init(identity: id, enabled: true, state: showLiveTextIcon) { icon in
       liveTextIcon = icon
     })
   }

@@ -79,8 +79,8 @@ class ImageCollectionItemImage {
   var properties: ImageProperties
   var bookmarked: Bool
 
-  var analysis: ImageCollectionItemImageAnalysis?
-  var highlighted = false
+  var hasAnalysisResults = false
+  var isAnalysisHighlighted = false
 
   init(bookmark: BookmarkStoreItem.ID, source: URLSource, relative: URLSource?, properties: ImageProperties, bookmarked: Bool) {
     self.bookmark = bookmark

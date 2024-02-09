@@ -1,9 +1,5 @@
 # Advance
 
-> **advance** verb.
->
-> [(intransitive)][dictionary] To move forward in time; to progress towards completion. [from 16th c.]
-
 A macOS app for viewing a collection of images.
 
 ## Rationale

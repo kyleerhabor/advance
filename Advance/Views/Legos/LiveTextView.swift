@@ -71,7 +71,7 @@ struct LiveTextView: NSViewRepresentable {
   private let interactions: ImageAnalysisOverlayView.InteractionTypes
   private let result: ImageAnalysisResult?
   private let subjectAnalysisHandler: SubjectAnalysisHandler
-  @Binding private var highlight: Bool
+  @Binding private var isHighlighted: Bool
 
   private var supplementaryInterfaceHidden = false
   private var searchEngineHidden = false
@@ -79,12 +79,12 @@ struct LiveTextView: NSViewRepresentable {
   init(
     interactions: ImageAnalysisOverlayView.InteractionTypes,
     result: ImageAnalysisResult?,
-    highlight: Binding<Bool>,
+    isHighlighted: Binding<Bool>,
     subjectAnalysisHandler: @escaping SubjectAnalysisHandler
   ) {
     self.interactions = interactions
     self.result = result
-    self._highlight = highlight
+    self._isHighlighted = isHighlighted
     self.subjectAnalysisHandler = subjectAnalysisHandler
   }
 
@@ -103,7 +103,7 @@ struct LiveTextView: NSViewRepresentable {
   }
 
   func updateNSView(_ overlayView: ImageAnalysisOverlayView, context: Context) {
-    context.coordinator.setHighlight($highlight)
+    context.coordinator.setHighlight($isHighlighted)
     context.coordinator.searchEngineHidden = searchEngineHidden
 
     if context.coordinator.analysisID != result?.id {
@@ -115,7 +115,7 @@ struct LiveTextView: NSViewRepresentable {
     if overlayView.preferredInteractionTypes != interactions {
       overlayView.preferredInteractionTypes = interactions
     } else {
-      overlayView.setHighlightVisibility(highlight, supplementaryInterfaceHidden: supplementaryInterfaceHidden, animated: true)
+      overlayView.setHighlightVisibility(isHighlighted, supplementaryInterfaceHidden: supplementaryInterfaceHidden, animated: true)
     }
 
     overlayView.analysis = result?.analysis
@@ -126,34 +126,35 @@ struct LiveTextView: NSViewRepresentable {
 
     context.coordinator.subjectAnalysisTask?.cancel()
     context.coordinator.subjectAnalysisTask = .init(priority: .low) { [weak overlayView, weak coordinator = context.coordinator] in
-      guard !Task.isCancelled else {
-        return
-      }
-
       await subjectAnalysisHandler {
+        guard !Task.isCancelled else {
+          return
+        }
+
         await race {
-          guard let overlayView, let coordinator else {
+          guard let overlayView else {
             return
           }
 
           // This is a hacky method for performing subject analysis. beginSubjectAnalysisIfNecessary() is a request that
           // returns immediately, which is unsuitable for us since the analysis needs to be scoped.
           //
-          // subjects will sometimes never return, which is okay in a way (the task will just be infinitely suspended).
-          // It's a problem where the scope may be left indefinitely open, leaking resources. This choose method will
-          // just throw if it elapses, returning from the handler. It does mean that subjects will drop its scope, but
+          // subjects will sometimes never return, which is okay in a way (the task will just be indefinitely suspended).
+          // It's a problem where the scope may be left indefinitely open, leaking resources. The race function here is
+          // meant to mitigate this, as it'll just return on elapse. It does mean that subjects will drop its scope, but
           // that shouldn't be a problem, since it's more than likely just indefinitely suspended.
           //
-          // Unfortunately, using this with rare (which ignores the execution of this closure when rhs returns first)
+          // Unfortunately, using this unction (which ignores the execution of this closure when rhs returns first)
           // seems to result in a memory leak. If I had to presume, since subjects sometimes never returns, the task
           // group is retained indefinitely. Fortunately, the resource leak seems to be minimal; but we could do better.
           _ = await overlayView.subjects
 
-          guard coordinator.analysisID == result?.id else {
+          guard let coordinator,
+                coordinator.analysisID == result?.id else {
             return
           }
 
-          context.coordinator.subjectAnalysisComplete = true
+          coordinator.subjectAnalysisComplete = true
         } rhs: {
           do {
             try await Task.sleep(for: .subjectAnalysisTimeout)
@@ -161,7 +162,7 @@ struct LiveTextView: NSViewRepresentable {
             return
           }
 
-          Logger.ui.debug("Took too long to analyze Live Text subjects; exiting handler...")
+          Logger.ui.debug("Took too long to analyze Live Text image subjects; exiting handler...")
         }
       }
     }
@@ -169,7 +170,7 @@ struct LiveTextView: NSViewRepresentable {
 
   func makeCoordinator() -> Coordinator {
     Coordinator(
-      highlight: $highlight,
+      highlight: $isHighlighted,
       analysisID: result?.id,
       searchEngineHidden: searchEngineHidden
     )
