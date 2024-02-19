@@ -13,13 +13,13 @@ struct ImageResample {
   let size: CGSize
 }
 
-extension ImageResample: Equatable {}
+extension ImageResample {}
 
 enum ImageResampleError {
   case failed
 }
 
-extension ImageResampleError: Error, Equatable {}
+extension ImageResampleError: Error {}
 
 typealias ImageResamplePhase = ResultPhase<ImageResample, ImageResampleError>
 
@@ -27,26 +27,32 @@ struct ImageCollectionItemPhaseView: View {
   @AppStorage(Keys.brightness.key) private var brightness = Keys.brightness.value
   @AppStorage(Keys.grayscale.key) private var grayscale = Keys.grayscale.value
   @State private var elapsed = false
-  private var imagePhase: ResultPhaseItem { .init(phase) }
 
   let phase: ImageResamplePhase
+
+  private var imagePhase: ResultPhaseItem { .init(phase) }
+  private var isEmpty: Bool {
+    switch phase {
+      case .empty: return true
+      default: return false
+    }
+  }
 
   var body: some View {
     Rectangle()
       .fill(.fill.quaternary)
-      .visible(phase.success?.image == nil)
+      .visible(isEmpty)
 //      .transaction(setter(value: true, on: \.disablesAnimations))
       .overlay {
-        if let image = phase.success?.image {
-          // TODO: Add accessibility labels.
-          image
-            .resizable()
-            .animation(.smooth) { content in
-              content
-                .brightness(brightness)
-                .grayscale(grayscale)
-            }
-        }
+        let image = phase.success?.image ?? .init(nsImage: .init())
+
+        image
+          .resizable()
+          .animation(.smooth) { content in
+            content
+              .brightness(brightness)
+              .grayscale(grayscale)
+          }
       }.overlay {
         let visible = imagePhase == .empty && elapsed
 
@@ -54,19 +60,16 @@ struct ImageCollectionItemPhaseView: View {
           .visible(visible)
           .animation(.default, value: visible)
       }.overlay {
-        if phase.failure != nil {
-          // We can't really get away with not displaying a failure view.
-          Image(systemName: "exclamationmark.triangle.fill")
-            .symbolRenderingMode(.multicolor)
-            .imageScale(.large)
-        }
+        // We can't really get away with not displaying a failure view.
+        Image(systemName: "exclamationmark.triangle.fill")
+          .symbolRenderingMode(.multicolor)
+          .imageScale(.large)
+          .visible(phase.failure != nil)
       }
       .animation(.default, value: imagePhase)
       .task {
-        do {
-          try await Task.sleep(for: .seconds(1))
-        } catch {
-          // Fallthrough
+        guard (try? await Task.sleep(for: .seconds(1))) == nil else {
+          return
         }
 
         elapsed = true
@@ -77,23 +80,30 @@ struct ImageCollectionItemPhaseView: View {
 }
 
 struct ImageCollectionItemView<Scope, Content>: View where Scope: URLScope, Content: View {
-  @State private var phase = ImageResamplePhase.empty
-
-  let image: Scope
-  @ViewBuilder var content: (ImageResamplePhase) -> Content
+  @Binding private var phase: ImageResamplePhase
+  private let image: Scope
+  private let content: Content
 
   var body: some View {
     DisplayImageView { size in
       await resample(size: size)
     } content: {
-      content(phase)
+      content
     }
+  }
+
+  init(image: Scope, phase: Binding<ImageResamplePhase>, @ViewBuilder content: () -> Content) {
+    self._phase = phase
+    self.image = image
+    self.content = content()
   }
 
   static func resample(imageAt url: URL, to size: CGSize) throws -> CGImage {
     guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
       throw ImageError.undecodable
     }
+
+    try Task.checkCancellation()
 
     guard let thumbnail = source.resample(to: size.length.rounded(.up)) else {
       throw ImageError.thumbnail
@@ -106,7 +116,7 @@ struct ImageCollectionItemView<Scope, Content>: View where Scope: URLScope, Cont
     return thumbnail
   }
 
-  static nonisolated func resample(image: Scope, to size: CGSize) async throws -> ImageResample {
+  static func resample(image: Scope, to size: CGSize) async throws -> ImageResample {
     let thumbnail = try image.withSecurityScope { try resample(imageAt: image.url, to: size) }
 
     return .init(
@@ -115,7 +125,7 @@ struct ImageCollectionItemView<Scope, Content>: View where Scope: URLScope, Cont
     )
   }
 
-  nonisolated func resample(size: CGSize) async {
+  func resample(size: CGSize) async {
     do {
       let resample = try await Self.resample(image: image, to: size)
 
@@ -130,9 +140,13 @@ struct ImageCollectionItemView<Scope, Content>: View where Scope: URLScope, Cont
   }
 }
 
-extension ImageCollectionItemView where Content == ImageCollectionItemPhaseView {
-  init(image: Scope) {
-    self.init(image: image) { phase in
+struct ImageCollectionItemImageView<Scope>: View where Scope: URLScope {
+  @State private var phase = ImageResamplePhase.empty
+
+  let image: Scope
+
+  var body: some View {
+    ImageCollectionItemView(image: image, phase: $phase) {
       ImageCollectionItemPhaseView(phase: phase)
     }
   }

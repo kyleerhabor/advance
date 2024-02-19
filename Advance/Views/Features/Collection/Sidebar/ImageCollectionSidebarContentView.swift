@@ -127,7 +127,7 @@ struct ImageCollectionSidebarItemView: View {
 
   var body: some View {
     VStack {
-      ImageCollectionItemView(image: image)
+      ImageCollectionItemImageView(image: image)
         .aspectRatio(image.properties.sized.aspectRatio, contentMode: .fit)
         .overlay(alignment: .topTrailing) {
           Image(systemName: "bookmark")
@@ -155,7 +155,7 @@ struct ImageCollectionSidebarItemView: View {
     // This is not an image editor, but I don't mind some functionality that's associated with image editors. Being
     // able to drag images out of the app and drop them elsewhere just feels natural.
     .draggable(image.url) {
-      ImageCollectionItemView(image: image)
+      ImageCollectionItemImageView(image: image)
     }
   }
 }

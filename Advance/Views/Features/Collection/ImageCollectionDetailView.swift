@@ -16,8 +16,6 @@ struct VisibleItem<Item> {
   let anchor: Anchor<CGRect>
 }
 
-extension VisibleItem: Equatable where Item: Equatable {}
-
 // https://swiftwithmajid.com/2020/03/18/anchor-preferences-in-swiftui/
 struct VisiblePreferenceKey<Item>: PreferenceKey {
   typealias Value = [VisibleItem<Item>]
@@ -90,175 +88,93 @@ struct ImageCollectionDetailItemSidebarView: View {
   }
 }
 
-struct ImageCollectionDetailItemView: View {
+struct ImageCollectionDetailItemInteractionView: View {
+  @Environment(\.supplementaryInterfaceHidden) private var liveTextIcon
   @Default(.liveText) private var liveText
   @Default(.liveTextSubject) private var liveTextSubject
   @Default(.liveTextSearchWith) private var liveTextSearchWith
   @Default(.liveTextDownsample) private var liveTextDownsample
-  @Default(.resolveCopyingConflicts) private var resolveCopyingConflicts
   @State private var analysis: ImageCollectionItemImageAnalysis?
-  @State private var isCopyingFileImporterPresented = false
-  @State private var error: String?
-  private var isErrorPresented: Binding<Bool> {
-    .init {
-      self.error != nil
-    } set: { present in
-      if !present {
-        self.error = nil
-      }
-    }
-  }
+  private let invalid = 0
 
   @Bindable var image: ImageCollectionItemImage
-  let liveTextIcon: Bool
+  let resample: ImageResample?
+
+  private var interactions: ImageAnalysisOverlayView.InteractionTypes {
+    var interactions = ImageAnalysisOverlayView.InteractionTypes()
+
+    guard liveText && resample != nil else {
+      return interactions
+    }
+
+    interactions.insert([.textSelection, .dataDetectors])
+
+    if liveTextSubject {
+      // In my experience, .visualLookUp does nothing. But maybe it's supposed to do something?
+      interactions.insert([.imageSubject, .visualLookUp])
+    }
+
+    return interactions
+  }
+
+  private var length: Int {
+    guard let size = resample?.size else {
+      return invalid
+    }
+
+    return .init(size.length.rounded(.up))
+  }
+
+  private var input: ImageCollectionItemImageAnalysisInput {
+    .init(
+      url: image.url,
+      interactions: interactions,
+      downsample: liveTextDownsample && length != invalid,
+      isSuccessPhase: resample != nil
+    )
+  }
 
   var body: some View {
-    // For some reason, ImageCollectionItemView needs to be wrapped in a VStack for animations to apply.
-    VStack {
-      ImageCollectionItemView(image: image) { phase in
-        var isSuccess: Bool { phase.success != nil }
-
-        ImageCollectionItemPhaseView(phase: phase)
-          .overlay {
-            let none = 0
-            var length: Int {
-              phase.success.map { Int($0.size.length.rounded(.up)) } ?? none
-            }
-
-            var interactions: ImageAnalysisOverlayView.InteractionTypes {
-              var interactions = ImageAnalysisOverlayView.InteractionTypes()
-
-              guard liveText && isSuccess else {
-                return interactions
-              }
-
-              interactions.insert([.textSelection, .dataDetectors])
-
-              if liveTextSubject {
-                // In my experience, .visualLookUp does nothing. But maybe it's supposed to do something?
-                interactions.insert([.imageSubject, .visualLookUp])
-              }
-
-              return interactions
-            }
-            var input: ImageCollectionItemImageAnalysisInput {
-              .init(
-                url: image.url,
-                interactions: interactions,
-                downsample: liveTextDownsample && length != none,
-                isSuccessPhase: isSuccess
-              )
-            }
-
-            LiveTextView(
-              interactions: interactions,
-              result: analysis?.output,
-              isHighlighted: $image.isAnalysisHighlighted
-            ) { handler in
-              await image.withSecurityScope(handler)
-            }
-            .supplementaryInterfaceHidden(!liveTextIcon)
-            .searchEngineHidden(!liveTextSearchWith)
-            .task(id: Pair(left: liveText, right: input)) {
-              guard liveText else {
-                return
-              }
-
-              let input = input
-
-              guard analysis?.input != input && input.isSuccessPhase else {
-                return
-              }
-
-              let analysis = await image.withSecurityScope {
-                await Self.analyze(
-                  url: input.url,
-                  orientation: image.properties.orientation,
-                  interactions: input.interactions,
-                  resample: input.downsample,
-                  resampleSize: min(length, ImageAnalyzer.maxSize)
-                )
-              }
-
-              guard let analysis else {
-                return
-              }
-
-              self.analysis = .init(
-                input: input,
-                output: .init(id: .init(), analysis: analysis)
-              )
-            }.onChange(of: analysis?.hasResults) {
-              image.hasAnalysisResults = analysis?.hasResults ?? false
-            }
-          }
-      }.aspectRatio(image.properties.sized.aspectRatio, contentMode: .fit)
-    }.contextMenu {
-      Section {
-        Button("Finder.Show") {
-          openFinder(selecting: image.url)
-        }
-
-        ImageCollectionDetailItemSidebarView(id: image.id)
-      }
-
-      Section {
-        Button("Copy") {
-          if !NSPasteboard.general.write(items: [image.url as NSURL]) {
-            Logger.ui.error("Failed to write URL \"\(image.url.string)\" to pasteboard")
-          }
-        }
-
-        ImageCollectionCopyingView(isPresented: $isCopyingFileImporterPresented) { destination in
-          Task(priority: .medium) {
-            do {
-              try await copy(image: image, to: destination)
-            } catch {
-              self.error = error.localizedDescription
-            }
-          }
-        }
-      }
-
-      Section {
-        ImageCollectionDetailItemBookmarkView(bookmarked: $image.bookmarked)
-      }
-    }.fileImporter(isPresented: $isCopyingFileImporterPresented, allowedContentTypes: [.folder]) { result in
-      switch result {
-        case .success(let url):
-          Task(priority: .medium) {
-            do {
-              try await copy(image: image, to: url)
-            } catch {
-              self.error = error.localizedDescription
-            }
-          }
-        case .failure(let err):
-          Logger.ui.info("Could not import copy destination from file picker: \(err)")
-      }
+    LiveTextView(
+      interactions: interactions,
+      result: analysis?.output,
+      isHighlighted: $image.isAnalysisHighlighted
+    ) { handler in
+      await image.withSecurityScope(handler)
     }
-    .fileDialogCopy()
-    // TODO: Create a view modifier to automatically specify an empty actions
-    .alert(error ?? "", isPresented: isErrorPresented) {}
-  }
-
-  nonisolated func copy(image: ImageCollectionItemImage, to destination: URL) async throws {
-    try await Self.copy(image: image, to: destination, resolvingConflicts: resolveCopyingConflicts)
-  }
-
-  static nonisolated func copy(
-    image: ImageCollectionItemImage,
-    to destination: URL,
-    resolvingConflicts resolveConflicts: Bool
-  ) async throws {
-    try ImageCollectionCopyingView.saving {
-      try destination.withSecurityScope {
-        try ImageCollectionCopyingView.saving(url: image, to: destination) { url in
-          try image.withSecurityScope {
-            try ImageCollectionCopyingView.save(url: url, to: destination, resolvingConflicts: resolveConflicts)
-          }
-        }
+    .supplementaryInterfaceHidden(!liveTextIcon)
+    .searchEngineHidden(!liveTextSearchWith)
+    .task(id: Pair(left: liveText, right: input)) {
+      guard liveText else {
+        return
       }
+
+      let input = input
+
+      guard analysis?.input != input && input.isSuccessPhase else {
+        return
+      }
+
+      let analysis = await image.withSecurityScope {
+        await Self.analyze(
+          url: input.url,
+          orientation: image.properties.orientation,
+          interactions: input.interactions,
+          resample: input.downsample,
+          resampleSize: min(length, ImageAnalyzer.maxSize)
+        )
+      }
+
+      guard let analysis else {
+        return
+      }
+
+      self.analysis = .init(
+        input: input,
+        output: .init(id: .init(), analysis: analysis)
+      )
+    }.onChange(of: analysis?.hasResults) {
+      image.hasAnalysisResults = analysis?.hasResults ?? false
     }
   }
 
@@ -360,6 +276,115 @@ struct ImageCollectionDetailItemView: View {
   }
 }
 
+struct ImageCollectionDetailItemPhaseView: View {
+  @State private var phase = ImageResamplePhase.empty
+
+  let image: ImageCollectionItemImage
+
+  var body: some View {
+    ImageCollectionItemView(image: image, phase: $phase) {
+      ImageCollectionItemPhaseView(phase: phase)
+        .overlay {
+          ImageCollectionDetailItemInteractionView(image: image, resample: phase.success)
+        }
+    }.aspectRatio(image.properties.sized.aspectRatio, contentMode: .fit)
+  }
+}
+
+struct ImageCollectionDetailItemView: View {
+  @Default(.resolveCopyingConflicts) private var resolveCopyingConflicts
+  @State private var isCopyingFileImporterPresented = false
+  @State private var error: String?
+  private var isErrorPresented: Binding<Bool> {
+    .init {
+      self.error != nil
+    } set: { present in
+      if !present {
+        self.error = nil
+      }
+    }
+  }
+
+  let image: ImageCollectionItemImage
+
+  var body: some View {
+    // For some reason, ImageCollectionItemView needs to be wrapped in a VStack for animations to apply.
+    VStack {
+      // For some reason, we need to isolate the phase state to its own view for SwiftUI to automatically discard the
+      // view and its memory.
+      ImageCollectionDetailItemPhaseView(image: image)
+    }.contextMenu {
+      @Bindable var image = image
+
+      Section {
+        Button("Finder.Show") {
+          openFinder(selecting: image.url)
+        }
+
+        ImageCollectionDetailItemSidebarView(id: image.id)
+      }
+
+      Section {
+        Button("Copy") {
+          if !NSPasteboard.general.write(items: [image.url as NSURL]) {
+            Logger.ui.error("Failed to write URL \"\(image.url.string)\" to pasteboard")
+          }
+        }
+
+        ImageCollectionCopyingView(isPresented: $isCopyingFileImporterPresented) { destination in
+          Task(priority: .medium) {
+            do {
+              try await copy(image: image, to: destination)
+            } catch {
+              self.error = error.localizedDescription
+            }
+          }
+        }
+      }
+
+      Section {
+        ImageCollectionDetailItemBookmarkView(bookmarked: $image.bookmarked)
+      }
+    }.fileImporter(isPresented: $isCopyingFileImporterPresented, allowedContentTypes: [.folder]) { result in
+      switch result {
+        case .success(let url):
+          Task(priority: .medium) {
+            do {
+              try await copy(image: image, to: url)
+            } catch {
+              self.error = error.localizedDescription
+            }
+          }
+        case .failure(let err):
+          Logger.ui.info("Could not import copy destination from file picker: \(err)")
+      }
+    }
+    .fileDialogCopy()
+    // TODO: Create a view modifier to automatically specify an empty actions
+    .alert(error ?? "", isPresented: isErrorPresented) {}
+  }
+
+  nonisolated func copy(image: ImageCollectionItemImage, to destination: URL) async throws {
+    try await Self.copy(image: image, to: destination, resolvingConflicts: resolveCopyingConflicts)
+  }
+
+  static nonisolated func copy(
+    image: ImageCollectionItemImage,
+    to destination: URL,
+    resolvingConflicts resolveConflicts: Bool
+  ) async throws {
+    try ImageCollectionCopyingView.saving {
+      try destination.withSecurityScope {
+        try ImageCollectionCopyingView.saving(url: image, to: destination) { url in
+          try image.withSecurityScope {
+            try ImageCollectionCopyingView.save(url: url, to: destination, resolvingConflicts: resolveConflicts)
+          }
+        }
+      }
+    }
+  }
+}
+
 struct ImageCollectionDetailVisualView: View {
   @AppStorage(Keys.brightness.key) private var brightness = Keys.brightness.value
   @AppStorage(Keys.grayscale.key) private var grayscale = Keys.grayscale.value
@@ -432,8 +457,7 @@ struct ImageCollectionDetailVisibleView: View {
   var body: some View {
     let analysis = images.filter(\.hasAnalysisResults)
     let hasAnalysis = !analysis.isEmpty
-    let highlights = analysis.filter(\.isAnalysisHighlighted)
-    let isHighlighted = analysis.count == highlights.count
+    let isHighlighted = analysis.allSatisfy(\.isAnalysisHighlighted)
 
     let primaryID: Set<ImageCollectionItemImage.ID> = if let primary {
       [primary.id]
@@ -532,25 +556,22 @@ struct ImageCollectionDetailView: View {
   @Environment(\.id) private var id
   @Default(.margins) private var margins
   @Default(.collapseMargins) private var collapseMargins
-  @Default(.liveText) private var liveText
   @Default(.liveTextIcon) private var appLiveTextIcon
-  @Default(.displayTitleBarImage) private var showTitleBarImage
   @SceneStorage(Defaults.Keys.liveTextIcon.name) private var liveTextIcon: Bool?
 
   let items: [ImageCollectionDetailItem]
-  private var showLiveTextIcon: Bool {
-    liveTextIcon ?? appLiveTextIcon
-  }
+
+  private var margin: Double { .init(margins) }
+  private var half: Double { margin * 3 }
+  private var full: Double { half * 2 }
+  private var all: EdgeInsets { .init(full) }
+  private var top: EdgeInsets { .init(horizontal: full, top: full, bottom: half) }
+  private var middle: EdgeInsets { .init(horizontal: full, top: half, bottom: half) }
+  private var bottom: EdgeInsets { .init(horizontal: full, top: half, bottom: full) }
+
+  private var showLiveTextIcon: Bool { liveTextIcon ?? appLiveTextIcon }
 
   var body: some View {
-    let margin = Double(margins)
-    let half = margin * 3
-    let full = half * 2
-    let all = EdgeInsets(full)
-    let top = EdgeInsets(horizontal: full, top: full, bottom: half)
-    let middle = EdgeInsets(horizontal: full, top: half, bottom: half)
-    let bottom = EdgeInsets(horizontal: full, top: half, bottom: full)
-
     List(items) { item in
       let image = item.image
       let insets: EdgeInsets = if let edge = item.edge {
@@ -562,14 +583,11 @@ struct ImageCollectionDetailView: View {
         middle
       }
 
-      ImageCollectionDetailItemView(
-        image: image,
-        liveTextIcon: showLiveTextIcon
-      )
-      .listRowInsets(.listRow + (collapseMargins ? insets : all))
-      .listRowSeparator(.hidden)
-      .shadow(radius: margin / 2)
-      .anchorPreference(key: VisiblePreferenceKey.self, value: .bounds) { [.init(item: image, anchor: $0)] }
+      ImageCollectionDetailItemView(image: image)
+        .listRowInsets(.listRow + (collapseMargins ? insets : all))
+        .listRowSeparator(.hidden)
+        .shadow(radius: margin / 2)
+        .anchorPreference(key: VisiblePreferenceKey.self, value: .bounds) { [.init(item: image, anchor: $0)] }
     }
     .listStyle(.plain)
     .overlayPreferenceValue(VisiblePreferenceKey<ImageCollectionItemImage>.self) { items in
@@ -614,7 +632,9 @@ struct ImageCollectionDetailView: View {
         Toggle("Live Text Icon", systemImage: "text.viewfinder", isOn: icons)
           .help("\(showLiveTextIcon ? "Hide" : "Show") Live Text icon")
       }
-    }.focusedSceneValue(\.liveTextIcon, .init(identity: id, enabled: true, state: showLiveTextIcon) { icon in
+    }
+    .environment(\.supplementaryInterfaceHidden, showLiveTextIcon)
+    .focusedSceneValue(\.liveTextIcon, .init(identity: id, enabled: true, state: showLiveTextIcon) { icon in
       liveTextIcon = icon
     })
   }

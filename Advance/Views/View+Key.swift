@@ -7,6 +7,10 @@
 
 import SwiftUI
 
+struct SupplementaryInterfaceHiddenEnvironmentKey: EnvironmentKey {
+  static var defaultValue = false
+}
+
 // MARK: - Scroll
 
 // The image collection view has a sidebar and detail scroller that can be invoked from diverging sections of the view
@@ -84,6 +88,11 @@ extension EnvironmentValues {
   var detailScroller: DetailScrollerEnvironmentKey.Value {
     get { self[DetailScrollerEnvironmentKey.self] }
     set { self[DetailScrollerEnvironmentKey.self] = newValue }
+  }
+
+  var supplementaryInterfaceHidden: SupplementaryInterfaceHiddenEnvironmentKey.Value {
+    get { self[SupplementaryInterfaceHiddenEnvironmentKey.self] }
+    set { self[SupplementaryInterfaceHiddenEnvironmentKey.self] = newValue }
   }
 }
 
