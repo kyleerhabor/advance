@@ -692,3 +692,20 @@ extension ImageCollection: Hashable {
     hasher.combine(order)
   }
 }
+
+extension Navigator {
+  init?(page: KeyPath<ImageCollectionSidebars, ImageCollectionSidebar>) {
+    switch page {
+      case \.images: self = .images
+      case \.bookmarks: self = .bookmarks
+      default: return nil
+    }
+  }
+
+  var page: KeyPath<ImageCollectionSidebars, ImageCollectionSidebar> {
+    switch self {
+      case .images: \.images
+      case .bookmarks: \.bookmarks
+    }
+  }
+}

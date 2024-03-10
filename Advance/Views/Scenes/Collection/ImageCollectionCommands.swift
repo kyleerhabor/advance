@@ -15,6 +15,7 @@ struct ImageCollectionCommands: Commands {
     ImageCollectionNewCommands()
     ImageCollectionExternalCommands()
     ImageCollectionEditCommands()
+    ImageCollectionNavigatorCommands()
 
     CommandGroup(after: .sidebar) {
       // The "Enter/Exit Full Screen" item is usually in its own space.

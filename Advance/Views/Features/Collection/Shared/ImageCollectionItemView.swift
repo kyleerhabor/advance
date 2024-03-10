@@ -31,18 +31,11 @@ struct ImageCollectionItemPhaseView: View {
   let phase: ImageResamplePhase
 
   private var imagePhase: ResultPhaseItem { .init(phase) }
-  private var isEmpty: Bool {
-    switch phase {
-      case .empty: return true
-      default: return false
-    }
-  }
 
   var body: some View {
     Rectangle()
       .fill(.fill.quaternary)
-      .visible(isEmpty)
-//      .transaction(setter(value: true, on: \.disablesAnimations))
+      .visible(phase.success == nil)
       .overlay {
         let image = phase.success?.image ?? .init(nsImage: .init())
 
@@ -66,6 +59,8 @@ struct ImageCollectionItemPhaseView: View {
           .imageScale(.large)
           .visible(phase.failure != nil)
       }
+      .transition(.empty)
+      .contentTransition(.opacity)
       .animation(.default, value: imagePhase)
       .task {
         guard (try? await Task.sleep(for: .seconds(1))) == nil else {

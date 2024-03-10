@@ -26,6 +26,8 @@ extension EnvironmentValues {
 // MARK: - Views
 
 struct ImageCollectionNavigationSidebarView: View {
+  @Environment(ImageCollection.self) private var collection
+  @Environment(\.loaded) private var loaded
   @Environment(\.navigationColumns) @Binding private var columns
   @FocusState private var focused: Bool
 
@@ -41,23 +43,49 @@ struct ImageCollectionNavigationSidebarView: View {
             // we need the selected image to gain focus, which can only occur after the sidebar is fully open.
             //
             // There is unfortunately a slight continuation of the scroll animation that may occur during the columns animation,
-            // but it's subtle and miles ahead of the prior implementation.
-            withAnimation {
+            // but it's subtle and miles ahead of the previous implementation.
+            await animate {
               proxy.scrollTo(item.id, anchor: .center)
-            } completion: {
-              withAnimation {
-                columns = .all
-              } completion: {
-                focused = true
-
-                // With our current calls, this just sets the sidebar selection. We want to make sure the sidebar has
-                // focus beforehand so the selection is not given a muted background.
-                item.completion()
-              }
             }
+
+            await showSidebar()
+
+            // With our current calls, this just sets the sidebar selection. We want to make sure the sidebar has
+            // focus beforehand so the selection is not given a muted background.
+            item.completion()
+          }
+        })
+        .focusedSceneValue(\.navigator, .init(identity: loaded ? .init(page: collection.sidebarPage) : nil, enabled: loaded) { navigator in
+          collection.sidebarPage = navigator.page
+
+          Task {
+            // For some reason, we need to animate this for the sidebar to always animate when opening.
+            await animate {
+              collection.updateBookmarks()
+            }
+
+            await showSidebar()
           }
         })
     }
+  }
+
+  func animate(body: () -> Void) async {
+    await withCheckedContinuation { continuation in
+      withAnimation {
+        body()
+      } completion: {
+        continuation.resume()
+      }
+    }
+  }
+
+  func showSidebar() async {
+    await animate {
+      columns = .all
+    }
+
+    focused = true
   }
 }
 

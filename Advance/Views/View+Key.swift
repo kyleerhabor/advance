@@ -172,6 +172,10 @@ struct QuickLookFocusedValueKey: FocusedValueKey {
   typealias Value = AppMenuToggleItem<Set<ImageCollectionItemImage.ID>>
 }
 
+struct NavigatorFocusedValueKey: FocusedValueKey {
+  typealias Value = AppMenuItemActionable<Navigator?, (Navigator) -> Void>
+}
+
 struct SidebarSearchFocusedValueKey: FocusedValueKey {
   typealias Value = AppMenuItem<ImageCollectionEnvironmentKey.Value?>
 }
@@ -231,6 +235,11 @@ extension FocusedValues {
   var quicklook: QuickLookFocusedValueKey.Value? {
     get { self[QuickLookFocusedValueKey.self] }
     set { self[QuickLookFocusedValueKey.self] = newValue }
+  }
+
+  var navigator: NavigatorFocusedValueKey.Value? {
+    get { self[NavigatorFocusedValueKey.self] }
+    set { self[NavigatorFocusedValueKey.self] = newValue }
   }
 
   var sidebarSearch: SidebarSearchFocusedValueKey.Value? {
@@ -302,6 +311,9 @@ extension KeyboardShortcut {
   static let openFinder = Self("r", modifiers: [.command, .option])
   
   static let quicklook = Self("y", modifiers: .command)
+
+  static let navigatorImages = Self("1", modifiers: .command)
+  static let navigatorBookmarks = Self("2", modifiers: .command)
 
   static let fullScreen = Self("f", modifiers: [.command, .control])
   static let systemFullScreen = Self("f", modifiers: .function) // See WindowFullScreenToggleViewModifier

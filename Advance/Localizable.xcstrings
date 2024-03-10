@@ -234,6 +234,36 @@
         }
       }
     },
+    "Images.Command.Navigator" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Navigator"
+          }
+        }
+      }
+    },
+    "Images.Command.Navigator.Bookmarks" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bookmarks"
+          }
+        }
+      }
+    },
+    "Images.Command.Navigator.Images" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Images"
+          }
+        }
+      }
+    },
     "Images.Command.Section.Image" : {
       "localizations" : {
         "en" : {

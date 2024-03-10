@@ -61,8 +61,15 @@ struct ImageCollectionSceneView: View {
           }
         }
 
-        await Self.resolve(collection: collection)
+        let state = await Self.resolve(collection: collection)
 
+        collection.store = state.store
+
+        state.value.forEach { item in
+          collection.items[item.root.bookmark] = item
+        }
+
+        collection.order = .init(state.value.map(\.root.bookmark))
         collection.update()
 
         Task(priority: .medium) {
@@ -101,27 +108,24 @@ struct ImageCollectionSceneView: View {
     return .init(store: books.store, value: images)
   }
 
-  // Be careful here: we're asynchronously mutating variables on the image collection. The reason (I believe) it's safe
-  // to do so here is because, from our usage in task(id:_:), the collection isn't being used elsewhere.
-  static func resolve(collection: ImageCollection) async {
-    let roots = collection.items.values.map(\.root)
-    let state = await Self.resolve(roots: roots, in: collection.store)
-    let items = collection.order.compactMap { id -> ImageCollectionItem? in
+  static func collect(collection: ImageCollection, images: ImageCollection.Images) -> [ImageCollectionItem] {
+    collection.order.compactMap { id in
       guard let root = collection.items[id]?.root,
-            let image = state.value[id] else {
+            let image = images[id] else {
         return nil
       }
 
       return .init(root: root, image: image)
     }
+  }
 
-    collection.store = state.store
+  // MARK: Convenience (concurrency)
+  static func resolve(collection: ImageCollection) async -> BookmarkStoreState<[ImageCollectionItem]> {
+    let roots = collection.items.values.map(\.root)
+    let state = await Self.resolve(roots: roots, in: collection.store)
+    let items = Self.collect(collection: collection, images: state.value)
 
-    items.forEach { item in
-      collection.items[item.root.bookmark] = item
-    }
-
-    collection.order = .init(items.map(\.root.bookmark))
+    return .init(store: state.store, value: items)
   }
 }
 

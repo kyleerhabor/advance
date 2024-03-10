@@ -138,6 +138,7 @@ struct WindowFullScreenToggleViewModifier: ViewModifier {
           // Empty
         }.keyboardShortcut(.fullScreen)
 
+        // FIXME: Pressing "f" without Fn triggers the action.
         Button(action: toggleFullScreen) {
           // Empty
         }.keyboardShortcut(.systemFullScreen)

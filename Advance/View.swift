@@ -251,3 +251,10 @@ extension NSMenuItem {
     !(self.isSectionHeader || self.isSeparatorItem)
   }
 }
+
+enum Navigator {
+  case images
+  case bookmarks
+}
+
+extension Navigator: Equatable {}
