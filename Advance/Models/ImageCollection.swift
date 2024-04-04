@@ -208,56 +208,6 @@ extension ImageCollectionDetailItem: Identifiable {
 
 extension ImageCollectionDetailItem: Equatable {}
 
-struct ImageCollectionPathItem {
-  let id: ImageCollectionItemImage.ID
-  let url: URL
-}
-
-extension ImageCollectionPathItem: Identifiable {}
-
-@Observable
-class ImageCollectionPath: Codable {
-  typealias Items = ImageCollectionSidebar.Selection
-
-  @ObservationIgnored var items: Items
-  @ObservationIgnored var item: ImageCollectionItemImage.ID?
-
-  var back = [ImageCollectionPathItem]()
-  var forward = [ImageCollectionPathItem]()
-
-  init() {
-    self.items = .init()
-  }
-
-  func update(images: [ImageCollectionItemImage]) {
-    let images = images.filter { items.contains($0.id) }
-    let index = item.flatMap { item in
-      images.firstIndex { $0.id == item }
-    } ?? images.startIndex
-
-    let before = images[..<index]
-    // We don't want the current item in the collection
-    let after = images[min(images.endIndex, index.incremented())...]
-
-    back = before.map { .init(id: $0.id, url: $0.url) }
-    forward = after.map { .init(id: $0.id, url: $0.url) }
-  }
-
-  // MARK: - Codable conformance
-
-  required init(from decoder: any Decoder) throws {
-    let container = try decoder.singleValueContainer()
-
-    self.items = try container.decode(Items.self)
-  }
-
-  func encode(to encoder: any Encoder) throws {
-    var container = encoder.singleValueContainer()
-
-    try container.encode(items)
-  }
-}
-
 @Observable
 class ImageCollection: Codable {
   typealias Order = OrderedSet<ImageCollectionItemRoot.ID>
@@ -278,22 +228,21 @@ class ImageCollection: Codable {
   // Extra UI state.
   var sidebarPage = \ImageCollectionSidebars.images
   var sidebarSearch = ""
-  @ObservationIgnored var sidebars = ImageCollectionSidebars()
-  let path: ImageCollectionPath
   var bookmarks = Set<ImageCollectionItemRoot.ID>()
+  @ObservationIgnored var current: ImageCollectionItemImage.ID?
+  @ObservationIgnored var currentSuper: ImageCollectionItemImage.ID?
+  @ObservationIgnored var sidebars = ImageCollectionSidebars()
 
   init() {
     self.store = .init()
     self.items = .init()
     self.order = .init()
-    self.path = .init()
   }
 
   init(store: BookmarkStore, items: Items, order: Order) {
     self.store = store
     self.items = items
     self.order = order
-    self.path = .init()
   }
 
   typealias Kind = ImageCollectionSourceKind<URLSource>
@@ -568,8 +517,6 @@ class ImageCollection: Codable {
     }
 
     updateBookmarks()
-
-    path.update(images: images)
   }
 
   func updateBookmarks() {
@@ -616,7 +563,9 @@ class ImageCollection: Codable {
     self.store = try container.decode(BookmarkStore.self, forKey: .store)
     self.items = .init(uniqueKeysWithValues: roots.map { ($0.root.bookmark, $0) })
     self.order = try container.decode(Order.self, forKey: .order)
-    self.path = try container.decode(ImageCollectionPath.self, forKey: .path)
+
+    self.current = nil
+    self.currentSuper = try container.decode(ImageCollectionItemImage.ID.self, forKey: .current)
   }
 
   func encode(to encoder: Encoder) throws {
@@ -624,12 +573,12 @@ class ImageCollection: Codable {
     try container.encode(store, forKey: .store)
     try container.encode(Array(items.values), forKey: .items)
     try container.encode(order, forKey: .order)
-    try container.encode(path, forKey: .path)
+    try container.encode(current, forKey: .current)
   }
 
   enum CodingKeys: CodingKey {
     case store, items, order
-    case path
+    case current
   }
 }
 

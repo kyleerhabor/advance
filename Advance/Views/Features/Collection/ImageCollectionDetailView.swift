@@ -71,7 +71,7 @@ struct ImageCollectionDetailItemBookmarkView: View {
 
 struct ImageCollectionDetailItemSidebarView: View {
   @Environment(ImageCollectionSidebar.self) private var sidebar
-  @Environment(ImageCollectionPath.self) private var path
+//  @Environment(ImageCollectionPath.self) private var path
   @Environment(\.sidebarScroller) private var sidebarScroller
 
   let id: ImageCollectionItemImage.ID
@@ -81,7 +81,7 @@ struct ImageCollectionDetailItemSidebarView: View {
       sidebarScroller.scroll(.init(id: id) {
         Task {
           sidebar.selection = [id]
-          path.item = id
+//          path.item = id
         }
       })
     }
@@ -444,7 +444,6 @@ struct ImageCollectionDetailVisualView: View {
 
 struct ImageCollectionDetailVisibleView: View {
   @Environment(ImageCollection.self) private var collection
-  @Environment(ImageCollectionPath.self) private var path
   @Environment(ImageCollectionSidebar.self) private var sidebar
   @Environment(\.id) private var id
   @Environment(\.sidebarScroller) private var sidebarScroller
@@ -487,7 +486,6 @@ struct ImageCollectionDetailVisibleView: View {
 
         sidebarScroller.scroll(.init(id: primary.id) {
           sidebar.selection = [primary.id]
-          path.item = primary.id
         })
       })
       .focusedSceneValue(\.bookmark, .init(
@@ -511,6 +509,17 @@ struct ImageCollectionDetailVisibleView: View {
           }
         }
       })
+      .onChange(of: primary) {
+        collection.current = primary?.id
+
+        Task {
+          do {
+            try await collection.persist(id: id)
+          } catch {
+            Logger.model.error("Could not persist image collection \"\(id)\" via current: \(error)")
+          }
+        }
+      }
 
     if let primary {
       if displayTitleBarImage {
@@ -519,24 +528,6 @@ struct ImageCollectionDetailVisibleView: View {
         Color.clear
           .navigationTitle(Text(url.lastPath))
           .navigationDocument(url)
-      }
-
-      Color.clear.onChange(of: Pair(left: collection.sidebarPage, right: sidebar.selection)) { prior, pair in
-        // If the page changed, ignore.
-        guard pair.left == prior.left else {
-          return
-        }
-
-        path.items.insert(primary.id)
-        path.update(images: collection.images)
-
-        Task {
-          do {
-            try await collection.persist(id: id)
-          } catch {
-            Logger.model.error("Could not persist image collection \"\(id)\" (via navigation): \(error)")
-          }
-        }
       }
     }
   }

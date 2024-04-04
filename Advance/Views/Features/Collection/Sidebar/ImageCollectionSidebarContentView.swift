@@ -163,7 +163,6 @@ struct ImageCollectionSidebarItemView: View {
 struct ImageCollectionSidebarContentView: View {
   @Environment(ImageCollection.self) private var collection
   @Environment(ImageCollectionSidebar.self) private var sidebar
-  @Environment(ImageCollectionPath.self) private var path
   @Environment(\.prerendering) private var prerendering
   @Environment(\.id) private var id
   @Environment(\.loaded) private var loaded
@@ -185,22 +184,14 @@ struct ImageCollectionSidebarContentView: View {
     .init {
       selection
     } set: { selection in
-      defer {
-        sidebar.selection = selection
-      }
-
       let difference = selection.subtracting(self.selection)
       let id = sidebar.images.last { difference.contains($0.id) }?.id
 
-      path.item = id
-
-      guard let id else {
-        return
+      if let id {
+        detailScroller.scroll(id)
       }
 
-      path.items.insert(id)
-
-      detailScroller.scroll(id)
+      sidebar.selection = selection
     }
   }
   private var isErrorPresented: Binding<Bool> {

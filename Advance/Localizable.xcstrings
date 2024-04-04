@@ -31,9 +31,6 @@
     "Appearance:" : {
 
     },
-    "Back" : {
-
-    },
     "Bookmark" : {
 
     },
@@ -94,9 +91,6 @@
       }
     },
     "Folders:" : {
-
-    },
-    "Forward" : {
 
     },
     "General" : {
@@ -304,26 +298,6 @@
         }
       }
     },
-    "Images.Navigation.Back.Help" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show the previous image"
-          }
-        }
-      }
-    },
-    "Images.Navigation.Forward.Help" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show the next image"
-          }
-        }
-      }
-    },
     "Images.Sidebar.Import" : {
       "localizations" : {
         "en" : {
@@ -350,9 +324,6 @@
 
     },
     "Margins:" : {
-
-    },
-    "Navigate" : {
 
     },
     "None" : {

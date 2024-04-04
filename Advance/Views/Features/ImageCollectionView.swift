@@ -25,6 +25,28 @@ extension EnvironmentValues {
 
 // MARK: - Views
 
+struct ImageCollectionNavigationRestoreView: View {
+  @Environment(ImageCollection.self) private var collection
+  @Environment(\.loaded) private var loaded
+
+  let action: (ImageCollectionItemImage.ID) -> Void
+
+  var body: some View {
+    // TODO: Use onChange(of:initial:_:) instead of task(id:priority:_:)
+    //
+    // For some reason, using onChange causes the detail view to be behind by two images. task resolves this, but
+    // introduces a delay visible to the user.
+    Color.clear.task(id: loaded) {
+      guard loaded,
+            let id = collection.currentSuper else {
+        return
+      }
+
+      action(id)
+    }
+  }
+}
+
 struct ImageCollectionNavigationSidebarView: View {
   @Environment(ImageCollection.self) private var collection
   @Environment(\.loaded) private var loaded
@@ -35,6 +57,11 @@ struct ImageCollectionNavigationSidebarView: View {
     ScrollViewReader { proxy in
       ImageCollectionSidebarView()
         .focused($focused)
+        .background {
+          ImageCollectionNavigationRestoreView { id in
+            Self.scroll(proxy: proxy, id: id)
+          }
+        }
         .focusedSceneValue(\.sidebarScroller, .init(identity: .sidebar) { item in
           Task {
             // We're using completion blocks to synchronize actions in the UI.
@@ -70,6 +97,10 @@ struct ImageCollectionNavigationSidebarView: View {
     }
   }
 
+  static func scroll(proxy: ScrollViewProxy, id: some Hashable) {
+    proxy.scrollTo(id, anchor: .center)
+  }
+
   func animate(body: () -> Void) async {
     await withCheckedContinuation { continuation in
       withAnimation {
@@ -89,130 +120,26 @@ struct ImageCollectionNavigationSidebarView: View {
   }
 }
 
-struct ImageCollectionNavigationDetailItemView<Label>: View where Label: View {
-  typealias Action = (ImageCollectionItemImage.ID?) -> Void
-
-  private let items: [ImageCollectionPathItem]
-  private let action: Action
-  private let label: Label
-
-  var body: some View {
-    Menu {
-      ForEach(items) { item in
-        Button(item.url.lastPath) {
-          action(item.id)
-        }
-      }
-    } label: {
-      label
-    } primaryAction: {
-      action(items.first?.id)
-    }.disabled(items.isEmpty)
-  }
-
-  init(items: [ImageCollectionPathItem], action: @escaping Action, @ViewBuilder label: () -> Label) {
-    self.action = action
-    self.items = items
-    self.label = label()
-  }
-}
-
-struct ImageCollectionNavigationDetailPathView: View {
-  @Environment(ImageCollection.self) private var collection
-  @Environment(ImageCollectionPath.self) private var path
-  @Environment(\.id) private var id
-  private var back: ImageCollectionItemImage.ID? { path.back.last?.id }
-  private var backAll: ImageCollectionItemImage.ID? { path.back.first?.id }
-  private var forward: ImageCollectionItemImage.ID? { path.forward.first?.id }
-  private var forwardAll: ImageCollectionItemImage.ID? { path.forward.last?.id }
-
-  let image: ImageCollectionItemImage?
-  let proxy: ScrollViewProxy
-
-  var body: some View {
-    var current: ImageCollectionItemImage.ID? { image?.id }
-
-    Color.clear
-      .toolbar(id: "Navigation") {
-        ToolbarItem(id: "Navigation", placement: .navigation) {
-          // For some reason, the title is not used in the customize toolbar modal.
-          ControlGroup("Navigate") {
-            ImageCollectionNavigationDetailItemView(items: path.back.reversed()) { id in
-              navigate(proxy: proxy, to: id, current: current)
-            } label: {
-              Label("Back", systemImage: "chevron.backward")
-            }.help("Images.Navigation.Back.Help")
-
-            ImageCollectionNavigationDetailItemView(items: path.forward) { id in
-              navigate(proxy: proxy, to: id, current: current)
-            } label: {
-              Label("Forward", systemImage: "chevron.forward")
-            }.help("Images.Navigation.Forward.Help")
-          }.controlGroupStyle(.navigation)
-        }
-      }
-      .focusedSceneValue(\.back, .init(identity: back, enabled: back != nil) {
-        navigate(proxy: proxy, to: back, current: current)
-      })
-      .focusedSceneValue(\.backAll, .init(identity: backAll, enabled: backAll != nil) {
-        navigate(proxy: proxy, to: backAll, current: current)
-      })
-      .focusedSceneValue(\.forward, .init(identity: forward, enabled: forward != nil) {
-        navigate(proxy: proxy, to: forward, current: current)
-      })
-      .focusedSceneValue(\.forwardAll, .init(identity: forwardAll, enabled: forwardAll != nil) {
-        navigate(proxy: proxy, to: forwardAll, current: current)
-      })
-  }
-
-  func updateNavigation() {
-    path.update(images: collection.images)
-
-    Task {
-      do {
-        try await collection.persist(id: id)
-      } catch {
-        Logger.model.error("Could not persist image collection \"\(id)\" (via detail navigation): \(error)")
-      }
-    }
-  }
-
-  @MainActor
-  func navigate(proxy: ScrollViewProxy, to id: ImageCollectionItemImage.ID?, current: ImageCollectionItemImage.ID?) {
-    if let current {
-      path.items.insert(current)
-    }
-
-    path.item = id
-
-    defer {
-      updateNavigation()
-    }
-
-    guard let id else {
-      return
-    }
-
-    ImageCollectionNavigationDetailView.scroll(proxy: proxy, to: id)
-  }
-}
-
 struct ImageCollectionNavigationDetailView: View {
   @Environment(ImageCollection.self) private var collection
+  @Environment(\.loaded) private var loaded
 
   var body: some View {
     ScrollViewReader { proxy in
       ImageCollectionDetailView(items: collection.detail)
-        .backgroundPreferenceValue(ImageCollectionVisiblePreferenceKey.self) { images in
-          ImageCollectionNavigationDetailPathView(image: images.first, proxy: proxy)
-        }.focusedSceneValue(\.detailScroller, .init(identity: .detail) { id in
+        .background {
+          ImageCollectionNavigationRestoreView { id in
+            Self.scroll(proxy: proxy, id: id)
+          }
+        }
+        .focusedSceneValue(\.detailScroller, .init(identity: .detail) { id in
           Self.scroll(proxy: proxy, to: id)
         })
     }
   }
 
   @MainActor
-  static func scroll(proxy: ScrollViewProxy, to id: ImageCollectionItemImage.ID) {
+  static func scroll(proxy: ScrollViewProxy, to id: some Hashable) {
     // https://stackoverflow.com/a/72808733/14695788
     Task {
       // TODO: Figure out how to change the animation (the parameter is currently ignored)
@@ -220,6 +147,10 @@ struct ImageCollectionNavigationDetailView: View {
         proxy.scrollTo(id, anchor: .top)
       }
     }
+  }
+
+  static func scroll(proxy: ScrollViewProxy, id: some Hashable) {
+    proxy.scrollTo(id, anchor: .top)
   }
 }
 
@@ -296,14 +227,15 @@ struct ImageCollectionView: View {
     .toolbarHidden(hideToolbar && !fullScreen && !isVisible)
     .cursorHidden(hideCursor && !isVisible)
     .environment(collection.sidebar)
-    .environment(collection.path)
     .environment(\.navigationColumns, $columns)
     // Yes, the code listed below is dumb.
     .onChange(of: columns) {
       scrollingSubject.send(false)
-    }.onChange(of: trackingMenu) {
+    }
+    .onChange(of: trackingMenu) {
       scrollingSubject.send(false)
-    }.onReceive(scrollingPublisher) { isScrolling in
+    }
+    .onReceive(scrollingPublisher) { isScrolling in
       self.isScrolling = isScrolling
     }
   }
