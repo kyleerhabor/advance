@@ -173,7 +173,7 @@ struct QuickLookFocusedValueKey: FocusedValueKey {
 }
 
 struct NavigatorFocusedValueKey: FocusedValueKey {
-  typealias Value = AppMenuItemActionable<Navigator?, (Navigator) -> Void>
+  typealias Value = AppMenuItemActionable<ImageCollectionEnvironmentKey.Value, (Navigator) -> Void>
 }
 
 struct SidebarSearchFocusedValueKey: FocusedValueKey {
@@ -186,22 +186,6 @@ struct CurrentImageShowFocusedValueKey: FocusedValueKey {
 
 struct BookmarkFocusedValueKey: FocusedValueKey {
   typealias Value = AppMenuToggleItem<Set<ImageCollectionItemImage.ID>>
-}
-
-struct BackFocusedValueKey: FocusedValueKey {
-  typealias Value = AppMenuItem<ImageCollectionItemImage.ID?>
-}
-
-struct BackAllFocusedValueKey: FocusedValueKey {
-  typealias Value = AppMenuItem<ImageCollectionItemImage.ID?>
-}
-
-struct ForwardFocusedValueKey: FocusedValueKey {
-  typealias Value = AppMenuItem<ImageCollectionItemImage.ID?>
-}
-
-struct ForwardAllFocusedValueKey: FocusedValueKey {
-  typealias Value = AppMenuItem<ImageCollectionItemImage.ID?>
 }
 
 struct LiveTextIconFocusedValueKey: FocusedValueKey {
@@ -257,26 +241,6 @@ extension FocusedValues {
     set { self[BookmarkFocusedValueKey.self] = newValue }
   }
 
-  var back: BackFocusedValueKey.Value? {
-    get { self[BackFocusedValueKey.self] }
-    set { self[BackFocusedValueKey.self] = newValue }
-  }
-
-  var backAll: BackAllFocusedValueKey.Value? {
-    get { self[BackAllFocusedValueKey.self] }
-    set { self[BackAllFocusedValueKey.self] = newValue }
-  }
-
-  var forward: ForwardFocusedValueKey.Value? {
-    get { self[ForwardFocusedValueKey.self] }
-    set { self[ForwardFocusedValueKey.self] = newValue }
-  }
-
-  var forwardAll: ForwardAllFocusedValueKey.Value? {
-    get { self[ForwardAllFocusedValueKey.self] }
-    set { self[ForwardAllFocusedValueKey.self] = newValue }
-  }
-
   var sidebarScroller: SidebarScrollerFocusedValueKey.Value? {
     get { self[SidebarScrollerFocusedValueKey.self] }
     set { self[SidebarScrollerFocusedValueKey.self] = newValue }
@@ -317,11 +281,6 @@ extension KeyboardShortcut {
 
   static let fullScreen = Self("f", modifiers: [.command, .control])
   static let systemFullScreen = Self("f", modifiers: .function) // See WindowFullScreenToggleViewModifier
-
-  static let back = Self("[", modifiers: .command)
-  static let backAll = Self("[", modifiers: [.command, .option])
-  static let forward = Self("]", modifiers: .command)
-  static let forwardAll = Self("]", modifiers: [.command, .option])
 
   static let searchSidebar = Self("f", modifiers: .command)
   static let showCurrentImage = Self("l", modifiers: .command)

@@ -212,7 +212,7 @@ extension URL {
   //
   // In ImageCollectionScene, we'll need to wait for all the collections to resolve, and then remove images not
   // associated with any of them.
-  static let temporaryImagesDirectory = Self.temporaryDirectory.appending(components: Bundle.identifier, "Images")
+  static let temporaryImagesDirectory = Self.temporaryDirectory.appending(components: Bundle.appIdentifier, "Images")
 }
 
 extension ImageTransferable {

@@ -9,14 +9,14 @@ import Foundation
 import OSLog
 
 extension Bundle {
-  static let identifier = Bundle.main.bundleIdentifier!
+  static let appIdentifier = Bundle.main.bundleIdentifier!
 }
 
 extension Logger {
   static let standard = Self()
-  static let ui = Self(subsystem: Bundle.identifier, category: "UI")
-  static let model = Self(subsystem: Bundle.identifier, category: "Model")
-  static let sandbox = Self(subsystem: Bundle.identifier, category: "Sandbox")
+  static let ui = Self(subsystem: Bundle.appIdentifier, category: "UI")
+  static let model = Self(subsystem: Bundle.appIdentifier, category: "Model")
+  static let sandbox = Self(subsystem: Bundle.appIdentifier, category: "Sandbox")
 }
 
 func noop<each T>(_ args: repeat each T) {}
@@ -27,12 +27,6 @@ func constantly<T, each U>(_ value: T) -> ((repeat each U) -> T) {
   }
 
   return result
-}
-
-extension Comparable {
-  func clamp(to range: ClosedRange<Self>) -> Self {
-    max(range.lowerBound, min(self, range.upperBound))
-  }
 }
 
 // MARK: - Files
@@ -94,7 +88,7 @@ extension FileManager.DirectoryEnumerator {
 
 extension Sequence {
   func sum() -> Element where Element: AdditiveArithmetic {
-    self.reduce(into: .zero, +=)
+    self.reduce(.zero, +)
   }
 
   func filter<T>(in set: Set<T>, by value: (Element) -> T) -> [Element] {
@@ -142,7 +136,9 @@ extension Sequence {
 
 extension Collection where Index: FixedWidthInteger {
   var middleIndex: Index {
-    self.startIndex + ((self.endIndex - self.startIndex) / 2)
+    let start = self.startIndex
+
+    return start + ((self.endIndex - start) / 2)
   }
 
   var middle: Element? {
@@ -154,7 +150,7 @@ extension Collection where Index: FixedWidthInteger {
   }
 }
 
-extension Array {
+extension RangeReplaceableCollection {
   init(minimumCapacity capacity: Int) {
     self.init()
     self.reserveCapacity(capacity)
@@ -189,39 +185,6 @@ func time<T>(
     duration: duration,
     value: result!
   )
-}
-
-func race<T>(
-  lhs: @escaping () async -> T,
-  rhs: @escaping () async -> T
-) async -> T {
-  await withCheckedContinuation { continuation in
-    // TODO: Figure out a way to cancel this task when the outer operation is cancelled (and the other way around).
-    Task {
-      await withTaskGroup(of: T.self) { group in
-        // Borrowed from https://forums.swift.org/t/running-an-async-task-with-a-timeout/49733/21
-        await withCheckedContinuation { continuation in
-          group.addTask {
-            continuation.resume()
-
-            return await lhs()
-          }
-        }
-
-        group.addTask {
-          await Task.yield()
-
-          return await rhs()
-        }
-
-        let value = await group.next()!
-
-        group.cancelAll()
-
-        continuation.resume(returning: value)
-      }
-    }
-  }
 }
 
 struct Matcher<Item, Path, Transform> where Item: Equatable, Path: Collection<Item?> {

@@ -32,7 +32,7 @@ struct ImageCollectionNavigationRestoreView: View {
   let action: (ImageCollectionItemImage.ID) -> Void
 
   var body: some View {
-    // TODO: Use onChange(of:initial:_:) instead of task(id:priority:_:)
+    // FIXME: Use onChange(of:initial:_:) instead of task(id:priority:_:)
     //
     // For some reason, using onChange causes the detail view to be behind by two images. task resolves this, but
     // introduces a delay visible to the user.
@@ -49,8 +49,10 @@ struct ImageCollectionNavigationRestoreView: View {
 
 struct ImageCollectionNavigationSidebarView: View {
   @Environment(ImageCollection.self) private var collection
+  @Environment(\.id) private var id
   @Environment(\.loaded) private var loaded
   @Environment(\.navigationColumns) @Binding private var columns
+  @Default(.windowRestoreLastImage) private var windowRestoreLastImage
   @FocusState private var focused: Bool
 
   var body: some View {
@@ -59,6 +61,10 @@ struct ImageCollectionNavigationSidebarView: View {
         .focused($focused)
         .background {
           ImageCollectionNavigationRestoreView { id in
+            guard windowRestoreLastImage else {
+              return
+            }
+
             Self.scroll(proxy: proxy, id: id)
           }
         }
@@ -82,7 +88,7 @@ struct ImageCollectionNavigationSidebarView: View {
             item.completion()
           }
         })
-        .focusedSceneValue(\.navigator, .init(identity: loaded ? .init(page: collection.sidebarPage) : nil, enabled: loaded) { navigator in
+        .focusedSceneValue(\.navigator, .init(identity: id, enabled: loaded) { navigator in
           collection.sidebarPage = navigator.page
 
           Task {
@@ -122,13 +128,17 @@ struct ImageCollectionNavigationSidebarView: View {
 
 struct ImageCollectionNavigationDetailView: View {
   @Environment(ImageCollection.self) private var collection
-  @Environment(\.loaded) private var loaded
+  @Default(.windowRestoreLastImage) private var windowRestoreLastImage
 
   var body: some View {
     ScrollViewReader { proxy in
       ImageCollectionDetailView(items: collection.detail)
         .background {
           ImageCollectionNavigationRestoreView { id in
+            guard windowRestoreLastImage else {
+              return
+            }
+
             Self.scroll(proxy: proxy, id: id)
           }
         }
@@ -185,7 +195,7 @@ struct ImageCollectionView: View {
       // This requires knowing the sidebar was explicitly opened by the user (and not through implicit means like scrolling
       // to a particular image, aka "Show in Sidebar")
       ImageCollectionNavigationSidebarView()
-        .navigationSplitViewColumnWidth(min: 128, ideal: 192, max: 256)
+        .navigationSplitViewColumnWidth(min: 128, ideal: 128, max: 256)
         .environment(\.detailScroller, detailScroller ?? .init(identity: .unknown, scroll: noop))
     } detail: {
       ImageCollectionNavigationDetailView()

@@ -10,10 +10,6 @@ import SwiftUI
 struct ImageCollectionImageCommands: Commands {
   @FocusedValue(\.currentImageShow) private var currentImageShow
   @FocusedValue(\.bookmark) private var bookmark
-  @FocusedValue(\.back) private var back
-  @FocusedValue(\.backAll) private var backAll
-  @FocusedValue(\.forward) private var forward
-  @FocusedValue(\.forwardAll) private var forwardAll
   @FocusedValue(\.liveTextIcon) private var liveTextIcon
   @FocusedValue(\.liveTextHighlight) private var liveTextHighlight
 
@@ -31,24 +27,6 @@ struct ImageCollectionImageCommands: Commands {
             isOn.toggle()
           }
         }.keyboardShortcut(.bookmark)
-      }
-
-      Section {
-        MenuItemButton(item: back ?? .init(identity: nil, enabled: false, action: noop)) {
-          Text("Images.Command.Navigation.Back")
-        }.keyboardShortcut(.back)
-
-        MenuItemButton(item: backAll ?? .init(identity: nil, enabled: false, action: noop)) {
-          Text("Images.Command.Navigation.Back.All")
-        }.keyboardShortcut(.backAll)
-
-        MenuItemButton(item: forward ?? .init(identity: nil, enabled: false, action: noop)) {
-          Text("Images.Command.Navigation.Forward")
-        }.keyboardShortcut(.forward)
-
-        MenuItemButton(item: forwardAll ?? .init(identity: nil, enabled: false, action: noop)) {
-          Text("Images.Command.Navigation.Forward.All")
-        }.keyboardShortcut(.forwardAll)
       }
 
       Section("Images.Command.Section.LiveText") {

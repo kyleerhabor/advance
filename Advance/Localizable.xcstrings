@@ -7,9 +7,6 @@
     " 0%" : {
 
     },
-    "%@ Live Text icon" : {
-
-    },
     "50%" : {
 
     },
@@ -188,76 +185,6 @@
         }
       }
     },
-    "Images.Command.Navigation.Back" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Go Back"
-          }
-        }
-      }
-    },
-    "Images.Command.Navigation.Back.All" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Go Back All"
-          }
-        }
-      }
-    },
-    "Images.Command.Navigation.Forward" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Go Forward"
-          }
-        }
-      }
-    },
-    "Images.Command.Navigation.Forward.All" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Go Forward All"
-          }
-        }
-      }
-    },
-    "Images.Command.Navigator" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Navigator"
-          }
-        }
-      }
-    },
-    "Images.Command.Navigator.Bookmarks" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bookmarks"
-          }
-        }
-      }
-    },
-    "Images.Command.Navigator.Images" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Images"
-          }
-        }
-      }
-    },
     "Images.Command.Section.Image" : {
       "localizations" : {
         "en" : {
@@ -288,12 +215,92 @@
         }
       }
     },
+    "Images.Commands.Navigator.Bookmarks" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bookmarks"
+          }
+        }
+      }
+    },
+    "Images.Commands.Navigator.Images" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Images"
+          }
+        }
+      }
+    },
     "Images.Copying.Action" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Copy to Folder"
+          }
+        }
+      }
+    },
+    "Images.Settings.LiveText.Enable" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enable Live Text"
+          }
+        }
+      }
+    },
+    "Images.Settings.LiveText.Icon" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show icon"
+          }
+        }
+      }
+    },
+    "Images.Settings.Section.LiveText" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Live Text:"
+          }
+        }
+      }
+    },
+    "Images.Settings.Section.Window" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Window:"
+          }
+        }
+      }
+    },
+    "Images.Settings.Window.Restore.Label" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resume at last viewed image"
+          }
+        }
+      }
+    },
+    "Images.Settings.Window.Restore.Note" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The last viewed image prior to the app closing will be used as the image to start at for restored windows."
           }
         }
       }
@@ -308,6 +315,36 @@
         }
       }
     },
+    "Images.Toolbar.LiveTextIcon" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Live Text"
+          }
+        }
+      }
+    },
+    "Images.Toolbar.LiveTextIcon.Hide" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide Live Text Icon"
+          }
+        }
+      }
+    },
+    "Images.Toolbar.LiveTextIcon.Show" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Live Text Icon"
+          }
+        }
+      }
+    },
     "Import" : {
 
     },
@@ -315,9 +352,6 @@
 
     },
     "Light" : {
-
-    },
-    "Live Text Icon" : {
 
     },
     "Main Canvas:" : {
@@ -407,26 +441,6 @@
         }
       }
     },
-    "Settings.LiveText.Enable" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enable Live Text"
-          }
-        }
-      }
-    },
-    "Settings.LiveText.Icon" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show icon"
-          }
-        }
-      }
-    },
     "Settings.LiveText.Search.Label" : {
       "localizations" : {
         "en" : {
@@ -443,26 +457,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "This will always open in Safari."
-          }
-        }
-      }
-    },
-    "Settings.LiveText.Subject.Label" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Analyze subjects"
-          }
-        }
-      }
-    },
-    "Settings.LiveText.Subject.Note" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Objects in the foreground of images (people, pets, buildings, etc.) will be outlined for copying and sharing. This will make analysis take longer."
           }
         }
       }

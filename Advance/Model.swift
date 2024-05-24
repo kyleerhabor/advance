@@ -53,7 +53,7 @@ struct Keys {
 }
 
 extension URL {
-  static let dataDirectory = Self.applicationSupportDirectory.appending(component: Bundle.identifier)
+  static let dataDirectory = Self.applicationSupportDirectory.appending(component: Bundle.appIdentifier)
 }
 
 enum ResultPhase<Success, Failure> where Failure: Error {
@@ -122,10 +122,12 @@ extension Defaults.Keys {
   static let margins = Key("margins", default: 1)
   static let collapseMargins = Key("collapseMargins", default: true)
 
+  // Window
+  static let windowRestoreLastImage = Key("windowRestoreLastImage", default: true)
+
   // Live Text
   static let liveText = Key("liveText", default: true)
   static let liveTextIcon = Key("liveTextIcon", default: false)
-  static let liveTextSubject = Key("liveTextSubject", default: false)
   static let liveTextSearchWith = Key("liveTextSearchWith", default: false)
   static let liveTextDownsample = Key("liveTextDownsample", default: false)
 

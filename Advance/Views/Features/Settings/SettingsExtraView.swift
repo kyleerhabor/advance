@@ -29,7 +29,6 @@ struct SettingsExtraView: View {
           Text("Settings.LiveText.Downsample.Note")
         }
       }
-      .groupBoxStyle(.containerSettings)
       .disabled(!liveText)
       .liveTextSupport()
     }

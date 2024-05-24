@@ -64,9 +64,13 @@ extension ImageCollectionItemImageAnalysisInput: Equatable {}
 
 struct ImageCollectionItemImageAnalysis {
   let input: ImageCollectionItemImageAnalysisInput
-  let output: ImageAnalysisResult
+  let analysis: ImageAnalysis
+}
 
-  var hasResults: Bool { output.analysis.hasOutput }
+extension ImageCollectionItemImageAnalysis {
+  init(_ analysis: ImageAnalysis, input: ImageCollectionItemImageAnalysisInput) {
+    self.init(input: input, analysis: analysis)
+  }
 }
 
 @Observable
@@ -565,7 +569,7 @@ class ImageCollection: Codable {
     self.order = try container.decode(Order.self, forKey: .order)
 
     self.current = nil
-    self.currentSuper = try container.decode(ImageCollectionItemImage.ID.self, forKey: .current)
+    self.currentSuper = try container.decode(ImageCollectionItemImage.ID?.self, forKey: .current)
   }
 
   func encode(to encoder: Encoder) throws {
@@ -573,6 +577,7 @@ class ImageCollection: Codable {
     try container.encode(store, forKey: .store)
     try container.encode(Array(items.values), forKey: .items)
     try container.encode(order, forKey: .order)
+    
     try container.encode(current, forKey: .current)
   }
 

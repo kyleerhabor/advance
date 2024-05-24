@@ -12,19 +12,19 @@ struct ImageCollectionNavigatorCommands: Commands {
 
   var body: some Commands {
     CommandGroup(after: .toolbar) {
-      Menu("Images.Command.Navigator") {
+      Group {
         MenuItemButton(item: .init(identity: navigator?.action.identity, enabled: navigator?.enabled ?? false) {
           navigator?.action.action(.images)
         }) {
-          Text("Images.Command.Navigator.Images")
+          Label("Images.Commands.Navigator.Images", systemImage: "photo.on.rectangle")
         }.keyboardShortcut(.navigatorImages)
 
         MenuItemButton(item: .init(identity: navigator?.action.identity, enabled: navigator?.enabled ?? false) {
           navigator?.action.action(.bookmarks)
         }) {
-          Text("Images.Command.Navigator.Bookmarks")
+          Label("Images.Commands.Navigator.Bookmarks", systemImage: "bookmark")
         }.keyboardShortcut(.navigatorBookmarks)
-      }
+      }.labelStyle(.titleAndIcon)
     }
   }
 }

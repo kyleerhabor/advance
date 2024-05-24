@@ -165,7 +165,6 @@ struct ImageCollectionSidebarContentView: View {
   @Environment(ImageCollectionSidebar.self) private var sidebar
   @Environment(\.prerendering) private var prerendering
   @Environment(\.id) private var id
-  @Environment(\.loaded) private var loaded
   @Environment(\.detailScroller) private var detailScroller
   @Default(.importHiddenFiles) private var importHidden
   @Default(.importSubdirectories) private var importSubdirectories

@@ -31,7 +31,7 @@ extension HorizontalAlignment {
 
 // MARK: - Settings
 
-struct SettingsGroupBoxStyle: GroupBoxStyle {
+struct GroupedSettingsGroupBoxStyle: GroupBoxStyle {
   func makeBody(configuration: Configuration) -> some View {
     VStack(alignment: .leading, spacing: 6) {
       configuration.content
@@ -39,21 +39,20 @@ struct SettingsGroupBoxStyle: GroupBoxStyle {
   }
 }
 
-extension GroupBoxStyle where Self == SettingsGroupBoxStyle {
-  static var settings: SettingsGroupBoxStyle { .init() }
+extension GroupBoxStyle where Self == GroupedSettingsGroupBoxStyle {
+  static var groupedSettings: GroupedSettingsGroupBoxStyle { .init() }
 }
 
-struct ContainerSettingsGroupBoxStyle: GroupBoxStyle {
+struct SettingsGroupBoxStyle: GroupBoxStyle {
   func makeBody(configuration: Configuration) -> some View {
     VStack(alignment: .leading) {
       configuration.content
-        .groupBoxStyle(.settings)
     }
   }
 }
 
-extension GroupBoxStyle where Self == ContainerSettingsGroupBoxStyle {
-  static var containerSettings: ContainerSettingsGroupBoxStyle { .init() }
+extension GroupBoxStyle where Self == SettingsGroupBoxStyle {
+  static var settings: SettingsGroupBoxStyle { .init() }
 }
 
 struct LabeledSettingsGroupBoxStyle: GroupBoxStyle {
@@ -64,7 +63,7 @@ struct LabeledSettingsGroupBoxStyle: GroupBoxStyle {
       GroupBox {
         configuration.content
       }
-      .groupBoxStyle(.containerSettings)
+      .groupBoxStyle(.settings)
       .padding(.leading)
     }
   }

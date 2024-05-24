@@ -121,7 +121,8 @@ struct ImageCollectionSceneView: View {
 
   // MARK: Convenience (concurrency)
   static func resolve(collection: ImageCollection) async -> BookmarkStoreState<[ImageCollectionItem]> {
-    let roots = collection.items.map(\.value.root) // .values.map(\.root)
+    // FIXME: Swift sometimes crashes accessing the count of the collection.
+    let roots = collection.items.values.map(\.root)
     let state = await Self.resolve(roots: roots, in: collection.store)
     let items = Self.collect(collection: collection, images: state.value)
 
@@ -157,7 +158,7 @@ struct ImageCollectionScene: Scene {
     // that's about to be deleted.
     //
     // Maybe increase to 2 just to be safe?
-    .deferred(count: 2) {
+    .deferred(count: 1) {
       Task(priority: .background) {
         await Self.initialize(allowing: manager.ids)
       }

@@ -14,9 +14,9 @@ struct SettingsGeneralView: View {
   @Default(.margins) private var margins
   @Default(.colorScheme) private var colorScheme
   @Default(.collapseMargins) private var collapseMargins
+  @Default(.windowRestoreLastImage) private var windowRestoreLastImage
   @Default(.liveText) private var liveText
   @Default(.liveTextIcon) private var liveTextIcon
-  @Default(.liveTextSubject) private var liveTextSubject
   @Default(.liveTextSearchWith) private var liveTextSearchWith
   @Default(.displayTitleBarImage) private var displayTitleBarImage
   @Default(.hideToolbarScrolling) private var hideToolbar
@@ -80,23 +80,12 @@ struct SettingsGeneralView: View {
       }.disabled(margins.wrappedValue == 0)
     }
 
-    LabeledContent("Settings.Section.LiveText") {
-      GroupBox {
-        GroupBox {
-          Toggle("Settings.LiveText.Enable", isOn: $liveText)
+    LabeledContent("Images.Settings.Section.Window") {
+      Toggle(isOn: $windowRestoreLastImage) {
+        Text("Images.Settings.Window.Restore.Label")
 
-          Toggle("Settings.LiveText.Icon", isOn: $liveTextIcon)
-            .disabled(!liveText)
-        }
-
-        Toggle(isOn: $liveTextSubject) {
-          Text("Settings.LiveText.Subject.Label")
-
-          Text("Settings.LiveText.Subject.Note")
-        }.disabled(!liveText)
+        Text("Images.Settings.Window.Restore.Note")
       }
-      .groupBoxStyle(.containerSettings)
-      .liveTextSupport()
     }
 
     LabeledContent("Main Canvas:") {
@@ -117,6 +106,16 @@ struct SettingsGeneralView: View {
       }.groupBoxStyle(.labeledSettings)
 
       Toggle("Display current image in the title", isOn: $displayTitleBarImage)
+    }
+
+    LabeledContent("Images.Settings.Section.LiveText") {
+      GroupBox {
+        Toggle("Images.Settings.LiveText.Enable", isOn: $liveText)
+
+        Toggle("Images.Settings.LiveText.Icon", isOn: $liveTextIcon)
+          .disabled(!liveText)
+      }
+      .liveTextSupport()
     }
 
     LabeledContent("Copying:") {

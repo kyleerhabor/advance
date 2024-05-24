@@ -5,6 +5,7 @@
 //  Created by Kyle Erhabor on 9/13/23.
 //
 
+import Combine
 import Defaults
 import ImageIO
 import OSLog
@@ -15,6 +16,8 @@ struct VisibleItem<Item> {
   let item: Item
   let anchor: Anchor<CGRect>
 }
+
+extension VisibleItem: Equatable where Item: Equatable {}
 
 // https://swiftwithmajid.com/2020/03/18/anchor-preferences-in-swiftui/
 struct VisiblePreferenceKey<Item>: PreferenceKey {
@@ -71,7 +74,6 @@ struct ImageCollectionDetailItemBookmarkView: View {
 
 struct ImageCollectionDetailItemSidebarView: View {
   @Environment(ImageCollectionSidebar.self) private var sidebar
-//  @Environment(ImageCollectionPath.self) private var path
   @Environment(\.sidebarScroller) private var sidebarScroller
 
   let id: ImageCollectionItemImage.ID
@@ -81,7 +83,6 @@ struct ImageCollectionDetailItemSidebarView: View {
       sidebarScroller.scroll(.init(id: id) {
         Task {
           sidebar.selection = [id]
-//          path.item = id
         }
       })
     }
@@ -91,7 +92,6 @@ struct ImageCollectionDetailItemSidebarView: View {
 struct ImageCollectionDetailItemInteractionView: View {
   @Environment(\.supplementaryInterfaceHidden) private var liveTextIcon
   @Default(.liveText) private var liveText
-  @Default(.liveTextSubject) private var liveTextSubject
   @Default(.liveTextSearchWith) private var liveTextSearchWith
   @Default(.liveTextDownsample) private var liveTextDownsample
   @State private var analysis: ImageCollectionItemImageAnalysis?
@@ -108,11 +108,6 @@ struct ImageCollectionDetailItemInteractionView: View {
     }
 
     interactions.insert([.textSelection, .dataDetectors])
-
-    if liveTextSubject {
-      // In my experience, .visualLookUp does nothing. But maybe it's supposed to do something?
-      interactions.insert([.imageSubject, .visualLookUp])
-    }
 
     return interactions
   }
@@ -137,11 +132,9 @@ struct ImageCollectionDetailItemInteractionView: View {
   var body: some View {
     LiveTextView(
       interactions: interactions,
-      result: analysis?.output,
+      analysis: analysis?.analysis,
       isHighlighted: $image.isAnalysisHighlighted
-    ) { handler in
-      await image.withSecurityScope(handler)
-    }
+    )
     .supplementaryInterfaceHidden(!liveTextIcon)
     .searchEngineHidden(!liveTextSearchWith)
     .task(id: Pair(left: liveText, right: input)) {
@@ -169,12 +162,9 @@ struct ImageCollectionDetailItemInteractionView: View {
         return
       }
 
-      self.analysis = .init(
-        input: input,
-        output: .init(id: .init(), analysis: analysis)
-      )
-    }.onChange(of: analysis?.hasResults) {
-      image.hasAnalysisResults = analysis?.hasResults ?? false
+      self.analysis = .init(analysis, input: input)
+    }.onChange(of: analysis?.analysis.hasOutput) {
+      image.hasAnalysisResults = analysis?.analysis.hasOutput ?? false
     }
   }
 
@@ -447,6 +437,7 @@ struct ImageCollectionDetailVisibleView: View {
   @Environment(ImageCollectionSidebar.self) private var sidebar
   @Environment(\.id) private var id
   @Environment(\.sidebarScroller) private var sidebarScroller
+  @Default(.windowRestoreLastImage) private var windowRestoreLastImage
   @Default(.displayTitleBarImage) private var displayTitleBarImage
 
   let images: [ImageCollectionItemImage]
@@ -510,6 +501,10 @@ struct ImageCollectionDetailVisibleView: View {
         }
       })
       .onChange(of: primary) {
+        guard windowRestoreLastImage else {
+          return
+        }
+
         collection.current = primary?.id
 
         Task {
@@ -601,7 +596,8 @@ struct ImageCollectionDetailView: View {
         // key, meanwhile, just floats up the view hierarchy and dispenses its value to an attached view. The result
         // is that using preference values here results in no hangs, making it suitable for this case.
         Color.clear.preference(key: ImageCollectionVisiblePreferenceKey.self, value: images)
-      }.preference(key: ScrollOffsetPreferenceKey.self, value: items.last?.anchor)
+      }
+      .preference(key: ScrollOffsetPreferenceKey.self, value: items.last?.anchor)
     }.backgroundPreferenceValue(ImageCollectionVisiblePreferenceKey.self) { images in
       ImageCollectionDetailVisibleView(images: images)
     }.toolbar(id: "Canvas") {
@@ -620,8 +616,8 @@ struct ImageCollectionDetailView: View {
           liveTextIcon = $0
         }
 
-        Toggle("Live Text Icon", systemImage: "text.viewfinder", isOn: icons)
-          .help("\(showLiveTextIcon ? "Hide" : "Show") Live Text icon")
+        Toggle("Images.Toolbar.LiveTextIcon", systemImage: "text.viewfinder", isOn: icons)
+          .help(showLiveTextIcon ? "Images.Toolbar.LiveTextIcon.Hide" : "Images.Toolbar.LiveTextIcon.Show")
       }
     }
     .environment(\.supplementaryInterfaceHidden, showLiveTextIcon)
