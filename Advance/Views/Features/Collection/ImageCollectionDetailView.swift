@@ -539,23 +539,32 @@ struct ImageCollectionVisiblePreferenceKey: PreferenceKey {
 }
 
 struct ImageCollectionDetailView: View {
+  typealias VisibleImagesPreferenceKey = VisiblePreferenceKey<ImageCollectionItemImage>
+
+  private let items: [ImageCollectionDetailItem]
+  private let subject = PassthroughSubject<VisibleImagesPreferenceKey.Value, Never>()
+  private let publisher: AnyPublisher<VisibleImagesPreferenceKey.Value, Never>
+
   @Environment(\.id) private var id
   @Default(.margins) private var margins
   @Default(.collapseMargins) private var collapseMargins
   @Default(.liveTextIcon) private var appLiveTextIcon
   @SceneStorage(Defaults.Keys.liveTextIcon.name) private var liveTextIcon: Bool?
-
-  let items: [ImageCollectionDetailItem]
-
-  private var margin: Double { .init(margins) }
+  private var showLiveTextIcon: Bool { liveTextIcon ?? appLiveTextIcon }
+  private var margin: Double { Double(margins) }
   private var half: Double { margin * 3 }
   private var full: Double { half * 2 }
-  private var all: EdgeInsets { .init(full) }
-  private var top: EdgeInsets { .init(horizontal: full, top: full, bottom: half) }
-  private var middle: EdgeInsets { .init(horizontal: full, top: half, bottom: half) }
-  private var bottom: EdgeInsets { .init(horizontal: full, top: half, bottom: full) }
+  private var all: EdgeInsets { EdgeInsets(full) }
+  private var top: EdgeInsets { EdgeInsets(horizontal: full, top: full, bottom: half) }
+  private var middle: EdgeInsets { EdgeInsets(horizontal: full, top: half, bottom: half) }
+  private var bottom: EdgeInsets { EdgeInsets(horizontal: full, top: half, bottom: full) }
 
-  private var showLiveTextIcon: Bool { liveTextIcon ?? appLiveTextIcon }
+  init(items: [ImageCollectionDetailItem]) {
+    self.items = items
+    self.publisher = subject
+      .throttle(for: .interaction, scheduler: DispatchQueue.main, latest: true)
+      .eraseToAnyPublisher()
+  }
 
   var body: some View {
     List(items) { item in
@@ -573,10 +582,11 @@ struct ImageCollectionDetailView: View {
         .listRowInsets(.listRow + (collapseMargins ? insets : all))
         .listRowSeparator(.hidden)
         .shadow(radius: margin / 2)
-        .anchorPreference(key: VisiblePreferenceKey.self, value: .bounds) { [.init(item: image, anchor: $0)] }
+        .anchorPreference(key: VisiblePreferenceKey.self, value: .bounds) { [VisibleItem(item: image, anchor: $0)] }
     }
     .listStyle(.plain)
-    .overlayPreferenceValue(VisiblePreferenceKey<ImageCollectionItemImage>.self) { items in
+    .preferencePublisher(VisibleImagesPreferenceKey.self, defaultValue: [], subject: subject, publisher: publisher)
+    .overlayPreferenceValue(VisibleImagesPreferenceKey.self) { items in
       GeometryReader { proxy in
         let local = proxy.frame(in: .local)
         let images = items
@@ -598,9 +608,11 @@ struct ImageCollectionDetailView: View {
         Color.clear.preference(key: ImageCollectionVisiblePreferenceKey.self, value: images)
       }
       .preference(key: ScrollOffsetPreferenceKey.self, value: items.last?.anchor)
-    }.backgroundPreferenceValue(ImageCollectionVisiblePreferenceKey.self) { images in
+    }
+    .backgroundPreferenceValue(ImageCollectionVisiblePreferenceKey.self) { images in
       ImageCollectionDetailVisibleView(images: images)
-    }.toolbar(id: "Canvas") {
+    }
+    .toolbar(id: "Canvas") {
       ToolbarItem(id: "Visual") {
         PopoverButtonView(edge: .bottom) {
           ImageCollectionDetailVisualView()

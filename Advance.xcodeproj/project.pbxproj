@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		00023ECC2C156D2A0089E07B /* UI+View.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00023ECB2C156D290089E07B /* UI+View.swift */; };
+		00023ECF2C156F680089E07B /* UI+Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00023ECE2C156F680089E07B /* UI+Constants.swift */; };
 		000855692A72FE2C00309905 /* AdvanceApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000855682A72FE2C00309905 /* AdvanceApp.swift */; };
 		0008556E2A7306CB00309905 /* Standard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0008556D2A7306CB00309905 /* Standard.swift */; };
 		001CB5202A718D4200DBB6FA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 001CB51F2A718D4200DBB6FA /* Assets.xcassets */; };
@@ -60,6 +62,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		00023ECB2C156D290089E07B /* UI+View.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UI+View.swift"; sourceTree = "<group>"; };
+		00023ECE2C156F680089E07B /* UI+Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UI+Constants.swift"; sourceTree = "<group>"; };
 		000855682A72FE2C00309905 /* AdvanceApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvanceApp.swift; sourceTree = "<group>"; };
 		0008556D2A7306CB00309905 /* Standard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Standard.swift; sourceTree = "<group>"; };
 		001754BA2B6EFB8F00458BB3 /* Wonder Cat Kyuu-chan.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Wonder Cat Kyuu-chan.png"; sourceTree = "<group>"; };
@@ -130,6 +134,23 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		00023ECA2C156CBF0089E07B /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				00023ECB2C156D290089E07B /* UI+View.swift */,
+				00023ECD2C156E340089E07B /* Features */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		00023ECD2C156E340089E07B /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				00023ECE2C156F680089E07B /* UI+Constants.swift */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
 		0008556A2A72FECF00309905 /* Views */ = {
 			isa = PBXGroup;
 			children = (
@@ -168,6 +189,7 @@
 				0008556D2A7306CB00309905 /* Standard.swift */,
 				00C09BBE2A789D30006EB887 /* View.swift */,
 				001D8D0D2A74AC5400B58790 /* Model.swift */,
+				00023ECA2C156CBF0089E07B /* UI */,
 				0077AF902ABB8637002E3FF4 /* Standard */,
 				00E42E972B33A38000BC05A7 /* Features */,
 				0008556A2A72FECF00309905 /* Views */,
@@ -419,6 +441,7 @@
 				00A983A62B47B1F700A8E61C /* View+Key.swift in Sources */,
 				003763C92AB4068700D53F2E /* ImageCollectionSidebarView.swift in Sources */,
 				0056083C2B6F6BFB0063DCE2 /* SettingsLiveTextSupportViewModifier.swift in Sources */,
+				00023ECC2C156D2A0089E07B /* UI+View.swift in Sources */,
 				00CC4F412B588DB3009EEC8A /* DisplayImageView.swift in Sources */,
 				004D8FC02A76C1C900C0303E /* SettingsView.swift in Sources */,
 				00C369532AB766DC0033F10A /* ImageCollection.swift in Sources */,
@@ -459,6 +482,7 @@
 				005608312B6F242F0063DCE2 /* ImageCollectionNewCommands.swift in Sources */,
 				00E42E9B2B33EB8000BC05A7 /* ImageCollectionManager.swift in Sources */,
 				00CBAB5A2AB23E9C0045FF83 /* ImageCollectionScene.swift in Sources */,
+				00023ECF2C156F680089E07B /* UI+Constants.swift in Sources */,
 				00E42E912B339E0700BC05A7 /* Bookmark.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
