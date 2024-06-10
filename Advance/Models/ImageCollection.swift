@@ -596,7 +596,7 @@ extension ImageCollection {
   ) -> ImageCollection.Kind {
     let source = URLSource(url: url, options: [.withReadOnlySecurityScope, .withoutImplicitSecurityScope])
 
-    if url.isDirectory() {
+    if url.isDirectory() == true {
       return .document(.init(
         source: source,
         files: url.withSecurityScope {

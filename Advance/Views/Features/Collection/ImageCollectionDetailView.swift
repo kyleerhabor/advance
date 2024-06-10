@@ -12,35 +12,13 @@ import OSLog
 import SwiftUI
 import VisionKit
 
-struct VisibleItem<Item> {
-  let item: Item
-  let anchor: Anchor<CGRect>
-}
+struct ImageCollectionVisiblePreferenceKey: PreferenceKey {
+  typealias Value = [ImageCollectionItemImage]
 
-extension VisibleItem: Equatable where Item: Equatable {}
-
-// https://swiftwithmajid.com/2020/03/18/anchor-preferences-in-swiftui/
-struct VisiblePreferenceKey<Item>: PreferenceKey {
-  typealias Value = [VisibleItem<Item>]
-
-  static var defaultValue: Value { .init(minimumCapacity: 8) }
+  static var defaultValue = Value(minimumCapacity: VisiblePreferenceKey<Value>.defaultMinimumCapacity)
 
   static func reduce(value: inout Value, nextValue: () -> Value) {
-    value.append(contentsOf: nextValue())
-  }
-}
-
-struct ScrollOffsetPreferenceKey: PreferenceKey {
-  typealias Value = Anchor<CGRect>?
-
-  static var defaultValue: Value = nil
-
-  static func reduce(value: inout Value, nextValue: () -> Value) {
-    guard let next = nextValue() else {
-      return
-    }
-
-    value = next
+    value = nextValue()
   }
 }
 
@@ -528,16 +506,6 @@ struct ImageCollectionDetailVisibleView: View {
   }
 }
 
-struct ImageCollectionVisiblePreferenceKey: PreferenceKey {
-  typealias Value = [ImageCollectionItemImage]
-
-  static var defaultValue = Value()
-
-  static func reduce(value: inout Value, nextValue: () -> Value) {
-    value = nextValue()
-  }
-}
-
 struct ImageCollectionDetailView: View {
   typealias VisibleImagesPreferenceKey = VisiblePreferenceKey<ImageCollectionItemImage>
 
@@ -562,7 +530,7 @@ struct ImageCollectionDetailView: View {
   init(items: [ImageCollectionDetailItem]) {
     self.items = items
     self.publisher = subject
-      .throttle(for: .interaction, scheduler: DispatchQueue.main, latest: true)
+      .throttle(for: .scrollInteraction, scheduler: DispatchQueue.main, latest: true)
       .eraseToAnyPublisher()
   }
 

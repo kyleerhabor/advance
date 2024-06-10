@@ -9,7 +9,8 @@ import Combine
 
 extension SchedulerTimeIntervalConvertible {
   // TODO: Come up with a better name.
-  static var interaction: Self {
+  static var scrollInteraction: Self {
     Self.milliseconds(50)
   }
 }
+ 

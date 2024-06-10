@@ -43,8 +43,8 @@ extension URL {
     self.deletingPathExtension().lastPathComponent
   }
 
-  func isDirectory() -> Bool {
-    (try? self.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+  func isDirectory() -> Bool? {
+    try? self.resourceValues(forKeys: [.isDirectoryKey]).isDirectory
   }
 
   func contains(url: URL) -> Bool {
@@ -75,7 +75,7 @@ extension FileManager.DirectoryEnumerator {
   func contents() -> [URL] {
     self.compactMap { element -> URL? in
       guard let url = element as? URL,
-            !url.isDirectory() else {
+            url.isDirectory() == false else {
         return nil
       }
 
@@ -91,7 +91,7 @@ extension Sequence {
     self.reduce(.zero, +)
   }
 
-  func filter<T>(in set: Set<T>, by value: (Element) -> T) -> [Element] {
+  func filter<T>(in set: some SetAlgebra<T>, by value: (Element) -> T) -> [Element] {
     self.filter { set.contains(value($0)) }
   }
 }
@@ -137,8 +137,9 @@ extension Sequence {
 extension Collection where Index: FixedWidthInteger {
   var middleIndex: Index {
     let start = self.startIndex
+    let end = self.endIndex
 
-    return start + ((self.endIndex - start) / 2)
+    return start + ((end - start) / 2)
   }
 
   var middle: Element? {

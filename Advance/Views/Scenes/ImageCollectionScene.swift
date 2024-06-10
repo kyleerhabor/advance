@@ -5,6 +5,7 @@
 //  Created by Kyle Erhabor on 9/13/23.
 //
 
+import Algorithms
 import OSLog
 import SwiftUI
 
@@ -122,6 +123,8 @@ struct ImageCollectionSceneView: View {
   // MARK: Convenience (concurrency)
   static func resolve(collection: ImageCollection) async -> BookmarkStoreState<[ImageCollectionItem]> {
     // FIXME: Swift sometimes crashes accessing the count of the collection.
+    //
+    // TODO: Decouple SwiftUI models from underlying data.
     let roots = collection.items.values.map(\.root)
     let state = await Self.resolve(roots: roots, in: collection.store)
     let items = Self.collect(collection: collection, images: state.value)
@@ -181,13 +184,14 @@ struct ImageCollectionScene: Scene {
     }
 
     collections
-      .compactMap { url -> Pair<URL, UUID>? in
+      .map { url -> Pair<URL, UUID>? in
         guard let id = UUID(uuidString: url.lastPath) else {
           return nil
         }
 
         return Pair(left: url, right: id)
       }
+      .compacted()
       .filter { !ids.contains($0.right) }
       .forEach { pair in
         let url = pair.left

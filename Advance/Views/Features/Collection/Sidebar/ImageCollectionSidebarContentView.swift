@@ -161,6 +161,8 @@ struct ImageCollectionSidebarItemView: View {
 }
 
 struct ImageCollectionSidebarContentView: View {
+  typealias VisibleImageIDsPreferenceKey = VisiblePreferenceKey<ImageCollectionItemImage.ID>
+
   @Environment(ImageCollection.self) private var collection
   @Environment(ImageCollectionSidebar.self) private var sidebar
   @Environment(\.prerendering) private var prerendering
@@ -208,10 +210,11 @@ struct ImageCollectionSidebarContentView: View {
       List(selection: selected) {
         ForEach(sidebar.images) { image in
           ImageCollectionSidebarItemView(image: image)
-            .anchorPreference(key: VisiblePreferenceKey<ImageCollectionItemImage.ID>.self, value: .bounds) {
-              [.init(item: image.id, anchor: $0)]
+            .anchorPreference(key: VisibleImageIDsPreferenceKey.self, value: .bounds) {
+              [VisibleItem(item: image.id, anchor: $0)]
             }
-        }.onMove { from, to in
+        }
+        .onMove { from, to in
           collection.order.elements.move(fromOffsets: from, toOffset: to)
           collection.update()
 
@@ -236,7 +239,8 @@ struct ImageCollectionSidebarContentView: View {
             }
           }
         }
-      }.backgroundPreferenceValue(VisiblePreferenceKey<ImageCollectionItemImage.ID>.self) { items in
+      }
+      .backgroundPreferenceValue(VisibleImageIDsPreferenceKey.self) { items in
         GeometryReader { proxy in
           let local = proxy.frame(in: .local)
           let id = items
@@ -247,7 +251,8 @@ struct ImageCollectionSidebarContentView: View {
             sidebar.current = id
           }
         }
-      }.onDeleteCommand {
+      }
+      .onDeleteCommand {
         collection.order.subtract(selection)
         collection.update()
 
@@ -258,14 +263,16 @@ struct ImageCollectionSidebarContentView: View {
             Logger.model.error("Could not persist image collection \"\(id)\" (via delete key): \(error)")
           }
         }
-      }.onChange(of: collection.sidebarPage) {
+      }
+      .onChange(of: collection.sidebarPage) {
         guard let id = sidebar.current else {
           return
         }
 
         proxy.scrollTo(id, anchor: .center)
       }
-    }.safeAreaInset(edge: .bottom, spacing: 0) {
+    }
+    .safeAreaInset(edge: .bottom, spacing: 0) {
       VStack(spacing: 0) {
         Divider()
 
@@ -332,7 +339,8 @@ struct ImageCollectionSidebarContentView: View {
       Section {
         ImageCollectionBookmarkView(isOn: bookmarked)
       }
-    }.fileImporter(isPresented: $isCopyingFileImporterPresented, allowedContentTypes: [.folder]) { result in
+    }
+    .fileImporter(isPresented: $isCopyingFileImporterPresented, allowedContentTypes: [.folder]) { result in
       switch result {
         case .success(let url):
           Task(priority: .medium) {
@@ -371,7 +379,8 @@ struct ImageCollectionSidebarContentView: View {
       quicklookSelection.removeAll()
 
       updateQuicklook()
-    }.onKeyPress(.space, phases: .down) { _ in
+    }
+    .onKeyPress(.space, phases: .down) { _ in
       quicklookSelection = selection
 
       updateQuicklook()
