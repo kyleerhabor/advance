@@ -5,6 +5,7 @@
 //  Created by Kyle Erhabor on 9/20/23.
 //
 
+import AdvanceCore
 import ImageIO
 import OSLog
 
@@ -63,7 +64,7 @@ struct ImageProperties {
   let orientation: CGImagePropertyOrientation
 
   var sized: ImageSize {
-    guard orientation.rotated else {
+    guard orientation.isReflected else {
       return size
     }
 
@@ -82,14 +83,5 @@ extension ImageProperties {
     } ?? .up
 
     self.init(size: size, orientation: orientation)
-  }
-}
-
-extension CGImagePropertyOrientation {
-  var rotated: Bool {
-    switch self {
-      case .leftMirrored, .right, .rightMirrored, .left: true
-      default: false
-    }
   }
 }

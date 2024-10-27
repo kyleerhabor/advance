@@ -5,8 +5,8 @@
 //  Created by Kyle Erhabor on 12/21/23.
 //
 
-import SwiftUI
 import OSLog
+import SwiftUI
 
 struct ImageResample {
   let image: Image
@@ -24,8 +24,6 @@ extension ImageResampleError: Error {}
 typealias ImageResamplePhase = ResultPhase<ImageResample, ImageResampleError>
 
 struct ImageCollectionItemPhaseView: View {
-  @AppStorage(Keys.brightness.key) private var brightness = Keys.brightness.value
-  @AppStorage(Keys.grayscale.key) private var grayscale = Keys.grayscale.value
   @State private var elapsed = false
 
   let phase: ImageResamplePhase
@@ -39,13 +37,7 @@ struct ImageCollectionItemPhaseView: View {
       .overlay {
         let image = phase.success?.image ?? .init(nsImage: .init())
 
-        image
-          .resizable()
-          .animation(.smooth) { content in
-            content
-              .brightness(brightness)
-              .grayscale(grayscale)
-          }
+        image.resizable()
       }.overlay {
         let visible = imagePhase == .empty && elapsed
 
@@ -59,7 +51,6 @@ struct ImageCollectionItemPhaseView: View {
           .imageScale(.large)
           .visible(phase.failure != nil)
       }
-      .transition(.empty)
       .contentTransition(.opacity)
       .animation(.default, value: imagePhase)
       .task {
@@ -93,7 +84,7 @@ struct ImageCollectionItemView<Scope, Content>: View where Scope: URLScope, Cont
     self.content = content()
   }
 
-  static func resample(imageAt url: URL, to size: CGSize) throws -> CGImage {
+  nonisolated static func resample(imageAt url: URL, to size: CGSize) throws -> CGImage {
     guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
       throw ImageError.undecodable
     }
@@ -104,14 +95,14 @@ struct ImageCollectionItemView<Scope, Content>: View where Scope: URLScope, Cont
       throw ImageError.thumbnail
     }
 
-    Logger.ui.info("Created a resampled image from \"\(url.string)\" at dimensions \(thumbnail.width.description) x \(thumbnail.height.description) for size \(size.width) / \(size.height)")
+    Logger.ui.info("Created a resampled image from \"\(url.pathString)\" at dimensions \(thumbnail.width.description) x \(thumbnail.height.description) for size \(size.width) / \(size.height)")
 
     try Task.checkCancellation()
 
     return thumbnail
   }
 
-  static func resample(image: Scope, to size: CGSize) async throws -> ImageResample {
+  nonisolated static func resample(image: Scope, to size: CGSize) async throws -> ImageResample {
     let thumbnail = try image.withSecurityScope { try resample(imageAt: image.url, to: size) }
 
     return .init(
@@ -128,7 +119,7 @@ struct ImageCollectionItemView<Scope, Content>: View where Scope: URLScope, Cont
     } catch is CancellationError {
       return
     } catch {
-      Logger.ui.error("Could not resample image at URL \"\(image.url.string)\": \(error)")
+      Logger.ui.error("Could not resample image at URL \"\(image.url.pathString)\": \(error)")
 
       phase = .result(.failure(.failed))
     }

@@ -9,12 +9,6 @@ import OSLog
 import SwiftUI
 import UniformTypeIdentifiers
 
-extension NSWindow {
-  func isFullScreen() -> Bool {
-    self.styleMask.contains(.fullScreen)
-  }
-}
-
 extension EdgeInsets {
   // Normally, NSTableView's style can just be set to .plain to take up the full size of the container. List, for some
   // reason, doesn't want to do that, so I have to do this little dance. I have no idea if this will transfer well to
@@ -31,19 +25,6 @@ extension EdgeInsets {
 
   init(horizontal: Double, top: Double, bottom: Double) {
     self.init(top: top, leading: horizontal, bottom: bottom, trailing: horizontal)
-  }
-}
-
-extension Color {
-  static let tertiaryLabel = Self(nsColor: .tertiaryLabelColor)
-}
-
-extension View {
-  private var transparent: Double { 0 }
-  private var opaque: Double { 1 }
-
-  func visible(_ visible: Bool) -> some View {
-    self.opacity(visible ? opaque : transparent)
   }
 }
 
@@ -111,86 +92,6 @@ extension FileManager.DirectoryEnumerationOptions {
   }
 }
 
-extension NSWindow {
-  func setToolbarVisibility(_ visible: Bool) {
-    self.standardWindowButton(.closeButton)?.superview?.animator().alphaValue = visible ? 1 : 0
-
-    // For some reason, full screen windows in light mode draw a slight line under the top of the screen after
-    // scrolling for a bit. This doesn't occur in dark mode, which is interesting.
-    //
-    // FIXME: For some reason, the title bar separator does not animate.
-    self.animator().titlebarSeparatorStyle = visible && !self.isFullScreen() ? .automatic : .none
-  }
-}
-
-struct ToolbarHiddenViewModifier: ViewModifier {
-  @Environment(Windowed.self) private var windowed
-  @Environment(\.fullScreen) private var fullScreen
-  private var window: NSWindow? { windowed.window }
-
-  let hidden: Bool
-
-  func body(content: Content) -> some View {
-    content.onChange(of: hidden, initial: true) {
-      setToolbarVisible(!hidden)
-    }.onChange(of: fullScreen) {
-      setToolbarVisible(!hidden)
-    }.onDisappear {
-      setToolbarVisible(true)
-    }
-  }
-
-  func setToolbarVisible(_ visible: Bool) {
-    window?.setToolbarVisibility(visible)
-  }
-}
-
-struct CursorHiddenViewModifier: ViewModifier {
-  @State private var hidden = false
-
-  let hide: Bool
-
-  func body(content: Content) -> some View {
-    content.onChange(of: hide, initial: true) {
-      if hide {
-        hideCursor()
-
-        return
-      }
-
-      if hidden {
-        unhideCursor()
-      }
-    }.onDisappear {
-      if hidden {
-        unhideCursor()
-      }
-    }
-  }
-
-  func hideCursor() {
-    NSCursor.hide()
-
-    hidden = true
-  }
-
-  func unhideCursor() {
-    NSCursor.unhide()
-
-    hidden = false
-  }
-}
-
-extension View {
-  func toolbarHidden(_ hidden: Bool) -> some View {
-    self.modifier(ToolbarHiddenViewModifier(hidden: hidden))
-  }
-
-  func cursorHidden(_ hidden: Bool) -> some View {
-    self.modifier(CursorHiddenViewModifier(hide: hidden))
-  }
-}
-
 struct ImageTransferable: Transferable {
   let url: URL
   let type: UTType
@@ -208,11 +109,7 @@ struct ImageTransferable: Transferable {
 }
 
 extension URL {
-  // TODO: Remove unused images.
-  //
-  // In ImageCollectionScene, we'll need to wait for all the collections to resolve, and then remove images not
-  // associated with any of them.
-  static let temporaryImagesDirectory = Self.temporaryDirectory.appending(components: Bundle.appIdentifier, "Images")
+  static let temporaryImagesDirectory = Self.temporaryDirectory.appending(components: Bundle.appID, "Images")
 }
 
 extension ImageTransferable {
@@ -225,7 +122,7 @@ extension ImageTransferable {
 
     let destination = URL.temporaryImagesDirectory.appending(component: received.file.lastPathComponent)
 
-    Logger.sandbox.info("Dropped image at URL \"\(received.file.string)\" is a promise; moving to \"\(destination.string)\"...")
+    Logger.sandbox.info("Dropped image at URL \"\(received.file.path)\" is a promise; moving to \"\(destination.path)\"...")
 
     let manager = FileManager.default
 
@@ -234,21 +131,6 @@ extension ImageTransferable {
     }
 
     self.init(url: destination, type: type, original: false)
-  }
-}
-
-extension NSPasteboard {
-  func write(items: [some NSPasteboardWriting]) -> Bool {
-    self.prepareForNewContents()
-
-    return self.writeObjects(items)
-  }
-}
-
-extension NSMenuItem {
-  var isStandard: Bool {
-    // This is not safe from evolution.
-    !(self.isSectionHeader || self.isSeparatorItem)
   }
 }
 

@@ -27,8 +27,7 @@ struct ImageCollectionSidebarBookmarkButtonView: View {
 
 struct ImageCollectionSidebarFilterView: View {
   @Environment(ImageCollection.self) private var collection
-  @Environment(\.id) private var id
-  @Environment(\.navigationColumns) @Binding private var columns
+  @Environment(\.imagesID) private var id
   @FocusState private var isSearchFocused
   @State private var priorSearch: String?
   private var isSearching: Bool {
@@ -60,7 +59,7 @@ struct ImageCollectionSidebarFilterView: View {
         .focused($isSearchFocused)
         .focusedSceneValue(\.sidebarSearch, .init(identity: id, enabled: true) {
           withAnimation {
-            columns = .all
+//            columns = .all
           } completion: {
             isSearchFocused = true
           }
@@ -129,23 +128,13 @@ struct ImageCollectionSidebarItemView: View {
     VStack {
       ImageCollectionItemImageView(image: image)
         .aspectRatio(image.properties.sized.aspectRatio, contentMode: .fit)
-        .overlay(alignment: .topTrailing) {
-          Image(systemName: "bookmark")
-            .symbolVariant(.fill)
-            .symbolRenderingMode(.multicolor)
-            .opacity(0.8)
-            .imageScale(.large)
-            .shadow(radius: 0.5)
-            .padding(4)
-            .visible(image.bookmarked)
-        }
 
       // Interestingly, this can be slightly expensive.
       let path = image.url.lastPathComponent
 
       Text(path)
         .font(.subheadline)
-        .padding(.init(vertical: 4, horizontal: 8))
+        .padding(EdgeInsets(vertical: 4, horizontal: 8))
         .background(.fill.tertiary, in: .rect(cornerRadius: 4))
         // TODO: Replace this for an expansion tooltip (like how NSTableView has it)
         //
@@ -165,12 +154,8 @@ struct ImageCollectionSidebarContentView: View {
 
   @Environment(ImageCollection.self) private var collection
   @Environment(ImageCollectionSidebar.self) private var sidebar
-  @Environment(\.prerendering) private var prerendering
-  @Environment(\.id) private var id
-  @Environment(\.detailScroller) private var detailScroller
-  @Default(.importHiddenFiles) private var importHidden
-  @Default(.importSubdirectories) private var importSubdirectories
-  @Default(.resolveCopyingConflicts) private var resolveCopyingConflicts
+  @Environment(\.imagesID) private var id
+//  @Environment(\.detailScroller) private var detailScroller
   
   @State private var quicklookItem: URL?
   @State private var quicklookItems = [URL]()
@@ -189,7 +174,7 @@ struct ImageCollectionSidebarContentView: View {
       let id = sidebar.images.last { difference.contains($0.id) }?.id
 
       if let id {
-        detailScroller.scroll(id)
+//        detailScroller.scroll(id)
       }
 
       sidebar.selection = selection
@@ -214,179 +199,175 @@ struct ImageCollectionSidebarContentView: View {
               [VisibleItem(item: image.id, anchor: $0)]
             }
         }
-        .onMove { from, to in
-          collection.order.elements.move(fromOffsets: from, toOffset: to)
-          collection.update()
-
-          Task(priority: .medium) {
-            do {
-              try await collection.persist(id: id)
-            } catch {
-              Logger.model.error("Could not persist image collection \"\(id)\" (via sidebar image move): \(error)")
-            }
-          }
-        }
-        // This adds a "Delete" menu item under Edit.
-        .onDelete { offsets in
-          collection.order.elements.remove(atOffsets: offsets)
-          collection.update()
-
-          Task(priority: .medium) {
-            do {
-              try await collection.persist(id: id)
-            } catch {
-              Logger.model.error("Could not persist image collection \"\(id)\" (via menu bar delete): \(error)")
-            }
-          }
-        }
-      }
-      .backgroundPreferenceValue(VisibleImageIDsPreferenceKey.self) { items in
-        GeometryReader { proxy in
-          let local = proxy.frame(in: .local)
-          let id = items
-            .filter { local.contains(proxy[$0.anchor]) }
-            .middle?.item
-
-          Color.clear.onChange(of: id) {
-            sidebar.current = id
-          }
-        }
-      }
-      .onDeleteCommand {
-        collection.order.subtract(selection)
-        collection.update()
-
-        Task(priority: .medium) {
-          do {
-            try await collection.persist(id: id)
-          } catch {
-            Logger.model.error("Could not persist image collection \"\(id)\" (via delete key): \(error)")
-          }
-        }
+//        .onMove { from, to in
+//          collection.order.elements.move(fromOffsets: from, toOffset: to)
+//          collection.update()
+//
+//          Task(priority: .medium) {
+//            do {
+//              try await collection.persist(id: id)
+//            } catch {
+//              Logger.model.error("Could not persist image collection \"\(id)\" (via sidebar image move): \(error)")
+//            }
+//          }
+//        }
+//        // This adds a "Delete" menu item under Edit.
+//        .onDelete { offsets in
+//          collection.order.elements.remove(atOffsets: offsets)
+//          collection.update()
+//
+//          Task(priority: .medium) {
+//            do {
+//              try await collection.persist(id: id)
+//            } catch {
+//              Logger.model.error("Could not persist image collection \"\(id)\" (via menu bar delete): \(error)")
+//            }
+//          }
+//        }
       }
       .onChange(of: collection.sidebarPage) {
-        guard let id = sidebar.current else {
-          return
-        }
 
-        proxy.scrollTo(id, anchor: .center)
       }
+//      .backgroundPreferenceValue(VisibleImageIDsPreferenceKey.self) { items in
+//        GeometryReader { proxy in
+//          let local = proxy.frame(in: .local)
+//          let id = items
+//            .filter { local.contains(proxy[$0.anchor]) }
+//            .middle?.item
+//
+//          Color.clear.onChange(of: id) {
+//            sidebar.current = id
+//          }
+//        }
+//      }
+//      .onDeleteCommand {
+//        collection.order.subtract(selection)
+//        collection.update()
+//
+//        Task(priority: .medium) {
+//          do {
+//            try await collection.persist(id: id)
+//          } catch {
+//            Logger.model.error("Could not persist image collection \"\(id)\" (via delete key): \(error)")
+//          }
+//        }
+//      }
+//      .onChange(of: collection.sidebarPage) {
+//        guard let id = sidebar.current else {
+//          return
+//        }
+//
+//        proxy.scrollTo(id, anchor: .center)
+//      }
     }
-    .safeAreaInset(edge: .bottom, spacing: 0) {
-      VStack(spacing: 0) {
-        Divider()
-
-        ImageCollectionSidebarFilterView()
-          .padding(8)
-      }
-    }
-    .copyable(urls(from: selection))
-    // TODO: Figure out how to extract this.
-    //
-    // I tried moving this into a ViewModifier and View, but the passed binding for the selected item wouldn't always
-    // be reflected (or sometimes just crash).
-    .quickLookPreview($quicklookItem, in: quicklookItems)
-    .contextMenu { ids in
-      let bookmarked = Binding {
-        !ids.isEmpty && isBookmarked(selection: ids)
-      } set: { isOn in
-        self.bookmark(images: images(from: ids), value: isOn)
-      }
-
-      Section {
-        Button("Finder.Show") {
-          openFinder(selecting: urls(from: ids))
-        }
-
-        let quicklook = Binding<Bool> {
-          quicklookItem != nil && ids.isSubset(of: quicklookSelection)
-        } set: { isOn in
-          quicklookSelection = isOn ? ids : []
-
-          updateQuicklook()
-        }
-
-        ImageCollectionQuickLookView(isOn: quicklook)
-      }
-
-      Section {
-        Button("Copy") {
-          let urls = urls(from: ids)
-
-          if !NSPasteboard.general.write(items: urls as [NSURL]) {
-            Logger.ui.error("Failed to write URLs \"\(urls.map(\.string))\" to pasteboard")
-          }
-        }
-
-        let isPresented = Binding {
-          isCopyingFileImporterPresented
-        } set: { isPresenting in
-          isCopyingFileImporterPresented = isPresenting
-          copyingSelection = ids
-        }
-
-        ImageCollectionCopyingView(isPresented: isPresented) { destination in
-          Task(priority: .medium) {
-            do {
-              try await copy(images: images(from: ids), to: destination)
-            } catch {
-              self.error = error.localizedDescription
-            }
-          }
-        }
-      }
-
-      Section {
-        ImageCollectionBookmarkView(isOn: bookmarked)
-      }
-    }
-    .fileImporter(isPresented: $isCopyingFileImporterPresented, allowedContentTypes: [.folder]) { result in
-      switch result {
-        case .success(let url):
-          Task(priority: .medium) {
-            do {
-              try await copy(images: images(from: copyingSelection), to: url)
-            } catch {
-              self.error = error.localizedDescription
-            }
-          }
-        case .failure(let err):
-          Logger.ui.error("Could not import folder for copying operation: \(err)")
-      }
-    }
-    .fileDialogCopy()
-    .alert(self.error ?? "", isPresented: isErrorPresented) {}
-    .focusedValue(\.finderShow, .init(identity: selection, enabled: !selection.isEmpty) {
-      openFinder(selecting: urls(from: selection))
-    })
-    .focusedValue(\.quicklook, .init(
-      identity: quicklookSelection,
-      enabled: quicklookItem != nil || !selection.isEmpty,
-      state: quicklookItem != nil
-    ) { quicklook in
-      quicklookSelection = quicklook ? selection : []
-
-      updateQuicklook()
-    })
-    .focusedValue(\.bookmark, .init(
-      identity: selection,
-      enabled: !selection.isEmpty,
-      state: !selection.isEmpty && isBookmarked(selection: selection)
-    ) { isOn in
-      self.bookmark(images: images(from: selection), value: isOn)
-    })
-    .onDisappear {
-      quicklookSelection.removeAll()
-
-      updateQuicklook()
-    }
-    .onKeyPress(.space, phases: .down) { _ in
-      quicklookSelection = selection
-
-      updateQuicklook()
-
-      return .handled
-    }
+//    .safeAreaInset(edge: .bottom, spacing: 0) {
+//      VStack(spacing: 0) {
+//        Divider()
+//
+//        ImageCollectionSidebarFilterView()
+//          .padding(8)
+//      }
+//    }
+//    .copyable(urls(from: selection))
+//    // TODO: Figure out how to extract this.
+//    //
+//    // I tried moving this into a ViewModifier and View, but the passed binding for the selected item wouldn't always
+//    // be reflected (or sometimes just crash).
+//    .quickLookPreview($quicklookItem, in: quicklookItems)
+//    .contextMenu { ids in
+//      let bookmarked = Binding {
+//        !ids.isEmpty && isBookmarked(selection: ids)
+//      } set: { isOn in
+//        self.bookmark(images: images(from: ids), value: isOn)
+//      }
+//
+//      Section {
+//        let quicklook = Binding<Bool> {
+//          quicklookItem != nil && ids.isSubset(of: quicklookSelection)
+//        } set: { isOn in
+//          quicklookSelection = isOn ? ids : []
+//
+//          updateQuicklook()
+//        }
+//
+//        ImageCollectionQuickLookView(isOn: quicklook)
+//      }
+//
+//      Section {
+//        Button("Copy") {
+//          let urls = urls(from: ids)
+//
+//          if !NSPasteboard.general.write(items: urls as [NSURL]) {
+//            Logger.ui.error("Failed to write URLs \"\(urls.map(\.string))\" to pasteboard")
+//          }
+//        }
+//
+//        let isPresented = Binding {
+//          isCopyingFileImporterPresented
+//        } set: { isPresenting in
+//          isCopyingFileImporterPresented = isPresenting
+//          copyingSelection = ids
+//        }
+//
+//        ImageCollectionCopyingView(isPresented: isPresented) { destination in
+//          Task(priority: .medium) {
+//            do {
+//              try await copy(images: images(from: ids), to: destination)
+//            } catch {
+//              self.error = error.localizedDescription
+//            }
+//          }
+//        }
+//      }
+//
+//      Section {
+//        ImageCollectionBookmarkView(isOn: bookmarked)
+//      }
+//    }
+//    .fileImporter(isPresented: $isCopyingFileImporterPresented, allowedContentTypes: [.folder]) { result in
+//      switch result {
+//        case .success(let url):
+//          Task(priority: .medium) {
+//            do {
+//              try await copy(images: images(from: copyingSelection), to: url)
+//            } catch {
+//              self.error = error.localizedDescription
+//            }
+//          }
+//        case .failure(let err):
+//          Logger.ui.error("Could not import folder for copying operation: \(err)")
+//      }
+//    }
+//    .fileDialogCopy()
+//    .alert(self.error ?? "", isPresented: isErrorPresented) {}
+//    .focusedValue(\.imagesQuickLook, .init(
+//      identity: quicklookSelection,
+//      enabled: quicklookItem != nil || !selection.isEmpty,
+//      state: quicklookItem != nil
+//    ) { quicklook in
+//      quicklookSelection = quicklook ? selection : []
+//
+//      updateQuicklook()
+//    })
+//    .focusedValue(\.bookmark, .init(
+//      identity: selection,
+//      enabled: !selection.isEmpty,
+//      state: !selection.isEmpty && isBookmarked(selection: selection)
+//    ) { isOn in
+//      self.bookmark(images: images(from: selection), value: isOn)
+//    })
+//    .onDisappear {
+//      quicklookSelection.removeAll()
+//
+//      updateQuicklook()
+//    }
+//    .onKeyPress(.space, phases: .down) { _ in
+//      quicklookSelection = selection
+//
+//      updateQuicklook()
+//
+//      return .handled
+//    }
   }
 
   func images(from selection: ImageCollectionSidebar.Selection) -> [ImageCollectionItemImage] {
@@ -428,7 +409,7 @@ struct ImageCollectionSidebarContentView: View {
   }
 
   func bookmark(images: some Sequence<ImageCollectionItemImage>, value: Bool) {
-    images.forEach(setter(value: value, on: \.bookmarked))
+    images.forEach(setter(on: \.bookmarked, value: value))
     
     collection.updateBookmarks()
 
@@ -442,10 +423,10 @@ struct ImageCollectionSidebarContentView: View {
   }
 
   nonisolated func copy(images: some Sequence<ImageCollectionItemImage>, to destination: URL) async throws {
-    try await Self.copy(images: images, to: destination, resolvingConflicts: resolveCopyingConflicts)
+    try await Self.copy(images: images, to: destination, resolvingConflicts: true)
   }
 
-  static nonisolated func copy(
+  nonisolated static func copy(
     images: some Sequence<ImageCollectionItemImage>,
     to destination: URL,
     resolvingConflicts resolveConflicts: Bool

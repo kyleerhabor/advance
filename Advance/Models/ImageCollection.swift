@@ -5,6 +5,7 @@
 //  Created by Kyle Erhabor on 9/17/23.
 //
 
+import AdvanceCore
 import Foundation
 import OrderedCollections
 import OSLog
@@ -105,14 +106,18 @@ class ImageCollectionItemImage {
 }
 
 extension ImageCollectionItemImage: Identifiable {
-  var id: BookmarkStoreItem.ID { bookmark }
+  var id: BookmarkStoreItem.ID {
+    bookmark
+  }
 }
 
-extension ImageCollectionItemImage: Hashable {
+extension ImageCollectionItemImage: Equatable {
   static func ==(lhs: ImageCollectionItemImage, rhs: ImageCollectionItemImage) -> Bool {
     lhs.url == rhs.url
   }
+}
 
+extension ImageCollectionItemImage: Hashable {
   func hash(into hasher: inout Hasher) {
     hasher.combine(url)
   }
@@ -159,7 +164,7 @@ extension ImageCollectionItem: Equatable {
 }
 
 extension ImageCollectionItem: Codable {
-  init(from decoder: Decoder) throws {
+  init(from decoder: any Decoder) throws {
     let container = try decoder.singleValueContainer()
 
     self.init(
@@ -168,7 +173,7 @@ extension ImageCollectionItem: Codable {
     )
   }
 
-  func encode(to encoder: Encoder) throws {
+  func encode(to encoder: any Encoder) throws {
     let root = ImageCollectionItemRoot(bookmark: root.bookmark, bookmarked: bookmarked)
 
     var container = encoder.singleValueContainer()
@@ -283,7 +288,7 @@ class ImageCollection: Codable {
                     }
                   }
 
-                  var urbs = [URLBookmark](minimumCapacity: files.count)
+                  var urbs = [URLBookmark](reservingCapacity: files.count)
 
                   while let result = await group.nextResult() {
                     switch result {
@@ -355,7 +360,7 @@ class ImageCollection: Codable {
     bookmarks: [BookmarkStoreItem],
     in store: BookmarkStore
   ) async -> BookmarkStoreState<Bookmarks> {
-    await withThrowingTaskGroup(of: Pair<BookmarkStoreItem.ID, BookmarkResolution>?.self) { group in
+    await withThrowingTaskGroup(of: Pair<BookmarkStoreItem.ID, AssignedBookmark>?.self) { group in
       let relatives = bookmarks
         .compactMap(\.relative)
         .uniqued()
@@ -370,11 +375,11 @@ class ImageCollection: Codable {
 
       bookmarks.forEach { item in
         group.addTask {
-          let resolved: BookmarkResolution
+          let assigned: AssignedBookmark
           let bookmark = item.bookmark
 
           if let url = store.urls[item.hash] {
-            resolved = .init(data: bookmark.data, url: url)
+            assigned = .init(url: url, data: bookmark.data)
           } else {
             let relative: URL?
 
@@ -389,14 +394,14 @@ class ImageCollection: Codable {
               relative = nil
             }
 
-            resolved = try BookmarkStoreItem.resolve(
+            assigned = try BookmarkStoreItem.resolve(
               data: bookmark.data,
               options: bookmark.options,
               relativeTo: relative
             )
           }
 
-          return .init(left: item.id, right: resolved)
+          return .init(left: item.id, right: assigned)
         }
       }
 
@@ -560,7 +565,7 @@ class ImageCollection: Codable {
 
   // MARK: - Codable conformance
 
-  required init(from decoder: Decoder) throws {
+  required init(from decoder: any Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     let roots = try container.decode([ImageCollectionItem].self, forKey: .items)
 
@@ -572,7 +577,7 @@ class ImageCollection: Codable {
     self.currentSuper = try container.decode(ImageCollectionItemImage.ID?.self, forKey: .current)
   }
 
-  func encode(to encoder: Encoder) throws {
+  func encode(to encoder: any Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
     try container.encode(store, forKey: .store)
     try container.encode(Array(items.values), forKey: .items)
@@ -602,7 +607,7 @@ extension ImageCollection {
         files: url.withSecurityScope {
           FileManager.default
             .contents(at: url, options: .init(includingHiddenFiles: importHidden, includingSubdirectories: importSubdirectories))
-            .finderSort()
+            .finderSort(by: \.pathComponents)
             .map { .init(url: $0, options: .withoutImplicitSecurityScope) }
         }
       ))

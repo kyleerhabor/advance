@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-@Observable
+@MainActor @Observable
 class ImageCollectionManager {
   var collections = [UUID: ImageCollection]()
   var ids = Set<UUID>()

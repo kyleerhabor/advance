@@ -5,7 +5,6 @@
 //  Created by Kyle Erhabor on 9/27/23.
 //
 
-import Defaults
 import Algorithms
 import OSLog
 import SwiftUI
@@ -31,7 +30,7 @@ struct ImageCollectionCopyingView: View {
   }
 
   // TODO: Figure out a good design for extracting the duplicated file exists checks.
-  static func saving(action: () throws -> Void) rethrows {
+  nonisolated static func saving(action: () throws -> Void) rethrows {
     do {
       try action()
     } catch let err as CocoaError where err.code == .fileWriteFileExists {
@@ -41,7 +40,7 @@ struct ImageCollectionCopyingView: View {
     }
   }
 
-  static func saving(url scope: some URLScope, to destination: URL, action: (URL) throws -> Void) rethrows {
+  nonisolated static func saving(url scope: some URLScope, to destination: URL, action: (URL) throws -> Void) rethrows {
     let url = scope.url
 
     do {
@@ -49,18 +48,18 @@ struct ImageCollectionCopyingView: View {
     } catch let err as CocoaError where err.code == .fileWriteFileExists {
       throw err
     } catch {
-      Logger.ui.error("Could not copy image \"\(url.string)\" to destination \"\(destination.string)\": \(error)")
+      Logger.ui.error("Could not copy image \"\(url.pathString)\" to destination \"\(destination.path)\": \(error)")
 
       throw error
     }
   }
 
-  static func save(url: URL, to destination: URL, resolvingConflicts resolveConflicts: Bool) throws {
+  nonisolated static func save(url: URL, to destination: URL, resolvingConflicts resolveConflicts: Bool) throws {
     do {
       try FileManager.default.copyItem(at: url, to: destination.appending(component: url.lastPathComponent))
     } catch {
       guard let err = error as? CocoaError, err.code == .fileWriteFileExists else {
-        Logger.ui.info("Could not copy image \"\(url.string)\" to destination \"\(destination.string)\": \(error)")
+        Logger.ui.info("Could not copy image \"\(url.pathString)\" to destination \"\(destination.path)\": \(error)")
 
         throw error
       }
@@ -75,7 +74,7 @@ struct ImageCollectionCopyingView: View {
     }
   }
 
-  static func save(resolving url: URL, to destination: URL) throws -> Bool {
+  nonisolated static func save(resolving url: URL, to destination: URL) throws -> Bool {
     let resolutions = Self.normalize(url: url)
       .pathComponents
       .dropFirst() // "/"
@@ -105,11 +104,7 @@ struct ImageCollectionCopyingView: View {
     }
   }
 
-  static func normalize(url: URL) -> URL {
-    let matchers = [Matcher.trashNormalize, Matcher.homeClearStrict, Matcher.volumeTrashNormalize, Matcher.volumeClear]
-
-    return matchers.reduce(url) { url, matcher in
-      matcher.match(items: url.pathComponents) ?? url
-    }
+  nonisolated static func normalize(url: URL) -> URL {
+    url
   }
 }

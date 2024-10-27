@@ -9,44 +9,14 @@ import Defaults
 import SwiftUI
 
 struct SettingsGeneralView: View {
-  typealias Scheme = ColorScheme?
+  typealias Scheme = DefaultColorScheme?
 
   @Default(.margins) private var margins
-  @Default(.colorScheme) private var colorScheme
   @Default(.collapseMargins) private var collapseMargins
-  @Default(.windowRestoreLastImage) private var windowRestoreLastImage
-  @Default(.liveText) private var liveText
-  @Default(.liveTextIcon) private var liveTextIcon
-  @Default(.liveTextSearchWith) private var liveTextSearchWith
   @Default(.displayTitleBarImage) private var displayTitleBarImage
-  @Default(.hideToolbarScrolling) private var hideToolbar
-  @Default(.hideCursorScrolling) private var hideCursor
-  @Default(.hideScrollIndicator) private var hideScroll
-  @Default(.resolveCopyingConflicts) private var resolveConflicts
-  @State private var isPresentingCopyingSheet = false
   private let range = 0.0...4.0
 
   var body: some View {
-    LabeledContent("Appearance:") {
-      Picker("Theme:", selection: $colorScheme) {
-        Text("System")
-          .tag(ColorScheme.system)
-
-        Divider()
-
-        Text("Light")
-          .tag(ColorScheme.light)
-
-        Text("Dark")
-          .tag(ColorScheme.dark)
-      }
-      .labelsHidden()
-      .frame(width: 160) // 128 - 192
-      .onChange(of: colorScheme) {
-        NSApp.appearance = colorScheme.appearance
-      }
-    }
-
     LabeledContent("Margins:") {
       let margins = Binding {
         Double(self.margins)
@@ -80,58 +50,8 @@ struct SettingsGeneralView: View {
       }.disabled(margins.wrappedValue == 0)
     }
 
-    LabeledContent("Images.Settings.Section.Window") {
-      Toggle(isOn: $windowRestoreLastImage) {
-        Text("Images.Settings.Window.Restore.Label")
-
-        Text("Images.Settings.Window.Restore.Note")
-      }
-    }
-
     LabeledContent("Main Canvas:") {
-      GroupBox {
-        HStack {
-          Toggle("Toolbar", isOn: $hideToolbar)
-
-          Toggle("Cursor", isOn: $hideCursor)
-
-          Toggle("Scroll bar", isOn: $hideScroll)
-        }
-      } label: {
-        Toggle(sources: [$hideToolbar, $hideCursor, $hideScroll], isOn: \.self) {
-          Text("Hide when scrolling:")
-
-          Text("Only relevant when the sidebar is not open.")
-        }
-      }.groupBoxStyle(.labeledSettings)
-
       Toggle("Display current image in the title", isOn: $displayTitleBarImage)
-    }
-
-    LabeledContent("Images.Settings.Section.LiveText") {
-      GroupBox {
-        Toggle("Images.Settings.LiveText.Enable", isOn: $liveText)
-
-        Toggle("Images.Settings.LiveText.Icon", isOn: $liveTextIcon)
-          .disabled(!liveText)
-      }
-      .liveTextSupport()
-    }
-
-    LabeledContent("Copying:") {
-      // TODO: Add a setting to not flip the direction.
-      Toggle(isOn: $resolveConflicts) {
-        Text("Resolve conflicts")
-
-        Text("If a file already exists at the destination of a folder, the name of the image's enclosing folder will be appended to the destination.")
-      }
-
-      Button("Show Folders...") {
-        isPresentingCopyingSheet.toggle()
-      }.sheet(isPresented: $isPresentingCopyingSheet) {
-        SettingsCopyingView()
-          .frame(minWidth: 512, minHeight: 256)
-      }
     }
   }
 }

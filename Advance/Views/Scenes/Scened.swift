@@ -5,6 +5,7 @@
 //  Created by Kyle Erhabor on 12/28/23.
 //
 
+import AdvanceCore
 import SwiftUI
 
 struct DeferredScene<Content>: Scene where Content: Scene {
@@ -19,7 +20,7 @@ struct DeferredScene<Content>: Scene where Content: Scene {
     content.onChange(of: countup, initial: true) {
       Task {
         if countup < count {
-          countup.increment()
+          countup = countup.incremented()
 
           return
         }

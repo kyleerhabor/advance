@@ -5,31 +5,9 @@
 //  Created by Kyle Erhabor on 12/22/23.
 //
 
+import AdvanceCore
 import OSLog
 import SwiftUI
-
-struct CopyDepotItemTransferable: Transferable {
-  let url: URL
-  let original: Bool
-
-  static var transferRepresentation: some TransferRepresentation {
-    FileRepresentation(importedContentType: .folder, shouldAttemptToOpenInPlace: true) { received in
-      .init(url: received.file, original: received.isOriginalFile)
-    }
-  }
-}
-
-extension CopyDepotItemTransferable: URLScope {
-  func startSecurityScope() -> Bool {
-    !original && url.startSecurityScope()
-  }
-
-  func endSecurityScope(scope: Bool) {
-    if scope {
-      url.endSecurityScope()
-    }
-  }
-}
 
 struct SettingsCopyingView: View {
   typealias Selection = Set<CopyDepotItemDestination.ID>
@@ -42,20 +20,20 @@ struct SettingsCopyingView: View {
 
   var body: some View {
     List(selection: $selection) {
-      ForEach(resolutions) { resolution in
-        Label {
-          Text(resolution.destination.string)
-        } icon: {
-          resolution.destination.icon
-            .resizable()
-            .symbolRenderingMode(.hierarchical)
-            .scaledToFit()
-            .help(resolution.resolved ? "" : "The folder at this path could not be found. This may happen when the folder has been deleted or is temporarily unavailable, such as when on a removable volume.")
-        }
-      }.onDelete { offsets in
-        delete(selection: offsets.map { resolutions[$0].id })
-        depot.update()
-      }
+//      ForEach(resolutions) { resolution in
+//        Label {
+//          Text(resolution.destination.string)
+//        } icon: {
+//          resolution.destination.icon
+//            .resizable()
+//            .symbolRenderingMode(.hierarchical)
+//            .scaledToFit()
+//            .help(resolution.resolved ? "" : "The folder at this path could not be found. This may happen when the folder has been deleted or is temporarily unavailable, such as when on a removable volume.")
+//        }
+//      }.onDelete { offsets in
+//        delete(selection: offsets.map { resolutions[$0].id })
+//        depot.update()
+//      }
     }
     .animation(.default, value: resolutions)
     .contextMenu(forSelectionType: CopyDepotItemDestination.ID.self) { ids in
@@ -71,7 +49,8 @@ struct SettingsCopyingView: View {
           depot.update()
         }
       }
-    }.toolbar {
+    }
+    .toolbar {
       ToolbarItem(placement: .cancellationAction) {
         Button("Close", role: .cancel) {
           dismiss()
@@ -94,7 +73,7 @@ struct SettingsCopyingView: View {
                     try .init(url: url, options: [.withSecurityScope, .withoutImplicitSecurityScope], relativeTo: nil)
                   }
                 } catch {
-                  Logger.model.error("Could not create bookmark for imported copy destination (via file importer at URL \"\(url.string)\"): \(error)")
+                  Logger.model.error("Could not create bookmark for imported copy destination (via file importer at URL \"\(url.pathString)\"): \(error)")
 
                   return nil
                 }
@@ -107,7 +86,8 @@ struct SettingsCopyingView: View {
           }
         }.fileDialogCopying()
       }
-    }.task {
+    }
+    .task {
       let state = await depot.resolve(in: depot.store)
       
       depot.store = state.store
@@ -117,14 +97,7 @@ struct SettingsCopyingView: View {
       Task(priority: .medium) {
         await depot.persist()
       }
-    }.dropDestination(for: CopyDepotItemTransferable.self) { items, _ in
-      insert(imports: bookmark(items: items))
-      depot.update()
-
-      return true
-    }.focusedValue(\.finderOpen, .init(identity: selection, enabled: !selection.isEmpty) {
-      open(selection: selection)
-    })
+    }
     .onDeleteCommand {
       delete(selection: selection)
       depot.update()
@@ -138,26 +111,8 @@ struct SettingsCopyingView: View {
       .forEach { item in
         let url = item.url
 
-        url.withSecurityScope { openFinder(for: url) }
+//        url.withSecurityScope { openFinder(for: url) }
       }
-  }
-
-  func bookmark(items: some Sequence<CopyDepotItemTransferable>) -> [URLBookmark] {
-    items.compactMap { item -> URLBookmark? in
-      do {
-        return try item.withSecurityScope {
-          let options: URL.BookmarkCreationOptions = item.original
-          ? .init()
-          : [.withSecurityScope, .withoutImplicitSecurityScope]
-
-          return try .init(url: item.url, options: options, relativeTo: nil)
-        }
-      } catch {
-        Logger.model.error("Could not create bookmark for imported copy destination (via transfer at URL \"\(item.url.string)\"): \(error)")
-
-        return nil
-      }
-    }
   }
 
   func insert(imports: some Sequence<URLBookmark>) {

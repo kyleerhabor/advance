@@ -7,23 +7,8 @@
 
 import SwiftUI
 
-enum SettingsTab {
-  case general, importing, extra
-}
-
-struct SettingsTabEnvironmentKey: EnvironmentKey {
-  static var defaultValue = Binding.constant(SettingsTab.general)
-}
-
-extension EnvironmentValues {
-  var settingsTab: SettingsTabEnvironmentKey.Value {
-    get { self[SettingsTabEnvironmentKey.self] }
-    set { self[SettingsTabEnvironmentKey.self] = newValue }
-  }
-}
-
 struct SettingsView: View {
-  @State private var tab = SettingsTab.general
+  @State private var tab = Tab.general
 
   var body: some View {
     // TODO: Figure out how to animate tab changes.
@@ -31,31 +16,26 @@ struct SettingsView: View {
       Form {
         SettingsGeneralView()
       }
-      .tag(SettingsTab.general)
+      .tag(Tab.general)
       .tabItem {
         Label("General", systemImage: "gearshape")
       }
 
       Form {
-        SettingsImportView()
-      }
-      .tag(SettingsTab.importing)
-      .tabItem {
-        Label("Import", systemImage: "square.and.arrow.down")
-      }
-
-      Form {
         SettingsExtraView()
       }
-      .tag(SettingsTab.extra)
+      .tag(Tab.extra)
       .tabItem {
         Label("Extra", systemImage: "wand.and.stars")
       }
     }
-    .formStyle(SettingsFormStyle(spacing: 16))
+//    .formStyle(SettingsFormStyle())
     .frame(width: 384) // 256 - 512
     .scenePadding()
     .frame(width: 576) // 512 - 640
-    .environment(\.settingsTab, $tab)
+  }
+
+  enum Tab {
+    case general, files, extra
   }
 }

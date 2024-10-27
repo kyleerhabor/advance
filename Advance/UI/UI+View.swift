@@ -2,23 +2,68 @@
 //  UI+View.swift
 //  Advance
 //
-//  Created by Kyle Erhabor on 6/9/24.
+//  Created by Kyle Erhabor on 6/11/24.
 //
 
+import AdvanceCore
+import AppKit
 import Combine
+import CoreGraphics
 import SwiftUI
+import IdentifiedCollections
 
-struct ScrollOffsetPreferenceKey: PreferenceKey {
-  typealias Value = Anchor<CGRect>?
+extension CGSize {
+  var length: Double {
+    max(self.width, self.height)
+  }
+}
 
-  static var defaultValue: Value = nil
+// This is not (really) a view. Move elsewhere?
+extension NSWorkspace {
+  func icon(forFileAt url: URL) -> NSImage {
+    self.icon(forFile: url.pathString)
+  }
+}
 
-  static func reduce(value: inout Value, nextValue: () -> Value) {
-    guard let next = nextValue() else {
-      return
+extension NSMenu {
+  static let itemIndexWithTagNotFoundStatus = -1
+}
+
+extension NSMenuItem {
+  static let unknownTag = 0
+
+  var isStandard: Bool {
+    // This is not safe from evolution.
+    !(self.isSectionHeader || self.isSeparatorItem)
+  }
+}
+
+extension NSWindow {
+  func isFullScreen() -> Bool {
+    self.styleMask.contains(.fullScreen)
+  }
+
+  func setToolbarVisibility(_ isVisible: Bool) {
+    self.standardWindowButton(.closeButton)?.superview?.animator().alphaValue = isVisible ? 1 : 0
+
+    // For some reason, a window in full screen with a light appearance draws a white line at the top of the screen
+    // after scrolling. This doesn't occur with a dark appearance, which is interesting.
+    //
+    // TODO: Figure out how to animate the title bar separator.
+    //
+    // The property does not have an associated animation by default.
+    self.titlebarSeparatorStyle = isVisible && !self.isFullScreen() ? .automatic : .none
+  }
+}
+
+extension NSLineBreakMode {
+  init?(_ mode: Text.TruncationMode) {
+    switch mode {
+      case .head: self = .byTruncatingHead
+      case .middle: self = .byTruncatingMiddle
+      case .tail: self = .byTruncatingTail
+      @unknown default: return nil
     }
-
-    value = next
   }
 }
 
@@ -28,6 +73,90 @@ struct VisibleItem<Item> {
 }
 
 extension VisibleItem: Equatable where Item: Equatable {}
+
+struct AppMenuItemAction<I, A> where I: Equatable {
+  let identity: I
+  let action: A
+}
+
+extension AppMenuItemAction: Equatable {
+  static func ==(lhs: Self, rhs: Self) -> Bool {
+    lhs.identity == rhs.identity
+  }
+}
+
+struct AppMenuItem<I, A> where I: Equatable {
+  let enabled: Bool
+  let action: AppMenuItemAction<I, A>
+}
+
+extension AppMenuItem {
+  init(identity: I, enabled: Bool, action: A) {
+    self.init(
+      enabled: enabled,
+      action: AppMenuItemAction(identity: identity, action: action)
+    )
+  }
+}
+
+extension AppMenuItem: Equatable {}
+
+struct AppMenuToggleItem<I> where I: Equatable {
+  typealias Action = (Bool) -> Void
+  typealias Item = AppMenuItem<I, Action>
+
+  let state: Bool
+  let item: Item
+
+  func callAsFunction(state: Bool) {
+    item.action.action(state)
+  }
+}
+
+extension AppMenuToggleItem {
+  init(identity: I, enabled: Bool, state: Bool, action: @escaping Action) {
+    self.init(
+      state: state,
+      item: AppMenuItem(identity: identity, enabled: enabled, action: action)
+    )
+  }
+}
+
+extension AppMenuToggleItem: Equatable {}
+
+typealias AppMenuItemDefaultAction = () -> Void
+
+extension AppMenuItem where A == AppMenuItemDefaultAction {
+  init(toggle: AppMenuToggleItem<I>) {
+    self.init(identity: toggle.item.action.identity, enabled: toggle.item.enabled) {
+      toggle(state: !toggle.state)
+    }
+  }
+
+  func callAsFunction() {
+    action.action()
+  }
+}
+
+typealias AppMenuActionItem<I> = AppMenuItem<I, AppMenuItemDefaultAction> where I: Equatable
+
+// MARK: - Preferences
+
+struct ScrollOffsetPreferenceKey<A>: PreferenceKey {
+  typealias Value = Anchor<A>?
+
+  static var defaultValue: Value {
+    nil
+  }
+
+  static func reduce(value: inout Value, nextValue: () -> Value) {
+    guard let next = nextValue() else {
+      return
+    }
+
+    value = next
+  }
+}
 
 // https://swiftwithmajid.com/2020/03/18/anchor-preferences-in-swiftui/
 struct VisiblePreferenceKey<Item>: PreferenceKey {
@@ -39,7 +168,7 @@ struct VisiblePreferenceKey<Item>: PreferenceKey {
   static var defaultMinimumCapacity: Int { 4 }
 
   static var defaultValue: Value {
-    Value(minimumCapacity: defaultMinimumCapacity)
+    Value(reservingCapacity: defaultMinimumCapacity)
   }
 
   static func reduce(value: inout Value, nextValue: () -> Value) {
@@ -47,47 +176,510 @@ struct VisiblePreferenceKey<Item>: PreferenceKey {
   }
 }
 
-struct PreferencePublisherViewModifier<Key, Sub, Pub>: ViewModifier
-where Key: PreferenceKey,
-      Key.Value: Equatable,
-      Sub: Subject<Key.Value, Never>,
-      Pub: Publisher<Key.Value, Never> {
-  private let defaultValue: Key.Value
-  private let key: Key.Type
-  private let subject: Sub
-  private let publisher: Pub
+// MARK: - Environment
 
-  @State private var value: Key.Value?
+struct TrackingMenuEnvironmentKey: EnvironmentKey {
+  static let defaultValue = false
+}
 
-  init(_ key: Key.Type = Key.self, defaultValue: Key.Value, subject: Sub, publisher: Pub) {
-    self.key = key
-    self.defaultValue = defaultValue
+struct WindowFullScreenEnvironmentKey: EnvironmentKey {
+  static let defaultValue = false
+}
+
+struct WindowLiveResizeEnvironmentKey: EnvironmentKey {
+  static let defaultValue = false
+}
+
+struct ImagesSidebarJumpEnvironmentKey: EnvironmentKey {
+  static var defaultValue: ImagesNavigationJumpAction? { nil }
+}
+
+struct ImagesDetailJumpEnvironmentKey: EnvironmentKey {
+  static var defaultValue: ImagesNavigationJumpAction? { nil }
+}
+
+// MARK: Focus
+
+struct ImagesNavigationJumpIdentity {
+  let id: ImagesModel.ID
+  let isReady: Bool
+}
+
+extension ImagesNavigationJumpIdentity: Equatable {}
+
+typealias ImagesNavigationJumpAction = AppMenuItemAction<ImagesNavigationJumpIdentity, (ImagesItemModel) -> Void>
+
+// MARK: - Views
+
+class WindowCaptureView: NSView {
+  var windowed: Windowed
+
+  init(windowed: Windowed) {
+    self.windowed = windowed
+
+    super.init(frame: .zero)
+  }
+
+  required init?(coder: NSCoder) {
+    fatalError("init(coder:) has not been implemented")
+  }
+
+  override func viewWillMove(toWindow window: NSWindow?) {
+    super.viewWillMove(toWindow: window)
+
+    windowed.window = window
+  }
+}
+
+struct WindowCapturingView: NSViewRepresentable {
+  typealias NSViewType = WindowCaptureView
+
+  let windowed: Windowed
+
+  func makeNSView(context: Context) -> NSViewType {
+    WindowCaptureView(windowed: windowed)
+  }
+
+  func updateNSView(_ captureView: NSViewType, context: Context) {
+    captureView.windowed = windowed
+  }
+}
+
+// MARK: - View modifiers
+
+struct TrackingMenuViewModifier: ViewModifier {
+  @State private var isTrackingMenu = TrackingMenuEnvironmentKey.defaultValue
+
+  func body(content: Content) -> some View {
+    content
+      .environment(\.isTrackingMenu, isTrackingMenu)
+      .onReceive(NotificationCenter.default.publisher(for: NSMenu.didBeginTrackingNotification)) { _ in
+        isTrackingMenu = true
+      }
+      .onReceive(NotificationCenter.default.publisher(for: NSMenu.didEndTrackingNotification)) { _ in
+        isTrackingMenu = false
+      }
+  }
+}
+
+struct WindowViewModifier: ViewModifier {
+  @State private var windowed = Windowed()
+
+  func body(content: Content) -> some View {
+    content
+      .environment(windowed)
+      .background {
+        WindowCapturingView(windowed: windowed)
+      }
+  }
+}
+
+struct WindowFullScreenViewModifier: ViewModifier {
+  @Environment(Windowed.self) private var windowed
+  @State private var isWindowFullScreen = WindowFullScreenEnvironmentKey.defaultValue
+
+  func body(content: Content) -> some View {
+    content
+      .environment(\.isWindowFullScreen, isWindowFullScreen)
+      .onReceive(NotificationCenter.default.publisher(for: NSWindow.willEnterFullScreenNotification)) { notification in
+        let window = notification.object as! NSWindow
+
+        guard windowed.window == window else {
+          return
+        }
+
+        isWindowFullScreen = true
+      }
+      .onReceive(NotificationCenter.default.publisher(for: NSWindow.willExitFullScreenNotification)) { notification in
+        let window = notification.object as! NSWindow
+
+        guard windowed.window == window else {
+          return
+        }
+
+        isWindowFullScreen = false
+      }
+  }
+}
+
+struct WindowLiveResizeViewModifier: ViewModifier {
+  @Environment(Windowed.self) private var windowed
+  @State private var isWindowLiveResizeActive = WindowLiveResizeEnvironmentKey.defaultValue
+
+  func body(content: Content) -> some View {
+    content
+      .environment(\.isWindowLiveResizeActive, isWindowLiveResizeActive)
+      .onReceive(NotificationCenter.default.publisher(for: NSWindow.willStartLiveResizeNotification)) { notification in
+        let window = notification.object as! NSWindow
+
+        guard window == windowed.window else {
+          return
+        }
+
+        isWindowLiveResizeActive = true
+      }
+      .onReceive(NotificationCenter.default.publisher(for: NSWindow.didEndLiveResizeNotification)) { notification in
+        let window = notification.object as! NSWindow
+
+        guard window == windowed.window else {
+          return
+        }
+
+        isWindowLiveResizeActive = false
+      }
+  }
+}
+
+struct WindowFullScreenToggleViewModifier: ViewModifier {
+  @Environment(Windowed.self) private var windowed
+
+  func body(content: Content) -> some View {
+    // This is a workaround for an odd behavior in SwiftUI where the "Enter/Exit Full Screen" menu item disappears.
+    // It's not a solution (it relies on the deprecated EventModifiers.function modifier and overrides the default menu
+    // item's key equivalent in the responder chain), but it is *something*.
+    content
+      .background {
+        Group {
+          Button(action: toggleFullScreen) {
+            // Empty
+          }
+          .keyboardShortcut(.fullScreen)
+
+          // FIXME: Pressing "f" without Fn triggers the action.
+          Button(action: toggleFullScreen) {
+            // Empty
+          }
+          .keyboardShortcut(.systemFullScreen)
+        }
+        .focusable(false)
+        .visible(false)
+      }
+  }
+
+  func toggleFullScreen() {
+    windowed.window?.toggleFullScreen(nil)
+  }
+}
+
+struct ToolbarVisibleViewModifier: ViewModifier {
+  @Environment(Windowed.self) private var windowed
+  @Environment(\.isWindowFullScreen) private var isWindowFullScreen
+
+  let isVisible: Bool
+
+  func body(content: Content) -> some View {
+    content
+      .onChange(of: isVisible, initial: true) {
+        setToolbarVisibility(isVisible)
+      }
+      .onChange(of: isWindowFullScreen) {
+        setToolbarVisibility(isVisible)
+      }
+      .onDisappear {
+        setToolbarVisibility(true)
+      }
+  }
+
+  private func setToolbarVisibility(_ isVisible: Bool) {
+    windowed.window?.setToolbarVisibility(isVisible)
+  }
+}
+
+struct CursorVisibleViewModifier: ViewModifier {
+  let isVisible: Bool
+
+  func body(content: Content) -> some View {
+    content
+      .onAppear {
+        guard !isVisible else {
+          return
+        }
+
+        NSCursor.hide()
+      }
+      .onChange(of: isVisible) {
+        if isVisible {
+          NSCursor.unhide()
+
+          return
+        }
+
+        NSCursor.hide()
+      }
+      .onDisappear {
+        guard !isVisible else {
+          return
+        }
+
+        NSCursor.unhide()
+      }
+  }
+}
+
+struct LocalizeAction {
+  let locale: Locale
+
+  func callAsFunction(_ key: String.LocalizationValue) -> String {
+    String(localized: key, locale: locale)
+  }
+
+  func callAsFunction(_ key: String.LocalizationValue) -> AttributedString {
+    AttributedString(localized: key, locale: locale)
+  }
+}
+
+struct LocalizedViewModifier: ViewModifier {
+  @Environment(\.locale) private var locale
+
+  func body(content: Content) -> some View {
+    content.environment(\.localize, LocalizeAction(locale: locale))
+  }
+}
+
+struct WindowedViewModifier: ViewModifier {
+  func body(content: Content) -> some View {
+    content
+      .modifier(WindowFullScreenViewModifier())
+      .modifier(WindowLiveResizeViewModifier())
+      .modifier(WindowFullScreenToggleViewModifier())
+      .modifier(WindowViewModifier())
+      .modifier(TrackingMenuViewModifier())
+  }
+}
+
+struct VisibleViewModifier: ViewModifier {
+  let isVisible: Bool
+
+  private let transparent = 0.0
+  private let opaque = 1.0
+
+  func body(content: Content) -> some View {
+    content.opacity(isVisible ? opaque : transparent)
+  }
+}
+
+struct PreferencePublisherViewModifier<Source, Destination, Subject, Publisher>: ViewModifier
+where Source: PreferenceKey,
+      Source.Value: Equatable,
+      Destination: PreferenceKey,
+      Subject: Combine.Subject<Source.Value, Never>,
+      Publisher: Combine.Publisher<Destination.Value, Never> {
+  private let source: Source.Type
+  private let destination: Destination.Type
+  private let subject: Subject
+  private let publisher: Publisher
+  private let defaultValue: Destination.Value
+
+  @State private var value: Destination.Value?
+
+  init(
+    source: Source.Type = Source.self,
+    destination: Destination.Type = Destination.self,
+    subject: Subject,
+    publisher: Publisher,
+    defaultValue: Destination.Value
+  ) {
+    self.source = source
+    self.destination = destination
     self.subject = subject
     self.publisher = publisher
+    self.defaultValue = defaultValue
   }
 
   func body(content: Content) -> some View {
     content
-      .onPreferenceChange(key) { value in
+      .onPreferenceChange(source) { value in
         subject.send(value)
       }
       .onReceive(publisher) { value in
         self.value = value
       }
-      .preference(key: key, value: value ?? defaultValue)
+      .preference(key: destination, value: value ?? defaultValue)
+  }
+}
+
+// MARK: - Extensions
+
+extension View {
+  func transform(@ViewBuilder _ transform: (Self) -> some View) -> some View {
+    transform(self)
+  }
+
+  func windowed() -> some View {
+    // We're extracting the view modifiers into one so SwiftUI persists just the 'windowed' view modifier. This will
+    // make it so modifications to the list won't cause scene restoration to fail.
+    self.modifier(WindowedViewModifier())
+  }
+
+  func localized() -> some View {
+    self.modifier(LocalizedViewModifier())
+  }
+
+  func toolbarVisible(_ isVisible: Bool) -> some View {
+    self.modifier(ToolbarVisibleViewModifier(isVisible: isVisible))
+  }
+
+  func cursorVisible(_ isVisible: Bool) -> some View {
+    self.modifier(CursorVisibleViewModifier(isVisible: isVisible))
+  }
+
+  func navigationSplitViewColumnWidth(min: CGFloat, max: CGFloat) -> some View {
+    self.navigationSplitViewColumnWidth(min: min, ideal: min, max: max)
+  }
+
+  func preferencePublisher<Source, Destination, Subject, Publisher>(
+    source: Source.Type = Source.self,
+    destination: Destination.Type = Destination.self,
+    subject: Subject,
+    publisher: Publisher,
+    defaultValue: Destination.Value
+  ) -> some View where Source: PreferenceKey,
+                       Source.Value: Equatable,
+                       Destination: PreferenceKey,
+                       Subject: Combine.Subject<Source.Value, Never>,
+                       Publisher: Combine.Publisher<Destination.Value, Never> {
+    self.modifier(PreferencePublisherViewModifier(source: source, destination: destination, subject: subject, publisher: publisher, defaultValue: defaultValue))
+  }
+
+  func preferencePublisher<Key, Subject, Publisher>(
+    _ key: Key.Type = Key.self,
+    subject: Subject,
+    publisher: Publisher
+  ) -> some View where Key: PreferenceKey,
+                       Key.Value: Equatable,
+                       Subject: Combine.Subject<Key.Value, Never>,
+                       Publisher: Combine.Publisher<Key.Value, Never> {
+    self.preferencePublisher(source: key, destination: key, subject: subject, publisher: subject, defaultValue: key.defaultValue)
   }
 }
 
 extension View {
-  func preferencePublisher<Key, Sub, Pub>(
-    _ key: Key.Type = Key.self,
-    defaultValue value: Key.Value,
-    subject: Sub,
-    publisher: Pub
-  ) -> some View where Key: PreferenceKey,
-                       Key.Value: Equatable,
-                       Sub: Subject<Key.Value, Never>,
-                       Pub: Publisher<Key.Value, Never> {
-    self.modifier(PreferencePublisherViewModifier(key, defaultValue: value, subject: subject, publisher: publisher))
+  private var transparent: Double {
+    0.0
   }
+
+  private var opaque: Double {
+    1.0
+  }
+
+  func visible(_ isVisible: Bool) -> some View {
+    self.opacity(isVisible ? opaque : transparent)
+  }
+}
+
+extension ShapeStyle {
+  private var transparent: Double {
+    0.0
+  }
+
+  private var opaque: Double {
+    1.0
+  }
+
+  func visible(_ isVisible: Bool) -> some ShapeStyle {
+    self.opacity(isVisible ? opaque : transparent)
+  }
+}
+
+extension Anchor.Source where Value == CGPoint {
+  static let origin = Self.unitPoint(.zero)
+}
+
+extension Text {
+  init() {
+    self.init(verbatim: "")
+  }
+}
+
+extension EnvironmentValues {
+  var isTrackingMenu: TrackingMenuEnvironmentKey.Value {
+    get { self[TrackingMenuEnvironmentKey.self] }
+    set { self[TrackingMenuEnvironmentKey.self] = newValue }
+  }
+
+  var isWindowFullScreen: WindowFullScreenEnvironmentKey.Value {
+    get { self[WindowFullScreenEnvironmentKey.self] }
+    set { self[WindowFullScreenEnvironmentKey.self] = newValue }
+  }
+
+  var isWindowLiveResizeActive: WindowLiveResizeEnvironmentKey.Value {
+    get { self[WindowLiveResizeEnvironmentKey.self] }
+    set { self[WindowLiveResizeEnvironmentKey.self] = newValue }
+  }
+
+  var imagesSidebarJump: ImagesSidebarJumpEnvironmentKey.Value {
+    get { self[ImagesSidebarJumpEnvironmentKey.self] }
+    set { self[ImagesSidebarJumpEnvironmentKey.self] = newValue }
+  }
+
+  var imagesDetailJump: ImagesDetailJumpEnvironmentKey.Value {
+    get { self[ImagesDetailJumpEnvironmentKey.self] }
+    set { self[ImagesDetailJumpEnvironmentKey.self] = newValue }
+  }
+
+  @Entry var localize = LocalizeAction(locale: .current)
+  @Entry var isImageAnalysisEnabled = true
+  @Entry var isImageAnalysisSupplementaryInterfaceHidden = false
+
+  // MARK: - Old
+  // Is using Binding in Environment a good idea?
+  @Entry var imagesID = UUID()
+}
+
+enum WindowOpen {
+  case images(ImagesModel.ID),
+       copying
+}
+
+extension WindowOpen: Equatable {}
+
+enum FinderShow {
+  case unknown,
+       images(Set<ImagesItemModel.ID>),
+       copying(Set<CopyingSettingsItem.ID>)
+}
+
+extension FinderShow: Equatable {}
+
+extension FocusedValues {
+  @Entry var windowOpen: AppMenuActionItem<WindowOpen?>?
+  @Entry var finderShow: AppMenuActionItem<FinderShow>?
+  @Entry var finderOpen: AppMenuActionItem<Set<UUID>>?
+  @Entry var imagesSidebarJump: ImagesNavigationJumpAction?
+  @Entry var imagesSidebarShow: AppMenuActionItem<ImagesModel.ID?>?
+  @Entry var imagesDetailJump: ImagesNavigationJumpAction?
+  @Entry var imagesLiveTextIcon: AppMenuToggleItem<ImagesModel.ID?>?
+  @Entry var imagesLiveTextHighlight: AppMenuToggleItem<Set<ImagesItemModel.ID>>?
+  @Entry var imagesWindowResetSize: AppMenuActionItem<ImagesModel.ID?>?
+
+  // MARK: - Old
+
+  @Entry var imagesQuickLook: AppMenuToggleItem<Set<ImageCollectionItemImage.ID>>?
+}
+
+extension KeyboardShortcut {
+  static let back = Self("[", modifiers: .command)
+  static let forward = Self("]", modifiers: .command)
+
+  static let finderShowItem = Self("r", modifiers: .command)
+  static let finderOpenItem = Self("r", modifiers: [.command, .shift])
+
+  static let sidebarShowItem = Self("l", modifiers: .command)
+
+  static let fullScreen = Self("f", modifiers: [.command, .control])
+  static let systemFullScreen = Self("f", modifiers: .function) // See WindowFullScreenToggleViewModifier
+
+  static let liveTextIcon = Self("t", modifiers: .command)
+  static let liveTextHighlight = Self("t", modifiers: [.command, .shift])
+
+  static let windowOpen = Self("o", modifiers: .command)
+  static let windowResetSize = Self("r", modifiers: [.command, .control])
+
+  static let searchSettings = Self("2", modifiers: .command)
+  static let copyingSettings = Self("3", modifiers: .command)
+}
+
+extension NSUserInterfaceItemIdentifier {
+  static let imagesWindowOpen = Self(rawValue: "images-window-open")
+  static let copyingOpen = Self(rawValue: "copying-open")
 }

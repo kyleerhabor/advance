@@ -5,14 +5,16 @@
 //  Created by Kyle Erhabor on 7/30/23.
 //
 
+import AdvanceCore
 import AppKit
 import Defaults
 import OSLog
 
+@MainActor
 class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
   // If we try to use @Environment(\.openWindow) in this delegate, we'll get a warning about it not being used in a
   // SwiftUI view.
-  @MainActor var onOpen: ([URL]) -> Void = noop
+  var onOpen: ([URL]) -> Void = noop
 
   func applicationWillFinishLaunching(_ notification: Notification) {
     let app = notification.object as! NSApplication
@@ -59,22 +61,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
   }
 }
 
-func openFinder(selecting urls: [URL]) {
-  NSWorkspace.shared.activateFileViewerSelecting(urls)
-}
-
-func openFinder(selecting url: URL) {
-  openFinder(selecting: [url])
-}
-
 func openFinder(at url: URL) -> Bool {
-  NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: url.string)
+  NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: url.pathString)
 }
 
 func openFinder(for url: URL) {
   if !openFinder(at: url) {
-    Logger.ui.info("Failed to open Finder in directory \"\(url.string)\"; defaulting to selection...")
+    Logger.ui.info("Failed to open Finder in directory \"\(url.pathString)\"; defaulting to selection...")
 
-    openFinder(selecting: url)
+//    openFinder(selecting: url)
   }
 }

@@ -5,39 +5,27 @@
 //  Created by Kyle Erhabor on 7/27/23.
 //
 
+import AdvanceCore
+import AdvanceData
 import Foundation
 import OSLog
 
-extension Bundle {
-  static let appIdentifier = Bundle.main.bundleIdentifier!
-}
-
 extension Logger {
-  static let standard = Self()
-  static let ui = Self(subsystem: Bundle.appIdentifier, category: "UI")
-  static let model = Self(subsystem: Bundle.appIdentifier, category: "Model")
-  static let sandbox = Self(subsystem: Bundle.appIdentifier, category: "Sandbox")
-}
-
-func noop<each T>(_ args: repeat each T) {}
-
-func constantly<T, each U>(_ value: T) -> ((repeat each U) -> T) {
-  func result<each V>(_ args: repeat each V) -> T {
-    return value
-  }
-
-  return result
+  static let ui = Self(subsystem: Bundle.appID, category: "UI")
+  static let model = Self(subsystem: Bundle.appID, category: "Model")
 }
 
 // MARK: - Files
 
 extension URL {
-  static let file = Self(string: "file:")!
-  static let rootDirectory = Self(string: "file:/")!
-
-  var string: String {
-    self.path(percentEncoded: false)
-  }
+  static let dataDirectory = Self.applicationSupportDirectory.appending(component: Bundle.appID, directoryHint: .isDirectory)
+  // homeDirectory returns the home directory, which is relative to App Sandbox. This returns the real user directory.
+  static let userDirectory = Self(
+    // https://stackoverflow.com/a/46789483
+    fileURLWithFileSystemRepresentation: getpwuid(getuid()).pointee.pw_dir!,
+    isDirectory: true,
+    relativeTo: nil
+  )
 
   var lastPath: String {
     self.deletingPathExtension().lastPathComponent
@@ -47,15 +35,11 @@ extension URL {
     try? self.resourceValues(forKeys: [.isDirectoryKey]).isDirectory
   }
 
-  func contains(url: URL) -> Bool {
+  func contains(url: Self) -> Bool {
     let lhs = self.pathComponents
     let rhs = url.pathComponents
 
     return ArraySlice(lhs) == rhs.prefix(upTo: min(rhs.count, lhs.count))
-  }
-
-  func appending(paths: some BidirectionalCollection<some StringProtocol>) -> URL {
-    self.appending(path: paths.joined(separator: "/"))
   }
 }
 
@@ -86,208 +70,168 @@ extension FileManager.DirectoryEnumerator {
 
 // MARK: - Collections
 
-extension Sequence {
-  func sum() -> Element where Element: AdditiveArithmetic {
-    self.reduce(.zero, +)
-  }
-
-  func filter<T>(in set: some SetAlgebra<T>, by value: (Element) -> T) -> [Element] {
-    self.filter { set.contains(value($0)) }
-  }
-}
-
-struct FinderSort {
-  let url: URL
-  let component: String
-}
-
-extension Sequence {
-  func finderSort(_ predicate: (FinderSort, FinderSort) -> Bool) -> [Element] where Element == URL {
-    self.sorted { a, b in
-      // First, we need to find a and b's common directory, then compare which one is a file or directory (since Finder
-      // sorts folders first). Finally, if they're the same type, we do a localized standard comparison (the same Finder
-      // applies when sorting by name) to sort by ascending order.
-      let ap = a.pathComponents
-      let bp = b.pathComponents
-      let (index, (ac, bc)) = zip(ap, bp).enumerated().first { _, pair in
-        pair.0 != pair.1
-      }!
-
-      let count = index.incremented()
-
-      if ap.count > count && bp.count == count {
-        return true
-      }
-
-      if ap.count == count && bp.count > count {
-        return false
-      }
-
-      return predicate(.init(url: a, component: ac), .init(url: b, component: bc))
-    }
-  }
-
-  func finderSort() -> [Element] where Element == URL {
-    finderSort { a, b in
-      a.component.localizedStandardCompare(b.component) == .orderedAscending
-    }
-  }
-}
-
-extension Collection where Index: FixedWidthInteger {
-  var middleIndex: Index {
-    let start = self.startIndex
-    let end = self.endIndex
-
-    return start + ((end - start) / 2)
-  }
-
-  var middle: Element? {
-    if self.isEmpty {
-      return nil
-    }
-
-    return self[middleIndex]
-  }
-}
-
-extension RangeReplaceableCollection {
-  init(minimumCapacity capacity: Int) {
-    self.init()
-    self.reserveCapacity(capacity)
-  }
-}
-
 struct Pair<Left, Right> {
   let left: Left
   let right: Right
 }
 
+extension Pair: Sendable where Left: Sendable, Right: Sendable {}
+
 extension Pair: Equatable where Left: Equatable, Right: Equatable {}
 
-// MARK: - Others
+enum Match {
+  case any,
+       string(String)
 
-struct Execution<T> {
-  let duration: Duration
-  let value: T
+  static let root = Self.string("/")
 }
 
-// This should be used sparingly, since Instruments provides more insight.
-func time<T>(
-  _ body: () async throws -> T
-) async rethrows -> Execution<T> {
-  var result: T?
+struct Matcher {
+  let components: [Match]
+  let transform: ([String]) -> [String]
 
-  let duration = try await ContinuousClock.continuous.measure {
-    result = try await body()
+  // The location provided by URL/FileManager/etc. may differ across OS versions and environments (for example, App
+  // Sandbox redefines several locations for the app's protected directory). For this reason, components are explicitly
+  // defined.
+
+  // /Users/[user]/[...] -> /[...]
+  static func user(named name: String) -> Self {
+    Self(components: [.root, .string("Users"), .string(name), .any]) { components in
+      let root = components[0..<1]
+      let rest = components[3...]
+
+      return Array(root + rest)
+    }
   }
 
-  return .init(
-    duration: duration,
-    value: result!
-  )
-}
+  // ~/.Trash -> ~/Trash
+  static var userTrash: Self {
+    Self(components: [.root, .string("Users"), .any, .string(".Trash")]) { components in
+      var result = [String](reservingCapacity: components.count)
+      result.append(contentsOf: components[0..<3])
+      result.append("Trash")
+      result.append(contentsOf: components[4...])
 
-struct Matcher<Item, Path, Transform> where Item: Equatable, Path: Collection<Item?> {
-  typealias Items = Collection<Item>
-
-  let path: Path
-  let transform: ([Item]) -> Transform
-
-  func match(items: some Items) -> Transform? {
-    guard let matches = Self.match(path: self.path, items: items) else {
-      return nil
+      return result
     }
-
-    return transform(matches)
   }
 
-  static func match(path: Path, items: some Items) -> [Item]? {
-    guard path.count <= items.count else {
-      return nil
+  // ~/Library/Containers/[...]/Data -> ~/Advance
+  static func appSandbox(bundleID: String) -> Self {
+    let userComponents: [Match] = [.string("Users"), .any]
+    let containerComponents: [Match] = [
+      .string("Library"),
+      .string("Containers"),
+      // I'd prefer for this matcher to operate on any application's App Sandbox, but that would likely involve loading
+      // foreign bundles, significantly increasing its complexity.
+      .string(bundleID),
+      .string("Data")
+    ]
+
+    let matches = [[Match.root], userComponents, containerComponents].flatMap(identity)
+
+    return Self(components: matches) { components in
+      // The last increment is for "Advance".
+      var results = [String](reservingCapacity: components.count - containerComponents.count + 1)
+      results.append(contentsOf: components.prefix(1 + userComponents.count))
+      results.append("Advance")
+      results.append(contentsOf: components.suffix(components.count - containerComponents.count - userComponents.count - 1))
+
+      return results
+    }
+  }
+
+  // /Volumes/[volume]/[...] -> /[...]
+  static var volume: Self {
+    Self(components: [.root, .string("Volumes"), .any, .any]) { components in
+      let root = components[0..<1]
+      let rest = components[3...]
+
+      return Array(root + rest)
+    }
+  }
+
+  // /Volumes/[...]/.Trashes/[uid] -> /Volumes/[volume]/Trash
+  static var volumeTrash: Self {
+    Self(components: [.root, .string("Volumes"), .any, .string(".Trashes"), .any]) { components in
+      var results = [String](reservingCapacity: components.count.decremented())
+      results.append(contentsOf: components[0..<3])
+      results.append("Trash")
+      results.append(contentsOf: components[5...])
+
+      return results
+    }
+  }
+
+  func match(on components: [String]) -> [String] {
+    guard self.components.count <= components.count else {
+      return components
     }
 
-    let paths = zip(items, path)
-    let satisfied = paths.allSatisfy { (component, path) in
-      if let path {
-        return component == path
+    let satisfied = zip(self.components, components).allSatisfy { (match, component) in
+      switch match {
+        case .any: true
+        case let .string(s): s == component
       }
-
-      return true
     }
 
     guard satisfied else {
-      return nil
+      return components
     }
 
-    return paths.filter { (_, path) in path == nil }.map(\.0)
-  }
-}
-
-extension Matcher where Item == String, Path == [String?], Transform == URL {
-  typealias URLItems = BidirectionalCollection<Item>
-
-  // "/Users/<user>/<...>" -> "/<...>"
-  //
-  // If we just match "/Users/<user>", an item matching the path exactly will be transformed into "/". This is not
-  // desirable for e.g. the image copying sheet.
-  static let homeClearStrict = Matcher(path: ["/", "Users", nil, nil]) { matches in
-    .rootDirectory.appending(component: matches.last!)
-  }
-
-  // "/Users/<user>/.Trash" -> "/Users/<user>/Trash"
-  static let trashNormalize = Matcher(path: ["/", "Users", nil, ".Trash"]) { matches in
-    .rootDirectory.appending(components: "Users", matches.first!, "Trash")
-  }
-
-  // "/Volumes/<volume>" -> "/"
-  static let volumeClear = Matcher(path: ["/", "Volumes", nil], transform: constantly(.rootDirectory))
-  
-  // "/Volumes/<volume>/.Trashes/<uid>" -> "/Volumes/<volume>/Trash"
-  static let volumeTrashNormalize = Matcher(path: ["/", "Volumes", nil, ".Trashes", nil]) { matches in
-    .rootDirectory.appending(components: "Volumes", matches.first!, "Trash")
-  }
-
-  func match(items: some URLItems) -> Transform? {
-    if let matches = Self.match(path: path, items: items) {
-      return self
-        .transform(matches)
-        .appending(paths: items.dropFirst(self.path.count))
-    }
-
-    return nil
+    return self.transform(components)
   }
 }
 
 // Borrowed from https://www.swiftbysundell.com/articles/the-power-of-key-paths-in-swift/
 func setter<Object, Value>(
-  value: Value,
-  on keyPath: WritableKeyPath<Object, Value>
+  on keyPath: WritableKeyPath<Object, Value>,
+  value: Value
 ) -> (inout Object) -> Void {
-  return { object in
+  { object in
     object[keyPath: keyPath] = value
   }
 }
 
 func setter<Object: AnyObject, Value>(
-  value: Value,
-  on keyPath: ReferenceWritableKeyPath<Object, Value>
+  on keyPath: ReferenceWritableKeyPath<Object, Value>,
+  value: Value
 ) -> (Object) -> Void {
-  return { object in
+  { object in
     object[keyPath: keyPath] = value
   }
 }
 
-extension Numeric {
-  mutating func increment() {
-    self += 1
+extension DataBookmark {
+  init(data: Data, options: URL.BookmarkCreationOptions, hash: Data, relativeTo relative: URL?) throws {
+    try self.init(
+      data: data,
+      options: URL.BookmarkResolutionOptions(options).union(.withoutMounting),
+      hash: hash,
+      relativeTo: relative
+    ) { url in
+      try URLSource(url: url, options: options).accessingSecurityScopedResource {
+        try url.bookmark(options: options, relativeTo: relative)
+      }
+    }
   }
+}
 
-  func incremented() -> Self {
-    self + 1
-  }
+// MARK: - Security-scoped resources
 
-  func decremented() -> Self {
-    self - 1
+extension URL.BookmarkResolutionOptions {
+  init(_ options: URL.BookmarkCreationOptions) {
+    self.init()
+
+    if options.contains(.withSecurityScope) {
+      self.insert(.withSecurityScope)
+    }
+
+    // This option is important for preventing App Sandbox from interning URLs involving security-scoped resources.
+    // With this option, a call to startAccessingSecurityScopedResource() is required, as opposed to implicitly
+    // starting the security scope on resolution.
+    if options.contains(.withoutImplicitSecurityScope) {
+      self.insert(.withoutImplicitStartAccessing)
+    }
   }
 }

@@ -5,15 +5,10 @@
 //  Created by Kyle Erhabor on 9/27/23.
 //
 
+import AdvanceCore
 import Algorithms
 import OSLog
 import SwiftUI
-
-extension NSWorkspace {
-  func icon(forFileAt url: URL) -> NSImage {
-    self.icon(forFile: url.string)
-  }
-}
 
 struct CopyDepotItemDestination {
   let id: BookmarkStoreItem.ID
@@ -26,16 +21,11 @@ struct CopyDepotItemDestination {
   }
 
   static func normalize(url: URL) -> URL {
-    let matchers = [Matcher.trashNormalize, Matcher.homeClearStrict, Matcher.volumeTrashNormalize]
-
-    return matchers.reduce(url) { url, matcher in
-      matcher.match(items: url.pathComponents) ?? url
-    }
+    url
   }
 
   static func format(components: some Sequence<String>) -> AttributedString {
     var separator = AttributedString(" 􀰇 ")
-    separator.foregroundColor = .tertiaryLabel
 
     return components
       .map { AttributedString($0) }
@@ -74,7 +64,7 @@ struct CopyDepotItem {
 }
 
 extension CopyDepotItem: Codable {
-  init(from decoder: Decoder) throws {
+  init(from decoder: any Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     let url = try container.decode(URL.self, forKey: .url)
     let bookmark = try container.decode(BookmarkStoreItem.ID.self, forKey: .bookmark)
@@ -116,11 +106,11 @@ class CopyDepot: Codable {
       do {
         depot = try await fetch(from: url)
       } catch let err as CocoaError where err.code == .fileReadNoSuchFile {
-        Logger.model.info("Could not fetch copy depot from URL \"\(url.string)\" as the file does not exist yet.")
+        Logger.model.info("Could not fetch copy depot from URL \"\(url.pathString)\" as the file does not exist yet.")
 
         return
       } catch {
-        Logger.model.error("Could not fetch copy depot from URL \"\(url.string)\": \(error)")
+        Logger.model.error("Could not fetch copy depot from URL \"\(url.pathString)\": \(error)")
 
         return
       }
@@ -219,7 +209,7 @@ class CopyDepot: Codable {
           path: CopyDepotItemDestination.normalize(url: item.url),
           icon: .init(nsImage: NSWorkspace.shared.icon(forFileAt: item.url))
         )
-      }.sorted(using: KeyPathComparator(\.path.string))
+      }.sorted(using: KeyPathComparator(\.path.path))
 
     self.settings = items.values
       .map { item in
@@ -234,7 +224,7 @@ class CopyDepot: Codable {
             : .init(systemName: "questionmark.circle.fill")
           )
         )
-      }.sorted(using: KeyPathComparator(\.destination.path.string))
+      }.sorted(using: KeyPathComparator(\.destination.path.path))
   }
 
   func persist(to url: URL) throws {
@@ -256,7 +246,7 @@ class CopyDepot: Codable {
 
   // MARK: - Codable conformance
 
-  required init(from decoder: Decoder) throws {
+  required init(from decoder: any Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     let items = try container.decode([CopyDepotItem].self, forKey: .items)
 
@@ -264,7 +254,7 @@ class CopyDepot: Codable {
     self.items = Dictionary(uniqueKeysWithValues: items.map { ($0.bookmark, $0) })
   }
 
-  func encode(to encoder: Encoder) throws {
+  func encode(to encoder: any Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
     try container.encode(store, forKey: .store)
     try container.encode(Array(items.values), forKey: .items)

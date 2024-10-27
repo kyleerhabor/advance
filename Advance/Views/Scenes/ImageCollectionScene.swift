@@ -10,32 +10,16 @@ import OSLog
 import SwiftUI
 
 struct ImageCollectionSceneView: View {
-  @Environment(Windowed.self) private var windowed
   @Environment(ImageCollectionManager.self) private var manager
-  @Environment(\.prerendering) private var prerendering
-  @Environment(\.fullScreen) private var fullScreen
-  @Environment(\.id) private var id
+  @Environment(\.imagesID) private var id
   @State private var collection = ImageCollection()
-  @State private var loaded = false
-  private var window: NSWindow? { windowed.window }
 
   var body: some View {
     ImageCollectionView()
       .environment(collection)
-      .environment(\.loaded, loaded)
-      // Sizing a full-screen window will make the screen extending its rectangle black.
-      .focusedSceneValue(\.windowSizeReset, .init(identity: id, enabled: window != nil && !fullScreen) {
-        window?.setContentSize(ImageCollectionScene.defaultSize)
-      })
       // The pre-rendering variable triggers SwiftUI to call the action with an up-to-date id when performing scene
       // restoration. It's weird we can't just bind id.
-      .task(id: prerendering) {
-        loaded = false
-
-        defer {
-          loaded = true
-        }
-
+      .task/*(id: isPrerendering)*/ {
         manager.ids.insert(id)
 
         let collection: ImageCollection
@@ -50,9 +34,9 @@ struct ImageCollectionSceneView: View {
           do {
             collection = try await Self.fetch(from: url)
 
-            Logger.model.info("Fetched image collection \"\(id)\" from file at URL \"\(url.string)\"")
+            Logger.model.info("Fetched image collection \"\(id)\" from file at URL \"\(url.pathString)\"")
           } catch let err as CocoaError where err.code == .fileReadNoSuchFile {
-            Logger.model.info("Could not fetch image collection \"\(id)\" as its file at URL \"\(url.string)\" does not exist")
+            Logger.model.info("Could not fetch image collection \"\(id)\" as its file at URL \"\(url.pathString)\" does not exist")
 
             return
           } catch {
@@ -143,7 +127,7 @@ struct ImageCollectionScene: Scene {
   var body: some Scene {
     WindowGroup(for: UUID.self) { $id in
       ImageCollectionSceneView()
-        .environment(\.id, id)
+        .environment(\.imagesID, id)
         .windowed()
     } defaultValue: {
       .init()
@@ -178,7 +162,7 @@ struct ImageCollectionScene: Scene {
       // The directory does not exist, so we don't care.
       return
     } catch {
-      Logger.standard.error("Could not read contents of collections directory \"\(directory.string)\": \(error)")
+      Logger.ui.error("Could not read contents of collections directory \"\(directory.path)\": \(error)")
 
       return
     }
@@ -199,7 +183,7 @@ struct ImageCollectionScene: Scene {
         do {
           try FileManager.default.removeItem(at: url)
         } catch {
-          Logger.standard.error("Could not delete collection at URL \"\(url.string)\": \(error)")
+          Logger.ui.error("Could not delete collection at URL \"\(url.pathString)\": \(error)")
         }
       }
   }

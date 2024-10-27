@@ -12,7 +12,6 @@ struct ImageCollectionCommands: Commands {
     ToolbarCommands()
     SidebarCommands()
 
-    ImageCollectionNewCommands()
     ImageCollectionExternalCommands()
     ImageCollectionEditCommands()
     ImageCollectionNavigatorCommands()

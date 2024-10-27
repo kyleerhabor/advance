@@ -40,7 +40,7 @@ struct DisplayCoreView: View {
   init(action: @escaping Action) {
     self.action = action
     self.publisher = subject
-      .debounce(for: .milliseconds(200), scheduler: DispatchQueue.main)
+      .debounce(for: .imagesResizeInteraction, scheduler: DispatchQueue.main)
       .eraseToAnyPublisher()
   }
 }

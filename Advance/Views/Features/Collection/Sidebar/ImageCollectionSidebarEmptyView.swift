@@ -5,6 +5,7 @@
 //  Created by Kyle Erhabor on 9/15/23.
 //
 
+import AdvanceCore
 import Defaults
 import OSLog
 import SwiftUI
@@ -24,10 +25,7 @@ struct ImageCollectionEmptySidebarLabelStyle: LabelStyle {
 
 struct ImageCollectionSidebarEmptyView: View {
   @Environment(ImageCollection.self) private var collection
-  @Environment(\.prerendering) private var prerendering
-  @Environment(\.id) private var id
-  @Default(.importHiddenFiles) private var importHidden
-  @Default(.importSubdirectories) private var importSubdirectories
+  @Environment(\.imagesID) private var id
   @State private var isFileImporterPresented = false
 
   let visible: Bool
@@ -50,9 +48,6 @@ struct ImageCollectionSidebarEmptyView: View {
     .overlay {
       if visible {
         Color.clear
-          .focusedSceneValue(\.open, .init(identity: id, enabled: true) {
-            isFileImporterPresented = true
-          })
           .dropDestination(for: ImageTransferable.self) { items, _ in
             Task {
               let state = await resolve(items: items, in: collection.store)
@@ -81,7 +76,7 @@ struct ImageCollectionSidebarEmptyView: View {
             return true
           }
       }
-    }.fileImporter(isPresented: $isFileImporterPresented, allowedContentTypes: [.image, .folder], allowsMultipleSelection: true) { result in
+    }.fileImporter(isPresented: $isFileImporterPresented, allowedContentTypes: imagesContentTypes, allowsMultipleSelection: true) { result in
       switch result {
         case .success(let urls):
           Task {
@@ -115,7 +110,7 @@ struct ImageCollectionSidebarEmptyView: View {
     .disabled(!visible)
   }
 
-  static nonisolated func prepare(
+  nonisolated static func prepare(
     item: ImageTransferable,
     includingHiddenFiles importHidden: Bool,
     includingSubdirectories importSubdirectories: Bool
@@ -132,7 +127,7 @@ struct ImageCollectionSidebarEmptyView: View {
         files: url.withSecurityScope {
           FileManager.default
             .contents(at: url, options: .init(includingHiddenFiles: importHidden, includingSubdirectories: importSubdirectories))
-            .finderSort()
+            .finderSort(by: \.pathComponents)
             .map { .init(url: $0, options: []) }
         }
       ))
@@ -141,7 +136,7 @@ struct ImageCollectionSidebarEmptyView: View {
     return .file(source)
   }
 
-  static nonisolated func resolve(
+  nonisolated static func resolve(
     kinds: [ImageCollection.Kind],
     in store: BookmarkStore
   ) async -> BookmarkStoreState<[ImageCollectionItem]> {
@@ -169,7 +164,7 @@ struct ImageCollectionSidebarEmptyView: View {
 
   // MARK: - Convenience (concurrency)
 
-  static nonisolated func resolve(
+  nonisolated static func resolve(
     urls: [URL],
     in store: BookmarkStore,
     includingHiddenFiles importHidden: Bool,
@@ -186,7 +181,7 @@ struct ImageCollectionSidebarEmptyView: View {
     return await Self.resolve(kinds: kinds, in: store)
   }
 
-  static nonisolated func resolve(
+  nonisolated static func resolve(
     items: [ImageTransferable],
     in store: BookmarkStore,
     includingHiddenFiles importHidden: Bool,
@@ -202,13 +197,13 @@ struct ImageCollectionSidebarEmptyView: View {
     urls: [URL],
     in store: BookmarkStore
   ) async -> BookmarkStoreState<[ImageCollectionItem]> {
-    await Self.resolve(urls: urls, in: store, includingHiddenFiles: importHidden, includingSubdirectories: importSubdirectories)
+    await Self.resolve(urls: urls, in: store, includingHiddenFiles: false, includingSubdirectories: true)
   }
 
   func resolve(
     items: [ImageTransferable],
     in store: BookmarkStore
   ) async -> BookmarkStoreState<[ImageCollectionItem]> {
-    await Self.resolve(items: items, in: store, includingHiddenFiles: importHidden, includingSubdirectories: importSubdirectories)
+    await Self.resolve(items: items, in: store, includingHiddenFiles: false, includingSubdirectories: true)
   }
 }

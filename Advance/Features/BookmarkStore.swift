@@ -5,6 +5,7 @@
 //  Created by Kyle Erhabor on 12/20/23.
 //
 
+import AdvanceCore
 import CryptoKit
 import Foundation
 
@@ -21,7 +22,7 @@ struct BookmarkStoreItem {
     data: Data,
     options: URL.BookmarkCreationOptions,
     relativeTo relative: URL?
-  ) throws -> BookmarkResolution {
+  ) throws -> AssignedBookmark {
     try .init(
       data: data,
       // In my experience, if the user has a volume that was created as an image in Disk Utility and it's not mounted,
@@ -33,7 +34,7 @@ struct BookmarkStoreItem {
       relativeTo: relative
     ) { url in
       try url.withSecurityScope {
-        try url.bookmark(options: options, relativeTo: relative)
+        try url.bookmarkData(options: options, relativeTo: relative)
       }
     }
   }
@@ -93,8 +94,10 @@ struct BookmarkStore {
   }
 }
 
+extension BookmarkStore: Sendable {}
+
 extension BookmarkStore: Codable {
-  init(from decoder: Decoder) throws {
+  init(from decoder: any Decoder) throws {
     let container = try decoder.singleValueContainer()
     let bookmarks = try container.decode([BookmarkStoreItem].self)
 
@@ -102,7 +105,7 @@ extension BookmarkStore: Codable {
     self.items = .init(uniqueKeysWithValues: bookmarks.map { ($0.hash, $0.id) })
   }
 
-  func encode(to encoder: Encoder) throws {
+  func encode(to encoder: any Encoder) throws {
     var container = encoder.singleValueContainer()
     try container.encode(Array(bookmarks.values))
   }
@@ -112,3 +115,5 @@ struct BookmarkStoreState<T> {
   let store: BookmarkStore
   let value: T
 }
+
+extension BookmarkStoreState: Sendable where T: Sendable {}

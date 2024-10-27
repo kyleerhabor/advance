@@ -5,33 +5,39 @@
 //  Created by Kyle Erhabor on 7/27/23.
 //
 
+import AdvanceData
+import Foundation
+import GRDB
 import OSLog
 import SwiftUI
 
 @main
 struct AdvanceApp: App {
-  @NSApplicationDelegateAdaptor private var delegate: AppDelegate
-  @State private var depot = CopyDepot()
+  @NSApplicationDelegateAdaptor private var delegate: AppDelegate2
+  @State private var search = SearchSettingsModel()
+  @State private var copying = CopyingSettingsModel()
 
   var body: some Scene {
     AppScene()
-      .environment(depot)
+      .environment(search)
+      .environment(copying)
       .environmentObject(delegate)
   }
 
   init() {
-    Task(priority: .background) {
-      await Self.initialize()
-    }
-  }
+    let search = search
+    let copying = copying
 
-  static nonisolated func initialize() async {
-    do {
-      try FileManager.default.removeItem(at: .temporaryLiveTextImagesDirectory)
-    } catch let err as CocoaError where err.code == .fileNoSuchFile {
-      // The directory does not exist, so we do not care.
-    } catch {
-      Logger.standard.error("Could not remove Live Text images directory: \(error)")
+    Task {
+      await search.load()
+    }
+
+    Task {
+      do {
+        try await copying.load()
+      } catch {
+        Logger.model.error("\(error)")
+      }
     }
   }
 }

@@ -4,18 +4,6 @@
     "" : {
 
     },
-    " 0%" : {
-
-    },
-    "50%" : {
-
-    },
-    "100%" : {
-
-    },
-    "150%" : {
-
-    },
     "A lot" : {
 
     },
@@ -25,13 +13,7 @@
     "Add..." : {
 
     },
-    "Appearance:" : {
-
-    },
     "Bookmark" : {
-
-    },
-    "Brightness:" : {
 
     },
     "Clear" : {
@@ -46,26 +28,41 @@
     "Copy" : {
 
     },
-    "Copying:" : {
-
-    },
-    "Cursor" : {
-
-    },
-    "Dark" : {
-
-    },
     "Display current image in the title" : {
-
-    },
-    "Do not search subfolders" : {
 
     },
     "Extra" : {
 
     },
-    "Files:" : {
-
+    "Finder.Item.%@.Open" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open “%@” in Finder"
+          }
+        }
+      }
+    },
+    "Finder.Item.Open" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open in Finder"
+          }
+        }
+      }
+    },
+    "Finder.Item.Show" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show in Finder"
+          }
+        }
+      }
     },
     "Finder.Open" : {
       "localizations" : {
@@ -77,29 +74,7 @@
         }
       }
     },
-    "Finder.Show" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show in Finder"
-          }
-        }
-      }
-    },
-    "Folders:" : {
-
-    },
     "General" : {
-
-    },
-    "Grayscale:" : {
-
-    },
-    "Hide when scrolling:" : {
-
-    },
-    "If a file already exists at the destination of a folder, the name of the image's enclosing folder will be appended to the destination." : {
 
     },
     "Images with adjacent borders will have their margins flattened into a single value." : {
@@ -145,46 +120,6 @@
         }
       }
     },
-    "Images.Command.LiveText.Highlight.Hide" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hide Highlight"
-          }
-        }
-      }
-    },
-    "Images.Command.LiveText.Highlight.Show" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show Highlight"
-          }
-        }
-      }
-    },
-    "Images.Command.LiveText.Icon.Hide" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hide Icon"
-          }
-        }
-      }
-    },
-    "Images.Command.LiveText.Icon.Show" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show Icon"
-          }
-        }
-      }
-    },
     "Images.Command.Section.Image" : {
       "localizations" : {
         "en" : {
@@ -195,7 +130,27 @@
         }
       }
     },
-    "Images.Command.Section.LiveText" : {
+    "Images.Commands.File.Open" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open..."
+          }
+        }
+      }
+    },
+    "Images.Commands.Image" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Image"
+          }
+        }
+      }
+    },
+    "Images.Commands.Image.LiveText" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -205,12 +160,42 @@
         }
       }
     },
-    "Images.Command.Window.Size.Reset" : {
+    "Images.Commands.Image.LiveText.Highlight.Hide" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Return to Default Size"
+            "value" : "Clear Highlights"
+          }
+        }
+      }
+    },
+    "Images.Commands.Image.LiveText.Highlight.Show" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Highlight Items"
+          }
+        }
+      }
+    },
+    "Images.Commands.Image.LiveText.Icon.Hide" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide Icon"
+          }
+        }
+      }
+    },
+    "Images.Commands.Image.LiveText.Icon.Show" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Icon"
           }
         }
       }
@@ -235,6 +220,16 @@
         }
       }
     },
+    "Images.Commands.Window.ResetSize" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Return to Default Size"
+          }
+        }
+      }
+    },
     "Images.Copying.Action" : {
       "localizations" : {
         "en" : {
@@ -245,62 +240,18 @@
         }
       }
     },
-    "Images.Settings.LiveText.Enable" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enable Live Text"
-          }
-        }
-      }
+    "Images.Detail.Page.Next" : {
+
     },
-    "Images.Settings.LiveText.Icon" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show icon"
-          }
-        }
-      }
+    "Images.Detail.Page.Previous" : {
+
     },
-    "Images.Settings.Section.LiveText" : {
+    "Images.Detail.Search.%@" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Live Text:"
-          }
-        }
-      }
-    },
-    "Images.Settings.Section.Window" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Window:"
-          }
-        }
-      }
-    },
-    "Images.Settings.Window.Restore.Label" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Resume at last viewed image"
-          }
-        }
-      }
-    },
-    "Images.Settings.Window.Restore.Note" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The last viewed image prior to the app closing will be used as the image to start at for restored windows."
+            "value" : "Search With %@"
           }
         }
       }
@@ -310,17 +261,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Drop images here"
-          }
-        }
-      }
-    },
-    "Images.Toolbar.LiveTextIcon" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Live Text"
+            "value" : "Add images..."
           }
         }
       }
@@ -345,36 +286,20 @@
         }
       }
     },
-    "Import" : {
-
-    },
-    "Include hidden files" : {
-
-    },
-    "Light" : {
-
-    },
     "Main Canvas:" : {
 
     },
     "Margins:" : {
 
     },
+    "Name" : {
+
+    },
     "None" : {
 
     },
-    "Only relevant when the sidebar is not open." : {
+    "Path" : {
 
-    },
-    "Open.Interactive" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Open..."
-          }
-        }
-      }
     },
     "QuickLook.Hide" : {
       "localizations" : {
@@ -399,15 +324,6 @@
     "Remove" : {
 
     },
-    "Reset" : {
-
-    },
-    "Resolve conflicts" : {
-
-    },
-    "Scroll bar" : {
-
-    },
     "Search" : {
 
     },
@@ -417,6 +333,556 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Search..."
+          }
+        }
+      }
+    },
+    "Settings.Accessory.Copying.Menu.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy to Folder"
+          }
+        }
+      }
+    },
+    "Settings.Accessory.Copying.Remove" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove"
+          }
+        }
+      }
+    },
+    "Settings.Accessory.Copying.Unresolved" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The item at the listed path could not be located.\n\nThis may occur when the item has been deleted or is temporarily unavailable, such as when located on a removable volume."
+          }
+        }
+      }
+    },
+    "Settings.Accessory.Copying.Window.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copying"
+          }
+        }
+      }
+    },
+    "Settings.Accessory.Search.Delete" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete"
+          }
+        }
+      }
+    },
+    "Settings.Accessory.Search.Location" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Location"
+          }
+        }
+      }
+    },
+    "Settings.Accessory.Search.Location.Prompt" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "https://…"
+          }
+        }
+      }
+    },
+    "Settings.Accessory.Search.Location.Substitute" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add substitute"
+          }
+        }
+      }
+    },
+    "Settings.Accessory.Search.Name" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name"
+          }
+        }
+      }
+    },
+    "Settings.Accessory.Search.Name.Label" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name:"
+          }
+        }
+      }
+    },
+    "Settings.Accessory.Search.Name.Prompt" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "…"
+          }
+        }
+      }
+    },
+    "Settings.Accessory.Search.Token.Query" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Query"
+          }
+        }
+      }
+    },
+    "Settings.Accessory.Search.Toolbar.Add" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add"
+          }
+        }
+      }
+    },
+    "Settings.Accessory.Search.Window.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search"
+          }
+        }
+      }
+    },
+    "Settings.Extra.CopyingDestination" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copying Destination:"
+          }
+        }
+      }
+    },
+    "Settings.Extra.CopyingDestination.Note" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In the event of a conflict, the destination will be used as the format for the filename."
+          }
+        }
+      }
+    },
+    "Settings.Extra.CopyingDestination.Token.Name" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name"
+          }
+        }
+      }
+    },
+    "Settings.Extra.CopyingDestination.Token.Path" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Path"
+          }
+        }
+      }
+    },
+    "Settings.Extra.CopyingDirection" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copying Direction:"
+          }
+        }
+      }
+    },
+    "Settings.Extra.CopyingDirection.Direction" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Direction:"
+          }
+        }
+      }
+    },
+    "Settings.Extra.CopyingDirection.Direction.Leading" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leading"
+          }
+        }
+      }
+    },
+    "Settings.Extra.CopyingDirection.Direction.Trailing" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trailing"
+          }
+        }
+      }
+    },
+    "Settings.Extra.CopyingExample" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Example:"
+          }
+        }
+      }
+    },
+    "Settings.Extra.CopyingSeparator" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copying Separator:"
+          }
+        }
+      }
+    },
+    "Settings.Extra.CopyingSeparator.Separator" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Separator:"
+          }
+        }
+      }
+    },
+    "Settings.Extra.CopyingSeparator.Separator.Item.%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”"
+          }
+        }
+      }
+    },
+    "Settings.Files.Import" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import:"
+          }
+        }
+      }
+    },
+    "Settings.Files.Import.Hidden" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Include hidden files"
+          }
+        }
+      }
+    },
+    "Settings.Files.Import.Subdirectories" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search subfolders"
+          }
+        }
+      }
+    },
+    "Settings.General.Appearance" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appearance:"
+          }
+        }
+      }
+    },
+    "Settings.General.Appearance.Theme" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Theme:"
+          }
+        }
+      }
+    },
+    "Settings.General.Appearance.Theme.Dark" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dark"
+          }
+        }
+      }
+    },
+    "Settings.General.Appearance.Theme.Light" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Light"
+          }
+        }
+      }
+    },
+    "Settings.General.Appearance.Theme.System" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "System"
+          }
+        }
+      }
+    },
+    "Settings.General.Copying" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copying:"
+          }
+        }
+      }
+    },
+    "Settings.General.Copying.Manage" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manage…"
+          }
+        }
+      }
+    },
+    "Settings.General.Copying.ResolveConflicts" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resolve conflicts"
+          }
+        }
+      }
+    },
+    "Settings.General.Copying.ResolveConflicts.Note" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "If a file exists at the destination of an item, the name of the image's enclosing folder will be appended to the destination."
+          }
+        }
+      }
+    },
+    "Settings.General.Layout" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Layout:"
+          }
+        }
+      }
+    },
+    "Settings.General.Layout.Style" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Style:"
+          }
+        }
+      }
+    },
+    "Settings.General.Layout.Style.Continuous" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continuous"
+          }
+        }
+      }
+    },
+    "Settings.General.Layout.Style.Paged" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paged"
+          }
+        }
+      }
+    },
+    "Settings.General.LiveText" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Live Text:"
+          }
+        }
+      }
+    },
+    "Settings.General.LiveText.Enabled" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enable Live Text"
+          }
+        }
+      }
+    },
+    "Settings.General.LiveText.Icon" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show icon"
+          }
+        }
+      }
+    },
+    "Settings.General.LiveText.Subject" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Include subjects"
+          }
+        }
+      }
+    },
+    "Settings.General.LiveText.Subject.Note" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Objects in the foreground of images will be outlined to copy and share."
+          }
+        }
+      }
+    },
+    "Settings.General.Window" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Window:"
+          }
+        }
+      }
+    },
+    "Settings.General.Window.ImageRestore" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start at the last viewed image"
+          }
+        }
+      }
+    },
+    "Settings.General.Window.ImageRestore.Note" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "For restored windows, the image viewed prior to the app quitting will be used as the image to start at."
+          }
+        }
+      }
+    },
+    "Settings.Layout.Continuous" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continuous:"
+          }
+        }
+      }
+    },
+    "Settings.Layout.Continuous.Hidden" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide when scrolling:"
+          }
+        }
+      }
+    },
+    "Settings.Layout.Continuous.Hidden.Cursor" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cursor"
+          }
+        }
+      }
+    },
+    "Settings.Layout.Continuous.Hidden.Scroll" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scroll bar"
+          }
+        }
+      }
+    },
+    "Settings.Layout.Continuous.Hidden.Toolbar" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toolbar"
           }
         }
       }
@@ -441,32 +907,72 @@
         }
       }
     },
-    "Settings.LiveText.Search.Label" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show menu item for search engine"
-          }
-        }
-      }
-    },
-    "Settings.LiveText.Search.Note" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This will always open in Safari."
-          }
-        }
-      }
-    },
     "Settings.LiveText.Unsupported" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "This device does not support Live Text."
+          }
+        }
+      }
+    },
+    "Settings.Search.Engine" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search engine:"
+          }
+        }
+      }
+    },
+    "Settings.Search.Engine.Default" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use default search engine"
+          }
+        }
+      }
+    },
+    "Settings.Search.Engine.Default.Note" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This will open web pages in Safari."
+          }
+        }
+      }
+    },
+    "Settings.Search.Engine.Manage" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manage…"
+          }
+        }
+      }
+    },
+    "Settings.Search.Engine.Use" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use"
+          }
+        }
+      }
+    },
+    "Settings.Search.Engine.Use.None" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "None"
           }
         }
       }
@@ -481,8 +987,45 @@
         }
       }
     },
-    "Show Folders..." : {
-
+    "Settings.Tab.Files" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Files"
+          }
+        }
+      }
+    },
+    "Settings.Tab.General" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "General"
+          }
+        }
+      }
+    },
+    "Settings.Tab.Layout" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Layout"
+          }
+        }
+      }
+    },
+    "Settings.Tab.Search" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search"
+          }
+        }
+      }
     },
     "Sidebar.Item.Show" : {
       "localizations" : {
@@ -494,19 +1037,7 @@
         }
       }
     },
-    "System" : {
-
-    },
-    "The folder at this path could not be found. This may happen when the folder has been deleted or is temporarily unavailable, such as when on a removable volume." : {
-
-    },
-    "Theme:" : {
-
-    },
-    "Toolbar" : {
-
-    },
-    "Visual Effects" : {
+    "Substitute" : {
 
     }
   },
