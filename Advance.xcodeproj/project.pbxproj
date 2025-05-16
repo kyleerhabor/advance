@@ -774,7 +774,7 @@
 			repositoryURL = "https://github.com/sindresorhus/Defaults";
 			requirement = {
 				kind = revision;
-				revision = 4c009d5c2496e7aa126e922c94dd3d6ae049efa2;
+				revision = cc938ecf0bed848dc80a9726ac5455104e3f9dae;
 			};
 		};
 		00360ECC2C59FFE900BF7D1B /* XCRemoteSwiftPackageReference "SwiftUI-Introspect" */ = {
