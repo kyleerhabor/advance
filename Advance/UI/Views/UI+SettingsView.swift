@@ -115,15 +115,15 @@ struct SettingsView2: View {
           Label("Settings.Tab.Files", systemImage: "folder")
         }
 
-      SettingsSearchView()
+      SettingsAccessoriesView()
         .tabItem {
-          Label("Settings.Tab.Search", systemImage: "magnifyingglass")
+          Label("Settings.Tab.Accessories", systemImage: "macwindow.badge.plus")
         }
 
       SettingsExtraView2()
         .localized()
         .tabItem {
-          Label("Extra", systemImage: "wand.and.stars")
+          Label("Settings.Tab.Extra", systemImage: "wand.and.stars")
         }
     }
     .scenePadding()

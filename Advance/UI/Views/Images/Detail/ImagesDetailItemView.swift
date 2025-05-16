@@ -17,7 +17,7 @@ struct ImagesDetailItemContentAnalysisView: View {
   let phase: ImagesItemPhase
   @Binding var selectedText: String
   @Binding var isHighlighted: Bool
-  let transform: ImageAnalysisView.Transform
+  let transformMenu: ImageAnalysisView.TransformMenu
 
   @Environment(ImagesModel.self) private var images
   @Environment(\.isImageAnalysisEnabled) private var isImageAnalysisEnabled
@@ -46,7 +46,7 @@ struct ImagesDetailItemContentAnalysisView: View {
       isHighlighted: $isHighlighted,
       analysis: analysis,
       interactionTypes: interactionTypes,
-      transform: transform
+      transformMenu: transformMenu
     )
     .task(id: phase.resample) {
       analysis = await analyze()
@@ -100,7 +100,7 @@ struct ImagesDetailItemContentAnalysisView: View {
 struct ImagesDetailItemContentView: View {
   let item: ImagesItemModel
   @Binding var selectedText: String
-  let transform: ImageAnalysisView.Transform
+  let transformMenu: ImageAnalysisView.TransformMenu
 
   @State private var phase = ImagesItemPhase.empty
   @State private var isHighlighted = false
@@ -115,7 +115,7 @@ struct ImagesDetailItemContentView: View {
             phase: phase,
             selectedText: $selectedText,
             isHighlighted: $isHighlighted,
-            transform: transform
+            transformMenu: transformMenu
           )
         }
         .anchorPreference(key: VisiblePreferenceKey<ImagesDetailListVisibleItem>.self, value: .bounds) { anchor in
@@ -167,7 +167,7 @@ struct ImagesDetailItemView: View {
       ImagesDetailItemContentView(
         item: item,
         selectedText: $selectedText,
-        transform: transform
+        transformMenu: transform
       )
     }
     .id(item.id)
@@ -195,6 +195,7 @@ struct ImagesDetailItemView: View {
       }
     }
     .fileDialogCustomizationID(NSUserInterfaceItemIdentifier.copyingOpen.rawValue)
+    .fileDialogConfirmationLabel(Text("Copy"))
     .contextMenu {
       Section {
         Button("Finder.Item.Show", action: item.source.showFinder)
@@ -208,7 +209,7 @@ struct ImagesDetailItemView: View {
       Section {
         Button("Copy") {
           // TODO: Abstract.
-
+          //
           // TODO: Use source to produce pasteboard item.
           //
           // The URL is not required to reference an existing item.
@@ -291,7 +292,7 @@ struct ImagesDetailItemView: View {
 
   private func transform(
     menu: NSMenu,
-    bind: (NSMenuItem, @escaping ImageAnalysisView.BindAction) -> Void
+    bind: (NSMenuItem, @escaping ImageAnalysisView.BindMenuItemAction) -> Void
   ) -> NSMenu {
     if let item = menu.item(withTag: ImageAnalysisOverlayView.MenuTag.copyImage) {
       menu.removeItem(item)

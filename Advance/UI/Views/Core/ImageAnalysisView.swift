@@ -10,15 +10,15 @@ import SwiftUI
 import VisionKit
 
 struct ImageAnalysisView: NSViewRepresentable {
-  typealias BindAction = () -> Void
-  typealias Transform = (NSMenu, (NSMenuItem, @escaping BindAction) -> Void) -> NSMenu
+  typealias BindMenuItemAction = () -> Void
+  typealias BindMenuItem = (NSMenuItem, @escaping BindMenuItemAction) -> Void
+  typealias TransformMenu = (NSMenu, BindMenuItem) -> NSMenu
 
   @Binding var selectedText: String
   @Binding var isHighlighted: Bool
-
   let analysis: ImageAnalysis?
   let interactionTypes: ImageAnalysisOverlayView.InteractionTypes
-  let transform: Transform
+  let transformMenu: TransformMenu
 
   func makeNSView(context: Context) -> ImageAnalysisOverlayView {
     let overlayView = ImageAnalysisOverlayView()
@@ -85,7 +85,7 @@ struct ImageAnalysisView: NSViewRepresentable {
   class Delegate: ImageAnalysisOverlayViewDelegate {
     var representable: ImageAnalysisView
 
-    var actions: [NSMenuItem: BindAction]
+    var actions: [NSMenuItem: BindMenuItemAction]
 
     init(representable: ImageAnalysisView) {
       self.representable = representable
@@ -137,7 +137,7 @@ struct ImageAnalysisView: NSViewRepresentable {
     ) -> NSMenu {
       actions = [:]
 
-      let menu = representable.transform(menu) { item, action in
+      let menu = representable.transformMenu(menu) { item, action in
         actions[item] = action
 
         item.target = self

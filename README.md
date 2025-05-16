@@ -90,5 +90,5 @@ Note that the details get technical.
 
 [live-text]: https://support.apple.com/guide/preview/interact-with-text-in-a-photo-prvw625a5b2c/mac
 [apple-notarization-bypass]: https://support.apple.com/en-us/102445#openanyway
-[releases]: https://github.com/KyleErhabor/Advance/releases
+[releases]: https://github.com/kyleerhabor/advance/releases
 [the-ancient-magus-bride]: https://en.wikipedia.org/wiki/The_Ancient_Magus%27_Bride

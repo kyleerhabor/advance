@@ -19,7 +19,7 @@ struct SearchSettingsView: View {
         @Bindable var engine = engine
 
         TextField("Settings.Accessory.Search.Name.Label", text: $engine.name, prompt: Text("Settings.Accessory.Search.Name.Prompt"))
-          .introspect(.textField, on: .macOS(.v14)) { textField in
+          .introspect(.textField, on: .macOS(.v14, .v15)) { textField in
             textField.drawsBackground = true
             textField.backgroundColor = nil
           }

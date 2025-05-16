@@ -103,8 +103,8 @@ struct ImagesSidebarImportView: View {
         }
 
         let options = FileManager.DirectoryEnumerationOptions(
-          excludeHiddenFiles: !importHiddenFiles,
-          excludeSubdirectoryFiles: !importSubdirectories
+          excludesHiddenFiles: !importHiddenFiles,
+          excludesSubdirectoryFiles: !importSubdirectories
         )
 
         Task {
@@ -365,6 +365,7 @@ struct ImagesSidebarContentView: View {
         }
       }
       .fileDialogCustomizationID(NSUserInterfaceItemIdentifier.copyingOpen.rawValue)
+      .fileDialogConfirmationLabel(Text("Copy"))
       .alert(Text(copyingError?.localizedDescription ?? ""), isPresented: $isCopyingErrorAlertPresented) {
         // Empty
       }

@@ -337,6 +337,106 @@
         }
       }
     },
+    "Settings.Accessories.Copying" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Destinations:"
+          }
+        }
+      }
+    },
+    "Settings.Accessories.Copying.Manage" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manage…"
+          }
+        }
+      }
+    },
+    "Settings.Accessories.Copying.ResolveConflicts" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resolve conflicts"
+          }
+        }
+      }
+    },
+    "Settings.Accessories.Copying.ResolveConflicts.Note" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "If a file exists at the destination of an item, the image’s enclosing folder will be used to format the filename."
+          }
+        }
+      }
+    },
+    "Settings.Accessories.SearchEngine" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search Engine:"
+          }
+        }
+      }
+    },
+    "Settings.Accessories.SearchEngine.Default" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use default search engine"
+          }
+        }
+      }
+    },
+    "Settings.Accessories.SearchEngine.Default.Note" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This will open web pages in Safari."
+          }
+        }
+      }
+    },
+    "Settings.Accessories.SearchEngine.Manage" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manage…"
+          }
+        }
+      }
+    },
+    "Settings.Accessories.SearchEngine.Use" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use"
+          }
+        }
+      }
+    },
+    "Settings.Accessories.SearchEngine.Use.None" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "None"
+          }
+        }
+      }
+    },
     "Settings.Accessory.Copying.Menu.Title" : {
       "localizations" : {
         "en" : {
@@ -372,7 +472,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Copying"
+            "value" : "Destinations"
           }
         }
       }
@@ -477,67 +577,17 @@
         }
       }
     },
-    "Settings.Extra.CopyingDestination" : {
+    "Settings.Extra.CopyingDirection.Use" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Copying Destination:"
+            "value" : "Use"
           }
         }
       }
     },
-    "Settings.Extra.CopyingDestination.Note" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "In the event of a conflict, the destination will be used as the format for the filename."
-          }
-        }
-      }
-    },
-    "Settings.Extra.CopyingDestination.Token.Name" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Name"
-          }
-        }
-      }
-    },
-    "Settings.Extra.CopyingDestination.Token.Path" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Path"
-          }
-        }
-      }
-    },
-    "Settings.Extra.CopyingDirection" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Copying Direction:"
-          }
-        }
-      }
-    },
-    "Settings.Extra.CopyingDirection.Direction" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Direction:"
-          }
-        }
-      }
-    },
-    "Settings.Extra.CopyingDirection.Direction.Leading" : {
+    "Settings.Extra.CopyingDirection.Use.Leading" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -547,7 +597,7 @@
         }
       }
     },
-    "Settings.Extra.CopyingDirection.Direction.Trailing" : {
+    "Settings.Extra.CopyingDirection.Use.Trailing" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -567,27 +617,67 @@
         }
       }
     },
-    "Settings.Extra.CopyingSeparator" : {
+    "Settings.Extra.CopyingFilename" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Copying Separator:"
+            "value" : "Destination Filename:"
           }
         }
       }
     },
-    "Settings.Extra.CopyingSeparator.Separator" : {
+    "Settings.Extra.CopyingFilename.Token.Name" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Separator:"
+            "value" : "Name"
           }
         }
       }
     },
-    "Settings.Extra.CopyingSeparator.Separator.Item.%@" : {
+    "Settings.Extra.CopyingFilename.Token.Path" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Path"
+          }
+        }
+      }
+    },
+    "Settings.Extra.CopyingPathDirection" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Path Direction:"
+          }
+        }
+      }
+    },
+    "Settings.Extra.CopyingPathSeparator" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Path Separator:"
+          }
+        }
+      }
+    },
+    "Settings.Extra.CopyingPathSeparator.Use" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use"
+          }
+        }
+      }
+    },
+    "Settings.Extra.CopyingSeparator.Use.%@" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -673,46 +763,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "System"
-          }
-        }
-      }
-    },
-    "Settings.General.Copying" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Copying:"
-          }
-        }
-      }
-    },
-    "Settings.General.Copying.Manage" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Manage…"
-          }
-        }
-      }
-    },
-    "Settings.General.Copying.ResolveConflicts" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Resolve conflicts"
-          }
-        }
-      }
-    },
-    "Settings.General.Copying.ResolveConflicts.Note" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "If a file exists at the destination of an item, the name of the image's enclosing folder will be appended to the destination."
           }
         }
       }
@@ -917,72 +967,32 @@
         }
       }
     },
-    "Settings.Search.Engine" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Search engine:"
-          }
-        }
-      }
-    },
-    "Settings.Search.Engine.Default" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Use default search engine"
-          }
-        }
-      }
-    },
-    "Settings.Search.Engine.Default.Note" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This will open web pages in Safari."
-          }
-        }
-      }
-    },
-    "Settings.Search.Engine.Manage" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Manage…"
-          }
-        }
-      }
-    },
-    "Settings.Search.Engine.Use" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Use"
-          }
-        }
-      }
-    },
-    "Settings.Search.Engine.Use.None" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "None"
-          }
-        }
-      }
-    },
     "Settings.Section.LiveText" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Live Text:"
+          }
+        }
+      }
+    },
+    "Settings.Tab.Accessories" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accessories"
+          }
+        }
+      }
+    },
+    "Settings.Tab.Extra" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Extra"
           }
         }
       }
@@ -1013,16 +1023,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Layout"
-          }
-        }
-      }
-    },
-    "Settings.Tab.Search" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Search"
           }
         }
       }

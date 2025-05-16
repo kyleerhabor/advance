@@ -35,12 +35,14 @@ struct CopyingSettingsIconView: View {
   let item: CopyingSettingsItem
 
   var body: some View {
+    image.resizable()
+  }
+
+  var image: Image {
     if item.data.isResolved {
       Image(nsImage: item.icon)
-        .resizable()
     } else {
       Image(systemName: "questionmark.circle.fill")
-        .resizable()
     }
   }
 }
@@ -95,6 +97,7 @@ struct CopyingSettingsView: View {
         submit(urls: urls)
       }
       .fileDialogCustomizationID(NSUserInterfaceItemIdentifier.copyingOpen.rawValue)
+      .fileDialogConfirmationLabel(Text("Add"))
     }
     .focusedSceneValue(\.windowOpen, AppMenuActionItem(identity: .copying, enabled: true) {
       isFileImporterPresented = true

@@ -122,8 +122,8 @@ struct ImagesCommands: Commands {
 
     let images = ImagesModel(id: UUID())
     let options = FileManager.DirectoryEnumerationOptions(
-      excludeHiddenFiles: !importHiddenFiles,
-      excludeSubdirectoryFiles: !importSubdirectories
+      excludesHiddenFiles: !importHiddenFiles,
+      excludesSubdirectoryFiles: !importSubdirectories
     )
 
     do {

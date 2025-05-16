@@ -12,6 +12,9 @@ import CoreGraphics
 import SwiftUI
 import IdentifiedCollections
 
+let OPACITY_TRANSPARENT = 0.0
+let OPACITY_OPAQUE = 1.0
+
 extension CGSize {
   var length: Double {
     max(self.width, self.height)
@@ -43,8 +46,8 @@ extension NSWindow {
     self.styleMask.contains(.fullScreen)
   }
 
-  func setToolbarVisibility(_ isVisible: Bool) {
-    self.standardWindowButton(.closeButton)?.superview?.animator().alphaValue = isVisible ? 1 : 0
+  func setToolbarVisibility(_ flag: Bool) {
+    self.standardWindowButton(.closeButton)?.superview?.animator().alphaValue = flag ? OPACITY_OPAQUE : OPACITY_TRANSPARENT
 
     // For some reason, a window in full screen with a light appearance draws a white line at the top of the screen
     // after scrolling. This doesn't occur with a dark appearance, which is interesting.
@@ -52,7 +55,7 @@ extension NSWindow {
     // TODO: Figure out how to animate the title bar separator.
     //
     // The property does not have an associated animation by default.
-    self.titlebarSeparatorStyle = isVisible && !self.isFullScreen() ? .automatic : .none
+    self.titlebarSeparatorStyle = flag && !self.isFullScreen() ? .automatic : .none
   }
 }
 
@@ -380,8 +383,8 @@ struct ToolbarVisibleViewModifier: ViewModifier {
       }
   }
 
-  private func setToolbarVisibility(_ isVisible: Bool) {
-    windowed.window?.setToolbarVisibility(isVisible)
+  private func setToolbarVisibility(_ flag: Bool) {
+    windowed.window?.setToolbarVisibility(flag)
   }
 }
 
@@ -450,11 +453,9 @@ struct WindowedViewModifier: ViewModifier {
 struct VisibleViewModifier: ViewModifier {
   let isVisible: Bool
 
-  private let transparent = 0.0
-  private let opaque = 1.0
 
   func body(content: Content) -> some View {
-    content.opacity(isVisible ? opaque : transparent)
+    content.opacity(isVisible ? OPACITY_OPAQUE : OPACITY_TRANSPARENT)
   }
 }
 
@@ -538,7 +539,13 @@ extension View {
                        Destination: PreferenceKey,
                        Subject: Combine.Subject<Source.Value, Never>,
                        Publisher: Combine.Publisher<Destination.Value, Never> {
-    self.modifier(PreferencePublisherViewModifier(source: source, destination: destination, subject: subject, publisher: publisher, defaultValue: defaultValue))
+    self.modifier(PreferencePublisherViewModifier(
+      source: source,
+      destination: destination,
+      subject: subject,
+      publisher: publisher,
+      defaultValue: defaultValue
+    ))
   }
 
   func preferencePublisher<Key, Subject, Publisher>(
@@ -549,35 +556,25 @@ extension View {
                        Key.Value: Equatable,
                        Subject: Combine.Subject<Key.Value, Never>,
                        Publisher: Combine.Publisher<Key.Value, Never> {
-    self.preferencePublisher(source: key, destination: key, subject: subject, publisher: subject, defaultValue: key.defaultValue)
+    self.preferencePublisher(
+      source: key,
+      destination: key,
+      subject: subject,
+      publisher: publisher,
+      defaultValue: key.defaultValue
+    )
   }
 }
 
 extension View {
-  private var transparent: Double {
-    0.0
-  }
-
-  private var opaque: Double {
-    1.0
-  }
-
-  func visible(_ isVisible: Bool) -> some View {
-    self.opacity(isVisible ? opaque : transparent)
+  func visible(_ flag: Bool) -> some View {
+    self.opacity(flag ? OPACITY_OPAQUE : OPACITY_TRANSPARENT)
   }
 }
 
 extension ShapeStyle {
-  private var transparent: Double {
-    0.0
-  }
-
-  private var opaque: Double {
-    1.0
-  }
-
-  func visible(_ isVisible: Bool) -> some ShapeStyle {
-    self.opacity(isVisible ? opaque : transparent)
+  func visible(_ flag: Bool) -> some ShapeStyle {
+    self.opacity(flag ? OPACITY_OPAQUE : OPACITY_TRANSPARENT)
   }
 }
 

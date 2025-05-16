@@ -14,7 +14,7 @@ class Windowed {
 }
 
 extension FileManager.DirectoryEnumerationOptions {
-  init(excludeHiddenFiles: Bool, excludeSubdirectoryFiles: Bool) {
+  init(excludesHiddenFiles excludeHiddenFiles: Bool, excludesSubdirectoryFiles excludeSubdirectoryFiles: Bool) {
     self.init()
 
     if excludeHiddenFiles {

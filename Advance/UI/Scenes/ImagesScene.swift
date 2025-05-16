@@ -53,8 +53,8 @@ struct ImagesSceneView: View {
         items.append(contentsOf: urls.dropLast())
 
         let options = FileManager.DirectoryEnumerationOptions(
-          excludeHiddenFiles: !importHiddenFiles,
-          excludeSubdirectoryFiles: !importSubdirectories
+          excludesHiddenFiles: !importHiddenFiles,
+          excludesSubdirectoryFiles: !importSubdirectories
         )
 
         Task {

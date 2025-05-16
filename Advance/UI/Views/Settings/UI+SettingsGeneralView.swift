@@ -10,13 +10,11 @@ import SwiftUI
 import VisionKit
 
 struct SettingsGeneralView2: View {
-  @Environment(\.openWindow) private var openWindow
   @AppStorage(StorageKeys.restoreLastImage) private var restoreLastImage
   @AppStorage(StorageKeys.layoutStyle) private var layoutStyle
   @AppStorage(StorageKeys.liveTextEnabled) private var liveTextEnabled
   @AppStorage(StorageKeys.liveTextIcon) private var liveTextIcon
   @AppStorage(StorageKeys.liveTextSubject) private var liveTextSubject
-  @AppStorage(StorageKeys.copyingResolveConflicts) private var copyingResolveConflicts
   @Default(.colorScheme) private var colorScheme
   private let isImageAnalysisSupported = ImageAnalyzer.isSupported
 
@@ -81,21 +79,6 @@ struct SettingsGeneralView2: View {
         }
         .disabled(!isImageAnalysisSupported)
         .help(isImageAnalysisSupported ? Text() : Text("Settings.LiveText.Unsupported"))
-      }
-
-      LabeledContent("Settings.General.Copying") {
-        VStack(alignment: .leading) {
-          Button("Settings.General.Copying.Manage") {
-            openWindow(id: CopyingSettingsScene.id)
-          }
-          .buttonStyle(.accessory)
-
-          Toggle(isOn: $copyingResolveConflicts) {
-            Text("Settings.General.Copying.ResolveConflicts")
-
-            Text("Settings.General.Copying.ResolveConflicts.Note")
-          }
-        }
       }
     }
     .formStyle(.settings(width: SettingsView2.contentWidth))

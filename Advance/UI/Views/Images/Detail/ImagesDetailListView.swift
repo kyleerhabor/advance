@@ -156,12 +156,14 @@ struct ImagesDetailListView: View {
         !hidden.toolbar
         || isWindowFullScreen
         || columnVisibility.columnVisibility != .detailOnly
-        || !(model.isHovering && model.isActive)
+        || !model.isActive
+//        || !(model.isHovering && model.isActive)
       )
       .cursorVisible(
         !hidden.cursor
         || columnVisibility.columnVisibility != .detailOnly
-        || !(model.isHovering && model.isActive)
+        || !model.isActive
+//        || !(model.isHovering && model.isActive)
       )
       // TODO: Document rationale for not hiding on scroll.
       .scrollIndicators(hidden.scroll && columnVisibility.columnVisibility == .detailOnly ? .hidden : .automatic)

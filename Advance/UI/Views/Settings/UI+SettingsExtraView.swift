@@ -29,47 +29,41 @@ struct SettingsExtraView2: View {
   
   var body: some View {
     Form {
-      LabeledContent("Settings.Extra.CopyingDestination") {
-        VStack(alignment: .leading) {
-          HStack(alignment: .firstTextBaseline) {
-            TokenFieldView(
-              prompt: nil,
-              isBezeled: true,
-              tokens: copyingConflictFormatTokens,
-              enclosing: CopyingSettingsModel.keywordEnclosing
-            ) { token in
-              token == CopyingSettingsModel.nameKeyword || token == CopyingSettingsModel.pathKeyword
-            } title: { token in
-              title(for: token)
-            }
-            .frame(width: SettingsView2.textFieldWidth, alignment: .leading)
-            .truncationMode(.middle)
-
-            Menu("Substitute", systemImage: "plus") {
-              Button("Name") {
-                copyingConflictFormat.append(CopyingSettingsModel.nameKeyword)
-              }
-
-              Button("Path") {
-                copyingConflictFormat.append(CopyingSettingsModel.pathKeyword)
-              }
-            }
-            .buttonStyle(.plain)
-            .labelStyle(.iconOnly)
-            .foregroundStyle(.secondary)
-            .fontWeight(.medium)
-
-            Spacer()
+      LabeledContent("Settings.Extra.CopyingFilename") {
+        HStack(alignment: .firstTextBaseline) {
+          TokenFieldView(
+            prompt: nil,
+            isBezeled: true,
+            tokens: copyingConflictFormatTokens,
+            enclosing: CopyingSettingsModel.keywordEnclosing
+          ) { token in
+            token == CopyingSettingsModel.nameKeyword || token == CopyingSettingsModel.pathKeyword
+          } title: { token in
+            title(for: token)
           }
+          .frame(width: SettingsView2.textFieldWidth, alignment: .leading)
+          .truncationMode(.middle)
 
-          Text("Settings.Extra.CopyingDestination.Note")
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
+          Menu("Substitute", systemImage: "plus") {
+            Button("Name") {
+              copyingConflictFormat.append(CopyingSettingsModel.nameKeyword)
+            }
+
+            Button("Path") {
+              copyingConflictFormat.append(CopyingSettingsModel.pathKeyword)
+            }
+          }
+          .buttonStyle(.plain)
+          .labelStyle(.iconOnly)
+          .foregroundStyle(.secondary)
+          .fontWeight(.medium)
+
+          Spacer()
         }
       }
 
-      LabeledContent("Settings.Extra.CopyingSeparator") {
-        Picker("Settings.Extra.CopyingSeparator.Separator", selection: $copyingConflictSeparator) {
+      LabeledContent("Settings.Extra.CopyingPathSeparator") {
+        Picker("Settings.Extra.CopyingPathSeparator.Use", selection: $copyingConflictSeparator) {
           let separators: [StorageCopyingSeparator] = [
             .singlePointingAngleQuotationMark,
             .blackPointingSmallTriangle,
@@ -80,7 +74,7 @@ struct SettingsExtraView2: View {
           ForEach(separators, id: \.self) { separator in
             let node = separator.separator.separator(direction: copyingConflictDirection)
 
-            Text("Settings.Extra.CopyingSeparator.Separator.Item.\(String(node))")
+            Text("Settings.Extra.CopyingSeparator.Use.\(String(node))")
               .tag(separator, includeOptional: false)
           }
         }
@@ -89,12 +83,12 @@ struct SettingsExtraView2: View {
         .horizontalRadioGroupLayout()
       }
 
-      LabeledContent("Settings.Extra.CopyingDirection") {
-        Picker("Settings.Extra.CopyingDirection.Direction", selection: $copyingConflictDirection) {
-          Text("Settings.Extra.CopyingDirection.Direction.Leading")
+      LabeledContent("Settings.Extra.CopyingPathDirection") {
+        Picker("Settings.Extra.CopyingDirection.Use", selection: $copyingConflictDirection) {
+          Text("Settings.Extra.CopyingDirection.Use.Leading")
             .tag(StorageDirection.leftToRight, includeOptional: false)
 
-          Text("Settings.Extra.CopyingDirection.Direction.Trailing")
+          Text("Settings.Extra.CopyingDirection.Use.Trailing")
             .tag(StorageDirection.rightToLeft, includeOptional: false)
         }
         .pickerStyle(.inline)
@@ -154,6 +148,8 @@ struct SettingsExtraView2: View {
 
   private func defaultWallpaperFile(base: URL) -> URL {
     // A fun Easter egg embedded in the bundle resources.
+    //
+    // The colons are MODIFIER LETTER COLON and not COLON to allow use in filenames.
     base
       .appending(components: "Data", "Wallpapers", "From the New World - e01 [00꞉11꞉28.313]", directoryHint: .notDirectory)
       .appendingPathExtension(for: .jxl)
@@ -161,8 +157,8 @@ struct SettingsExtraView2: View {
 
   private func title(for token: String) -> String {
     switch token {
-      case CopyingSettingsModel.nameKeyword: localize("Settings.Extra.CopyingDestination.Token.Name")
-      case CopyingSettingsModel.pathKeyword: localize("Settings.Extra.CopyingDestination.Token.Path")
+      case CopyingSettingsModel.nameKeyword: localize("Settings.Extra.CopyingFilename.Token.Name")
+      case CopyingSettingsModel.pathKeyword: localize("Settings.Extra.CopyingFilename.Token.Path")
       default: fatalError()
     }
   }
