@@ -1,5 +1,5 @@
 //
-//  CopyingSettingsView.swift
+//  FoldersSettingsView.swift
 //  Advance
 //
 //  Created by Kyle Erhabor on 8/4/24.
@@ -9,13 +9,13 @@ import OSLog
 import SwiftUI
 import UniformTypeIdentifiers
 
-let copyingContentTypes: [UTType] = [.folder]
+let foldersContentTypes: [UTType] = [.folder]
 
-enum CopyingTransferError: Error {
+enum FolderTransferError: Error {
   case notOriginal
 }
 
-struct CopyingTransfer: Transferable {
+struct FolderTransfer: Transferable {
   let url: URL
 
   static var transferRepresentation: some TransferRepresentation {
@@ -23,7 +23,7 @@ struct CopyingTransfer: Transferable {
       let url = received.file
 
       guard received.isOriginalFile else {
-        throw CopyingTransferError.notOriginal
+        throw FolderTransferError.notOriginal
       }
 
       return Self(url: url)
@@ -31,8 +31,8 @@ struct CopyingTransfer: Transferable {
   }
 }
 
-struct CopyingSettingsIconView: View {
-  let item: CopyingSettingsItem
+struct FoldersSettingsIconView: View {
+  let item: FoldersSettingsItem
 
   var body: some View {
     image.resizable()
@@ -47,42 +47,43 @@ struct CopyingSettingsIconView: View {
   }
 }
 
-struct CopyingSettingsView: View {
-  @Environment(CopyingSettingsModel.self) private var copying
+struct FoldersSettingsView: View {
+  @Environment(FoldersSettingsModel.self) private var folders
   @State private var isFileImporterPresented = false
-  @State private var selection = Set<CopyingSettingsItem.ID>()
+  @State private var selection = Set<FoldersSettingsItem.ID>()
 
   var body: some View {
     List(selection: $selection) {
-      ForEach(copying.items) { item in
+      ForEach(folders.items) { item in
         Label {
           Text(item.string)
         } icon: {
-          CopyingSettingsIconView(item: item)
+          FoldersSettingsIconView(item: item)
             .scaledToFit()
             .symbolRenderingMode(.hierarchical)
         }
         .lineLimit(1)
         .truncationMode(.middle)
-        .help(item.data.isResolved ? Text() : Text("Settings.Accessory.Copying.Unresolved"))
+        .help(item.data.isResolved ? Text() : Text("Settings.Accessory.Folders.Unresolved"))
         .transaction(setter(on: \.disablesAnimations, value: true))
       }
       .onDelete { iset in
-        removeItems(iset.map { copying.items[$0] })
+        removeItems(iset.map { folders.items[$0] })
       }
     }
-    .animation(.default, value: copying.items.ids)
+    .animation(.default, value: folders.items.ids)
     .listStyle(.inset)
-    .contextMenu(forSelectionType: CopyingSettingsItem.ID.self) { ids in
-      Button("Settings.Accessory.Copying.Remove", role: .destructive) {
-        removeItems(ids.compactMap { copying.items[id: $0] })
+    .contextMenu(forSelectionType: FoldersSettingsItem.ID.self) { ids in
+      Button("Settings.Accessory.Folders.Remove", role: .destructive) {
+        removeItems(ids.compactMap { folders.items[id: $0] })
       }
     }
     .toolbar {
+      // TODO: Localize.
       Button("Add", systemImage: "plus") {
         isFileImporterPresented = true
       }
-      .fileImporter(isPresented: $isFileImporterPresented, allowedContentTypes: copyingContentTypes, allowsMultipleSelection: true) { result in
+      .fileImporter(isPresented: $isFileImporterPresented, allowedContentTypes: foldersContentTypes, allowsMultipleSelection: true) { result in
         let urls: [URL]
 
         switch result {
@@ -96,21 +97,22 @@ struct CopyingSettingsView: View {
 
         submit(urls: urls)
       }
-      .fileDialogCustomizationID(NSUserInterfaceItemIdentifier.copyingOpen.rawValue)
+      .fileDialogCustomizationID(NSUserInterfaceItemIdentifier.foldersOpen.rawValue)
+      // TODO: Localize.
       .fileDialogConfirmationLabel(Text("Add"))
     }
     .focusedSceneValue(\.windowOpen, AppMenuActionItem(identity: .copying, enabled: true) {
       isFileImporterPresented = true
     })
     .focusedSceneValue(\.finderShow, AppMenuActionItem(identity: .copying(selection), enabled: !selection.isEmpty) {
-      let urls = copying.items
+      let urls = folders.items
         .filter(in: selection, by: \.id)
         .map(\.data.source.url)
 
       NSWorkspace.shared.activateFileViewerSelecting(urls)
     })
     .focusedSceneValue(\.finderOpen, AppMenuActionItem(identity: selection, enabled: !selection.isEmpty) {
-      let items = copying.items.filter(in: selection, by: \.id)
+      let items = folders.items.filter(in: selection, by: \.id)
 
       items.forEach { item in
         let source = item.data.source
@@ -124,30 +126,30 @@ struct CopyingSettingsView: View {
         }
       }
     })
-    .dropDestination(for: CopyingTransfer.self) { transfers, _ in
+    .dropDestination(for: FolderTransfer.self) { transfers, _ in
       submit(urls: transfers.map(\.url))
 
       return true
     }
     .onDeleteCommand {
-      removeItems(copying.items.filter(in: selection, by: \.id))
+      removeItems(folders.items.filter(in: selection, by: \.id))
     }
   }
 
   func submit(urls: [URL]) {
     Task {
       do {
-        try await copying.submit(urls: urls)
+        try await folders.submit(urls: urls)
       } catch {
         Logger.model.error("\(error)")
       }
     }
   }
 
-  func removeItems(_ items: some Sequence<CopyingSettingsItem>) {
+  func removeItems(_ items: some Sequence<FoldersSettingsItem>) {
     Task {
       do {
-        try await copying.submit(removalOf: items)
+        try await folders.submit(removalOf: items)
       } catch {
         Logger.model.error("\(error)")
       }

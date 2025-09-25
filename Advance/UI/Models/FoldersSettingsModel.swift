@@ -1,5 +1,5 @@
 //
-//  CopyingSettingsModel.swift
+//  FoldersSettingsModel.swift
 //  Advance
 //
 //  Created by Kyle Erhabor on 8/4/24.
@@ -16,31 +16,31 @@ import IdentifiedCollections
 import Observation
 import OSLog
 
-struct CopyingSettingsItemData {
+struct FoldersSettingsItemData {
   let info: CopyingInfo
   let source: URLSource
   let isResolved: Bool
 }
 
-struct CopyingSettingsItem {
+struct FoldersSettingsItem {
   let id: UUID
-  let data: CopyingSettingsItemData
+  let data: FoldersSettingsItemData
   let icon: NSImage
   let string: AttributedString
 }
 
-extension CopyingSettingsItem: Identifiable {}
+extension FoldersSettingsItem: Identifiable {}
 
 @Observable
-class CopyingSettingsModel {
+class FoldersSettingsModel {
   static let keywordEnclosing: Character = "%"
   static let nameKeyword = TokenFieldView.enclose("name", with: keywordEnclosing)
   static let pathKeyword = TokenFieldView.enclose("path", with: keywordEnclosing)
 
   @ObservationIgnored @Dependency(\.dataStack) private var dataStack
 
-  var items: IdentifiedArrayOf<CopyingSettingsItem>
-  var resolved: [CopyingSettingsItem]
+  var items: IdentifiedArrayOf<FoldersSettingsItem>
+  var resolved: [FoldersSettingsItem]
 
   init() {
     self.items = []
@@ -93,9 +93,9 @@ class CopyingSettingsModel {
   static func resolve(
     _ dataStack: DataStackDependencyKey.DataStack,
     responses: [CopyingResponse]
-  ) async throws -> [URL: CopyingSettingsItemData] {
+  ) async throws -> [URL: FoldersSettingsItemData] {
     struct States {
-      var results: [URL: CopyingSettingsItemData]
+      var results: [URL: FoldersSettingsItemData]
       var unresolved: [CopyingResponse]
       var unresolvedBookmarks: [BookmarkInfo]
     }
@@ -115,7 +115,7 @@ class CopyingSettingsModel {
         return
       }
 
-      partialResult.results[url] = CopyingSettingsItemData(
+      partialResult.results[url] = FoldersSettingsItemData(
         info: response.copying,
         source: URLSource(url: url, options: bookmark.options!),
         isResolved: true
@@ -188,7 +188,7 @@ class CopyingSettingsModel {
     let created = try await dataStack.connection.write { db in
       let items = resolved.items
 
-      return items.reduce(into: [URL: CopyingSettingsItemData](minimumCapacity: items.count)) { partialResult, item in
+      return items.reduce(into: [URL: FoldersSettingsItemData](minimumCapacity: items.count)) { partialResult, item in
         let response = item.0
         let data = item.1
         let isResolved = item.2
@@ -210,7 +210,7 @@ class CopyingSettingsModel {
           }
         }
 
-        partialResult[data.bookmark.url] = CopyingSettingsItemData(
+        partialResult[data.bookmark.url] = FoldersSettingsItemData(
           info: response.copying,
           source: URLSource(url: data.bookmark.url, options: options),
           isResolved: isResolved
@@ -267,7 +267,7 @@ class CopyingSettingsModel {
 
   @MainActor
   func load(_ dataStack: DataStackDependencyKey.DataStack, responses: [CopyingResponse]) async {
-    let results: [URL: CopyingSettingsItemData]
+    let results: [URL: FoldersSettingsItemData]
 
     do {
       results = try await Self.resolve(dataStack, responses: responses)
@@ -278,8 +278,8 @@ class CopyingSettingsModel {
     }
 
     struct Result {
-      var items: [CopyingSettingsItem]
-      var resolved: [CopyingSettingsItem]
+      var items: [FoldersSettingsItem]
+      var resolved: [FoldersSettingsItem]
     }
 
     // TODO: Reference symbol by name instead of codepoint.
@@ -310,8 +310,8 @@ class CopyingSettingsModel {
     }
 
     let reduced = components.reduce(into: Result(
-      items: [CopyingSettingsItem](reservingCapacity: results.count),
-      resolved: [CopyingSettingsItem](reservingCapacity: results.count)
+      items: [FoldersSettingsItem](reservingCapacity: results.count),
+      resolved: [FoldersSettingsItem](reservingCapacity: results.count)
     )) { partialResult, components in
       guard let url = formatted[components],
             let data = results[url] else {
@@ -323,7 +323,7 @@ class CopyingSettingsModel {
         .interspersed(with: divider)
         .reduce(AttributedString(), +)
 
-      let item = CopyingSettingsItem(
+      let item = FoldersSettingsItem(
         id: data.info.id!,
         data: data,
         icon: NSWorkspace.shared.icon(forFileAt: url),
@@ -356,7 +356,7 @@ class CopyingSettingsModel {
   }
 
   @MainActor
-  func submit(removalOf items: some Sequence<CopyingSettingsItem>) async throws {
+  func submit(removalOf items: some Sequence<FoldersSettingsItem>) async throws {
     try await Self.submitItemsRemoval(try await dataStack(), copyings: items.map(\.data.info))
   }
 }

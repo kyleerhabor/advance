@@ -633,7 +633,7 @@ extension WindowOpen: Equatable {}
 enum FinderShow {
   case unknown,
        images(Set<ImagesItemModel.ID>),
-       copying(Set<CopyingSettingsItem.ID>)
+       copying(Set<FoldersSettingsItem.ID>)
 }
 
 extension FinderShow: Equatable {}
@@ -678,5 +678,5 @@ extension KeyboardShortcut {
 
 extension NSUserInterfaceItemIdentifier {
   static let imagesWindowOpen = Self(rawValue: "images-window-open")
-  static let copyingOpen = Self(rawValue: "copying-open")
+  static let foldersOpen = Self(rawValue: "folders-open")
 }

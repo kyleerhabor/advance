@@ -15,18 +15,19 @@ import SwiftUI
 struct AdvanceApp: App {
   @NSApplicationDelegateAdaptor private var delegate: AppDelegate2
   @State private var search = SearchSettingsModel()
-  @State private var copying = CopyingSettingsModel()
+  @State private var folders = FoldersSettingsModel()
 
   var body: some Scene {
     AppScene()
       .environment(search)
-      .environment(copying)
+      .environment(folders)
       .environmentObject(delegate)
+      .defaultAppStorage(.default)
   }
 
   init() {
     let search = search
-    let copying = copying
+    let copying = folders
 
     Task {
       await search.load()

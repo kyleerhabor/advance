@@ -337,27 +337,27 @@
         }
       }
     },
-    "Settings.Accessories.Copying" : {
+    "Settings.Accessories.Folders" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Destinations:"
+            "value" : "Folders:"
           }
         }
       }
     },
-    "Settings.Accessories.Copying.Manage" : {
+    "Settings.Accessories.Folders.Manage" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Manage…"
+            "value" : "Manage..."
           }
         }
       }
     },
-    "Settings.Accessories.Copying.ResolveConflicts" : {
+    "Settings.Accessories.Folders.ResolveConflicts" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -367,12 +367,12 @@
         }
       }
     },
-    "Settings.Accessories.Copying.ResolveConflicts.Note" : {
+    "Settings.Accessories.Folders.ResolveConflicts.Note" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "If a file exists at the destination of an item, the image’s enclosing folder will be used to format the filename."
+            "value" : "If a file exists at the destination of an item, the image’s enclosing folder will be used to format the item’s name."
           }
         }
       }
@@ -447,7 +447,7 @@
         }
       }
     },
-    "Settings.Accessory.Copying.Remove" : {
+    "Settings.Accessory.Folders.Remove" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -457,7 +457,7 @@
         }
       }
     },
-    "Settings.Accessory.Copying.Unresolved" : {
+    "Settings.Accessory.Folders.Unresolved" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -467,12 +467,12 @@
         }
       }
     },
-    "Settings.Accessory.Copying.Window.Title" : {
+    "Settings.Accessory.Folders.Window.Title" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Destinations"
+            "value" : "Folders"
           }
         }
       }

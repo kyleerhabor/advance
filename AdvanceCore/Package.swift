@@ -7,11 +7,11 @@ let package = Package(
   platforms: [.macOS(.v14)],
   products: [
     .library(name: "AdvanceCore", targets: ["AdvanceCore"]),
-    .library(name: "AdvanceData", targets: ["AdvanceData"])
+    .library(name: "AdvanceData", targets: ["AdvanceData"]),
   ],
   dependencies: [
     // v6.27.0
-    .package(url: "https://github.com/groue/GRDB.swift", revision: "dd6b98ce04eda39aa22f066cd421c24d7236ea8a"),
+    .package(url: "https://github.com/groue/GRDB.swift", revision: "c5d02eac3241dd980fa42e5644afd2e7e3f63401"),
   ],
   targets: [
     .target(name: "AdvanceCore"),
@@ -19,9 +19,9 @@ let package = Package(
       name: "AdvanceData",
       dependencies: [
         .target(name: "AdvanceCore"),
-        .product(name: "GRDB", package: "GRDB.swift")
-      ]
-    )
+        .product(name: "GRDB", package: "GRDB.swift"),
+      ],
+    ),
   ],
-  swiftLanguageModes: [.v6]
+  swiftLanguageModes: [.v6],
 )

@@ -10,7 +10,7 @@ import OSLog
 import SwiftUI
 
 struct CopyingSettingsMenuView: View {
-  @Environment(CopyingSettingsModel.self) private var copying
+  @Environment(FoldersSettingsModel.self) private var copying
 
   let action: (URLSource) -> Void
   let primaryAction: () -> Void
@@ -97,8 +97,8 @@ struct CopyingSettingsMenuView: View {
       let separator = " \(separator) "
       let satisfied = try components.contains { components in
         // The reduction in an order compatible with formatPath(components:separator:direction:)
-        let path = CopyingSettingsModel.formatPath(components: components.reversed(), separator: separator, direction: direction)
-        let component = CopyingSettingsModel.format(string: format, name: name, path: path)
+        let path = FoldersSettingsModel.formatPath(components: components.reversed(), separator: separator, direction: direction)
+        let component = FoldersSettingsModel.format(string: format, name: name, path: path)
         let destination = source.url
           .appending(component: component)
           .appendingPathExtension(url.pathExtension)

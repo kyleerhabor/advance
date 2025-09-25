@@ -10,7 +10,7 @@ import SwiftUI
 struct SettingsAccessoriesView: View {
   @Environment(SearchSettingsModel.self) private var search
   @Environment(\.openWindow) private var openWindow
-  @AppStorage(StorageKeys.copyingResolveConflicts) private var copyingResolveConflicts
+  @AppStorage(StorageKeys.foldersResolveConflicts) private var copyingResolveConflicts
   @AppStorage(StorageKeys.searchUseSystemDefault) private var searchUseSystemDefault
   private var engine: Binding<SearchSettingsEngineModel.ID?> {
     Binding {
@@ -58,17 +58,17 @@ struct SettingsAccessoriesView: View {
         }
       }
 
-      LabeledContent("Settings.Accessories.Copying") {
+      LabeledContent("Settings.Accessories.Folders") {
         VStack(alignment: .leading) {
-          Button("Settings.Accessories.Copying.Manage") {
-            openWindow(id: CopyingSettingsScene.id)
+          Button("Settings.Accessories.Folders.Manage") {
+            openWindow(id: FoldersSettingsScene.id)
           }
           .buttonStyle(.accessory)
 
           Toggle(isOn: $copyingResolveConflicts) {
-            Text("Settings.Accessories.Copying.ResolveConflicts")
+            Text("Settings.Accessories.Folders.ResolveConflicts")
 
-            Text("Settings.Accessories.Copying.ResolveConflicts.Note")
+            Text("Settings.Accessories.Folders.ResolveConflicts.Note")
           }
         }
       }

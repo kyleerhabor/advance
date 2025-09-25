@@ -17,7 +17,6 @@
 		001E1E692AC4DEC8005EE188 /* ImageCollectionCopyingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001E1E682AC4DEC8005EE188 /* ImageCollectionCopyingView.swift */; };
 		001E7B652AD8394C001EAF72 /* SettingsGeneralView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001E7B642AD8394C001EAF72 /* SettingsGeneralView.swift */; };
 		0021270E2C19517F0000D996 /* AdvanceData in Frameworks */ = {isa = PBXBuildFile; productRef = 0021270D2C19517F0000D996 /* AdvanceData */; };
-		002127152C19611C0000D996 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = 002127142C19611C0000D996 /* GRDB */; };
 		0021272B2C1A26180000D996 /* Dependencies in Frameworks */ = {isa = PBXBuildFile; productRef = 0021272A2C1A26180000D996 /* Dependencies */; };
 		002379092B3DFC9F00097BF0 /* Scened.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002379082B3DFC9F00097BF0 /* Scened.swift */; };
 		002629D22AD59DC700ABFEB6 /* DisplayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002629D12AD59DC700ABFEB6 /* DisplayView.swift */; };
@@ -38,6 +37,7 @@
 		005608392B6F24970063DCE2 /* ImageCollectionWindowCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005608382B6F24970063DCE2 /* ImageCollectionWindowCommands.swift */; };
 		0077AF922ABB8650002E3FF4 /* Image.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0077AF912ABB8650002E3FF4 /* Image.swift */; };
 		008815F62B07DC8A00D8F3D8 /* Algorithms in Frameworks */ = {isa = PBXBuildFile; productRef = 008815F52B07DC8A00D8F3D8 /* Algorithms */; };
+		0099BE812E84C95F007B04D8 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = 0099BE802E84C95F007B04D8 /* GRDB */; };
 		00A983A62B47B1F700A8E61C /* View+Key.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00A983A52B47B1F600A8E61C /* View+Key.swift */; };
 		00B0B27E2C55EA2300542E0D /* DequeModule in Frameworks */ = {isa = PBXBuildFile; productRef = 00B0B27D2C55EA2300542E0D /* DequeModule */; };
 		00B6E0D92C18103300544C8B /* AdvanceCore in Frameworks */ = {isa = PBXBuildFile; productRef = 00B6E0D82C18103300544C8B /* AdvanceCore */; };
@@ -132,6 +132,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				00360ECE2C59FFEA00BF7D1B /* SwiftUIIntrospect in Frameworks */,
+				0099BE812E84C95F007B04D8 /* GRDB in Frameworks */,
 				0013F6082C2208720038BB2A /* IdentifiedCollections in Frameworks */,
 				00B6E0D92C18103300544C8B /* AdvanceCore in Frameworks */,
 				0029E59D2C79A115000BFBA8 /* Defaults in Frameworks */,
@@ -139,7 +140,6 @@
 				008815F62B07DC8A00D8F3D8 /* Algorithms in Frameworks */,
 				0021272B2C1A26180000D996 /* Dependencies in Frameworks */,
 				00B0B27E2C55EA2300542E0D /* DequeModule in Frameworks */,
-				002127152C19611C0000D996 /* GRDB in Frameworks */,
 				0021270E2C19517F0000D996 /* AdvanceData in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -380,13 +380,13 @@
 				008815F52B07DC8A00D8F3D8 /* Algorithms */,
 				00B6E0D82C18103300544C8B /* AdvanceCore */,
 				0021270D2C19517F0000D996 /* AdvanceData */,
-				002127142C19611C0000D996 /* GRDB */,
 				0021272A2C1A26180000D996 /* Dependencies */,
 				0013F6072C2208720038BB2A /* IdentifiedCollections */,
 				00B0B27D2C55EA2300542E0D /* DequeModule */,
 				00360ECD2C59FFE900BF7D1B /* SwiftUIIntrospect */,
 				0029E59C2C79A115000BFBA8 /* Defaults */,
 				0029E59F2C79A9F3000BFBA8 /* Defaults */,
+				0099BE802E84C95F007B04D8 /* GRDB */,
 			);
 			productName = Sequential;
 			productReference = 001CB5182A718D3C00DBB6FA /* Advance.app */;
@@ -419,12 +419,12 @@
 			mainGroup = 001CB50F2A718D3C00DBB6FA;
 			packageReferences = (
 				008815F42B07DC8A00D8F3D8 /* XCRemoteSwiftPackageReference "swift-algorithms" */,
-				002127132C19611C0000D996 /* XCRemoteSwiftPackageReference "GRDB" */,
 				002127292C1A26180000D996 /* XCRemoteSwiftPackageReference "swift-dependencies" */,
 				0013F6062C2208720038BB2A /* XCRemoteSwiftPackageReference "swift-identified-collections" */,
 				00B0B27C2C55EA2200542E0D /* XCRemoteSwiftPackageReference "swift-collections" */,
 				00360ECC2C59FFE900BF7D1B /* XCRemoteSwiftPackageReference "SwiftUI-Introspect" */,
 				0029E59E2C79A9F3000BFBA8 /* XCRemoteSwiftPackageReference "Defaults" */,
+				0099BE7F2E84C95F007B04D8 /* XCRemoteSwiftPackageReference "GRDB" */,
 			);
 			productRefGroup = 001CB5192A718D3C00DBB6FA /* Products */;
 			projectDirPath = "";
@@ -753,20 +753,12 @@
 				revision = d533cd18b0b456b106694a9899f917ee595f2666;
 			};
 		};
-		002127132C19611C0000D996 /* XCRemoteSwiftPackageReference "GRDB" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/groue/GRDB.swift";
-			requirement = {
-				kind = revision;
-				revision = dd6b98ce04eda39aa22f066cd421c24d7236ea8a;
-			};
-		};
 		002127292C1A26180000D996 /* XCRemoteSwiftPackageReference "swift-dependencies" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/pointfreeco/swift-dependencies";
 			requirement = {
 				kind = revision;
-				revision = 350e1e119babe8525f9bd155b76640a5de270184;
+				revision = 4c90d6b2b9bf0911af87b103bb40f41771891596;
 			};
 		};
 		0029E59E2C79A9F3000BFBA8 /* XCRemoteSwiftPackageReference "Defaults" */ = {
@@ -793,6 +785,14 @@
 				version = 1.2.0;
 			};
 		};
+		0099BE7F2E84C95F007B04D8 /* XCRemoteSwiftPackageReference "GRDB" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/groue/GRDB.swift";
+			requirement = {
+				kind = revision;
+				revision = c5d02eac3241dd980fa42e5644afd2e7e3f63401;
+			};
+		};
 		00B0B27C2C55EA2200542E0D /* XCRemoteSwiftPackageReference "swift-collections" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/apple/swift-collections.git";
@@ -812,11 +812,6 @@
 		0021270D2C19517F0000D996 /* AdvanceData */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = AdvanceData;
-		};
-		002127142C19611C0000D996 /* GRDB */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 002127132C19611C0000D996 /* XCRemoteSwiftPackageReference "GRDB" */;
-			productName = GRDB;
 		};
 		0021272A2C1A26180000D996 /* Dependencies */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -841,6 +836,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 008815F42B07DC8A00D8F3D8 /* XCRemoteSwiftPackageReference "swift-algorithms" */;
 			productName = Algorithms;
+		};
+		0099BE802E84C95F007B04D8 /* GRDB */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0099BE7F2E84C95F007B04D8 /* XCRemoteSwiftPackageReference "GRDB" */;
+			productName = GRDB;
 		};
 		00B0B27D2C55EA2300542E0D /* DequeModule */ = {
 			isa = XCSwiftPackageProductDependency;

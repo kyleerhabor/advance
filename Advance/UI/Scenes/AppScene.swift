@@ -12,6 +12,6 @@ struct AppScene: Scene {
     ImagesScene()
     SettingsScene()
     SearchSettingsScene()
-    CopyingSettingsScene()
+    FoldersSettingsScene()
   }
 }

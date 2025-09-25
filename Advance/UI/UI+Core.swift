@@ -202,7 +202,7 @@ struct StorageImagesLayoutContinuousStyleHidden: OptionSet {
   }
 }
 
-struct StorageCopyingSeparatorItem {
+struct StorageFoldersSeparatorItem {
   let forward: Character
   let back: Character
 
@@ -214,24 +214,24 @@ struct StorageCopyingSeparatorItem {
   }
 }
 
-enum StorageCopyingSeparator: Int {
+enum StorageFoldersSeparator: Int {
   case inequalitySign,
        singlePointingAngleQuotationMark,
        blackPointingTriangle,
        blackPointingSmallTriangle
 
-  var separator: StorageCopyingSeparatorItem {
+  var separator: StorageFoldersSeparatorItem {
     switch self {
-      case .inequalitySign: StorageCopyingSeparatorItem(forward: ">", back: "<")
-      case .singlePointingAngleQuotationMark: StorageCopyingSeparatorItem(
+      case .inequalitySign: StorageFoldersSeparatorItem(forward: ">", back: "<")
+      case .singlePointingAngleQuotationMark: StorageFoldersSeparatorItem(
         forward: "\u{203A}", // ›
         back: "\u{2039}" // ‹
       )
-      case .blackPointingTriangle: StorageCopyingSeparatorItem(
+      case .blackPointingTriangle: StorageFoldersSeparatorItem(
         forward: "\u{25B6}", // ▶
         back: "\u{25C0}" // ◀
       )
-      case .blackPointingSmallTriangle: StorageCopyingSeparatorItem(
+      case .blackPointingSmallTriangle: StorageFoldersSeparatorItem(
         forward: "\u{25B8}", // ▸
         back: "\u{25C2}" // ◂
       )
@@ -273,13 +273,13 @@ enum StorageKeys {
 
   static let searchUseSystemDefault = StorageKey("search-use-system-default", defaultValue: false)
 
-  static let copyingResolveConflicts = StorageKey("copying-resolve-conflicts", defaultValue: true)
-  static let copyingConflictFormat = StorageKey(
-    "copying-conflict-format",
-    defaultValue: "\(CopyingSettingsModel.nameKeyword) [\(CopyingSettingsModel.pathKeyword)]"
+  static let foldersResolveConflicts = StorageKey("folders-resolve-conflicts", defaultValue: true)
+  static let foldersConflictFormat = StorageKey(
+    "folders-conflict-format",
+    defaultValue: "\(FoldersSettingsModel.nameKeyword) [\(FoldersSettingsModel.pathKeyword)]"
   )
-  static let copyingConflictSeparator = StorageKey("copying-conflict-separator", defaultValue: StorageCopyingSeparator.singlePointingAngleQuotationMark)
-  static let copyingConflictDirection = StorageKey("copying-conflict-direction", defaultValue: StorageDirection.rightToLeft)
+  static let foldersConflictSeparator = StorageKey("folders-conflict-separator", defaultValue: StorageFoldersSeparator.singlePointingAngleQuotationMark)
+  static let foldersConflictDirection = StorageKey("folders-conflict-direction", defaultValue: StorageDirection.rightToLeft)
 }
 
 extension AppStorage {

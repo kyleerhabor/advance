@@ -224,10 +224,10 @@ struct ImagesSidebarContentView: View {
   @Environment(ImagesModel.self) private var images
   @Environment(\.imagesDetailJump) private var jumpDetail
   @AppStorage(StorageKeys.restoreLastImage) private var restoreLastImage
-  @AppStorage(StorageKeys.copyingResolveConflicts) private var copyingResolveConflicts
-  @AppStorage(StorageKeys.copyingConflictFormat) private var copyingConflictFormat
-  @AppStorage(StorageKeys.copyingConflictSeparator) private var copyingConflictSeparator
-  @AppStorage(StorageKeys.copyingConflictDirection) private var copyingConflictDirection
+  @AppStorage(StorageKeys.foldersResolveConflicts) private var copyingResolveConflicts
+  @AppStorage(StorageKeys.foldersConflictFormat) private var copyingConflictFormat
+  @AppStorage(StorageKeys.foldersConflictSeparator) private var copyingConflictSeparator
+  @AppStorage(StorageKeys.foldersConflictDirection) private var copyingConflictDirection
   @SceneStorage(StorageKeys.columnVisibility) private var columnVisibility
   @FocusState private var isFocused: Bool
   @State private var selection = Selection()
@@ -337,7 +337,7 @@ struct ImagesSidebarContentView: View {
           ImagesBookmarkView(isBookmarked: isBookmarked)
         }
       }
-      .fileImporter(isPresented: $isCopyingFileImporterPresented, allowedContentTypes: copyingContentTypes) { result in
+      .fileImporter(isPresented: $isCopyingFileImporterPresented, allowedContentTypes: foldersContentTypes) { result in
         let url: URL
 
         switch result {
@@ -364,7 +364,7 @@ struct ImagesSidebarContentView: View {
           }
         }
       }
-      .fileDialogCustomizationID(NSUserInterfaceItemIdentifier.copyingOpen.rawValue)
+      .fileDialogCustomizationID(NSUserInterfaceItemIdentifier.foldersOpen.rawValue)
       .fileDialogConfirmationLabel(Text("Copy"))
       .alert(Text(copyingError?.localizedDescription ?? ""), isPresented: $isCopyingErrorAlertPresented) {
         // Empty

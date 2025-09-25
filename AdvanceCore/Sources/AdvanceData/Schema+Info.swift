@@ -146,7 +146,7 @@ public struct CopyingInfo {
 }
 
 extension CopyingInfo {
-  init(record: CopyingRecord) {
+  init(record: FolderRecord) {
     self.init(rowID: record.rowID!, id: record.id, url: record.url)
   }
 }

@@ -30,32 +30,6 @@ extension GRDB.Configuration {
   }
 }
 
-func retry<T>(
-  body: () throws -> T,
-  retry: (DatabaseError) -> Bool,
-  recover: () throws -> Void
-) throws -> T {
-  do {
-    return try body()
-  } catch let error as DatabaseError where retry(error) {
-    try recover()
-
-    return try body()
-  }
-}
-
-func retry<T>(
-  on code: ResultCode,
-  body: () throws -> T,
-  recovery recover: () throws -> Void
-) throws -> T {
-  try retry(body: body) { error in
-    error.resultCode == code
-  } recover: {
-    try recover()
-  }
-}
-
 enum DataStackDependencyKey: DependencyKey {
   typealias DataStack = AdvanceData.DataStack<DatabasePool>
 
@@ -64,36 +38,18 @@ enum DataStackDependencyKey: DependencyKey {
     // Should we use a separate file during development?
     let url = URL.databaseFile
     let configuration = GRDB.Configuration.standard
-    let connection = try retry(on: .SQLITE_CANTOPEN) {
-      try DatabasePool(path: url.pathString, configuration: configuration)
-    } recovery: {
+    let connection: DatabasePool
+
+    do {
+      connection = try DatabasePool(path: url.pathString, configuration: configuration)
+    } catch let error as DatabaseError where error.resultCode == .SQLITE_CANTOPEN {
       try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+
+      connection = try DatabasePool(path: url.pathString, configuration: configuration)
     }
 
     let dataStack = DataStack(connection: connection)
-
-    // This step should probably be made explicit by the caller.
-
-    let context = try await dataStack.connection.write { db in
-      var context = CreateSchemaContext()
-      try DataStack.createSchema(db, context: &context)
-
-      return context
-    }
-
-    #if DEBUG
-    if context.modifiedEntry {
-      Logger.data.info("Schema for connection was modified; erasing and recreating...")
-
-      try await dataStack.connection.erase()
-      try await dataStack.connection.write { db in
-        var context = CreateSchemaContext()
-
-        try DataStack.createSchema(db, context: &context)
-      }
-    }
-
-    #endif
+    try await DataStack.createSchema(dataStack.connection)
 
     return dataStack
   }

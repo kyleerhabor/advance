@@ -16,12 +16,12 @@ struct SettingsExtraWallpaper {
 struct SettingsExtraView2: View {
   @Environment(Windowed.self) private var windowed
   @Environment(\.localize) private var localize
-  @AppStorage(StorageKeys.copyingConflictFormat) private var copyingConflictFormat
-  @AppStorage(StorageKeys.copyingConflictSeparator) private var copyingConflictSeparator
-  @AppStorage(StorageKeys.copyingConflictDirection) private var copyingConflictDirection
+  @AppStorage(StorageKeys.foldersConflictFormat) private var copyingConflictFormat
+  @AppStorage(StorageKeys.foldersConflictSeparator) private var copyingConflictSeparator
+  @AppStorage(StorageKeys.foldersConflictDirection) private var copyingConflictDirection
   private var copyingConflictFormatTokens: Binding<[String]> {
     Binding {
-      TokenFieldView.parse(token: copyingConflictFormat, enclosing: CopyingSettingsModel.keywordEnclosing)
+      TokenFieldView.parse(token: copyingConflictFormat, enclosing: FoldersSettingsModel.keywordEnclosing)
     } set: { tokens in
       copyingConflictFormat = TokenFieldView.string(tokens: tokens)
     }
@@ -35,9 +35,9 @@ struct SettingsExtraView2: View {
             prompt: nil,
             isBezeled: true,
             tokens: copyingConflictFormatTokens,
-            enclosing: CopyingSettingsModel.keywordEnclosing
+            enclosing: FoldersSettingsModel.keywordEnclosing
           ) { token in
-            token == CopyingSettingsModel.nameKeyword || token == CopyingSettingsModel.pathKeyword
+            token == FoldersSettingsModel.nameKeyword || token == FoldersSettingsModel.pathKeyword
           } title: { token in
             title(for: token)
           }
@@ -46,11 +46,11 @@ struct SettingsExtraView2: View {
 
           Menu("Substitute", systemImage: "plus") {
             Button("Name") {
-              copyingConflictFormat.append(CopyingSettingsModel.nameKeyword)
+              copyingConflictFormat.append(FoldersSettingsModel.nameKeyword)
             }
 
             Button("Path") {
-              copyingConflictFormat.append(CopyingSettingsModel.pathKeyword)
+              copyingConflictFormat.append(FoldersSettingsModel.pathKeyword)
             }
           }
           .buttonStyle(.plain)
@@ -64,7 +64,7 @@ struct SettingsExtraView2: View {
 
       LabeledContent("Settings.Extra.CopyingPathSeparator") {
         Picker("Settings.Extra.CopyingPathSeparator.Use", selection: $copyingConflictSeparator) {
-          let separators: [StorageCopyingSeparator] = [
+          let separators: [StorageFoldersSeparator] = [
             .singlePointingAngleQuotationMark,
             .blackPointingSmallTriangle,
             .blackPointingTriangle,
@@ -157,19 +157,19 @@ struct SettingsExtraView2: View {
 
   private func title(for token: String) -> String {
     switch token {
-      case CopyingSettingsModel.nameKeyword: localize("Settings.Extra.CopyingFilename.Token.Name")
-      case CopyingSettingsModel.pathKeyword: localize("Settings.Extra.CopyingFilename.Token.Path")
+      case FoldersSettingsModel.nameKeyword: localize("Settings.Extra.CopyingFilename.Token.Name")
+      case FoldersSettingsModel.pathKeyword: localize("Settings.Extra.CopyingFilename.Token.Path")
       default: fatalError()
     }
   }
 
   private func component(
     url: URL,
-    separator: StorageCopyingSeparatorItem,
+    separator: StorageFoldersSeparatorItem,
     direction: StorageDirection,
     format: String
   ) -> String {
-    let formatted = CopyingSettingsModel.formatPathComponents(components: url.pathComponents)
+    let formatted = FoldersSettingsModel.formatPathComponents(components: url.pathComponents)
     let pathComponents = formatted
       .dropFirst() // "/"
       .dropLast() // The path we initially tried (e.g. "image.png")
@@ -177,8 +177,8 @@ struct SettingsExtraView2: View {
 
     let separator = separator.separator(direction: direction)
     let name = url.lastPath
-    let path = CopyingSettingsModel.formatPath(components: pathComponents, separator: " \(separator) ", direction: direction)
-    let component = CopyingSettingsModel.format(string: format, name: name, path: path)
+    let path = FoldersSettingsModel.formatPath(components: pathComponents, separator: " \(separator) ", direction: direction)
+    let component = FoldersSettingsModel.format(string: format, name: name, path: path)
 
     return component
   }

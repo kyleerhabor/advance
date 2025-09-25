@@ -75,6 +75,7 @@ extension ImagesItemModelSource {
       kCGImageSourceCreateThumbnailFromImageAlways: true,
       // TODO: Document.
       kCGImageSourceCreateThumbnailWithTransform: true,
+      kCGImageSourceShouldCacheImmediately: true,
       kCGImageSourceThumbnailMaxPixelSize: length
     ]
 

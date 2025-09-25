@@ -132,6 +132,25 @@ extension URLSourceDocument: SecurityScopedResource {
   }
 }
 
+extension KeyedEncodingContainer {
+  public mutating func encode(_ value: URL.BookmarkCreationOptions?, forKey key: KeyedEncodingContainer<K>.Key) throws {
+    try self.encode(value?.rawValue, forKey: key)
+  }
+}
+
+extension KeyedDecodingContainer {
+  public func decodeIfPresent(
+    _ type: URL.BookmarkCreationOptions.Type,
+    forKey key: KeyedDecodingContainer<K>.Key,
+  ) throws -> URL.BookmarkCreationOptions? {
+    guard let rawValue = try self.decodeIfPresent(URL.BookmarkCreationOptions.RawValue.self, forKey: key) else {
+      return nil
+    }
+
+    return URL.BookmarkCreationOptions(rawValue: rawValue)
+  }
+}
+
 public struct Bookmark {
   public let data: Data
   public let options: URL.BookmarkCreationOptions

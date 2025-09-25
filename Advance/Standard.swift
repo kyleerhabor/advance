@@ -18,7 +18,20 @@ extension Logger {
 // MARK: - Files
 
 extension URL {
-  static let dataDirectory = Self.applicationSupportDirectory.appending(component: Bundle.appID, directoryHint: .isDirectory)
+  #if DEBUG
+  static let dataDirectory = Self.applicationSupportDirectory.appending(
+    components: Bundle.appID, "DebugData",
+    directoryHint: .isDirectory,
+  )
+
+  #else
+  static let dataDirectory = Self.applicationSupportDirectory.appending(
+    components: Bundle.appID, "Data",
+    directoryHint: .isDirectory,
+  )
+
+  #endif
+
   // homeDirectory returns the home directory, which is relative to App Sandbox. This returns the real user directory.
   static let userDirectory = Self(
     // https://stackoverflow.com/a/46789483
@@ -40,6 +53,22 @@ extension URL {
     let rhs = url.pathComponents
 
     return ArraySlice(lhs) == rhs.prefix(upTo: min(rhs.count, lhs.count))
+  }
+}
+
+extension UserDefaults {
+  static var `default`: Self {
+    let suiteName: String?
+
+    #if DEBUG
+    suiteName = nil
+
+    #else
+    suiteName = "\(Bundle.appID).Debug"
+
+    #endif
+
+    return Self(suiteName: suiteName)!
   }
 }
 

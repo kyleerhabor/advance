@@ -55,14 +55,6 @@ extension DataBookmark {
 
 extension DataBookmark: Sendable {}
 
-public struct CreateSchemaContext {
-  public var modifiedEntry: Bool
-
-  public init() {
-    self.modifiedEntry = false
-  }
-}
-
 public typealias DatabaseConnection = DatabaseReader & DatabaseWriter
 
 public actor DataStack<Connection> where Connection: DatabaseConnection {
@@ -97,7 +89,7 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
   nonisolated public static func fetch(_ db: Database, items: some Sequence<ImagesItemInfo>) throws -> [ImagesItemFetchResponse] {
     try ImagesItemRecord
       .select(Column.rowID, ImagesItemRecord.Columns.type, ImagesItemRecord.Columns.isBookmarked)
-      .filter(items.contains(.rowID))
+      .filter(items.contains(Column.rowID))
       .including(
         optional: ImagesItemRecord.imageAssociation
           .forKey(ImagesItemFetchResponse.CodingKeys.image)
@@ -135,7 +127,7 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
     _ db: Database,
     bookmarks: some Sequence<BookmarkInfo>
   ) throws -> Dictionary<BookmarkInfo, BookmarkResponse> {
-    let cursor = try buildBookmarkRequest(BookmarkRecord.filter(bookmarks.contains(.rowID)))
+    let cursor = try buildBookmarkRequest(BookmarkRecord.filter(bookmarks.contains(Column.rowID)))
       .asRequest(of: BookmarkResponse.self)
       .fetchCursor(db)
       .map { ($0.bookmark, $0) }
@@ -219,11 +211,11 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
   nonisolated public func trackCopyings() -> AsyncValueObservation<[CopyingResponse]> {
     ValueObservation
       .tracking { db in
-        try CopyingRecord
-          .select(Column.rowID, CopyingRecord.Columns.id, CopyingRecord.Columns.url)
+        try FolderRecord
+          .select(Column.rowID, FolderRecord.Columns.id, FolderRecord.Columns.url)
           .including(
-            required: Self.buildLimitedBookmarkRequest(CopyingRecord.bookmarkAssociation)
-              .forKey(CopyingRecord.CodingKeys.bookmark)
+            required: Self.buildLimitedBookmarkRequest(FolderRecord.bookmarkAssociation)
+              .forKey(FolderRecord.CodingKeys.bookmark)
           )
           .asRequest(of: CopyingResponse.self)
           .fetchAll(db)
@@ -233,23 +225,9 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
 
   // MARK: - Writing
 
-  nonisolated static func creatingSchema<Failure>(
-    context: inout CreateSchemaContext,
-    _ body: () throws(Failure) -> Void
-  ) throws(Failure) {
-    do {
-      try body()
-    } catch let error as DatabaseError where error.resultCode == .SQLITE_ERROR {
-      Logger.data.log("Encountered issue creating schema: \(error)")
-
-      return
-    }
-
-    context.modifiedEntry = true
-  }
-
-  nonisolated public static func createSchema(_ db: Database, context: inout CreateSchemaContext) throws {
-    try Self.creatingSchema(context: &context) {
+  nonisolated public static func createSchema(_ connection: DatabaseConnection) async throws {
+    var migrator = DatabaseMigrator()
+    migrator.registerMigration("v1") { db in
       try db.create(table: BookmarkRecord.databaseTableName) { table in
         table.primaryKey(Column.rowID.name, .integer)
 
@@ -268,12 +246,10 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
           .notNull()
 
         table
-          .column(BookmarkRecord.Columns.relative.name, .blob)
+          .column(BookmarkRecord.Columns.relative.name, .integer)
           .references(BookmarkRecord.databaseTableName)
       }
-    }
 
-    try Self.creatingSchema(context: &context) {
       try db.create(table: ImageRecord.databaseTableName) { table in
         table.primaryKey(Column.rowID.name, .integer)
 
@@ -287,9 +263,7 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
           .unique()
           .notNull()
       }
-    }
 
-    try Self.creatingSchema(context: &context) {
       try db.create(table: ImagesImageRecord.databaseTableName) { table in
         table.primaryKey(Column.rowID.name, .integer)
 
@@ -302,9 +276,7 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
           .column(ImagesImageRecord.Columns.source.name, .text)
           .notNull()
       }
-    }
 
-    try Self.creatingSchema(context: &context) {
       try db.create(table: ImagesBookmarkRecord.databaseTableName) { table in
         table.primaryKey(Column.rowID.name, .integer)
 
@@ -313,9 +285,7 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
           .notNull()
           .references(BookmarkRecord.databaseTableName)
       }
-    }
 
-    try Self.creatingSchema(context: &context) {
       try db.create(table: ImagesItemRecord.databaseTableName) { table in
         table.primaryKey(Column.rowID.name, .integer)
 
@@ -344,9 +314,7 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
           .column(ImagesItemRecord.Columns.bookmark.name, .integer)
           .references(ImagesBookmarkRecord.databaseTableName)
       }
-    }
 
-    try Self.creatingSchema(context: &context) {
       try db.create(table: ImagesRecord.databaseTableName) { table in
         table.primaryKey(Column.rowID.name, .integer)
 
@@ -359,45 +327,82 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
           .column(ImagesRecord.Columns.item.name, .integer)
           .references(ImagesItemRecord.databaseTableName)
       }
-    }
 
-    try Self.creatingSchema(context: &context) {
-      try db.create(table: CopyingRecord.databaseTableName) { table in
+      try db.create(table: FolderRecord.databaseTableName) { table in
         table.primaryKey(Column.rowID.name, .integer)
 
         table
-          .column(CopyingRecord.Columns.id.name, .blob)
+          .column(FolderRecord.Columns.id.name, .blob)
           .notNull()
           .unique()
 
         table
-          .column(CopyingRecord.Columns.bookmark.name, .integer)
+          .column(FolderRecord.Columns.bookmark.name, .integer)
           .notNull()
           .unique()
           .references(BookmarkRecord.databaseTableName)
 
         table
-          .column(CopyingRecord.Columns.url.name, .text)
+          .column(FolderRecord.Columns.url.name, .text)
           .notNull()
       }
-    }
 
-    try Self.creatingSchema(context: &context) {
       try db.alter(table: ImagesItemRecord.databaseTableName) { table in
         table
           .add(column: ImagesItemRecord.Columns.images.name, .integer)
           .notNull()
           .references(ImagesRecord.databaseTableName)
       }
-    }
 
-    try Self.creatingSchema(context: &context) {
       try db.create(
         index: "image_collection_items_on_priority_and_image_collection",
         on: ImagesItemRecord.databaseTableName,
         columns: [ImagesItemRecord.Columns.priority.name, ImagesItemRecord.Columns.images.name]
       )
+
+      try db.execute(
+        sql: """
+        CREATE TRIGGER remove_orphaned_images_from_image_collection_images
+        AFTER DELETE ON \(ImagesImageRecord.databaseTableName)
+        BEGIN
+          DELETE FROM \(ImageRecord.databaseTableName) WHERE \(ImageRecord.databaseTableName).\(Column.rowID.name) = OLD.\(ImagesImageRecord.Columns.image.name);
+        END
+        """
+      )
+
+      try db.execute(
+        sql: """
+        CREATE TRIGGER remove_orphaned_bookmarks_from_image_collection_bookmarks
+        AFTER DELETE ON \(ImagesBookmarkRecord.databaseTableName)
+        WHEN NOT EXISTS (SELECT 1 FROM \(FolderRecord.databaseTableName) WHERE \(FolderRecord.databaseTableName).\(FolderRecord.Columns.bookmark.name) = OLD.\(ImagesBookmarkRecord.Columns.bookmark.name))
+        BEGIN
+          DELETE FROM \(BookmarkRecord.databaseTableName)
+          WHERE \(BookmarkRecord.databaseTableName).\(Column.rowID.name) = OLD.\(ImagesBookmarkRecord.Columns.bookmark.name);
+        END
+        """
+      )
+
+      try db.execute(
+        sql: """
+        CREATE TRIGGER remove_orphaned_bookmarks_from_folders
+        AFTER DELETE ON \(FolderRecord.databaseTableName)
+        WHEN NOT EXISTS (SELECT 1 FROM \(ImagesBookmarkRecord.databaseTableName) WHERE \(ImagesBookmarkRecord.databaseTableName).\(ImagesBookmarkRecord.Columns.bookmark.name) = OLD.\(FolderRecord.Columns.bookmark.name))
+        BEGIN
+          DELETE FROM \(BookmarkRecord.databaseTableName)
+          WHERE \(BookmarkRecord.databaseTableName).\(Column.rowID.name) = OLD.\(FolderRecord.Columns.bookmark.name);
+        END
+        """
+      )
     }
+
+    #if DEBUG
+    if try await connection.read(migrator.hasSchemaChanges) {
+      try await connection.erase()
+    }
+
+    #endif
+
+    try migrator.migrate(connection)
 
     // MARK: - Triggers
 
@@ -423,56 +428,6 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
 //        """
 //      )
 //    }
-
-    try Self.creatingSchema(context: &context) {
-      try db.execute(
-        sql: """
-        CREATE TRIGGER remove_orphaned_images_from_image_collection_images
-        AFTER DELETE ON \(ImagesImageRecord.databaseTableName)
-        BEGIN
-          DELETE FROM \(ImageRecord.databaseTableName) WHERE \(ImageRecord.databaseTableName).\(Column.rowID.name) = OLD.\(ImagesImageRecord.Columns.image.name);
-        END
-        """
-      )
-    }
-
-    try Self.creatingSchema(context: &context) {
-      let subQuery = """
-      SELECT 1 FROM \(CopyingRecord.databaseTableName)
-      WHERE \(CopyingRecord.databaseTableName).\(CopyingRecord.Columns.bookmark.name) = OLD.\(ImagesBookmarkRecord.Columns.bookmark.name)
-      """
-
-      try db.execute(
-        sql: """
-        CREATE TRIGGER remove_orphaned_bookmarks_from_image_collection_bookmarks
-        AFTER DELETE ON \(ImagesBookmarkRecord.databaseTableName)
-        WHEN NOT EXISTS (\(subQuery))
-        BEGIN
-          DELETE FROM \(BookmarkRecord.databaseTableName)
-          WHERE \(BookmarkRecord.databaseTableName).\(Column.rowID.name) = OLD.\(ImagesBookmarkRecord.Columns.bookmark.name);
-        END
-        """
-      )
-    }
-
-    try Self.creatingSchema(context: &context) {
-      let subQuery = """
-      SELECT 1 FROM \(ImagesBookmarkRecord.databaseTableName)
-      WHERE \(ImagesBookmarkRecord.databaseTableName).\(ImagesBookmarkRecord.Columns.bookmark.name) = OLD.\(CopyingRecord.Columns.bookmark.name)
-      """
-
-      try db.execute(
-        sql: """
-        CREATE TRIGGER remove_orphaned_bookmarks_from_copyings
-        AFTER DELETE ON \(CopyingRecord.databaseTableName)
-        WHEN NOT EXISTS (\(subQuery))
-        BEGIN
-          DELETE FROM \(BookmarkRecord.databaseTableName)
-          WHERE \(BookmarkRecord.databaseTableName).\(Column.rowID.name) = OLD.\(CopyingRecord.Columns.bookmark.name);
-        END
-        """
-      )
-    }
   }
 
   nonisolated public static func id(
@@ -537,8 +492,8 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
     try item.update(db, columns: [ImagesItemRecord.Columns.isBookmarked])
   }
 
-  nonisolated static func createCopying(_ db: Database, id: UUID, bookmark: RowID, url: URL?) throws -> CopyingRecord {
-    var copying = CopyingRecord(id: id, bookmark: bookmark, url: url)
+  nonisolated static func createCopying(_ db: Database, id: UUID, bookmark: RowID, url: URL?) throws -> FolderRecord {
+    var copying = FolderRecord(id: id, bookmark: bookmark, url: url)
     try copying.insert(db)
 
     return copying
@@ -554,7 +509,7 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
   }
 
   nonisolated static func deleteCopying(_ db: Database, rowID: RowID) throws -> Bool {
-    let copying = CopyingRecord(rowID: rowID, id: nil, bookmark: nil, url: nil)
+    let copying = FolderRecord(rowID: rowID, id: nil, bookmark: nil, url: nil)
 
     return try copying.delete(db)
   }

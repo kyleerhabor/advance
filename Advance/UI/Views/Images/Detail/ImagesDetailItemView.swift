@@ -136,10 +136,10 @@ struct ImagesDetailItemView: View {
   @Environment(\.localize) private var localize
   @Environment(\.openURL) private var openURL
   @AppStorage(StorageKeys.searchUseSystemDefault) private var searchUseSystemDefault
-  @AppStorage(StorageKeys.copyingResolveConflicts) private var copyingResolveConflicts
-  @AppStorage(StorageKeys.copyingConflictFormat) private var copyingConflictFormat
-  @AppStorage(StorageKeys.copyingConflictSeparator) private var copyingConflictSeparator
-  @AppStorage(StorageKeys.copyingConflictDirection) private var copyingConflictDirection
+  @AppStorage(StorageKeys.foldersResolveConflicts) private var copyingResolveConflicts
+  @AppStorage(StorageKeys.foldersConflictFormat) private var copyingConflictFormat
+  @AppStorage(StorageKeys.foldersConflictSeparator) private var copyingConflictSeparator
+  @AppStorage(StorageKeys.foldersConflictDirection) private var copyingConflictDirection
   @State private var selectedText = ""
   @State private var isCopyingFileImporterPresented = false
   @State private var isCopyingErrorAlertPresented = false
@@ -171,7 +171,7 @@ struct ImagesDetailItemView: View {
       )
     }
     .id(item.id)
-    .fileImporter(isPresented: $isCopyingFileImporterPresented, allowedContentTypes: copyingContentTypes) { result in
+    .fileImporter(isPresented: $isCopyingFileImporterPresented, allowedContentTypes: foldersContentTypes) { result in
       let url: URL
 
       switch result {
@@ -194,7 +194,7 @@ struct ImagesDetailItemView: View {
         }
       }
     }
-    .fileDialogCustomizationID(NSUserInterfaceItemIdentifier.copyingOpen.rawValue)
+    .fileDialogCustomizationID(NSUserInterfaceItemIdentifier.foldersOpen.rawValue)
     .fileDialogConfirmationLabel(Text("Copy"))
     .contextMenu {
       Section {

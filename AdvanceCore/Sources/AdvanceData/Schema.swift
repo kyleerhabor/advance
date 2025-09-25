@@ -22,73 +22,6 @@ extension TableRecord {
   }
 }
 
-struct BookmarkRecord {
-  var rowID: RowID?
-  let data: Data
-  let options: URL.BookmarkCreationOptions
-  let hash: Data
-  let relative: RowID?
-}
-
-extension BookmarkRecord {
-  init(rowID: RowID? = nil, data: Data, options: URL.BookmarkCreationOptions, relative: RowID?) {
-    self.init(
-      rowID: rowID,
-      data: data,
-      options: options,
-      hash: AdvanceData.hash(data: data),
-      relative: relative
-    )
-  }
-
-  init(rowID: RowID? = nil, bookmark: Bookmark, relative: RowID?) {
-    self.init(
-      rowID: rowID,
-      data: bookmark.data,
-      options: bookmark.options,
-      relative: relative
-    )
-  }
-}
-
-extension BookmarkRecord: FetchableRecord {}
-
-extension BookmarkRecord: Codable {
-  enum CodingKeys: String, CodingKey {
-    case rowID = "rowid",
-         data, options, hash, relative
-  }
-
-  enum Columns {
-    static let data = Column(CodingKeys.data)
-    static let options = Column(CodingKeys.options)
-    static let hash = Column(CodingKeys.hash)
-    static let relative = Column(CodingKeys.relative)
-  }
-}
-
-extension BookmarkRecord: MutablePersistableRecord {
-  mutating func didInsert(_ inserted: InsertionSuccess) {
-    rowID = inserted.rowID
-  }
-}
-
-extension BookmarkRecord: TableRecord {
-  static let databaseTableName = "bookmarks"
-
-  static var databaseSelection: [SQLSelectable] {
-    Self.everyColumn
-  }
-
-  static var relativeAssociation: BelongsToAssociation<Self, Self> {
-    self.belongsTo(Self.self, using: ForeignKey([Columns.relative]))
-  }
-
-  var relativeRequest: QueryInterfaceRequest<Self> {
-    self.request(for: Self.relativeAssociation)
-  }
-}
-
 // MARK: - Images
 
 struct ImageRecord {
@@ -359,21 +292,105 @@ extension ImagesRecord: TableRecord {
   }
 }
 
-// MARK: - Copying
+// MARK: -
 
-struct CopyingRecord {
+struct BookmarkRecord {
+  var rowID: RowID?
+  let data: Data?
+  let options: URL.BookmarkCreationOptions?
+  let hash: Data?
+  let relative: RowID?
+}
+
+extension BookmarkRecord {
+  // TODO: Consider removing.
+
+  init(rowID: RowID? = nil, data: Data, options: URL.BookmarkCreationOptions, relative: RowID?) {
+    self.init(
+      rowID: rowID,
+      data: data,
+      options: options,
+      hash: AdvanceData.hash(data: data),
+      relative: relative
+    )
+  }
+
+  init(rowID: RowID? = nil, bookmark: Bookmark, relative: RowID?) {
+    self.init(
+      rowID: rowID,
+      data: bookmark.data,
+      options: bookmark.options,
+      relative: relative
+    )
+  }
+}
+
+extension BookmarkRecord: FetchableRecord {}
+
+extension BookmarkRecord: Codable {
+  enum CodingKeys: String, CodingKey {
+    case rowID = "rowid",
+         data, options, hash, relative
+  }
+
+  enum Columns {
+    static let data = Column(CodingKeys.data)
+    static let options = Column(CodingKeys.options)
+    static let hash = Column(CodingKeys.hash)
+    static let relative = Column(CodingKeys.relative)
+  }
+
+  init(from decoder: any Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+
+    self.init(
+      rowID: try container.decodeIfPresent(RowID.self, forKey: .rowID),
+      data: try container.decodeIfPresent(Data.self, forKey: .data),
+      options: try container.decodeIfPresent(URL.BookmarkCreationOptions.self, forKey: .options),
+      hash: try container.decodeIfPresent(Data.self, forKey: .hash),
+      relative: try container.decodeIfPresent(RowID.self, forKey: .relative),
+    )
+  }
+
+  func encode(to encoder: any Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(rowID, forKey: .rowID)
+    try container.encode(data, forKey: .data)
+    try container.encode(options, forKey: .options)
+    try container.encode(hash, forKey: .hash)
+    try container.encode(relative, forKey: .relative)
+  }
+}
+
+extension BookmarkRecord: MutablePersistableRecord {
+  mutating func didInsert(_ inserted: InsertionSuccess) {
+    rowID = inserted.rowID
+  }
+}
+
+extension BookmarkRecord: TableRecord {
+  static let databaseTableName = "bookmarks"
+
+  static var databaseSelection: [any SQLSelectable] {
+    Self.everyColumn
+  }
+
+  static var relativeAssociation: BelongsToAssociation<Self, Self> {
+    self.belongsTo(Self.self, using: ForeignKey([Columns.relative]))
+  }
+}
+
+struct FolderRecord {
   var rowID: RowID?
   let id: UUID?
   let bookmark: RowID?
   let url: URL?
 }
 
-extension CopyingRecord: Encodable {
+extension FolderRecord: Encodable {
   enum CodingKeys: String, CodingKey {
     case rowID = "rowid",
-         id,
-         bookmark,
-         url
+         id, bookmark, url
   }
 
   enum Columns {
@@ -383,24 +400,21 @@ extension CopyingRecord: Encodable {
   }
 }
 
-extension CopyingRecord: MutablePersistableRecord {
+extension FolderRecord: MutablePersistableRecord {
   mutating func didInsert(_ inserted: InsertionSuccess) {
     rowID = inserted.rowID
   }
 }
 
-extension CopyingRecord: TableRecord {
-  static let databaseTableName = "copyings"
+extension FolderRecord: TableRecord {
+  static let databaseTableName = "folders"
 
-  static var databaseSelection: [SQLSelectable] {
+  static var databaseSelection: [any SQLSelectable] {
     Self.everyColumn
   }
 
   static var bookmarkAssociation: BelongsToAssociation<Self, BookmarkRecord> {
     Self.belongsTo(BookmarkRecord.self, using: ForeignKey([Columns.bookmark]))
   }
-
-  var bookmarkRequest: QueryInterfaceRequest<BookmarkRecord> {
-    self.request(for: Self.bookmarkAssociation)
-  }
 }
+
