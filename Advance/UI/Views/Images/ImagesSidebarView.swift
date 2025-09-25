@@ -217,8 +217,6 @@ struct ImagesSidebarContentItemView: View {
 }
 
 struct ImagesSidebarContentView: View {
-  typealias Selection = Set<ImagesItemModel.ID>
-
   static let defaultScrollAnchor = UnitPoint.center
 
   @Environment(ImagesModel.self) private var images
@@ -230,12 +228,13 @@ struct ImagesSidebarContentView: View {
   @AppStorage(StorageKeys.foldersConflictDirection) private var copyingConflictDirection
   @SceneStorage(StorageKeys.columnVisibility) private var columnVisibility
   @FocusState private var isFocused: Bool
-  @State private var selection = Selection()
-  @State private var copyingSelection = Selection()
+  @State private var selection = Set<ImagesItemModel.ID>()
+  @State private var copyingSelection = Set<ImagesItemModel.ID>()
   @State private var isCopyingFileImporterPresented = false
   @State private var isCopyingErrorAlertPresented = false
   @State private var copyingError: CocoaError?
-  private var selected: Binding<Selection> {
+  // TODO: Replace.
+  private var selected: Binding<Set<ImagesItemModel.ID>> {
     Binding {
       selection
     } set: { selection in
@@ -392,7 +391,7 @@ struct ImagesSidebarContentView: View {
     }
   }
 
-  private func showFinder(forSelection selection: Selection) {
+  private func showFinder(forSelection selection: Set<ImagesItemModel.ID>) {
     let urls = images.items
       .filter(in: selection, by: \.id)
       .compactMap(\.source.url)

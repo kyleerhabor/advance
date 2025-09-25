@@ -27,7 +27,7 @@ struct AdvanceApp: App {
 
   init() {
     let search = search
-    let copying = folders
+    let folders = folders
 
     Task {
       await search.load()
@@ -35,7 +35,7 @@ struct AdvanceApp: App {
 
     Task {
       do {
-        try await copying.load()
+        try await folders.load()
       } catch {
         Logger.model.error("\(error)")
       }

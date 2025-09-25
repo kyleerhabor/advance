@@ -20,7 +20,7 @@ Advance is an app for reading images. It borrows heavily from Preview for its in
 - Support for Live Text
 - Bookmarking
 - Visibility controls to hide elements when scrolling
-- Copying:
+- Folders:
   - Copy images as-is to select folders in a single action
   - No Finder dialog, no file conflicts; just copy
 - Fast:

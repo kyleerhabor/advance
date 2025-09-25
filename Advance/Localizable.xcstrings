@@ -577,77 +577,7 @@
         }
       }
     },
-    "Settings.Extra.CopyingDirection.Use" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Use"
-          }
-        }
-      }
-    },
-    "Settings.Extra.CopyingDirection.Use.Leading" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Leading"
-          }
-        }
-      }
-    },
-    "Settings.Extra.CopyingDirection.Use.Trailing" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Trailing"
-          }
-        }
-      }
-    },
-    "Settings.Extra.CopyingExample" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Example:"
-          }
-        }
-      }
-    },
-    "Settings.Extra.CopyingFilename" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Destination Filename:"
-          }
-        }
-      }
-    },
-    "Settings.Extra.CopyingFilename.Token.Name" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Name"
-          }
-        }
-      }
-    },
-    "Settings.Extra.CopyingFilename.Token.Path" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Path"
-          }
-        }
-      }
-    },
-    "Settings.Extra.CopyingPathDirection" : {
+    "Settings.Extra.FoldersDirection" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -657,17 +587,7 @@
         }
       }
     },
-    "Settings.Extra.CopyingPathSeparator" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Path Separator:"
-          }
-        }
-      }
-    },
-    "Settings.Extra.CopyingPathSeparator.Use" : {
+    "Settings.Extra.FoldersDirection.Use" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -677,7 +597,87 @@
         }
       }
     },
-    "Settings.Extra.CopyingSeparator.Use.%@" : {
+    "Settings.Extra.FoldersDirection.Use.Leading" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leading"
+          }
+        }
+      }
+    },
+    "Settings.Extra.FoldersDirection.Use.Trailing" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trailing"
+          }
+        }
+      }
+    },
+    "Settings.Extra.FoldersExample" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Example:"
+          }
+        }
+      }
+    },
+    "Settings.Extra.FoldersName" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folder Item Name:"
+          }
+        }
+      }
+    },
+    "Settings.Extra.FoldersName.Token.Name" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name"
+          }
+        }
+      }
+    },
+    "Settings.Extra.FoldersName.Token.Path" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Path"
+          }
+        }
+      }
+    },
+    "Settings.Extra.FoldersSeparator" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Path Separator:"
+          }
+        }
+      }
+    },
+    "Settings.Extra.FoldersSeparator.Use" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use"
+          }
+        }
+      }
+    },
+    "Settings.Extra.FoldersSeparator.Use.%@" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {

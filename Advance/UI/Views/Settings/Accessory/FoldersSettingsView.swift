@@ -101,10 +101,10 @@ struct FoldersSettingsView: View {
       // TODO: Localize.
       .fileDialogConfirmationLabel(Text("Add"))
     }
-    .focusedSceneValue(\.windowOpen, AppMenuActionItem(identity: .copying, enabled: true) {
+    .focusedSceneValue(\.windowOpen, AppMenuActionItem(identity: .folders, enabled: true) {
       isFileImporterPresented = true
     })
-    .focusedSceneValue(\.finderShow, AppMenuActionItem(identity: .copying(selection), enabled: !selection.isEmpty) {
+    .focusedSceneValue(\.finderShow, AppMenuActionItem(identity: .folders(selection), enabled: !selection.isEmpty) {
       let urls = folders.items
         .filter(in: selection, by: \.id)
         .map(\.data.source.url)

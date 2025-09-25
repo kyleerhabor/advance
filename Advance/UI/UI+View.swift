@@ -625,7 +625,7 @@ extension EnvironmentValues {
 
 enum WindowOpen {
   case images(ImagesModel.ID),
-       copying
+       folders
 }
 
 extension WindowOpen: Equatable {}
@@ -633,7 +633,7 @@ extension WindowOpen: Equatable {}
 enum FinderShow {
   case unknown,
        images(Set<ImagesItemModel.ID>),
-       copying(Set<FoldersSettingsItem.ID>)
+       folders(Set<FoldersSettingsItem.ID>)
 }
 
 extension FinderShow: Equatable {}
@@ -673,7 +673,7 @@ extension KeyboardShortcut {
   static let windowResetSize = Self("r", modifiers: [.command, .control])
 
   static let searchSettings = Self("2", modifiers: .command)
-  static let copyingSettings = Self("3", modifiers: .command)
+  static let foldersSettings = Self("3", modifiers: .command)
 }
 
 extension NSUserInterfaceItemIdentifier {

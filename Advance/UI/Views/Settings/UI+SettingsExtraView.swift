@@ -29,7 +29,7 @@ struct SettingsExtraView2: View {
   
   var body: some View {
     Form {
-      LabeledContent("Settings.Extra.CopyingFilename") {
+      LabeledContent("Settings.Extra.FoldersName") {
         HStack(alignment: .firstTextBaseline) {
           TokenFieldView(
             prompt: nil,
@@ -62,8 +62,8 @@ struct SettingsExtraView2: View {
         }
       }
 
-      LabeledContent("Settings.Extra.CopyingPathSeparator") {
-        Picker("Settings.Extra.CopyingPathSeparator.Use", selection: $copyingConflictSeparator) {
+      LabeledContent("Settings.Extra.FoldersSeparator") {
+        Picker("Settings.Extra.FoldersSeparator.Use", selection: $copyingConflictSeparator) {
           let separators: [StorageFoldersSeparator] = [
             .singlePointingAngleQuotationMark,
             .blackPointingSmallTriangle,
@@ -74,7 +74,7 @@ struct SettingsExtraView2: View {
           ForEach(separators, id: \.self) { separator in
             let node = separator.separator.separator(direction: copyingConflictDirection)
 
-            Text("Settings.Extra.CopyingSeparator.Use.\(String(node))")
+            Text("Settings.Extra.FoldersSeparator.Use.\(String(node))")
               .tag(separator, includeOptional: false)
           }
         }
@@ -83,12 +83,12 @@ struct SettingsExtraView2: View {
         .horizontalRadioGroupLayout()
       }
 
-      LabeledContent("Settings.Extra.CopyingPathDirection") {
-        Picker("Settings.Extra.CopyingDirection.Use", selection: $copyingConflictDirection) {
-          Text("Settings.Extra.CopyingDirection.Use.Leading")
+      LabeledContent("Settings.Extra.FoldersDirection") {
+        Picker("Settings.Extra.FoldersDirection.Use", selection: $copyingConflictDirection) {
+          Text("Settings.Extra.FoldersDirection.Use.Leading")
             .tag(StorageDirection.leftToRight, includeOptional: false)
 
-          Text("Settings.Extra.CopyingDirection.Use.Trailing")
+          Text("Settings.Extra.FoldersDirection.Use.Trailing")
             .tag(StorageDirection.rightToLeft, includeOptional: false)
         }
         .pickerStyle(.inline)
@@ -99,6 +99,7 @@ struct SettingsExtraView2: View {
       Divider()
 
       HStack(alignment: .firstTextBaseline, spacing: 4) {
+        // TODO: Don't compute this in view body.
         let wallpaper = windowed.window?.screen.flatMap { screen in
           // As of macOS Sonoma 14.6.1, this does not prompt. Hopefully, it remains that way.
           //
@@ -122,7 +123,7 @@ struct SettingsExtraView2: View {
           format: copyingConflictFormat
         )
 
-        Text("Settings.Extra.CopyingExample")
+        Text("Settings.Extra.FoldersExample")
           .fontWeight(.regular)
           .foregroundStyle(.secondary)
 
@@ -157,8 +158,8 @@ struct SettingsExtraView2: View {
 
   private func title(for token: String) -> String {
     switch token {
-      case FoldersSettingsModel.nameKeyword: localize("Settings.Extra.CopyingFilename.Token.Name")
-      case FoldersSettingsModel.pathKeyword: localize("Settings.Extra.CopyingFilename.Token.Path")
+      case FoldersSettingsModel.nameKeyword: localize("Settings.Extra.FoldersName.Token.Name")
+      case FoldersSettingsModel.pathKeyword: localize("Settings.Extra.FoldersName.Token.Path")
       default: fatalError()
     }
   }

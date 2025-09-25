@@ -17,6 +17,6 @@ struct FoldersSettingsScene: Scene {
     }
     .windowToolbarStyle(.unifiedCompact)
     .windowResizability(.contentSize)
-    .keyboardShortcut(.copyingSettings)
+    .keyboardShortcut(.foldersSettings)
   }
 }

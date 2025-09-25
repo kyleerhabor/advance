@@ -144,6 +144,7 @@ struct ImagesDetailItemView: View {
   @State private var isCopyingFileImporterPresented = false
   @State private var isCopyingErrorAlertPresented = false
   @State private var copyingError: CocoaError?
+  // TODO: Replace.
   private var isBookmarked: Binding<Bool> {
     Binding {
       item.isBookmarked
