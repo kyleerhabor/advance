@@ -22,8 +22,6 @@ extension TableRecord {
   }
 }
 
-// MARK: - Images
-
 struct ImageRecord {
   var rowID: RowID?
   let data: Data
@@ -160,7 +158,6 @@ extension ImagesItemType: Codable {}
 struct ImagesItemRecord {
   var rowID: RowID?
   let id: UUID?
-  let images: RowID?
   let priority: Int?
   let isBookmarked: Bool?
   let type: ImagesItemType?
@@ -170,7 +167,6 @@ struct ImagesItemRecord {
   init(
     rowID: RowID? = nil,
     id: UUID?,
-    images: RowID?,
     priority: Int?,
     isBookmarked: Bool?,
     type: ImagesItemType?,
@@ -179,7 +175,6 @@ struct ImagesItemRecord {
   ) {
     self.rowID = rowID
     self.id = id
-    self.images = images
     self.priority = priority
     self.isBookmarked = isBookmarked
     self.type = type
@@ -194,7 +189,6 @@ extension ImagesItemRecord: Codable {
   enum CodingKeys: String, CodingKey {
     case rowID = "rowid",
          id,
-         images = "collection",
          priority,
          isBookmarked = "is_bookmarked",
          type, image, bookmark
@@ -202,7 +196,6 @@ extension ImagesItemRecord: Codable {
 
   enum Columns {
     static let id = Column(CodingKeys.id)
-    static let images = Column(CodingKeys.images)
     static let priority = Column(CodingKeys.priority)
     static let isBookmarked = Column(CodingKeys.isBookmarked)
     static let type = Column(CodingKeys.type)
@@ -230,14 +223,6 @@ extension ImagesItemRecord: TableRecord {
 
   static var bookmarkAssociation: BelongsToAssociation<Self, ImagesBookmarkRecord> {
     Self.belongsTo(ImagesBookmarkRecord.self, using: ForeignKey([Columns.bookmark]))
-  }
-
-  var imageRequest: QueryInterfaceRequest<ImagesImageRecord> {
-    self.request(for: Self.imageAssociation)
-  }
-
-  var bookmarkRequest: QueryInterfaceRequest<ImagesBookmarkRecord> {
-    self.request(for: Self.bookmarkAssociation)
   }
 }
 
@@ -275,22 +260,55 @@ extension ImagesRecord: TableRecord {
     Self.everyColumn
   }
 
-  static var itemsAssociation: HasManyAssociation<Self, ImagesItemRecord> {
-    Self.hasMany(ImagesItemRecord.self, using: ForeignKey([ImagesItemRecord.Columns.images]))
+  static var itemImages: HasManyAssociation<Self, ItemImagesRecord> {
+    Self.hasMany(ItemImagesRecord.self, using: ForeignKey([ItemImagesRecord.Columns.images]))
   }
 
-  var itemsRequest: QueryInterfaceRequest<ImagesItemRecord> {
-    self.request(for: Self.itemsAssociation)
+  static var items: HasManyThroughAssociation<Self, ImagesItemRecord> {
+    Self.hasMany(ImagesItemRecord.self, through: itemImages, using: ItemImagesRecord.item)
   }
 
   static var itemAssociation: BelongsToAssociation<Self, ImagesItemRecord> {
     Self.belongsTo(ImagesItemRecord.self, using: ForeignKey([Columns.item]))
   }
+}
 
-  var itemRequest: QueryInterfaceRequest<ImagesItemRecord> {
-    self.request(for: Self.itemAssociation)
+struct ItemImagesRecord {
+  var rowID: RowID?
+  let images: RowID?
+  let item: RowID?
+}
+
+extension ItemImagesRecord: Encodable {
+  enum CodingKeys: String, CodingKey {
+    case rowID = "rowid",
+         images, item
+  }
+
+  enum Columns {
+    static let images = Column(CodingKeys.images)
+    static let item = Column(CodingKeys.item)
   }
 }
+
+extension ItemImagesRecord: MutablePersistableRecord {
+  mutating func didInsert(_ inserted: InsertionSuccess) {
+    rowID = inserted.rowID
+  }
+}
+
+extension ItemImagesRecord: TableRecord {
+  static let databaseTableName = "item_image_collections"
+
+  static var databaseSelection: [any SQLSelectable] {
+    Self.everyColumn
+  }
+
+  static var item: BelongsToAssociation<Self, ImagesItemRecord> {
+    Self.belongsTo(ImagesItemRecord.self, using: ForeignKey([Columns.item]))
+  }
+}
+
 
 // MARK: -
 
@@ -417,4 +435,3 @@ extension FolderRecord: TableRecord {
     Self.belongsTo(BookmarkRecord.self, using: ForeignKey([Columns.bookmark]))
   }
 }
-

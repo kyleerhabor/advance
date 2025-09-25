@@ -137,18 +137,11 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
 
   nonisolated public func track(itemsForImages: ImagesInfo) -> AsyncValueObservation<ImagesItemsTrackerResponse?> {
     let record = ImagesRecord.filter(key: itemsForImages.rowID)
-    let observation = ValueObservation.tracking(regions: [
-      record
-        .select(ImagesRecord.Columns.id)
-        .including(
-          all: ImagesRecord.itemsAssociation
-            .select(ImagesItemRecord.Columns.id, ImagesItemRecord.Columns.isBookmarked)
-        )
-    ]) { db in
+    let observation = ValueObservation.trackingConstantRegion { db in
       try record
         .select(Column.rowID)
         .including(
-          all: ImagesRecord.itemsAssociation
+          all: ImagesRecord.items
             .forKey(ImagesItemsTrackerResponse.CodingKeys.items)
             .select(Column.rowID, ImagesItemRecord.Columns.id, ImagesItemRecord.Columns.isBookmarked, ImagesItemRecord.Columns.type)
             .order(ImagesItemRecord.Columns.priority)
@@ -328,6 +321,21 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
           .references(ImagesItemRecord.databaseTableName)
       }
 
+      try db.create(table: ItemImagesRecord.databaseTableName) { table in
+        table.primaryKey(Column.rowID.name, .integer)
+        table
+          .column(ItemImagesRecord.Columns.images.name, .integer)
+          .notNull()
+          .references(ImagesRecord.databaseTableName)
+          .indexed()
+
+        table
+          .column(ItemImagesRecord.Columns.item.name, .integer)
+          .notNull()
+          .unique()
+          .references(ImagesItemRecord.databaseTableName)
+      }
+
       try db.create(table: FolderRecord.databaseTableName) { table in
         table.primaryKey(Column.rowID.name, .integer)
 
@@ -346,19 +354,6 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
           .column(FolderRecord.Columns.url.name, .text)
           .notNull()
       }
-
-      try db.alter(table: ImagesItemRecord.databaseTableName) { table in
-        table
-          .add(column: ImagesItemRecord.Columns.images.name, .integer)
-          .notNull()
-          .references(ImagesRecord.databaseTableName)
-      }
-
-      try db.create(
-        index: "image_collection_items_on_priority_and_image_collection",
-        on: ImagesItemRecord.databaseTableName,
-        columns: [ImagesItemRecord.Columns.priority.name, ImagesItemRecord.Columns.images.name]
-      )
 
       try db.execute(
         sql: """
@@ -487,8 +482,20 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
   // TODO: Refactor.
   //
   // Creating a method for each column to update will get unwieldly real quick.
-  nonisolated public static func saveImagesItem(_ db: Database, item: ImagesItemInfo, isBookmarked: Bool) throws {
-    let item = ImagesItemRecord(rowID: item.rowID, id: nil, images: nil, priority: nil, isBookmarked: isBookmarked, type: nil)
+  nonisolated public static func saveImagesItem(
+    _ db: Database,
+    item: ImagesItemInfo,
+    isBookmarked: Bool,
+  ) throws {
+    let item = ImagesItemRecord(
+      rowID: item.rowID,
+      id: nil,
+      priority: nil,
+      isBookmarked: isBookmarked,
+      type: nil,
+      image: nil,
+    )
+
     try item.update(db, columns: [ImagesItemRecord.Columns.isBookmarked])
   }
 
@@ -518,6 +525,17 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
     try deleteCopying(db, rowID: copying.rowID)
   }
 
+  nonisolated static func insertItemImages(
+    _ db: Database,
+    images: RowID,
+    item: RowID,
+  ) throws -> ItemImagesRecord {
+    var itemImages = ItemImagesRecord(rowID: nil, images: images, item: item)
+    try itemImages.insert(db)
+
+    return itemImages
+  }
+
   // MARK: - Old
 
   nonisolated static func submitImagesBookmark(_ db: Database, bookmark: RowID) throws -> ImagesBookmarkRecord {
@@ -529,7 +547,6 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
   nonisolated static func submitImagesItem(
     _ db: Database,
     id: UUID,
-    images: RowID,
     priority: Int,
     isBookmarked: Bool,
     type: ImagesItemType,
@@ -537,7 +554,6 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
   ) throws -> ImagesItemRecord {
     let image = ImagesItemRecord(
       id: id,
-      images: images,
       priority: priority,
       isBookmarked: isBookmarked,
       type: type,
@@ -560,7 +576,6 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
   nonisolated static func submit(
     _ db: Database,
     id: UUID,
-    images: RowID,
     priority: Int,
     isBookmarked: Bool,
     bookmark: RowID
@@ -569,7 +584,6 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
     let item = try submitImagesItem(
       db,
       id: id,
-      images: images,
       priority: priority,
       isBookmarked: isBookmarked,
       type: .bookmark,
@@ -590,7 +604,8 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
     switch bookmark {
       case .source(let bookmark):
         let bookmark: BookmarkRecord = try Self.createBookmark(db, bookmark: bookmark, relative: nil)
-        let item = try Self.submit(db, id: UUID(), images: images, priority: priority.incremented(), isBookmarked: false, bookmark: bookmark.rowID!)
+        let item = try Self.submit(db, id: UUID(), priority: priority.incremented(), isBookmarked: false, bookmark: bookmark.rowID!)
+        _ = try Self.insertItemImages(db, images: images, item: item.rowID!)
 
         data = [(bookmark: BookmarkInfo(record: bookmark), item: ImagesItemInfo(item: item))]
       case .document(let document):
@@ -600,11 +615,12 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
           let item = try Self.submit(
             db,
             id: UUID(),
-            images: images,
             priority: (partialResult.last?.item?.priority ?? priority).incremented(),
             isBookmarked: false,
             bookmark: bookmark.rowID!
           )
+
+          _ = try Self.insertItemImages(db, images: images, item: item.rowID!)
 
           partialResult.append((bookmark: BookmarkInfo(record: bookmark), item: ImagesItemInfo(item: item)))
         }
