@@ -5,6 +5,7 @@
 //  Created by Kyle Erhabor on 6/14/24.
 //
 
+import BigDecimal
 import Foundation
 import OSLog
 
@@ -13,9 +14,9 @@ extension URL {
     let accessing = self.startAccessingSecurityScopedResource()
 
     if accessing {
-      Logger.sandbox.debug("Started security scope for URL \"\(self.pathString)\"")
+      Logger.sandbox.debug("Started security scope for URL '\(self.pathString)'")
     } else {
-      Logger.sandbox.info("Tried to start security scope for URL \"\(self.pathString)\", but scope was inaccessible")
+      Logger.sandbox.log("Could not start security scope for URL '\(self.pathString)'")
     }
 
     return accessing
@@ -24,15 +25,23 @@ extension URL {
   public func endSecurityScope() {
     self.stopAccessingSecurityScopedResource()
 
-    Logger.sandbox.debug("Ended security scope for URL \"\(self.pathString)\"")
+    Logger.sandbox.debug("Ended security scope for URL '\(self.pathString)'")
   }
 }
 
-extension URL.BookmarkCreationOptions {
-  public static let withReadOnlySecurityScope = Self([.withSecurityScope, .securityScopeAllowOnlyReadAccess])
-}
+extension URL.BookmarkResolutionOptions {
+  public init(_ options: URL.BookmarkCreationOptions) {
+    self.init()
 
-extension URL.BookmarkCreationOptions: Codable {}
+    if options.contains(.withSecurityScope) {
+      self.insert(.withSecurityScope)
+    }
+
+    if options.contains(.withoutImplicitSecurityScope) {
+      self.insert(.withoutImplicitStartAccessing)
+    }
+  }
+}
 
 public protocol SecurityScopedResource {
   associatedtype Scope
@@ -43,7 +52,7 @@ public protocol SecurityScopedResource {
 }
 
 extension SecurityScopedResource {
-  public func accessingSecurityScopedResource<T, Failure>(_ body: () throws(Failure) -> T) throws(Failure) -> T {
+  public func accessingSecurityScopedResource<R, E>(_ body: () throws(E) -> R) throws(E) -> R {
     let scope = startSecurityScope()
 
     defer {
@@ -53,9 +62,9 @@ extension SecurityScopedResource {
     return try body()
   }
 
-  public func accessingSecurityScopedResource<T, Failure>(
-    _ body: @isolated(any) () async throws(Failure) -> T
-  ) async throws(Failure) -> T where T: Sendable {
+  public func accessingSecurityScopedResource<Result, E>(
+    _ body: @isolated(any) () async throws(E) -> Result
+  ) async throws(E) -> Result where Result: Sendable {
     let scope = startSecurityScope()
 
     defer {
@@ -86,6 +95,8 @@ public struct URLSource {
   }
 }
 
+extension URLSource: Sendable, Equatable {}
+
 extension URLSource: SecurityScopedResource {
   public func startSecurityScope() -> Bool {
     options.contains(.withSecurityScope) && url.startSecurityScope()
@@ -95,8 +106,6 @@ extension URLSource: SecurityScopedResource {
     url.endSecurityScope(scope)
   }
 }
-
-extension URLSource: Sendable {}
 
 public struct URLSourceDocument {
   public let source: URLSource
@@ -132,13 +141,42 @@ extension URLSourceDocument: SecurityScopedResource {
   }
 }
 
+extension Optional: SecurityScopedResource where Wrapped: SecurityScopedResource {
+  public func startSecurityScope() -> Wrapped.Scope? {
+    self?.startSecurityScope()
+  }
+
+  public func endSecurityScope(_ scope: Wrapped.Scope?) {
+    guard let scope else {
+      return
+    }
+
+    self?.endSecurityScope(scope)
+  }
+}
+
 extension KeyedEncodingContainer {
+  mutating func encode(_ value: URL.BookmarkCreationOptions, forKey key: KeyedEncodingContainer<K>.Key) throws {
+    try self.encode(value.rawValue, forKey: key)
+  }
+
   public mutating func encode(_ value: URL.BookmarkCreationOptions?, forKey key: KeyedEncodingContainer<K>.Key) throws {
     try self.encode(value?.rawValue, forKey: key)
+  }
+
+  public mutating func encodeBigDecimal(_ value: BigDecimal?, forKey key: KeyedEncodingContainer<K>.Key) throws {
+    try self.encode(value?.asData(), forKey: key)
   }
 }
 
 extension KeyedDecodingContainer {
+  func decode(
+    _ type: URL.BookmarkCreationOptions.Type,
+    forKey key: KeyedDecodingContainer<K>.Key,
+  ) throws -> URL.BookmarkCreationOptions {
+    URL.BookmarkCreationOptions(rawValue: try self.decode(URL.BookmarkCreationOptions.RawValue.self, forKey: key))
+  }
+
   public func decodeIfPresent(
     _ type: URL.BookmarkCreationOptions.Type,
     forKey key: KeyedDecodingContainer<K>.Key,
@@ -148,6 +186,17 @@ extension KeyedDecodingContainer {
     }
 
     return URL.BookmarkCreationOptions(rawValue: rawValue)
+  }
+
+  public func decodeIfPresent(
+    _ type: BigDecimal.Type,
+    forKey key: KeyedDecodingContainer<K>.Key,
+  ) throws -> BigDecimal? {
+    guard let data = try self.decodeIfPresent(Data.self, forKey: key) else {
+      return nil
+    }
+
+    return BigDecimal(data)
   }
 }
 
@@ -159,31 +208,45 @@ public struct Bookmark {
     self.data = data
     self.options = options
   }
-}
 
-extension Bookmark {
   public init(url: URL, options: URL.BookmarkCreationOptions, relativeTo relative: URL?) throws {
     self.init(
-      data: try url.bookmark(options: options, relativeTo: relative),
+      data: try url.bookmarkData(options: options, relativeTo: relative),
       options: options
     )
   }
 }
 
-extension Bookmark: Sendable, Codable {}
+extension Bookmark: Sendable {}
 
-public struct ResolvedBookmark {
-  public let url: URL
-  public let isStale: Bool
+extension Bookmark: Codable {
+  enum CodingKeys: CodingKey {
+    case data, options
+  }
 
-  public init(url: URL, isStale: Bool) {
-    self.url = url
-    self.isStale = isStale
+  public init(from decoder: any Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+
+    self.init(
+      data: try container.decode(Data.self, forKey: .data),
+      options: try container.decode(URL.BookmarkCreationOptions.self, forKey: .options),
+    )
+  }
+
+  public func encode(to encoder: any Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(data, forKey: .data)
+    try container.encode(options, forKey: .options)
   }
 }
 
+struct ResolvedBookmark {
+  let url: URL
+  let isStale: Bool
+}
+
 extension ResolvedBookmark {
-  public init(data: Data, options: URL.BookmarkResolutionOptions, relativeTo relative: URL?) throws {
+  init(data: Data, options: URL.BookmarkResolutionOptions, relativeTo relative: URL?) throws {
     var isStale = false
 
     self.url = try URL(resolvingBookmarkData: data, options: options, relativeTo: relative, bookmarkDataIsStale: &isStale)
@@ -202,20 +265,18 @@ public struct AssignedBookmark {
     self.url = url
     self.data = data
   }
-}
 
-extension AssignedBookmark {
   public init(
     data: Data,
     options: URL.BookmarkResolutionOptions,
     relativeTo relative: URL?,
-    creating create: (URL) throws -> Data
+    create: (URL) throws -> Data,
   ) throws {
     var data = data
     let resolved = try ResolvedBookmark(data: data, options: options, relativeTo: relative)
 
     if resolved.isStale {
-      Logger.sandbox.info("Bookmark for URL \"\(resolved.url.pathString)\" is stale; recreating...")
+      Logger.sandbox.log("Bookmark for URL '\(resolved.url.pathString)' is stale: re-creating...")
 
       data = try create(resolved.url)
     }
@@ -225,8 +286,6 @@ extension AssignedBookmark {
 }
 
 extension AssignedBookmark: Sendable {}
-
-// MARK: - Convenience
 
 public struct URLBookmark {
   public let url: URL
@@ -242,7 +301,7 @@ extension URLBookmark {
   public init(url: URL, options: URL.BookmarkCreationOptions, relativeTo relative: URL?) throws {
     self.init(
       url: url,
-      bookmark: try Bookmark(url: url, options: options, relativeTo: relative)
+      bookmark: try Bookmark(url: url, options: options, relativeTo: relative),
     )
   }
 }

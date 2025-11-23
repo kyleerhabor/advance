@@ -22,6 +22,17 @@ extension URL {
   }
 }
 
+struct URLSecurityScope {
+  let url: URL
+  let accessing: Bool
+}
+
+extension URLSecurityScope {
+  init(source: URLSource) {
+    self.init(url: source.url, accessing: source.startSecurityScope())
+  }
+}
+
 struct ImageCollectionDocumentSource<T> {
   let source: T
   let files: [T]
@@ -123,7 +134,7 @@ extension ImageCollectionItemImage: Hashable {
   }
 }
 
-extension ImageCollectionItemImage: URLScope {
+extension ImageCollectionItemImage: SecurityScopedResource {
   var url: URL { source.url }
 
   func startSecurityScope() -> Scope {
@@ -133,7 +144,7 @@ extension ImageCollectionItemImage: URLScope {
     )
   }
 
-  func endSecurityScope(scope: Scope) {
+  func endSecurityScope(_ scope: Scope) {
     if scope.image.accessing {
       scope.image.url.endSecurityScope()
     }
@@ -266,7 +277,7 @@ class ImageCollection: Codable {
         group.addTask {
           switch kind {
             case .document(let document):
-              return try await document.source.withSecurityScope {
+              return try await document.source.accessingSecurityScopedResource {
                 let item = try URLBookmark(
                   url: document.source.url,
                   options: document.source.options,
@@ -278,7 +289,7 @@ class ImageCollection: Codable {
 
                   files.forEach { source in
                     group.addTask {
-                      try source.withSecurityScope {
+                      try source.accessingSecurityScopedResource {
                         try .init(
                           url: source.url,
                           options: source.options,
@@ -305,7 +316,7 @@ class ImageCollection: Codable {
                 return .document(.init(source: item, files: urbs))
               }
             case .file(let source):
-              let item = try source.withSecurityScope {
+              let item = try source.accessingSecurityScopedResource {
                 try URLBookmark(url: source.url, options: source.options, relativeTo: nil)
               }
 
@@ -489,7 +500,7 @@ class ImageCollection: Codable {
           )
 
           // We don't need to scope the whole image since the relative is already scoped.
-          guard let properties = image.source.withSecurityScope({ image.resolve() }) else {
+          guard let properties = image.source.accessingSecurityScopedResource({ image.resolve() }) else {
             return nil
           }
 
@@ -599,12 +610,15 @@ extension ImageCollection {
     includingHiddenFiles importHidden: Bool,
     includingSubdirectories importSubdirectories: Bool
   ) -> ImageCollection.Kind {
-    let source = URLSource(url: url, options: [.withReadOnlySecurityScope, .withoutImplicitSecurityScope])
+    let source = URLSource(
+      url: url,
+      options: [.withSecurityScope, .securityScopeAllowOnlyReadAccess, .withoutImplicitSecurityScope],
+    )
 
     if url.isDirectory() == true {
       return .document(.init(
         source: source,
-        files: url.withSecurityScope {
+        files: url.accessingSecurityScopedResource {
           FileManager.default
             .contents(at: url, options: .init(includingHiddenFiles: importHidden, includingSubdirectories: importSubdirectories))
             .finderSort(by: \.pathComponents)

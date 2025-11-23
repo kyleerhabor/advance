@@ -12,6 +12,12 @@ import Foundation
 import GRDB
 import OSLog
 
+extension URL {
+  static let databaseFile = Self.dataDirectory
+    .appending(component: "Data", directoryHint: .notDirectory)
+    .appendingPathExtension("sqlite")
+}
+
 extension GRDB.Configuration {
   static var standard: Self {
     var configuration = Self()
@@ -26,8 +32,34 @@ extension GRDB.Configuration {
 
     #endif
 
+    configuration.prepareDatabase { db in
+      guard !db.configuration.readonly else {
+        return
+      }
+
+      try db.execute(literal: "VACUUM")
+    }
+
     return configuration
   }
+}
+
+let databaseConnection = Once {
+  let url = URL.databaseFile
+  let configuration = GRDB.Configuration.standard
+  let connection: DatabasePool
+
+  do {
+    connection = try DatabasePool(path: url.pathString, configuration: configuration)
+  } catch let error as DatabaseError where error.resultCode == .SQLITE_CANTOPEN {
+    try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+
+    connection = try DatabasePool(path: url.pathString, configuration: configuration)
+  }
+
+  try await createSchema(connection: connection)
+
+  return connection
 }
 
 enum DataStackDependencyKey: DependencyKey {
@@ -35,23 +67,9 @@ enum DataStackDependencyKey: DependencyKey {
 
   // TC
   static let liveValue: Once<DataStack> = Once {
-    // Should we use a separate file during development?
-    let url = URL.databaseFile
-    let configuration = GRDB.Configuration.standard
-    let connection: DatabasePool
+    let connection = try await databaseConnection()
 
-    do {
-      connection = try DatabasePool(path: url.pathString, configuration: configuration)
-    } catch let error as DatabaseError where error.resultCode == .SQLITE_CANTOPEN {
-      try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-
-      connection = try DatabasePool(path: url.pathString, configuration: configuration)
-    }
-
-    let dataStack = DataStack(connection: connection)
-    try await DataStack.createSchema(dataStack.connection)
-
-    return dataStack
+    return DataStack(connection: connection)
   }
 }
 

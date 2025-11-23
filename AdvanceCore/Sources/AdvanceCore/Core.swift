@@ -147,15 +147,6 @@ extension URL {
   public var pathString: String {
     self.path(percentEncoded: false)
   }
-
-  public func bookmark(
-    options: BookmarkCreationOptions,
-    // In my experience, the bookmark data tends to be smaller when no resource values are requested.
-    resourceKeys: Set<URLResourceKey>? = [],
-    relativeTo relative: URL?
-  ) throws -> Data {
-    try self.bookmarkData(options: options, includingResourceValuesForKeys: resourceKeys, relativeTo: relative)
-  }
 }
 
 public struct TypedIterator<Base, T>: IteratorProtocol where Base: IteratorProtocol {

@@ -16,6 +16,7 @@
 		001E1E672AC4DD79005EE188 /* CopyDepot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001E1E662AC4DD79005EE188 /* CopyDepot.swift */; };
 		001E1E692AC4DEC8005EE188 /* ImageCollectionCopyingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001E1E682AC4DEC8005EE188 /* ImageCollectionCopyingView.swift */; };
 		001E7B652AD8394C001EAF72 /* SettingsGeneralView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001E7B642AD8394C001EAF72 /* SettingsGeneralView.swift */; };
+		001EB8682ED2C6B700B8DFAD /* BigDecimal in Frameworks */ = {isa = PBXBuildFile; productRef = 001EB8672ED2C6B700B8DFAD /* BigDecimal */; };
 		0021270E2C19517F0000D996 /* AdvanceData in Frameworks */ = {isa = PBXBuildFile; productRef = 0021270D2C19517F0000D996 /* AdvanceData */; };
 		0021272B2C1A26180000D996 /* Dependencies in Frameworks */ = {isa = PBXBuildFile; productRef = 0021272A2C1A26180000D996 /* Dependencies */; };
 		002379092B3DFC9F00097BF0 /* Scened.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002379082B3DFC9F00097BF0 /* Scened.swift */; };
@@ -53,7 +54,6 @@
 		00D0E1C12B9E68F500624018 /* ImageCollectionNavigatorCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00D0E1C02B9E68F400624018 /* ImageCollectionNavigatorCommands.swift */; };
 		00D38C312AD73672005505F5 /* ImageCollectionSidebarContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00D38C302AD73671005505F5 /* ImageCollectionSidebarContentView.swift */; };
 		00E0ECC02A76A8000030A0DC /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E0ECBF2A76A8000030A0DC /* AppDelegate.swift */; };
-		00E42E912B339E0700BC05A7 /* Bookmark.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E42E902B339E0700BC05A7 /* Bookmark.swift */; };
 		00E42E992B33A39400BC05A7 /* BookmarkStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E42E982B33A39400BC05A7 /* BookmarkStore.swift */; };
 		00E42E9B2B33EB8000BC05A7 /* ImageCollectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E42E9A2B33EB8000BC05A7 /* ImageCollectionManager.swift */; };
 		00FD27A12B715111000F38CE /* ImageCollectionQuickLookView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00FD27A02B715111000F38CE /* ImageCollectionQuickLookView.swift */; };
@@ -104,7 +104,6 @@
 		00D38C302AD73671005505F5 /* ImageCollectionSidebarContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionSidebarContentView.swift; sourceTree = "<group>"; };
 		00DC498E2A75B92000161495 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		00E0ECBF2A76A8000030A0DC /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		00E42E902B339E0700BC05A7 /* Bookmark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Bookmark.swift; sourceTree = "<group>"; };
 		00E42E982B33A39400BC05A7 /* BookmarkStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkStore.swift; sourceTree = "<group>"; };
 		00E42E9A2B33EB8000BC05A7 /* ImageCollectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionManager.swift; sourceTree = "<group>"; };
 		00FD27A02B715111000F38CE /* ImageCollectionQuickLookView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionQuickLookView.swift; sourceTree = "<group>"; };
@@ -131,6 +130,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				001EB8682ED2C6B700B8DFAD /* BigDecimal in Frameworks */,
 				00360ECE2C59FFEA00BF7D1B /* SwiftUIIntrospect in Frameworks */,
 				0099BE812E84C95F007B04D8 /* GRDB in Frameworks */,
 				0013F6082C2208720038BB2A /* IdentifiedCollections in Frameworks */,
@@ -261,7 +261,6 @@
 		0077AF902ABB8637002E3FF4 /* Standard */ = {
 			isa = PBXGroup;
 			children = (
-				00E42E902B339E0700BC05A7 /* Bookmark.swift */,
 				0077AF912ABB8650002E3FF4 /* Image.swift */,
 				003B1EF92B6804AA0046594E /* Collection.swift */,
 			);
@@ -387,6 +386,7 @@
 				0029E59C2C79A115000BFBA8 /* Defaults */,
 				0029E59F2C79A9F3000BFBA8 /* Defaults */,
 				0099BE802E84C95F007B04D8 /* GRDB */,
+				001EB8672ED2C6B700B8DFAD /* BigDecimal */,
 			);
 			productName = Sequential;
 			productReference = 001CB5182A718D3C00DBB6FA /* Advance.app */;
@@ -425,6 +425,7 @@
 				00360ECC2C59FFE900BF7D1B /* XCRemoteSwiftPackageReference "SwiftUI-Introspect" */,
 				0029E59E2C79A9F3000BFBA8 /* XCRemoteSwiftPackageReference "Defaults" */,
 				0099BE7F2E84C95F007B04D8 /* XCRemoteSwiftPackageReference "GRDB" */,
+				001EB8662ED2C6B600B8DFAD /* XCRemoteSwiftPackageReference "BigDecimal" */,
 			);
 			productRefGroup = 001CB5192A718D3C00DBB6FA /* Products */;
 			projectDirPath = "";
@@ -489,7 +490,6 @@
 				00E42E992B33A39400BC05A7 /* BookmarkStore.swift in Sources */,
 				00E42E9B2B33EB8000BC05A7 /* ImageCollectionManager.swift in Sources */,
 				00CBAB5A2AB23E9C0045FF83 /* ImageCollectionScene.swift in Sources */,
-				00E42E912B339E0700BC05A7 /* Bookmark.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -753,6 +753,14 @@
 				revision = d533cd18b0b456b106694a9899f917ee595f2666;
 			};
 		};
+		001EB8662ED2C6B600B8DFAD /* XCRemoteSwiftPackageReference "BigDecimal" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/mgriebling/BigDecimal.git";
+			requirement = {
+				kind = revision;
+				revision = 4414e0e82bb859cf5a2883f9401e7d7cb030f5b1;
+			};
+		};
 		002127292C1A26180000D996 /* XCRemoteSwiftPackageReference "swift-dependencies" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/pointfreeco/swift-dependencies";
@@ -790,7 +798,7 @@
 			repositoryURL = "https://github.com/groue/GRDB.swift";
 			requirement = {
 				kind = revision;
-				revision = c5d02eac3241dd980fa42e5644afd2e7e3f63401;
+				revision = 18497b68fdbb3a09528d260a0a0e1e7e61c8c53d;
 			};
 		};
 		00B0B27C2C55EA2200542E0D /* XCRemoteSwiftPackageReference "swift-collections" */ = {
@@ -808,6 +816,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 0013F6062C2208720038BB2A /* XCRemoteSwiftPackageReference "swift-identified-collections" */;
 			productName = IdentifiedCollections;
+		};
+		001EB8672ED2C6B700B8DFAD /* BigDecimal */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 001EB8662ED2C6B600B8DFAD /* XCRemoteSwiftPackageReference "BigDecimal" */;
+			productName = BigDecimal;
 		};
 		0021270D2C19517F0000D996 /* AdvanceData */ = {
 			isa = XCSwiftPackageProductDependency;

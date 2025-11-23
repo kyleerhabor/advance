@@ -60,7 +60,8 @@ struct SettingsCopyingView: View {
       ToolbarItem(placement: .primaryAction) {
         Button("Add...") {
           isPresentingCopyDestinationFilePicker.toggle()
-        }.fileImporter(
+        }
+        .fileImporter(
           isPresented: $isPresentingCopyDestinationFilePicker,
           allowedContentTypes: [.folder],
           allowsMultipleSelection: true
@@ -69,7 +70,7 @@ struct SettingsCopyingView: View {
             case .success(let urls):
               let imports = urls.compactMap { url -> URLBookmark? in
                 do {
-                  return try url.withSecurityScope {
+                  return try url.accessingSecurityScopedResource {
                     try .init(url: url, options: [.withSecurityScope, .withoutImplicitSecurityScope], relativeTo: nil)
                   }
                 } catch {
@@ -84,7 +85,8 @@ struct SettingsCopyingView: View {
             case .failure(let err):
               Logger.ui.error("Could not import copy destinations: \(err)")
           }
-        }.fileDialogCopying()
+        }
+        .fileDialogCopying()
       }
     }
     .task {

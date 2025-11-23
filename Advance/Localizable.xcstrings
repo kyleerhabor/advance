@@ -447,6 +447,9 @@
         }
       }
     },
+    "Settings.Accessory.Folders.Add" : {
+
+    },
     "Settings.Accessory.Folders.Remove" : {
       "localizations" : {
         "en" : {

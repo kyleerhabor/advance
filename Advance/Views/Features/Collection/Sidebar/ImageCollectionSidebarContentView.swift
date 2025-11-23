@@ -384,7 +384,8 @@ struct ImageCollectionSidebarContentView: View {
         return
       }
 
-      image.endSecurityScope(scope: scope)
+      image.endSecurityScope(scope)
+
       quicklookScopes[image] = nil
     }
 
@@ -432,10 +433,10 @@ struct ImageCollectionSidebarContentView: View {
     resolvingConflicts resolveConflicts: Bool
   ) async throws {
     try ImageCollectionCopyingView.saving {
-      try destination.withSecurityScope {
+      try destination.accessingSecurityScopedResource {
         try images.forEach { image in
           try ImageCollectionCopyingView.saving(url: image, to: destination) { url in
-            try image.withSecurityScope {
+            try image.accessingSecurityScopedResource {
               try ImageCollectionCopyingView.save(url: url, to: destination, resolvingConflicts: resolveConflicts)
             }
           }

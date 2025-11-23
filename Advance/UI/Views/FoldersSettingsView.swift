@@ -71,25 +71,29 @@ struct FoldersSettingsView: View {
         removeItems(iset.map { folders.items[$0] })
       }
     }
-    .animation(.default, value: folders.items.ids)
+//    .animation(.default, value: folders.items.ids)
     .listStyle(.inset)
-    .contextMenu(forSelectionType: FoldersSettingsItem.ID.self) { ids in
+    .contextMenu { ids in
       Button("Settings.Accessory.Folders.Remove", role: .destructive) {
         removeItems(ids.compactMap { folders.items[id: $0] })
       }
     }
     .toolbar {
-      // TODO: Localize.
-      Button("Add", systemImage: "plus") {
-        isFileImporterPresented = true
+      Button("Settings.Accessory.Folders.Add", systemImage: "plus") {
+        isFileImporterPresented = false
       }
-      .fileImporter(isPresented: $isFileImporterPresented, allowedContentTypes: foldersContentTypes, allowsMultipleSelection: true) { result in
+      .fileImporter(
+        isPresented: $isFileImporterPresented,
+        allowedContentTypes: foldersContentTypes,
+        allowsMultipleSelection: true,
+      ) { result in
         let urls: [URL]
 
         switch result {
           case .success(let items):
             urls = items
           case .failure(let error):
+            // TODO: Elaborate.
             Logger.ui.error("\(error)")
 
             return

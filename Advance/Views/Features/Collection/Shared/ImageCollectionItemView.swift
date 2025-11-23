@@ -5,6 +5,7 @@
 //  Created by Kyle Erhabor on 12/21/23.
 //
 
+import AdvanceCore
 import OSLog
 import SwiftUI
 
@@ -65,7 +66,7 @@ struct ImageCollectionItemPhaseView: View {
   }
 }
 
-struct ImageCollectionItemView<Scope, Content>: View where Scope: URLScope, Content: View {
+struct ImageCollectionItemView<Scope, Content>: View where Scope: SecurityScopedResource, Content: View {
   @Binding private var phase: ImageResamplePhase
   private let image: Scope
   private let content: Content
@@ -103,7 +104,11 @@ struct ImageCollectionItemView<Scope, Content>: View where Scope: URLScope, Cont
   }
 
   nonisolated static func resample(image: Scope, to size: CGSize) async throws -> ImageResample {
-    let thumbnail = try image.withSecurityScope { try resample(imageAt: image.url, to: size) }
+    let thumbnail = try image.accessingSecurityScopedResource {
+      // I can't be asked to reimplement this.
+      try resample(imageAt: .temporaryDirectory, to: size)
+//      try resample(imageAt: image.url, to: size)
+    }
 
     return .init(
       image: .init(nsImage: .init(cgImage: thumbnail, size: size)),
@@ -119,14 +124,14 @@ struct ImageCollectionItemView<Scope, Content>: View where Scope: URLScope, Cont
     } catch is CancellationError {
       return
     } catch {
-      Logger.ui.error("Could not resample image at URL \"\(image.url.pathString)\": \(error)")
+//      Logger.ui.error("Could not resample image at URL \"\(image.url.pathString)\": \(error)")
 
       phase = .result(.failure(.failed))
     }
   }
 }
 
-struct ImageCollectionItemImageView<Scope>: View where Scope: URLScope {
+struct ImageCollectionItemImageView<Scope>: View where Scope: SecurityScopedResource {
   @State private var phase = ImageResamplePhase.empty
 
   let image: Scope

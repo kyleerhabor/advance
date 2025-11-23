@@ -79,7 +79,13 @@ extension ImagesItemModelSource {
       kCGImageSourceThumbnailMaxPixelSize: length
     ]
 
-    return CGImageSourceCreateThumbnailAtIndex(imageSource, iimage, options as CFDictionary)
+    guard let image = CGImageSourceCreateThumbnailAtIndex(imageSource, iimage, options as CFDictionary) else {
+      return nil
+    }
+
+    return image
+
+//    return CGImageSourceCreateThumbnailAtIndex(imageSource, iimage, options as CFDictionary)
   }
 }
 
@@ -162,14 +168,14 @@ final class ImagesItemModel {
   // A generic parameter would be nice, but heavily infects views as a consequence.
   var source: AnyImagesItemModelSource
   var properties: ImagesItemModelProperties
-  @ObservationIgnored var info: ImagesItemInfo
+  @ObservationIgnored var info: LibraryModelTrackImagesItemsImagesItemInfo
   var isBookmarked: Bool
 
   init(
     id: UUID,
     source: AnyImagesItemModelSource,
     properties: ImagesItemModelProperties,
-    info: ImagesItemInfo,
+    info: LibraryModelTrackImagesItemsImagesItemInfo,
     isBookmarked: Bool
   ) {
     self.id = id
@@ -186,8 +192,8 @@ final class ImagesItemModel {
     }
   }
 
-  static func document(urls: [Data: URL], response: BookmarkTrackerResponse) -> URLSourceDocument? {
-    let bookmark = response.bookmark
+  static func document(urls: [Data: URL], response: LibraryModelTrackImagesItemsImagesItemFileBookmarkFileBookmarkInfo) -> URLSourceDocument? {
+    let bookmark = response.bookmark!.bookmark
 
     guard let source = Self.source(urls: urls, hash: bookmark.hash!, options: bookmark.options!) else {
       return nil
@@ -195,7 +201,7 @@ final class ImagesItemModel {
 
     let relative: URLSource?
 
-    if let rel = response.relative {
+    if let rel = response.relative?.relative {
       guard let source = Self.source(urls: urls, hash: rel.hash!, options: rel.options!) else {
         return nil
       }
@@ -225,7 +231,7 @@ extension ImagesItemModel: Hashable {
 
 struct ImagesModelSource {
   let dataStack: DataStackDependencyKey.DataStack
-  let id: ImagesIDResponse
+  let id: LibraryModelIDImagesInfo
 }
 
 enum ImagesModelFetchPhase<Value> {
@@ -239,7 +245,113 @@ enum ImagesModelFetchPhase<Value> {
   }
 }
 
+struct ImagesModelLoadImagesItemImageImageInfo {
+  let image: ImageRecord
+}
+
+extension ImagesModelLoadImagesItemImageImageInfo: Sendable, Equatable, Decodable, FetchableRecord {}
+
+struct ImagesModelLoadImagesItemImageInfo {
+  let image: ImagesItemImageRecord
+  let image2: ImagesModelLoadImagesItemImageImageInfo?
+}
+
+extension ImagesModelLoadImagesItemImageInfo: Decodable {
+  enum CodingKeys: CodingKey {
+    case image, image2
+  }
+}
+
+extension ImagesModelLoadImagesItemImageInfo: Sendable, Equatable, FetchableRecord {}
+
+struct ImagesModelLoadImagesItemFileBookmarkFileBookmarkBookmarkInfo {
+  let bookmark: BookmarkRecord
+}
+
+extension ImagesModelLoadImagesItemFileBookmarkFileBookmarkBookmarkInfo: Sendable, Equatable, Decodable, FetchableRecord {}
+
+struct ImagesModelLoadImagesItemFileBookmarkFileBookmarkRelativeInfo {
+  let relative: BookmarkRecord
+}
+
+extension ImagesModelLoadImagesItemFileBookmarkFileBookmarkRelativeInfo: Sendable, Equatable, Decodable, FetchableRecord {}
+
+struct ImagesModelLoadImagesItemFileBookmarkFileBookmarkInfo {
+  let fileBookmark: FileBookmarkRecord
+  let bookmark: ImagesModelLoadImagesItemFileBookmarkFileBookmarkBookmarkInfo?
+  let relative: ImagesModelLoadImagesItemFileBookmarkFileBookmarkRelativeInfo?
+}
+
+extension ImagesModelLoadImagesItemFileBookmarkFileBookmarkInfo: Decodable {
+  enum CodingKeys: String, CodingKey {
+    case fileBookmark,
+         bookmark = "_bookmark",
+         relative = "_relative"
+  }
+}
+
+extension ImagesModelLoadImagesItemFileBookmarkFileBookmarkInfo: Sendable, Equatable, FetchableRecord {}
+
+struct ImagesModelLoadImagesItemFileBookmarkInfo {
+  let fileBookmark: ImagesItemFileBookmarkRecord
+  let fileBookmark2: ImagesModelLoadImagesItemFileBookmarkFileBookmarkInfo?
+}
+
+extension ImagesModelLoadImagesItemFileBookmarkInfo: Decodable {
+  enum CodingKeys: CodingKey {
+    case fileBookmark, fileBookmark2
+  }
+}
+
+extension ImagesModelLoadImagesItemFileBookmarkInfo: Sendable, Equatable, FetchableRecord {}
+
+struct ImagesModelLoadImagesItemInfo {
+  let item: ImagesItemRecord
+  let image: ImagesModelLoadImagesItemImageInfo?
+  let fileBookmark: ImagesModelLoadImagesItemFileBookmarkInfo?
+}
+
+extension ImagesModelLoadImagesItemInfo: Decodable {
+  enum CodingKeys: String, CodingKey {
+    case item,
+         image = "_image",
+         fileBookmark
+  }
+}
+
+extension ImagesModelLoadImagesItemInfo: Sendable, Equatable, FetchableRecord {}
+
+struct ImagesModelLoadImagesInfo {
+  let images: ImagesRecord
+  let items: [ImagesModelLoadImagesItemInfo]
+}
+
+extension ImagesModelLoadImagesInfo: Decodable {
+  enum CodingKeys: CodingKey {
+    case images, items
+  }
+}
+
+extension ImagesModelLoadImagesInfo: Sendable, Equatable, FetchableRecord {}
+
 @Observable
+@MainActor
+final class ImagesItemModel2 {
+  let id: RowID
+  var isBookmarked: Bool
+  var aspectRatio: Double
+
+  init(id: RowID, isBookmarked: Bool, aspectRatio: Double) {
+    self.id = id
+    self.isBookmarked = isBookmarked
+    self.aspectRatio = aspectRatio
+  }
+}
+
+extension ImagesItemModel2: Identifiable {}
+
+@Observable
+@MainActor
 final class ImagesModel {
   typealias ID = UUID
   typealias Resampler = AsyncStream<Runner<CGImage?, Never>>
@@ -248,6 +360,7 @@ final class ImagesModel {
   let id: UUID
 
   var items: IdentifiedArrayOf<ImagesItemModel>
+  var items2: IdentifiedArrayOf<ImagesItemModel2>
   var itemID: ImagesItemModel.ID?
   var bookmarkedItems: Set<ImagesItemModel.ID>
   var item: ImagesItemModel? {
@@ -266,13 +379,14 @@ final class ImagesModel {
   init(id: UUID) {
     self.id = id
     self.items = []
+    self.items2 = []
     self.bookmarkedItems = []
     self.source = Once {
       @Dependency(\.dataStack) var dataStack
 
       let ds = try await dataStack()
       let id = try await ds.connection.write { db in
-        try DataStackDependencyKey.DataStack.id(db, images: id)
+        try DataStackDependencyKey.DataStack.idImages(db, id: id)
       }
 
       return ImagesModelSource(dataStack: ds, id: id)
@@ -282,10 +396,425 @@ final class ImagesModel {
     self.analyzer = AsyncStream.makeStream()
   }
 
-  static func source(
-    url: URL,
-    options: FileManager.DirectoryEnumerationOptions
-  ) throws -> Source<[URL]> {
+  nonisolated private func loadImages(connection: DatabasePool, images: ImagesModelLoadImagesInfo?) async {
+    guard let images else {
+      return
+    }
+
+    struct State1 {
+      var bookmarks: [RowID: DataBookmark]
+    }
+
+    struct State1ChildResolution {
+      let fileBookmark: ImagesModelLoadImagesItemFileBookmarkFileBookmarkInfo
+      let data: DataBookmark
+    }
+
+    enum State1Child {
+      case resolved(State1ChildResolution),
+           unresolved
+    }
+
+    let state1 = await withThrowingTaskGroup(of: State1Child.self) { group in
+      images.items
+        .compactMap { item -> ImagesModelLoadImagesItemFileBookmarkFileBookmarkInfo? in
+          switch item.item.type! {
+            case .image:
+              nil
+            case .fileBookmark:
+              item.fileBookmark!.fileBookmark2
+          }
+        }
+        .uniqued(on: \.relative!.relative.rowID)
+        .forEach { fileBookmark in
+          group.addTask {
+            let relative = fileBookmark.relative!
+            let options = relative.relative.options!
+            let data = try DataBookmark(
+              data: relative.relative.data!,
+              options: URL.BookmarkResolutionOptions(options).union(.withoutMounting),
+              hash: relative.relative.hash!,
+              relativeTo: nil,
+            ) { url in
+              let source = URLSource(url: url, options: options)
+              let bookmark = try source.accessingSecurityScopedResource {
+                try url.bookmarkData(options: options)
+              }
+
+              return bookmark
+            }
+
+            return .resolved(State1ChildResolution(fileBookmark: fileBookmark, data: data))
+          }
+        }
+
+      var state = State1(bookmarks: [:])
+
+      while let result = await group.nextResult() {
+        switch result {
+          case let .success(child):
+            switch child {
+              case let .resolved(resolved):
+                state.bookmarks[resolved.fileBookmark.relative!.relative.rowID!] = resolved.data
+              case .unresolved:
+                unreachable()
+            }
+          case let .failure(error):
+            // TODO: Elaborate.
+            Logger.model.error("\(error)")
+        }
+      }
+
+      images.items
+        .compactMap { item -> ImagesModelLoadImagesItemFileBookmarkFileBookmarkInfo? in
+          switch item.item.type! {
+            case .image:
+              nil
+            case .fileBookmark:
+              item.fileBookmark!.fileBookmark2
+          }
+        }
+        .forEach { fileBookmark in
+          let state = state
+
+          group.addTask {
+            let bookmark = fileBookmark.bookmark!
+            let options = bookmark.bookmark.options!
+            let relative: URLSource?
+
+            if let r = fileBookmark.relative {
+              guard let data = state.bookmarks[r.relative.rowID!] else {
+                return .unresolved
+              }
+
+              relative = URLSource(url: data.bookmark.url, options: r.relative.options!)
+            } else {
+              relative = nil
+            }
+
+            let data = try relative.accessingSecurityScopedResource {
+              try DataBookmark(
+                data: bookmark.bookmark.data!,
+                options: URL.BookmarkResolutionOptions(options).union(.withoutMounting),
+                hash: bookmark.bookmark.hash!,
+                relativeTo: relative?.url,
+              ) { url in
+                let source = URLSource(url: url, options: options)
+                let bookmark = try source.accessingSecurityScopedResource {
+                  try url.bookmarkData(options: options, relativeTo: relative?.url)
+                }
+
+                return bookmark
+              }
+            }
+
+            return .resolved(State1ChildResolution(fileBookmark: fileBookmark, data: data))
+          }
+        }
+
+      while let result = await group.nextResult() {
+        switch result {
+          case let .success(child):
+            switch child {
+              case let .resolved(resolved):
+                state.bookmarks[resolved.fileBookmark.bookmark!.bookmark.rowID!] = resolved.data
+              case .unresolved:
+                // TODO: Log.
+                break
+            }
+          case let .failure(error):
+            // TODO: Elaborate.
+            Logger.model.error("\(error)")
+        }
+      }
+
+      return state
+    }
+
+    let satisfied = images.items.allSatisfy { item in
+      switch item.item.type! {
+        case .image:
+          return true
+        case .fileBookmark:
+          let fileBookmark = item.fileBookmark!.fileBookmark2!
+
+          if let relative = fileBookmark.relative {
+            guard let bookmark = state1.bookmarks[relative.relative.rowID!] else {
+              // It's possible resolving the bookmark failed, in which we don't want to potentially spin in an infinite loop.
+              return true
+            }
+
+            // We could save on performance by running this once, but this only compares 32 bytes, so I imagine it isn't
+            // that expensive.
+            guard bookmark.hash == relative.relative.hash else {
+              return false
+            }
+          }
+
+          let bookmark = fileBookmark.bookmark!
+
+          guard let data = state1.bookmarks[bookmark.bookmark.rowID!] else {
+            // It's possible resolving the bookmark failed.
+            return true
+          }
+
+          return data.hash == bookmark.bookmark.hash
+      }
+    }
+
+    guard satisfied else {
+      do {
+        try await connection.write { db in
+          try images.items
+            .compactMap { item -> ImagesModelLoadImagesItemFileBookmarkFileBookmarkRelativeInfo? in
+              switch item.item.type! {
+                case .image:
+                  nil
+                case .fileBookmark:
+                  item.fileBookmark!.fileBookmark2!.relative
+              }
+            }
+            .uniqued(on: \.relative.rowID)
+            .forEach { relative in
+              let rowID = relative.relative.rowID!
+
+              guard let data = state1.bookmarks[rowID] else {
+                return
+              }
+
+              let bookmark = BookmarkRecord(
+                rowID: rowID,
+                data: data.bookmark.data,
+                options: nil,
+                hash: data.hash,
+              )
+
+              try bookmark.update(db, columns: [BookmarkRecord.Columns.data, BookmarkRecord.Columns.hash])
+            }
+
+          try images.items
+            .compactMap { item -> ImagesModelLoadImagesItemFileBookmarkFileBookmarkBookmarkInfo? in
+              switch item.item.type! {
+                case .image:
+                  nil
+                case .fileBookmark:
+                  item.fileBookmark!.fileBookmark2!.bookmark
+              }
+            }
+            .forEach { bookmark in
+              let rowID = bookmark.bookmark.rowID!
+
+              guard let data = state1.bookmarks[rowID] else {
+                return
+              }
+
+              let bookmark = BookmarkRecord(
+                rowID: rowID,
+                data: data.bookmark.data,
+                options: nil,
+                hash: data.hash,
+              )
+
+              try bookmark.update(db, columns: [BookmarkRecord.Columns.data, BookmarkRecord.Columns.hash])
+            }
+        }
+      } catch {
+        // TODO: Elaborate.
+        Logger.model.error("\(error)")
+
+        return
+      }
+
+      // TODO: Implement.
+      return
+    }
+
+    struct State2Item {
+      let item: ImagesModelLoadImagesItemInfo
+      let aspectRatio: Double
+    }
+
+    struct State2 {
+      var items: [RowID: State2Item]
+    }
+
+    let state2 = await withTaskGroup(of: State2Item?.self) { group in
+      images.items.forEach { item in
+        group.addTask {
+          switch item.item.type! {
+            case .image:
+              // TODO: Implement.
+              return nil
+            case .fileBookmark:
+              let fileBookmark = item.fileBookmark!.fileBookmark2!
+              let relative: URLSource?
+
+              if let r = fileBookmark.relative {
+                guard let data = state1.bookmarks[r.relative.rowID!] else {
+                  return nil
+                }
+
+                relative = URLSource(url: data.bookmark.url, options: r.relative.options!)
+              } else {
+                relative = nil
+              }
+
+              guard let data = state1.bookmarks[fileBookmark.bookmark!.bookmark.rowID!] else {
+                return nil
+              }
+
+              let imageProperties = relative.accessingSecurityScopedResource { () -> [CFString: Any]? in
+                guard let imageSource = CGImageSourceCreateWithURL(data.bookmark.url as CFURL, nil) else {
+                  // TODO: Log.
+                  return nil
+                }
+
+                let options = [kCGImageSourceShouldCache: false]
+
+                guard let imageProperties = CGImageSourceCopyPropertiesAtIndex(
+                  imageSource,
+                  CGImageSourceGetPrimaryImageIndex(imageSource),
+                  options as CFDictionary,
+                ) else {
+                  // TODO: Log.
+                  return nil
+                }
+
+                return imageProperties as? [CFString: Any]
+              }
+
+              guard let imageProperties,
+                    let pixelWidth = imageProperties[kCGImagePropertyPixelWidth] as? Double,
+                    let pixelHeight = imageProperties[kCGImagePropertyPixelHeight] as? Double else {
+                return nil
+              }
+
+              let aspectRatio = pixelWidth / pixelHeight
+
+              return State2Item(item: item, aspectRatio: aspectRatio)
+          }
+        }
+      }
+
+
+      return await group.reduce(
+        into: State2(items: Dictionary(minimumCapacity: images.items.count)),
+      ) { partialResult, child in
+        guard let child else {
+          return
+        }
+
+        partialResult.items[child.item.item.rowID!] = child
+      }
+    }
+
+    Task { @MainActor in
+      self.items2 = IdentifiedArray(
+        uniqueElements: images.items
+          .compactMap { item in
+            state2.items[item.item.rowID!]
+          }
+          .map { item in
+            ImagesItemModel2(
+              id: item.item.item.rowID!,
+              isBookmarked: item.item.item.isBookmarked!,
+              aspectRatio: item.aspectRatio,
+            )
+          },
+      )
+    }
+  }
+
+  nonisolated private func _load() async {
+    let observation = ValueObservation
+      .trackingConstantRegion { db in
+        try ImagesRecord
+          .select(.rowID)
+          .filter(key: [ImagesRecord.Columns.id.name: self.id]) // Does this change threads?
+          .including(
+            all: ImagesRecord.items
+              .forKey(ImagesModelLoadImagesInfo.CodingKeys.items)
+              .select(.rowID, ImagesItemRecord.Columns.position, ImagesItemRecord.Columns.isBookmarked, ImagesItemRecord.Columns.type)
+              .order(ImagesItemRecord.Columns.position)
+              .including(
+                optional: ImagesItemRecord.image
+                  .forKey(ImagesModelLoadImagesItemInfo.CodingKeys.image)
+                  .select(.rowID)
+                  .including(
+                    // This should be required, but is optional to workaround this issue:
+                    //
+                    //   Not implemented: chaining a required association behind an optional association
+                    optional: ImagesItemImageRecord.image
+                      .forKey(ImagesModelLoadImagesItemImageInfo.CodingKeys.image2)
+                      .select(.rowID, ImageRecord.Columns.data, ImageRecord.Columns.hash),
+                  ),
+              )
+              .including(
+                optional: ImagesItemRecord.fileBookmark
+                  .forKey(ImagesModelLoadImagesItemInfo.CodingKeys.fileBookmark)
+                  .select(.rowID)
+                  .including(
+                    // This should be required.
+                    optional: ImagesItemFileBookmarkRecord.fileBookmark
+                      .forKey(ImagesModelLoadImagesItemFileBookmarkInfo.CodingKeys.fileBookmark2)
+                      .select(.rowID)
+                      .including(
+                        // This should be required.
+                        optional: FileBookmarkRecord.bookmark
+                          .forKey(ImagesModelLoadImagesItemFileBookmarkFileBookmarkInfo.CodingKeys.bookmark)
+                          .select(
+                            .rowID,
+                            BookmarkRecord.Columns.data,
+                            BookmarkRecord.Columns.options,
+                            BookmarkRecord.Columns.hash,
+                          ),
+                      )
+                      .including(
+                        optional: FileBookmarkRecord.relative
+                          .forKey(ImagesModelLoadImagesItemFileBookmarkFileBookmarkInfo.CodingKeys.relative)
+                          .select(
+                            .rowID,
+                            BookmarkRecord.Columns.data,
+                            BookmarkRecord.Columns.options,
+                            BookmarkRecord.Columns.hash,
+                          ),
+                      ),
+                  ),
+              ),
+          )
+          .asRequest(of: ImagesModelLoadImagesInfo.self)
+          .fetchOne(db)
+      }
+      .removeDuplicates()
+
+    let connection: DatabasePool
+
+    do {
+      connection = try await databaseConnection()
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return
+    }
+
+    do {
+      for try await images in observation.values(in: connection, bufferingPolicy: .bufferingNewest(1)) {
+        await loadImages(connection: connection, images: images)
+      }
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return
+    }
+  }
+
+  func load2() async {
+    await _load()
+  }
+
+  nonisolated static func source(url: URL, options: FileManager.DirectoryEnumerationOptions) throws -> Source<[URL]> {
     let enumerator: FileManager.DirectoryEnumerationIterator
 
     do {
@@ -306,11 +835,16 @@ final class ImagesModel {
 
   static func submit(
     _ dataStack: DataStackDependencyKey.DataStack,
-    info: ImagesInfo,
+    images: ImagesRecord,
     items: [Source<[URL]>],
     priority: Int
   ) async throws {
-    let options: URL.BookmarkCreationOptions = [.withReadOnlySecurityScope, .withoutImplicitSecurityScope]
+    let options = URL.BookmarkCreationOptions([
+      .withSecurityScope,
+      .securityScopeAllowOnlyReadAccess,
+      .withoutImplicitSecurityScope,
+    ])
+    
     // FIXME: Optimize.
     //
     // Creating bookmarks is slow.
@@ -363,11 +897,11 @@ final class ImagesModel {
     }
 
     let books = try await dataStack.connection.write { db in
-      try bookmarks.reduce(into: [[(bookmark: BookmarkInfo, item: ImagesItemInfo?)]]()) { vals, source in
-        vals.append(try DataStackDependencyKey.DataStack.submit(
+      try bookmarks.reduce(into: [[(bookmark: BookmarkRecord, item: ImagesItemRecord?)]]()) { vals, source in
+        vals.append(try DataStackDependencyKey.DataStack.submitImagesItems(
           db,
           bookmark: source,
-          images: info,
+          images: images.rowID!,
           priority: vals.last?.last?.item?.priority ?? priority
         ))
       }
@@ -382,36 +916,36 @@ final class ImagesModel {
     }
   }
 
-  static func submit(
+  static func submitCurrentItem(
     _ dataStack: DataStackDependencyKey.DataStack,
-    images: ImagesInfo,
-    item: ImagesItemInfo?
+    images: RowID,
+    currentItem: RowID?,
   ) async throws {
     try await dataStack.connection.write { db in
-      try DataStackDependencyKey.DataStack.submit(db, images: images, item: item)
+      try DataStackDependencyKey.DataStack.submitImagesCurrentItem(db, images: images, currentItem: currentItem)
     }
   }
 
   static func submitItemBookmark(
     _ dataStack: DataStackDependencyKey.DataStack,
-    item: ImagesItemInfo,
-    isBookmarked: Bool
+    item: RowID,
+    isBookmarked: Bool,
   ) async throws {
     try await dataStack.connection.write { db in
-      try DataStackDependencyKey.DataStack.saveImagesItem(db, item: item, isBookmarked: isBookmarked)
+      try DataStackDependencyKey.DataStack.submitImagesItemBookmark(db, item: item, isBookmarked: isBookmarked)
     }
   }
 
-  static func resolve(responses: [ImagesItemFetchResponse]) -> [Data: (info: BookmarkInfo, bookmark: DataBookmark, relative: Data?)] {
+  static func resolve(responses: [LibraryModelUpdateImagesItemInfo]) -> [Data: (info: BookmarkRecord, bookmark: DataBookmark, relative: Data?)] {
     Dictionary(grouping: responses) { $0.item.type! }
-      .reduce(into: [Data: (info: BookmarkInfo, bookmark: DataBookmark, relative: Data?)]()) { partialResult, entry in
+      .reduce(into: [Data: (info: BookmarkRecord, bookmark: DataBookmark, relative: Data?)]()) { partialResult, entry in
         let (key: type, value: responses) = entry
 
         switch type {
           case .image: break
-          case .bookmark:
-            let responses = responses.map { $0.bookmark!.bookmark2 }
-            let relatives = responses.compactMap(\.relative).uniqued(on: \.hash)
+          case .fileBookmark:
+            let responses = responses.map { $0.fileBookmark!.fileBookmark2! }
+            let relatives = responses.compactMap { $0.relative?.relative }.uniqued(on: \.hash)
             var store = [Data: Data](minimumCapacity: relatives.count)
             let rels = relatives
               .compactMap { bookmark -> (bookmark: DataBookmark, options: URL.BookmarkCreationOptions)? in
@@ -420,7 +954,19 @@ final class ImagesModel {
                 let resolved: DataBookmark
 
                 do {
-                  resolved = try DataBookmark(data: bookmark.data!, options: options, hash: hash, relativeTo: nil)
+                  resolved = try DataBookmark(
+                    data: bookmark.data!,
+                    options: URL.BookmarkResolutionOptions(options).union(.withoutMounting),
+                    hash: hash,
+                    relativeTo: nil,
+                  ) { url in
+                    let source = URLSource(url: url, options: options)
+                    let bookmark = try source.accessingSecurityScopedResource {
+                      try url.bookmarkData(options: options, relativeTo: nil)
+                    }
+
+                    return bookmark
+                  }
                 } catch {
                   Logger.model.error("Could not resolve bookmark with hash \"\(hash.hexEncodedString())\": \(error, privacy: .public)")
 
@@ -450,7 +996,7 @@ final class ImagesModel {
             responses.forEach { response in
               let relative: DataBookmark?
 
-              if let rel = response.relative {
+              if let rel = response.relative?.relative {
                 guard let hash = store[rel.hash!],
                       let rel = partialResult[hash] else {
                   return
@@ -461,17 +1007,26 @@ final class ImagesModel {
                 relative = nil
               }
 
-              let bookmark = response.bookmark
+              let bookmark = response.bookmark!.bookmark
+              let options = bookmark.options!
               let hash = bookmark.hash!
+              let r = relative?.bookmark.url
               let resolved: DataBookmark
 
               do {
                 resolved = try DataBookmark(
                   data: bookmark.data!,
-                  options: bookmark.options!,
+                  options: URL.BookmarkResolutionOptions(options).union(.withoutMounting),
                   hash: hash,
-                  relativeTo: relative?.bookmark.url
-                )
+                  relativeTo: r,
+                ) { url in
+                  let source = URLSource(url: url, options: options)
+                  let bookmark = try source.accessingSecurityScopedResource {
+                    try url.bookmarkData(options: options, relativeTo: r)
+                  }
+
+                  return bookmark
+                }
               } catch {
                 Logger.model.error("Could not resolve bookmark with hash \"\(hash.hexEncodedString())\": \(error, privacy: .public)")
 
@@ -486,10 +1041,11 @@ final class ImagesModel {
 
   static func update(
     _ dataStack: DataStackDependencyKey.DataStack,
-    responses: some Sequence<ImagesItemTrackerResponse> & Sendable
+    responses: some Sequence<LibraryModelTrackImagesItemsImagesItemInfo> & Sendable
   ) async throws -> [Data: URL] {
     let responses = try await dataStack.connection.read { db in
-      try DataStackDependencyKey.DataStack.fetch(db, items: Set(responses.map(\.item)))
+      // TODO: Don't map in reader.
+      try DataStackDependencyKey.DataStack.fetch(db, items: Set(responses.map(\.item.rowID!)))
     }
 
     let resolved = Self.resolve(responses: responses)
@@ -497,10 +1053,22 @@ final class ImagesModel {
     try await dataStack.connection.write { db in
       try resolved.values.forEach { entry in
         let (info: info, bookmark: bookmark, relative: relative) = entry
-        let book = BookmarkInfo(info, data: bookmark.bookmark.data, options: info.options, hash: bookmark.hash)
-        let rel = relative.flatMap { resolved[$0]?.info }
+        let bookmark2 = BookmarkRecord(
+          rowID: info.rowID,
+          data: bookmark.bookmark.data,
+          options: info.options,
+          hash: bookmark.hash,
+        )
 
-        try DataStackDependencyKey.DataStack.submit(db, bookmark: book, relative: rel)
+        try bookmark2.update(db)
+
+        var fileBookmark = FileBookmarkRecord(
+          rowID: nil,
+          bookmark: bookmark2.rowID,
+          relative: relative.flatMap { resolved[$0]?.info.rowID },
+        )
+
+        try fileBookmark.upsert(db)
       }
     }
 
@@ -510,7 +1078,7 @@ final class ImagesModel {
 
   static func update(
     _ dataStack: DataStackDependencyKey.DataStack,
-    response: ImagesItemsTrackerResponse
+    response: LibraryModelTrackImagesItemsImagesInfo,
   ) async throws -> [Data: URL] {
     var urls = await dataStack.urls
     let fetch = response.items.filter { response in
@@ -518,8 +1086,8 @@ final class ImagesModel {
         case .image:
           // The image data must always exist.
           return false
-        case .bookmark:
-          let response = response.bookmark!.bookmark2
+        case .fileBookmark:
+          let response = response.fileBookmark!.fileBookmark2!
 
           return ImagesItemModel.document(urls: urls, response: response) == nil
       }
@@ -534,7 +1102,7 @@ final class ImagesModel {
 
   static func resolve(
     _ dataStack: DataStackDependencyKey.DataStack,
-    response: ImagesItemsTrackerResponse
+    response: LibraryModelTrackImagesItemsImagesInfo,
   ) async throws -> [UUID: (document: URLSourceDocument?, data: ImagesItemModelProperties)] {
     let urls = try await Self.update(dataStack, response: response)
     let data = response.items.reduce(into: [UUID: (document: URLSourceDocument?, data: ImagesItemModelProperties)]()) { partialResult, resp in
@@ -543,8 +1111,8 @@ final class ImagesModel {
       switch item.type! {
           // TODO: Implement.
         case .image: break
-        case .bookmark:
-          let response = resp.bookmark!.bookmark2
+        case .fileBookmark:
+          let response = resp.fileBookmark!.fileBookmark2!
 
           guard let document = ImagesItemModel.document(urls: urls, response: response) else {
             return
@@ -563,6 +1131,7 @@ final class ImagesModel {
               return nil
             }
 
+            let d = document
             let orientation: CGImagePropertyOrientation? = if let displayOrientation = imageProperties[kCGImagePropertyOrientation] as? UInt32{
               CGImagePropertyOrientation(rawValue: displayOrientation)
             } else {
@@ -594,7 +1163,7 @@ final class ImagesModel {
   }
 
   @MainActor
-  private func load(_ dataStack: DataStackDependencyKey.DataStack, response: ImagesItemsTrackerResponse?) async throws {
+  private func load(_ dataStack: DataStackDependencyKey.DataStack, response: LibraryModelTrackImagesItemsImagesInfo?) async throws {
     guard let response else {
       self.items = []
 
@@ -627,7 +1196,7 @@ final class ImagesModel {
         id: id,
         source: AnyImagesItemModelSource(source: source),
         properties: data.data,
-        info: item.item,
+        info: item,
         isBookmarked: item.item.isBookmarked ?? false
       )
 
@@ -644,14 +1213,14 @@ final class ImagesModel {
   }
 
   @MainActor
-  private func load(response: ImagesPropertiesTrackerResponse) {
-    itemID = response.item.id
+  private func load(response: LibraryModelTrackImagesPropertiesImagesInfo) {
+    itemID = response.currentItem.item.id
   }
 
   @MainActor
   private func fetch(
     _ dataStack: DataStackDependencyKey.DataStack,
-    from iterator: inout AsyncValueObservation<ImagesItemsTrackerResponse?>.Iterator
+    from iterator: inout AsyncValueObservation<LibraryModelTrackImagesItemsImagesInfo?>.Iterator
   ) async throws -> Bool {
     guard let value = try await iterator.next() else {
       return false
@@ -664,8 +1233,8 @@ final class ImagesModel {
 
   @MainActor
   private func fetch(
-    from iterator: inout AsyncValueObservation<ImagesPropertiesTrackerResponse?>.Iterator
-  ) async throws -> ImagesModelFetchPhase<ImagesPropertiesTrackerResponse> {
+    from iterator: inout AsyncValueObservation<LibraryModelTrackImagesPropertiesImagesInfo?>.Iterator
+  ) async throws -> ImagesModelFetchPhase<LibraryModelTrackImagesPropertiesImagesInfo> {
     guard let value = try await iterator.next() else {
       return .end
     }
@@ -682,7 +1251,7 @@ final class ImagesModel {
   @MainActor
   private func performFetch(
     _ dataStack: DataStackDependencyKey.DataStack,
-    from iterator: inout AsyncValueObservation<ImagesItemsTrackerResponse?>.Iterator
+    from iterator: inout AsyncValueObservation<LibraryModelTrackImagesItemsImagesInfo?>.Iterator
   ) async throws -> Bool {
     defer {
       performedItemsFetch = true
@@ -691,9 +1260,8 @@ final class ImagesModel {
     return try await fetch(dataStack, from: &iterator)
   }
 
-  @MainActor
   private func performFetch(
-    from iterator: inout AsyncValueObservation<ImagesPropertiesTrackerResponse?>.Iterator
+    from iterator: inout AsyncValueObservation<LibraryModelTrackImagesPropertiesImagesInfo?>.Iterator
   ) async throws -> Bool {
     defer {
       performedPropertiesFetch = true
@@ -705,7 +1273,7 @@ final class ImagesModel {
       case .none:
         return true
       case let .value(response):
-        response.item.id.map(incomingItemID.send(_:))
+        response.currentItem.item.id.map(incomingItemID.send(_:))
 
         return true
     }
@@ -714,14 +1282,14 @@ final class ImagesModel {
   @MainActor
   private func track(
     _ dataStack: DataStackDependencyKey.DataStack,
-    from iterator: inout AsyncValueObservation<ImagesItemsTrackerResponse?>.Iterator
+    from iterator: inout AsyncValueObservation<LibraryModelTrackImagesItemsImagesInfo?>.Iterator,
   ) async throws {
     while try await fetch(dataStack, from: &iterator) {}
   }
 
   @MainActor
   private func track(
-    from iterator: inout AsyncValueObservation<ImagesPropertiesTrackerResponse?>.Iterator
+    from iterator: inout AsyncValueObservation<LibraryModelTrackImagesPropertiesImagesInfo?>.Iterator,
   ) async throws {
     while try await !fetch(from: &iterator).isEnd {}
   }
@@ -738,7 +1306,7 @@ final class ImagesModel {
   @MainActor
   private func loadTrackers() async throws {
     let source = try await source()
-    var items = source.dataStack.track(itemsForImages: source.id.images).makeAsyncIterator()
+    var items = source.dataStack.trackImagesItems(images: source.id.images.rowID!).makeAsyncIterator()
 
     guard try await performFetch(source.dataStack, from: &items) else {
       return
@@ -748,7 +1316,7 @@ final class ImagesModel {
     //
     // We currently need to process items first so the UI can be ready to receive the incoming item ID. This should be
     // split so it's sent when both data sources are ready.
-    var properties = source.dataStack.track(propertiesForImages: source.id.images).makeAsyncIterator()
+    var properties = source.dataStack.trackImagesProperties(images: source.id.images.rowID!).makeAsyncIterator()
 
     guard try await performFetch(from: &properties) else {
       return
@@ -772,9 +1340,9 @@ final class ImagesModel {
 
     try await Self.submit(
       source.dataStack,
-      info: source.id.images,
+      images: source.id.images,
       items: items,
-      priority: self.items.last?.info.priority ?? -1
+      priority: self.items.last?.info.item.priority ?? -1
     )
   }
 
@@ -786,30 +1354,30 @@ final class ImagesModel {
       return
     }
 
-    try await Self.submit(source.dataStack, images: source.id.images, item: item)
+    try await Self.submitCurrentItem(source.dataStack, images: source.id.images.rowID!, currentItem: item.item.rowID)
   }
 
   @MainActor
   func submitItemBookmark(item: ImagesItemModel, isBookmarked: Bool) async throws {
     let source = try await source()
 
-    try await Self.submitItemBookmark(source.dataStack, item: item.info, isBookmarked: isBookmarked)
+    try await Self.submitItemBookmark(source.dataStack, item: item.info.item.rowID!, isBookmarked: isBookmarked)
   }
 }
 
-extension ImagesModel: Equatable {
+extension ImagesModel: @MainActor Equatable {
   static func ==(lhs: ImagesModel, rhs: ImagesModel) -> Bool {
     lhs.id == rhs.id
   }
 }
 
-extension ImagesModel: Hashable {
+extension ImagesModel: @MainActor Hashable {
   func hash(into hasher: inout Hasher) {
     hasher.combine(id)
   }
 }
 
-extension ImagesModel: Codable {
+extension ImagesModel: @MainActor Codable {
   convenience init(from decoder: any Decoder) throws {
     let container = try decoder.singleValueContainer()
     let id = try container.decode(UUID.self)

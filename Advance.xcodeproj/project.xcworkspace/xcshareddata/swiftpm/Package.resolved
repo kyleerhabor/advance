@@ -1,6 +1,23 @@
 {
-  "originHash" : "7f1c1234e9ba88f7903afc42f934b1bf371eddcc7870f96cdb2e9fac31e4a9bc",
+  "originHash" : "920d86485800d9532e56d3d8560477b39a3a0d80ea6b3697190ca29d647f6287",
   "pins" : [
+    {
+      "identity" : "bigdecimal",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mgriebling/BigDecimal.git",
+      "state" : {
+        "revision" : "4414e0e82bb859cf5a2883f9401e7d7cb030f5b1"
+      }
+    },
+    {
+      "identity" : "bigint",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mgriebling/BigInt.git",
+      "state" : {
+        "revision" : "f4c0c41dd681b2c3d770b9a83cb5e0e3e30ee708",
+        "version" : "2.3.0"
+      }
+    },
     {
       "identity" : "combine-schedulers",
       "kind" : "remoteSourceControl",
@@ -23,7 +40,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/groue/GRDB.swift",
       "state" : {
-        "revision" : "c5d02eac3241dd980fa42e5644afd2e7e3f63401"
+        "revision" : "18497b68fdbb3a09528d260a0a0e1e7e61c8c53d"
       }
     },
     {
@@ -101,6 +118,15 @@
       "location" : "https://github.com/siteline/SwiftUI-Introspect",
       "state" : {
         "revision" : "807f73ce09a9b9723f12385e592b4e0aaebd3336"
+      }
+    },
+    {
+      "identity" : "uint128",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mgriebling/UInt128.git",
+      "state" : {
+        "revision" : "f32052e906fd125936fef2d16e3ad284d50d68ed",
+        "version" : "3.2.0"
       }
     },
     {

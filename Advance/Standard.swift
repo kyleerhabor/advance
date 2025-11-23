@@ -10,6 +10,10 @@ import AdvanceData
 import Foundation
 import OSLog
 
+func unreachable() -> Never {
+  fatalError("Reached supposedly unreachable code")
+}
+
 extension Logger {
   static let ui = Self(subsystem: Bundle.appID, category: "UI")
   static let model = Self(subsystem: Bundle.appID, category: "Model")
@@ -163,6 +167,7 @@ struct Matcher {
       // The last increment is for "Advance".
       var results = [String](reservingCapacity: components.count - containerComponents.count + 1)
       results.append(contentsOf: components.prefix(1 + userComponents.count))
+      // TODO: Localize.
       results.append("Advance")
       results.append(contentsOf: components.suffix(components.count - containerComponents.count - userComponents.count - 1))
 
@@ -212,7 +217,7 @@ struct Matcher {
   }
 }
 
-// Borrowed from https://www.swiftbysundell.com/articles/the-power-of-key-paths-in-swift/
+// https://www.swiftbysundell.com/articles/the-power-of-key-paths-in-swift/
 func setter<Object, Value>(
   on keyPath: WritableKeyPath<Object, Value>,
   value: Value
@@ -228,39 +233,5 @@ func setter<Object: AnyObject, Value>(
 ) -> (Object) -> Void {
   { object in
     object[keyPath: keyPath] = value
-  }
-}
-
-extension DataBookmark {
-  init(data: Data, options: URL.BookmarkCreationOptions, hash: Data, relativeTo relative: URL?) throws {
-    try self.init(
-      data: data,
-      options: URL.BookmarkResolutionOptions(options).union(.withoutMounting),
-      hash: hash,
-      relativeTo: relative
-    ) { url in
-      try URLSource(url: url, options: options).accessingSecurityScopedResource {
-        try url.bookmark(options: options, relativeTo: relative)
-      }
-    }
-  }
-}
-
-// MARK: - Security-scoped resources
-
-extension URL.BookmarkResolutionOptions {
-  init(_ options: URL.BookmarkCreationOptions) {
-    self.init()
-
-    if options.contains(.withSecurityScope) {
-      self.insert(.withSecurityScope)
-    }
-
-    // This option is important for preventing App Sandbox from interning URLs involving security-scoped resources.
-    // With this option, a call to startAccessingSecurityScopedResource() is required, as opposed to implicitly
-    // starting the security scope on resolution.
-    if options.contains(.withoutImplicitSecurityScope) {
-      self.insert(.withoutImplicitStartAccessing)
-    }
   }
 }

@@ -17,26 +17,29 @@ import Observation
 import OSLog
 
 struct FoldersSettingsItemData {
-  let info: CopyingInfo
+  let info: FolderRecord
   let source: URLSource
   let isResolved: Bool
 }
 
 struct FoldersSettingsItem {
-  let id: UUID
   let data: FoldersSettingsItemData
   let icon: NSImage
   let string: AttributedString
 }
 
-extension FoldersSettingsItem: Identifiable {}
+extension FoldersSettingsItem: Identifiable {
+  var id: RowID {
+    data.info.rowID!
+  }
+}
 
 @Observable
+@MainActor
 class FoldersSettingsModel {
-  static let keywordEnclosing: Character = "%"
-  static let nameKeyword = TokenFieldView.enclose("name", with: keywordEnclosing)
-  static let pathKeyword = TokenFieldView.enclose("path", with: keywordEnclosing)
-
+  nonisolated static let keywordEnclosing: Character = "%"
+  nonisolated static let nameKeyword = TokenFieldView.enclose("name", with: keywordEnclosing)
+  nonisolated static let pathKeyword = TokenFieldView.enclose("path", with: keywordEnclosing)
   @ObservationIgnored @Dependency(\.dataStack) private var dataStack
 
   var items: IdentifiedArrayOf<FoldersSettingsItem>
@@ -45,6 +48,34 @@ class FoldersSettingsModel {
   init() {
     self.items = []
     self.resolved = []
+  }
+
+  nonisolated func _add(url: URL) async {
+    let connection: DatabasePool
+
+    do {
+      connection = try await databaseConnection()
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return
+    }
+
+    do {
+      try await connection.write { db in
+        
+      }
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return
+    }
+  }
+
+  func add(url: URL) async {
+    await _add(url: url)
   }
 
   private static func submit(_ dataStack: DataStackDependencyKey.DataStack, urls: [URL]) async throws {
@@ -64,12 +95,24 @@ class FoldersSettingsModel {
 
     let urls = try await dataStack.connection.write { db in
       try urbs.reduce(into: [Data: URL](minimumCapacity: urbs.count)) { partialResult, urb in
-        let bookmark = try DataStackDependencyKey.DataStack.createBookmark(db, bookmark: urb.bookmark, relative: nil)
+        let bookmark = try DataStackDependencyKey.DataStack.submitBookmark(
+          db,
+          data: urb.bookmark.data,
+          options: urb.bookmark.options,
+          // TODO: Don't do this in the writer.
+          hash: hash(data: urb.bookmark.data),
+        )
+
+        let fileBookmark = try DataStackDependencyKey.DataStack.submitFileBookmark(
+          db,
+          bookmark: bookmark.rowID!,
+          relative: nil,
+        )
 
         do {
-          _ = try DataStackDependencyKey.DataStack.createCopying(db, id: UUID(), bookmark: bookmark, url: urb.url)
+          _ = try DataStackDependencyKey.DataStack.createFolder(db, fileBookmark: fileBookmark.rowID!, url: urb.url)
         } catch let error as DatabaseError where error.extendedResultCode == .SQLITE_CONSTRAINT_UNIQUE {
-          // The copying item's bookmark is likely associated with some other copying item.
+          // The folder's file bookmark is likely associated with some other folder.
           return
         }
 
@@ -82,22 +125,20 @@ class FoldersSettingsModel {
     }
   }
 
-  private static func submitItemsRemoval(_ dataStack: DataStackDependencyKey.DataStack, copyings: [CopyingInfo]) async throws {
+  private static func submitItemsRemoval(_ dataStack: DataStackDependencyKey.DataStack, folders: [RowID]) async throws {
     try await dataStack.connection.write { db in
-      try copyings.forEach { copying in
-        _ = try DataStackDependencyKey.DataStack.deleteCopying(db, copying: copying)
-      }
+      try DataStackDependencyKey.DataStack.deleteFolders(db, folders: folders)
     }
   }
 
   static func resolve(
     _ dataStack: DataStackDependencyKey.DataStack,
-    responses: [CopyingResponse]
+    responses: [FoldersSettingsModelTrackFoldersFolderInfo]
   ) async throws -> [URL: FoldersSettingsItemData] {
     struct States {
       var results: [URL: FoldersSettingsItemData]
-      var unresolved: [CopyingResponse]
-      var unresolvedBookmarks: [BookmarkInfo]
+      var unresolved: [FoldersSettingsModelTrackFoldersFolderInfo]
+      var unresolvedBookmarks: [RowID]
     }
 
     let urls = await dataStack.urls
@@ -106,17 +147,17 @@ class FoldersSettingsModel {
       unresolved: Array(reservingCapacity: responses.count),
       unresolvedBookmarks: Array(reservingCapacity: responses.count)
     )) { partialResult, response in
-      let bookmark = response.bookmark
+      let bookmark = response.fileBookmark.bookmark.bookmark
 
       guard let url = urls[bookmark.hash!] else {
         partialResult.unresolved.append(response)
-        partialResult.unresolvedBookmarks.append(bookmark)
+        partialResult.unresolvedBookmarks.append(bookmark.rowID!)
 
         return
       }
 
       partialResult.results[url] = FoldersSettingsItemData(
-        info: response.copying,
+        info: response.folder,
         source: URLSource(url: url, options: bookmark.options!),
         isResolved: true
       )
@@ -127,14 +168,14 @@ class FoldersSettingsModel {
     }
 
     struct Resolved {
-      var items: [(CopyingResponse, DataBookmark, Bool)]
+      var items: [(FoldersSettingsModelTrackFoldersFolderInfo, DataBookmark, Bool)]
       var urls: [Data: URL]
     }
 
     let unresolved = states.unresolved
-    let resolved = await withTaskGroup(of: (CopyingResponse, DataBookmark, Bool).self) { group in
+    let resolved = await withTaskGroup(of: (FoldersSettingsModelTrackFoldersFolderInfo, DataBookmark, Bool).self) { group in
       unresolved.forEach { response in
-        guard let bookmark = bookmarks[response.bookmark]?.bookmark else {
+        guard let bookmark = bookmarks[response.fileBookmark.bookmark.bookmark.rowID!] else {
           return
         }
 
@@ -146,7 +187,20 @@ class FoldersSettingsModel {
           let isResolved: Bool
 
           do {
-            dataBookmark = try DataBookmark(data: data, options: options, hash: hash, relativeTo: nil)
+            dataBookmark = try DataBookmark(
+              data: data,
+              options: URL.BookmarkResolutionOptions(options).union(.withoutMounting),
+              hash: hash,
+              relativeTo: nil
+            ) { url in
+              let source = URLSource(url: url, options: options)
+              let bookmark = try source.accessingSecurityScopedResource {
+                try url.bookmarkData(options: options, relativeTo: nil)
+              }
+
+              return bookmark
+            }
+
             isResolved = true
           } catch {
             if ((error as? CocoaError)?.code == .fileNoSuchFile) != true {
@@ -154,7 +208,7 @@ class FoldersSettingsModel {
             }
 
             dataBookmark = DataBookmark(
-              bookmark: AssignedBookmark(url: response.copying.url!, data: data),
+              bookmark: AssignedBookmark(url: response.folder.url!, data: data),
               hash: hash
             )
 
@@ -166,7 +220,7 @@ class FoldersSettingsModel {
       }
 
       return await group.reduce(into: Resolved(
-        items: [(CopyingResponse, DataBookmark, Bool)](reservingCapacity: unresolved.count),
+        items: [(FoldersSettingsModelTrackFoldersFolderInfo, DataBookmark, Bool)](reservingCapacity: unresolved.count),
         urls: [Data: URL](minimumCapacity: unresolved.count)
       )) { partialResult, item in
         let data = item.1
@@ -192,17 +246,26 @@ class FoldersSettingsModel {
         let response = item.0
         let data = item.1
         let isResolved = item.2
-        let options = response.bookmark.options!
+        let options = response.fileBookmark.bookmark.bookmark.options!
 
         if isResolved {
+          let bookmark: BookmarkRecord
+
           do {
-            _ = try DataStackDependencyKey.DataStack.createBookmark(
+            bookmark = try DataStackDependencyKey.DataStack.submitBookmark(
               db,
               data: data.bookmark.data,
               options: options,
               hash: data.hash,
-              relative: nil
             )
+          } catch {
+            Logger.model.error("\(error)")
+
+            return
+          }
+
+          do {
+            _ = try DataStackDependencyKey.DataStack.submitFileBookmark(db, bookmark: bookmark.rowID!, relative: nil)
           } catch {
             Logger.model.error("\(error)")
 
@@ -211,7 +274,7 @@ class FoldersSettingsModel {
         }
 
         partialResult[data.bookmark.url] = FoldersSettingsItemData(
-          info: response.copying,
+          info: response.folder,
           source: URLSource(url: data.bookmark.url, options: options),
           isResolved: isResolved
         )
@@ -239,7 +302,7 @@ class FoldersSettingsModel {
   // This method primarily exists to assist in not relying on dynamic dispatching (i.e. the any keyword).
   //
   // The fact separator may be influenced by direction is coincidental.
-  static func formatPath(components: some Sequence<String>, separator: String, direction: StorageDirection) -> String {
+  nonisolated static func formatPath(components: some Sequence<String>, separator: String, direction: StorageDirection) -> String {
     // For Data -> Wallpapers -> From the New World - e01 [00꞉11꞉28.313],
     //
     // Left to right: Data -> Wallpapers -> From the New World - e01 [00꞉11꞉28.313]
@@ -251,7 +314,7 @@ class FoldersSettingsModel {
     }
   }
 
-  static func format(string: String, name: String, path: String) -> String {
+  nonisolated static func format(string: String, name: String, path: String) -> String {
     let tokens = TokenFieldView
       .parse(token: string, enclosing: keywordEnclosing)
       .map { token in
@@ -266,7 +329,7 @@ class FoldersSettingsModel {
   }
 
   @MainActor
-  func load(_ dataStack: DataStackDependencyKey.DataStack, responses: [CopyingResponse]) async {
+  func load(_ dataStack: DataStackDependencyKey.DataStack, responses: [FoldersSettingsModelTrackFoldersFolderInfo]) async {
     let results: [URL: FoldersSettingsItemData]
 
     do {
@@ -324,7 +387,6 @@ class FoldersSettingsModel {
         .reduce(AttributedString(), +)
 
       let item = FoldersSettingsItem(
-        id: data.info.id!,
         data: data,
         icon: NSWorkspace.shared.icon(forFileAt: url),
         string: attributed
@@ -341,22 +403,20 @@ class FoldersSettingsModel {
     self.resolved = reduced.resolved
   }
 
-  @MainActor
   func load() async throws {
     let dataStack = try await dataStack()
 
-    for try await responses in dataStack.trackCopyings() {
+    for try await responses in dataStack.trackFolders() {
       await load(dataStack, responses: responses)
     }
   }
 
-  @MainActor
   func submit(urls: [URL]) async throws {
     try await Self.submit(try await dataStack(), urls: urls)
   }
 
-  @MainActor
   func submit(removalOf items: some Sequence<FoldersSettingsItem>) async throws {
-    try await Self.submitItemsRemoval(try await dataStack(), copyings: items.map(\.data.info))
+    // TODO: Don't map on the main actor.
+    try await Self.submitItemsRemoval(try await dataStack(), folders: items.map(\.data.info.rowID!))
   }
 }

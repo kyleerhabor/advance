@@ -118,13 +118,15 @@ struct ImageCollectionSidebarEmptyView: View {
     let url = item.url
     let source = URLSource(
       url: url,
-      options: item.original ? [.withReadOnlySecurityScope, .withoutImplicitSecurityScope] : []
+      options: item.original
+        ? [.withSecurityScope, .securityScopeAllowOnlyReadAccess, .withoutImplicitSecurityScope]
+        : [],
     )
 
     if item.type == .folder {
       return .document(.init(
         source: source,
-        files: url.withSecurityScope {
+        files: url.accessingSecurityScopedResource {
           FileManager.default
             .contents(at: url, options: .init(includingHiddenFiles: importHidden, includingSubdirectories: importSubdirectories))
             .finderSort(by: \.pathComponents)

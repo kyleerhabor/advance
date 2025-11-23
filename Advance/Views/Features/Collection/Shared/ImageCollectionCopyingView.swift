@@ -5,6 +5,7 @@
 //  Created by Kyle Erhabor on 9/27/23.
 //
 
+import AdvanceCore
 import Algorithms
 import OSLog
 import SwiftUI
@@ -40,18 +41,18 @@ struct ImageCollectionCopyingView: View {
     }
   }
 
-  nonisolated static func saving(url scope: some URLScope, to destination: URL, action: (URL) throws -> Void) rethrows {
-    let url = scope.url
-
-    do {
-      try action(url)
-    } catch let err as CocoaError where err.code == .fileWriteFileExists {
-      throw err
-    } catch {
-      Logger.ui.error("Could not copy image \"\(url.pathString)\" to destination \"\(destination.path)\": \(error)")
-
-      throw error
-    }
+  nonisolated static func saving(url scope: some SecurityScopedResource, to destination: URL, action: (URL) throws -> Void) rethrows {
+//    let url = scope.url
+//
+//    do {
+//      try action(url)
+//    } catch let err as CocoaError where err.code == .fileWriteFileExists {
+//      throw err
+//    } catch {
+//      Logger.ui.error("Could not copy image \"\(url.pathString)\" to destination \"\(destination.path)\": \(error)")
+//
+//      throw error
+//    }
   }
 
   nonisolated static func save(url: URL, to destination: URL, resolvingConflicts resolveConflicts: Bool) throws {

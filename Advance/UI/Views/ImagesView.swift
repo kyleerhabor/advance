@@ -21,16 +21,16 @@ struct ImagesView: View {
   @FocusedValue(\.imagesDetailJump) private var jumpDetail
   @SceneStorage(StorageKeys.columnVisibility) private var columnVisibility
   @SceneStorage(StorageKeys.liveTextIconVisibility) private var liveTextIconVisibility
-  private var columns: Binding<NavigationSplitViewVisibility> {
-    Binding {
-      columnVisibility.columnVisibility
-    } set: { columnVisibility in
-      self.columnVisibility = StorageColumnVisibility(columnVisibility)
-    }
-  }
+//  private var columns: Binding<NavigationSplitViewVisibility> {
+//    Binding {
+//      columnVisibility.columnVisibility
+//    } set: { columnVisibility in
+//      self.columnVisibility = StorageColumnVisibility(columnVisibility)
+//    }
+//  }
 
   var body: some View {
-    NavigationSplitView(columnVisibility: columns) {
+    NavigationSplitView/*(columnVisibility: columns)*/ {
       ImagesSidebarView()
         .navigationSplitViewColumnWidth(min: 128, max: 256)
         .environment(\.imagesDetailJump, jumpDetail ?? ImagesNavigationJumpAction(
@@ -89,6 +89,9 @@ struct ImagesView: View {
       // FIXME: This is slow.
       liveTextIconVisibility = StorageVisibility(Visibility(isVisible))
     })
+    .task(id: images) {
+      await images.load2()
+    }
     .task(id: images) {
       if Task.isCancelled {
         // SwiftUI was pre-rendering.

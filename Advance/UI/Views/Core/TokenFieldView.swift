@@ -123,7 +123,7 @@ struct TokenFieldView: NSViewRepresentable {
 
   nonisolated static func enclose(
     _ string: some CustomStringConvertible,
-    with enclosing: some CustomStringConvertible
+    with enclosing: some CustomStringConvertible,
   ) -> String {
     "\(enclosing)\(string)\(enclosing)"
   }

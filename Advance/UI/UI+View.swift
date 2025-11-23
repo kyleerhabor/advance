@@ -641,7 +641,7 @@ extension FinderShow: Equatable {}
 extension FocusedValues {
   @Entry var windowOpen: AppMenuActionItem<WindowOpen?>?
   @Entry var finderShow: AppMenuActionItem<FinderShow>?
-  @Entry var finderOpen: AppMenuActionItem<Set<UUID>>?
+  @Entry var finderOpen: AppMenuActionItem<Set<FoldersSettingsItem.ID>>?
   @Entry var imagesSidebarJump: ImagesNavigationJumpAction?
   @Entry var imagesSidebarShow: AppMenuActionItem<ImagesModel.ID?>?
   @Entry var imagesDetailJump: ImagesNavigationJumpAction?

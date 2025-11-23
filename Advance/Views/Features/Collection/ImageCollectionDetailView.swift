@@ -116,7 +116,7 @@ struct ImageCollectionDetailItemInteractionView: View {
         return
       }
 
-      let analysis = await image.withSecurityScope {
+      let analysis = await image.accessingSecurityScopedResource {
         await Self.analyze(
           url: input.url,
           orientation: image.properties.orientation,
@@ -321,9 +321,9 @@ struct ImageCollectionDetailItemView: View {
     resolvingConflicts resolveConflicts: Bool
   ) async throws {
     try ImageCollectionCopyingView.saving {
-      try destination.withSecurityScope {
+      try destination.accessingSecurityScopedResource {
         try ImageCollectionCopyingView.saving(url: image, to: destination) { url in
-          try image.withSecurityScope {
+          try image.accessingSecurityScopedResource {
             try ImageCollectionCopyingView.save(url: url, to: destination, resolvingConflicts: resolveConflicts)
           }
         }

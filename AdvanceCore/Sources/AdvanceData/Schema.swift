@@ -6,11 +6,12 @@
 //
 
 import AdvanceCore
+import BigDecimal
 import CryptoKit
 import Foundation
 import GRDB
 
-typealias RowID = Int64
+public typealias RowID = Int64
 
 func hash(data: Data) -> Data {
   Data(SHA256.hash(data: data))
@@ -22,23 +23,19 @@ extension TableRecord {
   }
 }
 
-struct ImageRecord {
-  var rowID: RowID?
-  let data: Data
-  let hash: Data
-}
+public struct ImageRecord {
+  public var rowID: RowID?
+  public let data: Data
+  public let hash: Data
 
-extension ImageRecord {
-  init(rowID: RowID? = nil, data: Data) {
-    self.init(
-      rowID: rowID,
-      data: data,
-      hash: AdvanceData.hash(data: data)
-    )
+  public init(rowID: RowID? = nil, data: Data, hash: Data) {
+    self.rowID = rowID
+    self.data = data
+    self.hash = hash
   }
 }
 
-extension ImageRecord: FetchableRecord {}
+extension ImageRecord: Sendable, Equatable, FetchableRecord {}
 
 extension ImageRecord: Codable {
   enum CodingKeys: String, CodingKey {
@@ -46,237 +43,241 @@ extension ImageRecord: Codable {
          data, hash
   }
 
-  enum Columns {
-    static let data = Column(CodingKeys.data)
-    static let hash = Column(CodingKeys.hash)
+  public enum Columns {
+    public static let data = Column(CodingKeys.data)
+    public static let hash = Column(CodingKeys.hash)
   }
 }
 
 extension ImageRecord: MutablePersistableRecord {
-  mutating func didInsert(_ inserted: InsertionSuccess) {
+  public mutating func didInsert(_ inserted: InsertionSuccess) {
     rowID = inserted.rowID
   }
 }
 
 extension ImageRecord: TableRecord {
-  static let databaseTableName = "images"
-
-  static var databaseSelection: [SQLSelectable] {
+  public static let databaseTableName = "images"
+  public static var databaseSelection: [SQLSelectable] {
     Self.everyColumn
   }
 }
 
-struct ImagesImageRecord {
-  var rowID: RowID?
-  let image: RowID
-  let source: URL
+public struct ImagesItemImageRecord {
+  public var rowID: RowID?
+  public let image: RowID
+
+  public init(rowID: RowID? = nil, image: RowID) {
+    self.rowID = rowID
+    self.image = image
+  }
 }
 
-extension ImagesImageRecord: FetchableRecord {}
+extension ImagesItemImageRecord: Sendable, Equatable, FetchableRecord {}
 
-extension ImagesImageRecord: Codable {
-  enum CodingKeys: String, CodingKey {
+extension ImagesItemImageRecord: Codable {
+  public enum CodingKeys: String, CodingKey {
     case rowID = "rowid",
-         image,
-         source
+         image
   }
 
-  enum Columns {
-    static let image = Column(CodingKeys.image)
-    static let source = Column(CodingKeys.source)
+  public enum Columns {
+    public static let image = Column(CodingKeys.image)
   }
 }
 
-extension ImagesImageRecord: MutablePersistableRecord {
-  mutating func didInsert(_ inserted: InsertionSuccess) {
+extension ImagesItemImageRecord: MutablePersistableRecord {
+  public mutating func didInsert(_ inserted: InsertionSuccess) {
     rowID = inserted.rowID
   }
 }
 
-extension ImagesImageRecord: TableRecord {
-  static let databaseTableName = "image_collection_images"
-
-  static var databaseSelection: [SQLSelectable] {
+extension ImagesItemImageRecord: TableRecord {
+  public static let databaseTableName = "image_collection_item_images"
+  public static var databaseSelection: [SQLSelectable] {
     Self.everyColumn
   }
 
-  static var imageAssociation: BelongsToAssociation<Self, ImageRecord> {
+  public static var image: BelongsToAssociation<Self, ImageRecord> {
     Self.belongsTo(ImageRecord.self, using: ForeignKey([Columns.image]))
   }
+}
 
-  var imageRequest: QueryInterfaceRequest<ImageRecord> {
-    self.request(for: Self.imageAssociation)
+public struct ImagesItemFileBookmarkRecord {
+  public var rowID: RowID?
+  public let fileBookmark: RowID?
+}
+
+extension ImagesItemFileBookmarkRecord: Sendable, Equatable, FetchableRecord {}
+
+extension ImagesItemFileBookmarkRecord: Codable {
+  enum CodingKeys: String, CodingKey {
+    case rowID = "rowid",
+         fileBookmark = "file_bookmark"
+  }
+
+  public enum Columns {
+    public static let fileBookmark = Column(CodingKeys.fileBookmark)
   }
 }
 
-struct ImagesBookmarkRecord {
-  var rowID: RowID?
-  let bookmark: RowID
-}
-
-extension ImagesBookmarkRecord: FetchableRecord {}
-
-extension ImagesBookmarkRecord: MutablePersistableRecord {
-  mutating func didInsert(_ inserted: InsertionSuccess) {
+extension ImagesItemFileBookmarkRecord: MutablePersistableRecord {
+  public mutating func didInsert(_ inserted: InsertionSuccess) {
     rowID = inserted.rowID
   }
 }
 
-extension ImagesBookmarkRecord: Codable {
-  enum CodingKeys: String, CodingKey {
-    case rowID = "rowid",
-         bookmark
-  }
-
-  enum Columns {
-    static let bookmark = Column(CodingKeys.bookmark)
-  }
-}
-
-extension ImagesBookmarkRecord: TableRecord {
-  static let databaseTableName = "image_collection_bookmarks"
-
-  static var databaseSelection: [SQLSelectable] {
+extension ImagesItemFileBookmarkRecord: TableRecord {
+  public static let databaseTableName = "image_collection_item_file_bookmarks"
+  public static var databaseSelection: [SQLSelectable] {
     Self.everyColumn
   }
 
-  static var bookmarkAssociation: BelongsToAssociation<Self, BookmarkRecord> {
-    self.belongsTo(BookmarkRecord.self, using: ForeignKey([Columns.bookmark]))
-  }
-
-  var bookmarkRequest: QueryInterfaceRequest<BookmarkRecord> {
-    self.request(for: Self.bookmarkAssociation)
+  public static var fileBookmark: BelongsToAssociation<Self, FileBookmarkRecord> {
+    self.belongsTo(FileBookmarkRecord.self, using: ForeignKey([Columns.fileBookmark]))
   }
 }
 
-enum ImagesItemType: Int {
-  case image, bookmark
+public enum ImagesItemType: Int {
+  case image, fileBookmark
 }
 
-extension ImagesItemType: Codable {}
+extension ImagesItemType: Sendable, Codable {}
 
-struct ImagesItemRecord {
-  var rowID: RowID?
-  let id: UUID?
-  let priority: Int?
-  let isBookmarked: Bool?
-  let type: ImagesItemType?
-  let image: RowID?
-  let bookmark: RowID?
-
-  init(
-    rowID: RowID? = nil,
-    id: UUID?,
-    priority: Int?,
-    isBookmarked: Bool?,
-    type: ImagesItemType?,
-    image: RowID? = nil,
-    bookmark: RowID? = nil
-  ) {
-    self.rowID = rowID
-    self.id = id
-    self.priority = priority
-    self.isBookmarked = isBookmarked
-    self.type = type
-    self.image = image
-    self.bookmark = bookmark
-  }
+public struct ImagesItemRecord {
+  public var rowID: RowID?
+  public let id: UUID?
+  public let position: BigDecimal?
+  // TODO: Replace with above.
+  public let priority: Int?
+  public let isBookmarked: Bool?
+  public let type: ImagesItemType?
+  public let image: RowID?
+  public let fileBookmark: RowID?
 }
 
-extension ImagesItemRecord: FetchableRecord {}
+extension ImagesItemRecord: Sendable, Equatable, FetchableRecord {}
 
 extension ImagesItemRecord: Codable {
   enum CodingKeys: String, CodingKey {
     case rowID = "rowid",
-         id,
-         priority,
+         id, position, priority,
          isBookmarked = "is_bookmarked",
-         type, image, bookmark
+         type, image,
+         fileBookmark = "file_bookmark"
   }
 
-  enum Columns {
-    static let id = Column(CodingKeys.id)
-    static let priority = Column(CodingKeys.priority)
-    static let isBookmarked = Column(CodingKeys.isBookmarked)
-    static let type = Column(CodingKeys.type)
-    static let image = Column(CodingKeys.image)
-    static let bookmark = Column(CodingKeys.bookmark)
+  public enum Columns {
+    public static let id = Column(CodingKeys.id)
+    public static let position = Column(CodingKeys.position)
+    public static let priority = Column(CodingKeys.priority)
+    public static let isBookmarked = Column(CodingKeys.isBookmarked)
+    public static let type = Column(CodingKeys.type)
+    public static let image = Column(CodingKeys.image)
+    public static let fileBookmark = Column(CodingKeys.fileBookmark)
+  }
+
+  public init(from decoder: any Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.rowID = try container.decodeIfPresent(RowID.self, forKey: .rowID)
+    self.id = try container.decodeIfPresent(UUID.self, forKey: .id)
+    self.position = try container.decodeIfPresent(BigDecimal.self, forKey: .position)
+    self.priority = try container.decodeIfPresent(Int.self, forKey: .priority)
+    self.isBookmarked = try container.decodeIfPresent(Bool.self, forKey: .isBookmarked)
+    self.type = try container.decodeIfPresent(ImagesItemType.self, forKey: .type)
+    self.image = try container.decodeIfPresent(RowID.self, forKey: .image)
+    self.fileBookmark = try container.decodeIfPresent(RowID.self, forKey: .fileBookmark)
+  }
+
+  public func encode(to encoder: any Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(rowID, forKey: .rowID)
+    try container.encode(id, forKey: .id)
+    try container.encodeBigDecimal(position, forKey: CodingKeys.position)
+    try container.encode(priority, forKey: .priority)
+    try container.encode(isBookmarked, forKey: .isBookmarked)
+    try container.encode(type, forKey: .type)
+    try container.encode(image, forKey: .image)
+    try container.encode(fileBookmark, forKey: .fileBookmark)
   }
 }
 
 extension ImagesItemRecord: MutablePersistableRecord {
-  mutating func didInsert(_ inserted: InsertionSuccess) {
+  public mutating func didInsert(_ inserted: InsertionSuccess) {
     rowID = inserted.rowID
   }
 }
 
 extension ImagesItemRecord: TableRecord {
-  static let databaseTableName = "image_collection_items"
-
-  static var databaseSelection: [SQLSelectable] {
+  public static let databaseTableName = "image_collection_items"
+  public static var databaseSelection: [SQLSelectable] {
     Self.everyColumn
   }
 
-  static var imageAssociation: BelongsToAssociation<Self, ImagesImageRecord> {
-    Self.belongsTo(ImagesImageRecord.self, using: ForeignKey([Columns.image]))
+  public static var image: BelongsToAssociation<Self, ImagesItemImageRecord> {
+    Self.belongsTo(ImagesItemImageRecord.self, using: ForeignKey([Columns.image]))
   }
 
-  static var bookmarkAssociation: BelongsToAssociation<Self, ImagesBookmarkRecord> {
-    Self.belongsTo(ImagesBookmarkRecord.self, using: ForeignKey([Columns.bookmark]))
+  public static var fileBookmark: BelongsToAssociation<Self, ImagesItemFileBookmarkRecord> {
+    Self.belongsTo(ImagesItemFileBookmarkRecord.self, using: ForeignKey([Columns.fileBookmark]))
   }
 }
 
-struct ImagesRecord {
-  var rowID: RowID?
-  let id: UUID?
-  let item: RowID?
+public struct ImagesRecord {
+  public var rowID: RowID?
+  public let id: UUID?
+  public let currentItem: RowID?
+
+  public init(rowID: RowID? = nil, id: UUID?, currentItem: RowID?) {
+    self.rowID = rowID
+    self.id = id
+    self.currentItem = currentItem
+  }
 }
 
-extension ImagesRecord: FetchableRecord {}
+extension ImagesRecord: Sendable, Equatable, FetchableRecord {}
 
 extension ImagesRecord: Codable {
   enum CodingKeys: String, CodingKey {
     case rowID = "rowid",
          id,
-         item = "current_item"
+         currentItem = "current_item"
   }
 
-  enum Columns {
-    static let id = Column(CodingKeys.id)
-    static let item = Column(CodingKeys.item)
+  public enum Columns {
+    public static let id = Column(CodingKeys.id)
+    public static let currentItem = Column(CodingKeys.currentItem)
   }
 }
 
 extension ImagesRecord: MutablePersistableRecord {
-  mutating func didInsert(_ inserted: InsertionSuccess) {
+  public mutating func didInsert(_ inserted: InsertionSuccess) {
     rowID = inserted.rowID
   }
 }
 
 extension ImagesRecord: TableRecord {
-  static let databaseTableName = "image_collections"
-
-  static var databaseSelection: [SQLSelectable] {
+  public static let databaseTableName = "image_collections"
+  public static var databaseSelection: [SQLSelectable] {
     Self.everyColumn
   }
 
-  static var itemImages: HasManyAssociation<Self, ItemImagesRecord> {
+  public static var itemImages: HasManyAssociation<Self, ItemImagesRecord> {
     Self.hasMany(ItemImagesRecord.self, using: ForeignKey([ItemImagesRecord.Columns.images]))
   }
 
-  static var items: HasManyThroughAssociation<Self, ImagesItemRecord> {
+  public static var items: HasManyThroughAssociation<Self, ImagesItemRecord> {
     Self.hasMany(ImagesItemRecord.self, through: itemImages, using: ItemImagesRecord.item)
   }
 
-  static var itemAssociation: BelongsToAssociation<Self, ImagesItemRecord> {
-    Self.belongsTo(ImagesItemRecord.self, using: ForeignKey([Columns.item]))
+  static var currentItem: BelongsToAssociation<Self, ImagesItemRecord> {
+    Self.belongsTo(ImagesItemRecord.self, using: ForeignKey([Columns.currentItem]))
   }
 }
 
-struct ItemImagesRecord {
-  var rowID: RowID?
-  let images: RowID?
-  let item: RowID?
+public struct ItemImagesRecord {
+  public var rowID: RowID?
+  public let images: RowID?
+  public let item: RowID?
 }
 
 extension ItemImagesRecord: Encodable {
@@ -286,26 +287,25 @@ extension ItemImagesRecord: Encodable {
          item
   }
 
-  enum Columns {
-    static let images = Column(CodingKeys.images)
-    static let item = Column(CodingKeys.item)
+  public enum Columns {
+    public static let images = Column(CodingKeys.images)
+    public static let item = Column(CodingKeys.item)
   }
 }
 
 extension ItemImagesRecord: MutablePersistableRecord {
-  mutating func didInsert(_ inserted: InsertionSuccess) {
+  public mutating func didInsert(_ inserted: InsertionSuccess) {
     rowID = inserted.rowID
   }
 }
 
 extension ItemImagesRecord: TableRecord {
-  static let databaseTableName = "item_image_collections"
-
-  static var databaseSelection: [any SQLSelectable] {
+  public static let databaseTableName = "item_image_collections"
+  public static var databaseSelection: [any SQLSelectable] {
     Self.everyColumn
   }
 
-  static var item: BelongsToAssociation<Self, ImagesItemRecord> {
+  public static var item: BelongsToAssociation<Self, ImagesItemRecord> {
     Self.belongsTo(ImagesItemRecord.self, using: ForeignKey([Columns.item]))
   }
 }
@@ -313,53 +313,35 @@ extension ItemImagesRecord: TableRecord {
 
 // MARK: -
 
-struct BookmarkRecord {
-  var rowID: RowID?
-  let data: Data?
-  let options: URL.BookmarkCreationOptions?
-  let hash: Data?
-  let relative: RowID?
-}
+public struct BookmarkRecord {
+  public var rowID: RowID?
+  public let data: Data?
+  public let options: URL.BookmarkCreationOptions?
+  public let hash: Data?
 
-extension BookmarkRecord {
-  // TODO: Consider removing.
-
-  init(rowID: RowID? = nil, data: Data, options: URL.BookmarkCreationOptions, relative: RowID?) {
-    self.init(
-      rowID: rowID,
-      data: data,
-      options: options,
-      hash: AdvanceData.hash(data: data),
-      relative: relative
-    )
-  }
-
-  init(rowID: RowID? = nil, bookmark: Bookmark, relative: RowID?) {
-    self.init(
-      rowID: rowID,
-      data: bookmark.data,
-      options: bookmark.options,
-      relative: relative
-    )
+  public init(rowID: RowID? = nil, data: Data?, options: URL.BookmarkCreationOptions?, hash: Data?) {
+    self.rowID = rowID
+    self.data = data
+    self.options = options
+    self.hash = hash
   }
 }
 
-extension BookmarkRecord: FetchableRecord {}
+extension BookmarkRecord: Sendable, Equatable, FetchableRecord {}
 
 extension BookmarkRecord: Codable {
   enum CodingKeys: String, CodingKey {
     case rowID = "rowid",
-         data, options, hash, relative
+         data, options, hash
   }
 
-  enum Columns {
-    static let data = Column(CodingKeys.data)
-    static let options = Column(CodingKeys.options)
-    static let hash = Column(CodingKeys.hash)
-    static let relative = Column(CodingKeys.relative)
+  public enum Columns {
+    public static let data = Column(CodingKeys.data)
+    public static let options = Column(CodingKeys.options)
+    public static let hash = Column(CodingKeys.hash)
   }
 
-  init(from decoder: any Decoder) throws {
+  public init(from decoder: any Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
 
     self.init(
@@ -367,72 +349,112 @@ extension BookmarkRecord: Codable {
       data: try container.decodeIfPresent(Data.self, forKey: .data),
       options: try container.decodeIfPresent(URL.BookmarkCreationOptions.self, forKey: .options),
       hash: try container.decodeIfPresent(Data.self, forKey: .hash),
-      relative: try container.decodeIfPresent(RowID.self, forKey: .relative),
     )
   }
 
-  func encode(to encoder: any Encoder) throws {
+  public func encode(to encoder: any Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
     try container.encode(rowID, forKey: .rowID)
     try container.encode(data, forKey: .data)
     try container.encode(options, forKey: .options)
     try container.encode(hash, forKey: .hash)
-    try container.encode(relative, forKey: .relative)
   }
 }
 
 extension BookmarkRecord: MutablePersistableRecord {
-  mutating func didInsert(_ inserted: InsertionSuccess) {
+  public mutating func didInsert(_ inserted: InsertionSuccess) {
     rowID = inserted.rowID
   }
 }
 
 extension BookmarkRecord: TableRecord {
-  static let databaseTableName = "bookmarks"
+  public static let databaseTableName = "bookmarks"
+  public static var databaseSelection: [any SQLSelectable] {
+    Self.everyColumn
+  }
+}
 
-  static var databaseSelection: [any SQLSelectable] {
+public struct FileBookmarkRecord {
+  public var rowID: RowID?
+  public let bookmark: RowID?
+  public let relative: RowID?
+
+  public init(rowID: RowID? = nil, bookmark: RowID?, relative: RowID?) {
+    self.rowID = rowID
+    self.bookmark = bookmark
+    self.relative = relative
+  }
+}
+
+extension FileBookmarkRecord: Sendable, Equatable, FetchableRecord {}
+
+extension FileBookmarkRecord: Codable {
+  enum CodingKeys: String, CodingKey {
+    case rowID = "rowid",
+         bookmark, relative
+  }
+
+  public enum Columns {
+    public static let bookmark = Column(CodingKeys.bookmark)
+    public static let relative = Column(CodingKeys.relative)
+  }
+}
+
+extension FileBookmarkRecord: MutablePersistableRecord {
+  public mutating func didInsert(_ inserted: InsertionSuccess) {
+    rowID = inserted.rowID
+  }
+}
+
+extension FileBookmarkRecord: TableRecord {
+  public static let databaseTableName = "file_bookmarks"
+  public static var databaseSelection: [any SQLSelectable] {
     Self.everyColumn
   }
 
-  static var relativeAssociation: BelongsToAssociation<Self, Self> {
-    self.belongsTo(Self.self, using: ForeignKey([Columns.relative]))
+  public static var bookmark: BelongsToAssociation<Self, BookmarkRecord> {
+    Self.belongsTo(BookmarkRecord.self, using: ForeignKey([Columns.bookmark]))
+  }
+
+  public static var relative: BelongsToAssociation<Self, BookmarkRecord> {
+    Self.belongsTo(BookmarkRecord.self, using: ForeignKey([Columns.relative]))
   }
 }
 
-struct FolderRecord {
-  var rowID: RowID?
-  let id: UUID?
-  let bookmark: RowID?
-  let url: URL?
+public struct FolderRecord {
+  public var rowID: RowID?
+  public let fileBookmark: RowID?
+  public let url: URL?
 }
 
-extension FolderRecord: Encodable {
+extension FolderRecord: Sendable {}
+
+extension FolderRecord: Codable {
   enum CodingKeys: String, CodingKey {
     case rowID = "rowid",
-         id, bookmark, url
+         fileBookmark = "file_bookmark",
+         url
   }
 
-  enum Columns {
-    static let id = Column(CodingKeys.id)
-    static let bookmark = Column(CodingKeys.bookmark)
+  public enum Columns {
+    static let fileBookmark = Column(CodingKeys.fileBookmark)
     static let url = Column(CodingKeys.url)
   }
 }
 
 extension FolderRecord: MutablePersistableRecord {
-  mutating func didInsert(_ inserted: InsertionSuccess) {
+  public mutating func didInsert(_ inserted: InsertionSuccess) {
     rowID = inserted.rowID
   }
 }
 
 extension FolderRecord: TableRecord {
-  static let databaseTableName = "folders"
-
-  static var databaseSelection: [any SQLSelectable] {
+  public static let databaseTableName = "folders"
+  public static var databaseSelection: [any SQLSelectable] {
     Self.everyColumn
   }
 
-  static var bookmarkAssociation: BelongsToAssociation<Self, BookmarkRecord> {
-    Self.belongsTo(BookmarkRecord.self, using: ForeignKey([Columns.bookmark]))
+  static var fileBookmark: BelongsToAssociation<Self, FileBookmarkRecord> {
+    Self.belongsTo(FileBookmarkRecord.self, using: ForeignKey([Columns.fileBookmark]))
   }
 }
