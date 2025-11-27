@@ -6,6 +6,7 @@
 //
 
 import AdvanceCore
+@preconcurrency import BigInt
 import AdvanceData
 import Foundation
 import OSLog
@@ -17,6 +18,10 @@ func unreachable() -> Never {
 extension Logger {
   static let ui = Self(subsystem: Bundle.appID, category: "UI")
   static let model = Self(subsystem: Bundle.appID, category: "Model")
+}
+
+extension BFraction {
+  static let two = BFraction(2)!
 }
 
 // MARK: - Files

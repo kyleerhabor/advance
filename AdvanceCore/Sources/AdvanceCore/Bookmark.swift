@@ -5,7 +5,6 @@
 //  Created by Kyle Erhabor on 6/14/24.
 //
 
-import BigDecimal
 import Foundation
 import OSLog
 
@@ -163,10 +162,6 @@ extension KeyedEncodingContainer {
   public mutating func encode(_ value: URL.BookmarkCreationOptions?, forKey key: KeyedEncodingContainer<K>.Key) throws {
     try self.encode(value?.rawValue, forKey: key)
   }
-
-  public mutating func encodeBigDecimal(_ value: BigDecimal?, forKey key: KeyedEncodingContainer<K>.Key) throws {
-    try self.encode(value?.asData(), forKey: key)
-  }
 }
 
 extension KeyedDecodingContainer {
@@ -186,17 +181,6 @@ extension KeyedDecodingContainer {
     }
 
     return URL.BookmarkCreationOptions(rawValue: rawValue)
-  }
-
-  public func decodeIfPresent(
-    _ type: BigDecimal.Type,
-    forKey key: KeyedDecodingContainer<K>.Key,
-  ) throws -> BigDecimal? {
-    guard let data = try self.decodeIfPresent(Data.self, forKey: key) else {
-      return nil
-    }
-
-    return BigDecimal(data)
   }
 }
 

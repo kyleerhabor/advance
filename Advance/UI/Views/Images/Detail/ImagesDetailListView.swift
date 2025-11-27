@@ -80,7 +80,7 @@ struct ImagesDetailListView: View {
   @Environment(\.isWindowFullScreen) private var isWindowFullScreen
   @Environment(\.isWindowLiveResizeActive) private var isWindowLiveResizeActive
   @AppStorage(StorageKeys.restoreLastImage) private var restoreLastImage
-  @AppStorage(StorageKeys.layoutContinuousStyleHidden) private var hidden
+  @AppStorage(StorageKeys.hiddenLayoutStyles) private var hiddenLayoutStyles
   @SceneStorage(StorageKeys.columnVisibility) private var columnVisibility
   @State private var model = ImagesDetailListViewModel()
 
@@ -153,20 +153,24 @@ struct ImagesDetailListView: View {
         }
       }
       .toolbarVisible(
-        !hidden.toolbar
+        !hiddenLayoutStyles.toolbar
         || isWindowFullScreen
         || columnVisibility.columnVisibility != .detailOnly
         || !model.isActive
 //        || !(model.isHovering && model.isActive)
       )
       .cursorVisible(
-        !hidden.cursor
+        !hiddenLayoutStyles.cursor
         || columnVisibility.columnVisibility != .detailOnly
         || !model.isActive
 //        || !(model.isHovering && model.isActive)
       )
       // TODO: Document rationale for not hiding on scroll.
-      .scrollIndicators(hidden.scroll && columnVisibility.columnVisibility == .detailOnly ? .hidden : .automatic)
+      .scrollIndicators(
+        hiddenLayoutStyles.scroll && columnVisibility.columnVisibility == .detailOnly
+          ? .hidden
+          : .automatic,
+      )
       .focusedSceneValue(\.imagesDetailJump, ImagesNavigationJumpAction(identity: ImagesNavigationJumpIdentity(id: images.id, isReady: images.isReady)) { item in
         proxy.scrollTo(item.id, anchor: Self.defaultScrollAnchor)
       })

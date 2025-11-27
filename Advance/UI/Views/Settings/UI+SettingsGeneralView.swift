@@ -11,7 +11,6 @@ import VisionKit
 
 struct SettingsGeneralView2: View {
   @AppStorage(StorageKeys.restoreLastImage) private var restoreLastImage
-  @AppStorage(StorageKeys.layoutStyle) private var layoutStyle
   @AppStorage(StorageKeys.liveTextEnabled) private var liveTextEnabled
   @AppStorage(StorageKeys.liveTextIcon) private var liveTextIcon
   @AppStorage(StorageKeys.liveTextSubject) private var liveTextSubject
@@ -46,18 +45,6 @@ struct SettingsGeneralView2: View {
           Text("Settings.General.Window.ImageRestore.Note")
             .fixedSize(horizontal: false, vertical: true)
         }
-      }
-
-      LabeledContent("Settings.General.Layout") {
-        Picker("Settings.General.Layout.Style", selection: $layoutStyle) {
-          Text("Settings.General.Layout.Style.Continuous")
-            .tag(StorageImagesLayoutStyle.continuous)
-
-          Text("Settings.General.Layout.Style.Paged")
-            .tag(StorageImagesLayoutStyle.paged)
-        }
-        .labelsHidden()
-        .frame(width: SettingsView2.pickerWidth)
       }
 
       LabeledContent("Settings.General.LiveText") {

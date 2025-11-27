@@ -12,13 +12,13 @@ let package = Package(
   dependencies: [
     // v6.27.0
     .package(url: "https://github.com/groue/GRDB.swift", revision: "18497b68fdbb3a09528d260a0a0e1e7e61c8c53d"),
-    .package(url: "https://github.com/mgriebling/BigDecimal.git", revision: "4414e0e82bb859cf5a2883f9401e7d7cb030f5b1"),
+    .package(url: "https://github.com/leif-ibsen/BigInt.git", revision: "8c6f93aa37504b7b1ba3954335b5548a19fbbd82"),
   ],
   targets: [
     .target(
       name: "AdvanceCore",
       dependencies: [
-        .product(name: "BigDecimal", package: "BigDecimal"),
+        .product(name: "BigInt", package: "BigInt"),
       ],
     ),
     .target(
@@ -26,7 +26,7 @@ let package = Package(
       dependencies: [
         .target(name: "AdvanceCore"),
         .product(name: "GRDB", package: "GRDB.swift"),
-        .product(name: "BigDecimal", package: "BigDecimal"),
+        .product(name: "BigInt", package: "BigInt"),
       ],
     ),
   ],

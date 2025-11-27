@@ -8,9 +8,6 @@
 import AdvanceCore
 import OSLog
 import SwiftUI
-import UniformTypeIdentifiers
-
-let imagesContentTypes: [UTType] = [.image, .folder]
 
 struct ImagesView: View {
   @Environment(ImagesModel.self) private var images

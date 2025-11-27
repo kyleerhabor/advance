@@ -8,28 +8,26 @@
 import SwiftUI
 
 struct SettingsLayoutView: View {
-  @AppStorage(StorageKeys.layoutStyle) private var style
-  @AppStorage(StorageKeys.layoutContinuousStyleHidden) private var continuousStyleHidden
+  @AppStorage(StorageKeys.hiddenLayoutStyles) private var hiddenLayoutStyles
 
   var body: some View {
     Form {
       LabeledContent("Settings.Layout.Continuous") {
         GroupBox {
           HStack(alignment: .firstTextBaseline) {
-            Toggle("Settings.Layout.Continuous.Hidden.Toolbar", isOn: $continuousStyleHidden.toolbar)
+            Toggle("Settings.Layout.Continuous.Hidden.Toolbar", isOn: $hiddenLayoutStyles.toolbar)
 
-            Toggle("Settings.Layout.Continuous.Hidden.Cursor", isOn: $continuousStyleHidden.cursor)
+            Toggle("Settings.Layout.Continuous.Hidden.Cursor", isOn: $hiddenLayoutStyles.cursor)
 
-            Toggle("Settings.Layout.Continuous.Hidden.Scroll", isOn: $continuousStyleHidden.scroll)
+            Toggle("Settings.Layout.Continuous.Hidden.Scroll", isOn: $hiddenLayoutStyles.scroll)
           }
         } label: {
           Toggle(
             "Settings.Layout.Continuous.Hidden",
-            sources: [$continuousStyleHidden.toolbar, $continuousStyleHidden.cursor, $continuousStyleHidden.scroll],
+            sources: [$hiddenLayoutStyles.toolbar, $hiddenLayoutStyles.cursor, $hiddenLayoutStyles.scroll],
             isOn: \.self
           )
         }
-        .disabled(style != .continuous)
       }
     }
     .formStyle(.settings(width: SettingsView2.contentWidth))

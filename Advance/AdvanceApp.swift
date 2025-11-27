@@ -16,13 +16,18 @@ struct AdvanceApp: App {
   @NSApplicationDelegateAdaptor private var delegate: AppDelegate2
   @State private var search = SearchSettingsModel()
   @State private var folders = FoldersSettingsModel()
+  @State private var folders2 = FoldersSettingsModel2()
 
   var body: some Scene {
     AppScene()
       .environment(search)
       .environment(folders)
+      .environment(folders2)
       .environmentObject(delegate)
       .defaultAppStorage(.default)
+      .commands {
+        AppCommands()
+      }
   }
 
   init() {

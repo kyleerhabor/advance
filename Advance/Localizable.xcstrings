@@ -25,6 +25,37 @@
     "Collapse margins" : {
 
     },
+    "Commands.Images.Window.Size.Reset" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Return to Default Size"
+          }
+        }
+      }
+    },
+    "Commands.Open" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open..."
+          }
+        }
+      }
+    },
+    "Commands.Settings.Accessory.Folders.Open" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open..."
+          }
+        }
+      }
+    },
     "Copy" : {
 
     },
@@ -256,6 +287,16 @@
         }
       }
     },
+    "Images.Item.Copy" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy"
+          }
+        }
+      }
+    },
     "Images.Sidebar.Import" : {
       "localizations" : {
         "en" : {
@@ -448,7 +489,14 @@
       }
     },
     "Settings.Accessory.Folders.Add" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add..."
+          }
+        }
+      }
     },
     "Settings.Accessory.Folders.Remove" : {
       "localizations" : {
@@ -766,46 +814,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "System"
-          }
-        }
-      }
-    },
-    "Settings.General.Layout" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Layout:"
-          }
-        }
-      }
-    },
-    "Settings.General.Layout.Style" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Style:"
-          }
-        }
-      }
-    },
-    "Settings.General.Layout.Style.Continuous" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Continuous"
-          }
-        }
-      }
-    },
-    "Settings.General.Layout.Style.Paged" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Paged"
           }
         }
       }

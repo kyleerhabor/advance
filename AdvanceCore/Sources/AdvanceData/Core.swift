@@ -6,7 +6,7 @@
 //
 
 import AdvanceCore
-import BigDecimal
+import BigInt
 import Foundation
 import GRDB
 import OSLog
@@ -51,61 +51,29 @@ extension DataBookmark {
 
 extension DataBookmark: Sendable {}
 
-public struct LibraryModelUpdateImagesItemImageImageInfo {
-  let image: ImageRecord
-}
-
-extension LibraryModelUpdateImagesItemImageImageInfo: Sendable, Decodable, FetchableRecord {}
-
-public struct LibraryModelUpdateImagesItemImageInfo {
-  let image: ImagesItemImageRecord
-  let image2: LibraryModelUpdateImagesItemImageImageInfo?
-}
-
-extension LibraryModelUpdateImagesItemImageInfo: Decodable {
-  enum CodingKeys: CodingKey {
-    case image, image2
-  }
-}
-
-extension LibraryModelUpdateImagesItemImageInfo: Sendable, FetchableRecord {}
-
-public struct LibraryModelUpdateImagesItemFileBookmarkFileBookmarkBookmarkInfo {
+public struct LibraryModelUpdateImagesItemFileBookmarkBookmarkInfo {
   public let bookmark: BookmarkRecord
 }
 
-extension LibraryModelUpdateImagesItemFileBookmarkFileBookmarkBookmarkInfo: Sendable, Decodable, FetchableRecord {}
+extension LibraryModelUpdateImagesItemFileBookmarkBookmarkInfo: Sendable, Decodable, FetchableRecord {}
 
-public struct LibraryModelUpdateImagesItemFileBookmarkFileBookmarkRelativeInfo {
+public struct LibraryModelUpdateImagesItemFileBookmarkRelativeInfo {
   public let relative: BookmarkRecord
 }
 
-extension LibraryModelUpdateImagesItemFileBookmarkFileBookmarkRelativeInfo: Sendable, Decodable, FetchableRecord {}
+extension LibraryModelUpdateImagesItemFileBookmarkRelativeInfo: Sendable, Decodable, FetchableRecord {}
 
-public struct LibraryModelUpdateImagesItemFileBookmarkFileBookmarkInfo {
+public struct LibraryModelUpdateImagesItemFileBookmarkInfo {
   public let fileBookmark: FileBookmarkRecord
-  public let bookmark: LibraryModelUpdateImagesItemFileBookmarkFileBookmarkBookmarkInfo?
-  public let relative: LibraryModelUpdateImagesItemFileBookmarkFileBookmarkRelativeInfo?
+  public let bookmark: LibraryModelUpdateImagesItemFileBookmarkBookmarkInfo
+  public let relative: LibraryModelUpdateImagesItemFileBookmarkRelativeInfo?
 }
 
-extension LibraryModelUpdateImagesItemFileBookmarkFileBookmarkInfo: Decodable {
+extension LibraryModelUpdateImagesItemFileBookmarkInfo: Decodable {
   enum CodingKeys: String, CodingKey {
     case fileBookmark,
          bookmark = "_bookmark",
          relative = "_relative"
-  }
-}
-
-extension LibraryModelUpdateImagesItemFileBookmarkFileBookmarkInfo: Sendable, FetchableRecord {}
-
-public struct LibraryModelUpdateImagesItemFileBookmarkInfo {
-  public let fileBookmark: ImagesItemFileBookmarkRecord
-  public let fileBookmark2: LibraryModelUpdateImagesItemFileBookmarkFileBookmarkInfo?
-}
-
-extension LibraryModelUpdateImagesItemFileBookmarkInfo: Decodable {
-  enum CodingKeys: CodingKey {
-    case fileBookmark, fileBookmark2
   }
 }
 
@@ -113,56 +81,36 @@ extension LibraryModelUpdateImagesItemFileBookmarkInfo: Sendable, FetchableRecor
 
 public struct LibraryModelUpdateImagesItemInfo {
   public let item: ImagesItemRecord
-  public let image: LibraryModelUpdateImagesItemImageInfo?
-  public let fileBookmark: LibraryModelUpdateImagesItemFileBookmarkInfo?
+  public let fileBookmark: LibraryModelUpdateImagesItemFileBookmarkInfo
 }
 
 extension LibraryModelUpdateImagesItemInfo: Decodable {
   enum CodingKeys: CodingKey {
-    case item, image, fileBookmark
+    case item, fileBookmark
   }
 }
 
 extension LibraryModelUpdateImagesItemInfo: Sendable, FetchableRecord {}
 
-public struct LibraryModelTrackImagesItemsImagesItemImageImageInfo {
-  let image: ImageRecord
-}
-
-extension LibraryModelTrackImagesItemsImagesItemImageImageInfo: Sendable, Decodable, FetchableRecord {}
-
-public struct LibraryModelTrackImagesItemsImagesItemImageInfo {
-  let image: ImagesItemImageRecord
-  let image2: LibraryModelTrackImagesItemsImagesItemImageImageInfo?
-}
-
-extension LibraryModelTrackImagesItemsImagesItemImageInfo: Decodable {
-  enum CodingKeys: CodingKey {
-    case image, image2
-  }
-}
-
-extension LibraryModelTrackImagesItemsImagesItemImageInfo: Sendable, FetchableRecord {}
-
-public struct LibraryModelTrackImagesItemsImagesItemFileBookmarkFileBookmarkBookmarkInfo {
+public struct LibraryModelTrackImagesItemsImagesItemFileBookmarkBookmarkInfo {
   public let bookmark: BookmarkRecord
 }
 
-extension LibraryModelTrackImagesItemsImagesItemFileBookmarkFileBookmarkBookmarkInfo: Sendable, Decodable, FetchableRecord {}
+extension LibraryModelTrackImagesItemsImagesItemFileBookmarkBookmarkInfo: Sendable, Decodable, FetchableRecord {}
 
-public struct LibraryModelTrackImagesItemsImagesItemFileBookmarkFileBookmarkRelativeInfo {
+public struct LibraryModelTrackImagesItemsImagesItemFileBookmarkRelativeInfo {
   public let relative: BookmarkRecord
 }
 
-extension LibraryModelTrackImagesItemsImagesItemFileBookmarkFileBookmarkRelativeInfo: Sendable, Decodable, FetchableRecord {}
+extension LibraryModelTrackImagesItemsImagesItemFileBookmarkRelativeInfo: Sendable, Decodable, FetchableRecord {}
 
-public struct LibraryModelTrackImagesItemsImagesItemFileBookmarkFileBookmarkInfo {
+public struct LibraryModelTrackImagesItemsImagesItemFileBookmarkInfo {
   public let fileBookmark: FileBookmarkRecord
-  public let bookmark: LibraryModelTrackImagesItemsImagesItemFileBookmarkFileBookmarkBookmarkInfo?
-  public let relative: LibraryModelTrackImagesItemsImagesItemFileBookmarkFileBookmarkRelativeInfo?
+  public let bookmark: LibraryModelTrackImagesItemsImagesItemFileBookmarkBookmarkInfo
+  public let relative: LibraryModelTrackImagesItemsImagesItemFileBookmarkRelativeInfo?
 }
 
-extension LibraryModelTrackImagesItemsImagesItemFileBookmarkFileBookmarkInfo: Decodable {
+extension LibraryModelTrackImagesItemsImagesItemFileBookmarkInfo: Decodable {
   enum CodingKeys: String, CodingKey {
     case fileBookmark,
          bookmark = "_bookmark",
@@ -170,30 +118,16 @@ extension LibraryModelTrackImagesItemsImagesItemFileBookmarkFileBookmarkInfo: De
   }
 }
 
-extension LibraryModelTrackImagesItemsImagesItemFileBookmarkFileBookmarkInfo: Sendable, FetchableRecord {}
-
-public struct LibraryModelTrackImagesItemsImagesItemFileBookmarkInfo {
-  public let fileBookmark: ImagesItemFileBookmarkRecord
-  public let fileBookmark2: LibraryModelTrackImagesItemsImagesItemFileBookmarkFileBookmarkInfo?
-}
-
-extension LibraryModelTrackImagesItemsImagesItemFileBookmarkInfo: Decodable {
-  enum CodingKeys: CodingKey {
-    case fileBookmark, fileBookmark2
-  }
-}
-
 extension LibraryModelTrackImagesItemsImagesItemFileBookmarkInfo: Sendable, FetchableRecord {}
 
 public struct LibraryModelTrackImagesItemsImagesItemInfo {
   public let item: ImagesItemRecord
-  public let image: LibraryModelTrackImagesItemsImagesItemImageInfo?
-  public let fileBookmark: LibraryModelTrackImagesItemsImagesItemFileBookmarkInfo?
+  public let fileBookmark: LibraryModelTrackImagesItemsImagesItemFileBookmarkInfo
 }
 
 extension LibraryModelTrackImagesItemsImagesItemInfo: Decodable {
   enum CodingKeys: CodingKey {
-    case item, image, fileBookmark
+    case item, fileBookmark
   }
 }
 
@@ -294,48 +228,28 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
   // MARK: - Reading
 
   nonisolated static func buildBookmarkRequest<Request>(_ bookmark: Request) -> Request where Request: DerivableRequest {
-    bookmark.select(Column.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options, BookmarkRecord.Columns.hash)
+    bookmark.select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options, BookmarkRecord.Columns.hash)
   }
 
   nonisolated static func buildLimitedBookmarkRequest<Request>(_ bookmark: Request) -> Request where Request: DerivableRequest {
-    bookmark.select(Column.rowID, BookmarkRecord.Columns.options, BookmarkRecord.Columns.hash)
+    bookmark.select(.rowID, BookmarkRecord.Columns.options, BookmarkRecord.Columns.hash)
   }
 
   nonisolated public static func fetch(_ db: Database, items: some Sequence<RowID>) throws -> [LibraryModelUpdateImagesItemInfo] {
     try ImagesItemRecord
-      .select(Column.rowID, ImagesItemRecord.Columns.type, ImagesItemRecord.Columns.isBookmarked)
+      .select(.rowID, ImagesItemRecord.Columns.isBookmarked)
       .filter(items.contains(Column.rowID))
       .including(
-        optional: ImagesItemRecord.image
-          .forKey(LibraryModelUpdateImagesItemInfo.CodingKeys.image)
-          .select(Column.rowID)
-          .including(
-            // This should be required, but is optional to workaround the unimplemented feature:
-            //
-            // "Not implemented: chaining a required association behind an optional association"
-            optional: ImagesItemImageRecord.image
-              .forKey(LibraryModelUpdateImagesItemImageInfo.CodingKeys.image2)
-              .select(Column.rowID, ImageRecord.Columns.data, ImageRecord.Columns.hash),
-          ),
-      )
-      .including(
-        optional: ImagesItemRecord.fileBookmark
+        required: ImagesItemRecord.fileBookmark
           .forKey(LibraryModelUpdateImagesItemInfo.CodingKeys.fileBookmark)
-          .select(Column.rowID)
+          .select(.rowID)
           .including(
-            // This should be required, but is optional to workaround the unimplemented feature:
-            //
-            // "Not implemented: chaining a required association behind an optional association"
-            optional: ImagesItemFileBookmarkRecord.fileBookmark
-              .forKey(LibraryModelUpdateImagesItemFileBookmarkInfo.CodingKeys.fileBookmark2)
-              .including(
-                optional: buildBookmarkRequest(FileBookmarkRecord.bookmark)
-                  .forKey(LibraryModelUpdateImagesItemFileBookmarkFileBookmarkInfo.CodingKeys.bookmark),
-              )
-              .including(
-                optional: buildBookmarkRequest(FileBookmarkRecord.relative)
-                  .forKey(LibraryModelUpdateImagesItemFileBookmarkFileBookmarkInfo.CodingKeys.relative),
-              ),
+            required: buildBookmarkRequest(FileBookmarkRecord.bookmark)
+              .forKey(LibraryModelUpdateImagesItemFileBookmarkInfo.CodingKeys.bookmark),
+          )
+          .including(
+            optional: buildBookmarkRequest(FileBookmarkRecord.relative)
+              .forKey(LibraryModelUpdateImagesItemFileBookmarkInfo.CodingKeys.relative),
           ),
       )
       .asRequest(of: LibraryModelUpdateImagesItemInfo.self)
@@ -346,45 +260,24 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
     ValueObservation
       .trackingConstantRegion { db in
         try ImagesRecord
-          .select(Column.rowID)
+          .select(.rowID)
           .filter(key: images)
           .including(
             all: ImagesRecord.items
               .forKey(LibraryModelTrackImagesItemsImagesInfo.CodingKeys.items)
-              .select(Column.rowID, ImagesItemRecord.Columns.id, ImagesItemRecord.Columns.isBookmarked, ImagesItemRecord.Columns.type)
+              .select(.rowID, ImagesItemRecord.Columns.isBookmarked)
               .order(ImagesItemRecord.Columns.priority)
               .including(
-                optional: ImagesItemRecord.image
-                  .forKey(LibraryModelTrackImagesItemsImagesItemInfo.CodingKeys.image)
-                  .select(Column.rowID)
-                  .including(
-                    // This should be required, but is optional to workaround the unimplemented feature:
-                    //
-                    // "Not implemented: chaining a required association behind an optional association"
-                    optional: ImagesItemImageRecord.image
-                      .forKey(LibraryModelTrackImagesItemsImagesItemImageInfo.CodingKeys.image2)
-                      // TODO: Implement.
-                      .select(Column.rowID)
-                  )
-              )
-              .including(
-                optional: ImagesItemRecord.fileBookmark
+                required: ImagesItemRecord.fileBookmark
                   .forKey(LibraryModelTrackImagesItemsImagesItemInfo.CodingKeys.fileBookmark)
-                  .select(Column.rowID)
+                  .select(.rowID)
                   .including(
-                    // This should be required, but is optional to workaround the unimplemented feature:
-                    //
-                    // "Not implemented: chaining a required association behind an optional association"
-                    optional: ImagesItemFileBookmarkRecord.fileBookmark
-                      .forKey(LibraryModelTrackImagesItemsImagesItemFileBookmarkInfo.CodingKeys.fileBookmark2)
-                      .including(
-                        optional: Self.buildLimitedBookmarkRequest(FileBookmarkRecord.bookmark)
-                          .forKey(LibraryModelTrackImagesItemsImagesItemFileBookmarkFileBookmarkInfo.CodingKeys.bookmark),
-                      )
-                      .including(
-                        optional: Self.buildLimitedBookmarkRequest(FileBookmarkRecord.relative)
-                          .forKey(LibraryModelTrackImagesItemsImagesItemFileBookmarkFileBookmarkInfo.CodingKeys.relative),
-                      ),
+                    required: Self.buildLimitedBookmarkRequest(FileBookmarkRecord.bookmark)
+                      .forKey(LibraryModelTrackImagesItemsImagesItemFileBookmarkInfo.CodingKeys.bookmark),
+                  )
+                  .including(
+                    optional: Self.buildLimitedBookmarkRequest(FileBookmarkRecord.relative)
+                      .forKey(LibraryModelTrackImagesItemsImagesItemFileBookmarkInfo.CodingKeys.relative),
                   ),
               ),
           )
@@ -400,12 +293,12 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
     ValueObservation
       .trackingConstantRegion { db in
         try ImagesRecord
-          .select(Column.rowID)
+          .select(.rowID)
           .filter(key: images)
           .including(
             required: ImagesRecord.currentItem
               .forKey(LibraryModelTrackImagesPropertiesImagesInfo.CodingKeys.currentItem)
-              .select(Column.rowID, ImagesItemRecord.Columns.id),
+              .select(.rowID),
           )
           .asRequest(of: LibraryModelTrackImagesPropertiesImagesInfo.self)
           .fetchOne(db)
@@ -428,11 +321,11 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
     ValueObservation
       .trackingConstantRegion { db in
         try FolderRecord
-          .select(Column.rowID, FolderRecord.Columns.url)
+          .select(.rowID, FolderRecord.Columns.url)
           .including(
             required: FolderRecord.fileBookmark
               .forKey(FoldersSettingsModelTrackFoldersFolderInfo.CodingKeys.fileBookmark)
-              .select(Column.rowID)
+              .select(.rowID)
               .including(
                 required: Self.buildLimitedBookmarkRequest(FileBookmarkRecord.bookmark)
                   .forKey(FoldersSettingsModelTrackFoldersFolderFileBookmarkInfo.CodingKeys.bookmark),
@@ -448,7 +341,7 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
 
   nonisolated public static func idImages(_ db: Database, id: UUID) throws -> LibraryModelIDImagesInfo {
     if let images = try ImagesRecord
-      .select(Column.rowID, ImagesRecord.Columns.id)
+      .select(.rowID, ImagesRecord.Columns.id)
       .filter(ImagesRecord.Columns.id == id)
       .asRequest(of: LibraryModelIDImagesInfo.self)
       .fetchOne(db) {
@@ -495,12 +388,9 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
   ) throws {
     let imagesItem = ImagesItemRecord(
       rowID: item,
-      id: nil,
       position: nil,
       priority: nil,
       isBookmarked: isBookmarked,
-      type: nil,
-      image: nil,
       fileBookmark: nil,
     )
 
@@ -528,18 +418,12 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
         var fileBookmark = FileBookmarkRecord(bookmark: bookmark.rowID, relative: nil)
         try fileBookmark.upsert(db)
 
-        var imagesItemFileBookmark = ImagesItemFileBookmarkRecord(fileBookmark: fileBookmark.rowID)
-        try imagesItemFileBookmark.insert(db)
-
         let priority = priority.incremented()
         var imagesItem = ImagesItemRecord(
-          id: UUID(),
-          position: BigDecimal(priority),
+          position: BigFraction.zero,
           priority: priority,
           isBookmarked: false,
-          type: .fileBookmark,
-          image: nil,
-          fileBookmark: imagesItemFileBookmark.rowID,
+          fileBookmark: fileBookmark.rowID,
         )
 
         try imagesItem.insert(db)
@@ -574,18 +458,12 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
           var fileBookmark = FileBookmarkRecord(bookmark: bookmark2.rowID, relative: bookmark.rowID)
           try fileBookmark.upsert(db)
 
-          var imagesItemFileBookmark = ImagesItemFileBookmarkRecord(fileBookmark: fileBookmark.rowID)
-          try imagesItemFileBookmark.insert(db)
-
           let priority = (partialResult.last?.item?.priority ?? priority).incremented()
           var imagesItem = ImagesItemRecord(
-            id: UUID(),
-            position: BigDecimal(priority),
+            position: BigFraction.zero,
             priority: priority,
             isBookmarked: false,
-            type: .fileBookmark,
-            image: nil,
-            fileBookmark: imagesItemFileBookmark.rowID,
+            fileBookmark: fileBookmark.rowID,
           )
 
           try imagesItem.insert(db)
@@ -670,43 +548,8 @@ public func createSchema(connection: DatabaseConnection) async throws {
         .indexed()
     }
 
-    try db.create(table: ImageRecord.databaseTableName) { table in
-      table.primaryKey(Column.rowID.name, .integer)
-      table
-        .column(ImageRecord.Columns.data.name, .blob)
-        .unique()
-        .notNull()
-
-      table
-        .column(ImageRecord.Columns.hash.name, .blob)
-        .unique()
-        .notNull()
-    }
-
-    try db.create(table: ImagesItemImageRecord.databaseTableName) { table in
-      table.primaryKey(Column.rowID.name, .integer)
-      table
-        .column(ImagesItemImageRecord.Columns.image.name, .integer)
-        .notNull()
-        .references(ImageRecord.databaseTableName)
-        .indexed()
-    }
-
-    try db.create(table: ImagesItemFileBookmarkRecord.databaseTableName) { table in
-      table.primaryKey(Column.rowID.name, .integer)
-      table
-        .column(ImagesItemFileBookmarkRecord.Columns.fileBookmark.name, .integer)
-        .notNull()
-        .references(BookmarkRecord.databaseTableName)
-        .indexed()
-    }
-
     try db.create(table: ImagesItemRecord.databaseTableName) { table in
       table.primaryKey(Column.rowID.name, .integer)
-      table
-        .column(ImagesItemRecord.Columns.id.name, .blob)
-        .notNull()
-        .unique()
 
       // TODO: Enforce uniqueness via trigger.
       table
@@ -722,18 +565,10 @@ public func createSchema(connection: DatabaseConnection) async throws {
         .notNull()
 
       table
-        .column(ImagesItemRecord.Columns.type.name, .integer)
-        .notNull()
-
-      table
-        .column(ImagesItemRecord.Columns.image.name, .integer)
-        .unique()
-        .references(ImagesItemImageRecord.databaseTableName)
-
-      table
         .column(ImagesItemRecord.Columns.fileBookmark.name, .integer)
-        .unique()
-        .references(ImagesItemFileBookmarkRecord.databaseTableName)
+        .notNull()
+        .references(FileBookmarkRecord.databaseTableName)
+        .indexed()
     }
 
     try db.create(table: ImagesRecord.databaseTableName) { table in
@@ -782,16 +617,6 @@ public func createSchema(connection: DatabaseConnection) async throws {
     }
 
     // TODO: Use SQL literals.
-
-    try db.execute(
-      sql: """
-        CREATE TRIGGER remove_orphaned_images_from_image_collection_images
-        AFTER DELETE ON \(ImagesItemImageRecord.databaseTableName)
-        BEGIN
-          DELETE FROM \(ImageRecord.databaseTableName) WHERE \(ImageRecord.databaseTableName).\(Column.rowID.name) = OLD.\(ImagesItemImageRecord.Columns.image.name);
-        END
-        """
-    )
 
 //    try db.execute(
 //      sql: """

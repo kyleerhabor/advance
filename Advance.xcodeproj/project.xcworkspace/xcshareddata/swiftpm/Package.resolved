@@ -1,21 +1,12 @@
 {
-  "originHash" : "920d86485800d9532e56d3d8560477b39a3a0d80ea6b3697190ca29d647f6287",
+  "originHash" : "df8a4ebc5d9df478f4bcf8a953f5f0fa65675ee5e2a737ef1e0a06062e34d11c",
   "pins" : [
-    {
-      "identity" : "bigdecimal",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/mgriebling/BigDecimal.git",
-      "state" : {
-        "revision" : "4414e0e82bb859cf5a2883f9401e7d7cb030f5b1"
-      }
-    },
     {
       "identity" : "bigint",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/mgriebling/BigInt.git",
+      "location" : "https://github.com/leif-ibsen/BigInt.git",
       "state" : {
-        "revision" : "f4c0c41dd681b2c3d770b9a83cb5e0e3e30ee708",
-        "version" : "2.3.0"
+        "revision" : "8c6f93aa37504b7b1ba3954335b5548a19fbbd82"
       }
     },
     {
@@ -118,15 +109,6 @@
       "location" : "https://github.com/siteline/SwiftUI-Introspect",
       "state" : {
         "revision" : "807f73ce09a9b9723f12385e592b4e0aaebd3336"
-      }
-    },
-    {
-      "identity" : "uint128",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/mgriebling/UInt128.git",
-      "state" : {
-        "revision" : "f32052e906fd125936fef2d16e3ad284d50d68ed",
-        "version" : "3.2.0"
       }
     },
     {

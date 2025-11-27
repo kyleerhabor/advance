@@ -657,8 +657,7 @@ extension FocusedValues {
 extension KeyboardShortcut {
   static let back = Self("[", modifiers: .command)
   static let forward = Self("]", modifiers: .command)
-
-  static let finderShowItem = Self("r", modifiers: .command)
+  static let showInFinder = Self("r", modifiers: .command)
   static let finderOpenItem = Self("r", modifiers: [.command, .shift])
 
   static let sidebarShowItem = Self("l", modifiers: .command)
@@ -669,8 +668,9 @@ extension KeyboardShortcut {
   static let liveTextIcon = Self("t", modifiers: .command)
   static let liveTextHighlight = Self("t", modifiers: [.command, .shift])
 
-  static let windowOpen = Self("o", modifiers: .command)
-  static let windowResetSize = Self("r", modifiers: [.command, .control])
+  static let open = Self("o", modifiers: .command)
+  // Terminal > Window > Return to Default Size
+  static let resetWindowSize = Self("m", modifiers: [.command, .control])
 
   static let searchSettings = Self("2", modifiers: .command)
   static let foldersSettings = Self("3", modifiers: .command)

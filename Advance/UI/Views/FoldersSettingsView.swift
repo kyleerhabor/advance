@@ -7,9 +7,6 @@
 
 import OSLog
 import SwiftUI
-import UniformTypeIdentifiers
-
-let foldersContentTypes: [UTType] = [.folder]
 
 enum FolderTransferError: Error {
   case notOriginal

@@ -5,9 +5,13 @@
 //  Created by Kyle Erhabor on 6/29/24.
 //
 
+import AdvanceCore
 import SwiftUI
 import Combine
 import Defaults
+import UniformTypeIdentifiers
+
+let imagesContentTypes: [UTType] = [.image, .folder]
 
 extension SchedulerTimeIntervalConvertible {
   static var imagesScrollInteraction: Self {
@@ -144,7 +148,7 @@ extension StorageColumnVisibility: RawRepresentable {
       case Self.doubleColumn:
         columnVisibility = .doubleColumn
       default:
-        fatalError()
+        unreachable()
     }
 
     self.init(columnVisibility: columnVisibility)
@@ -155,17 +159,13 @@ enum StorageDirection: Int {
   case leftToRight, rightToLeft
 }
 
-enum StorageImagesLayoutStyle: Int {
-  case paged, continuous
-}
-
 extension SetAlgebra {
   func value(_ value: Bool, for set: Self) -> Self {
     value ? self.union(set) : self.subtracting(set)
   }
 }
 
-struct StorageImagesLayoutContinuousStyleHidden: OptionSet {
+struct StorageHiddenLayoutStyles: OptionSet {
   let rawValue: Int
 
   static let toolbar = Self(rawValue: 1 << 0)
@@ -175,30 +175,18 @@ struct StorageImagesLayoutContinuousStyleHidden: OptionSet {
   // Is there a better way to represent this?
 
   var toolbar: Bool {
-    get {
-      self.contains(.toolbar)
-    }
-    set {
-      self = value(newValue, for: .toolbar)
-    }
+    get { self.contains(.toolbar) }
+    set { self = value(newValue, for: .toolbar) }
   }
 
   var cursor: Bool {
-    get {
-      self.contains(.cursor)
-    }
-    set {
-      self = value(newValue, for: .cursor)
-    }
+    get { self.contains(.cursor) }
+    set { self = value(newValue, for: .cursor) }
   }
 
   var scroll: Bool {
-    get {
-      self.contains(.scroll)
-    }
-    set {
-      self = value(newValue, for: .scroll)
-    }
+    get { self.contains(.scroll) }
+    set { self = value(newValue, for: .scroll) }
   }
 }
 
@@ -253,33 +241,49 @@ extension StorageKey {
 extension StorageKey: Sendable where Value: Sendable {}
 
 enum StorageKeys {
-  static let columnVisibility = StorageKey("column-visibility", defaultValue: StorageColumnVisibility(.all))
-
-  static let restoreLastImage = StorageKey("restore-last-image", defaultValue: true)
-
-  static let layoutStyle = StorageKey("layout-style", defaultValue: StorageImagesLayoutStyle.continuous)
-  static let layoutContinuousStyleHidden = StorageKey(
-    "layout-continuous-style-hidden",
-    defaultValue: StorageImagesLayoutContinuousStyleHidden.cursor
+  static let columnVisibility = StorageKey(
+    "\(Bundle.appID).column-visibility",
+    defaultValue: StorageColumnVisibility(.all),
   )
 
-  static let importHiddenFiles = StorageKey("import-hidden-files", defaultValue: false)
-  static let importSubdirectories = StorageKey("import-subdirectories", defaultValue: true)
-
+  static let importHiddenFiles = StorageKey("\(Bundle.appID).import-hidden-files", defaultValue: false)
+  static let importSubdirectories = StorageKey("\(Bundle.appID).import-subdirectories", defaultValue: true)
+  static let hiddenLayoutStyles = StorageKey(
+    "\(Bundle.appID).hidden-layout-styles",
+    defaultValue: StorageHiddenLayoutStyles.cursor,
+  )
+  
+  static let restoreLastImage = StorageKey("restore-last-image", defaultValue: true)
   static let liveTextEnabled = StorageKey("live-text-is-enabled", defaultValue: true)
   static let liveTextIcon = StorageKey("live-text-is-icon-visible", defaultValue: false)
   static let liveTextIconVisibility = StorageKey("live-text-icon-visibility", defaultValue: StorageVisibility(.automatic))
   static let liveTextSubject = StorageKey("live-text-is-subject-highlighted", defaultValue: false)
-
   static let searchUseSystemDefault = StorageKey("search-use-system-default", defaultValue: false)
-
   static let foldersResolveConflicts = StorageKey("folders-resolve-conflicts", defaultValue: true)
   static let foldersConflictFormat = StorageKey(
     "folders-conflict-format",
     defaultValue: "\(FoldersSettingsModel.nameKeyword) [\(FoldersSettingsModel.pathKeyword)]"
   )
+
   static let foldersConflictSeparator = StorageKey("folders-conflict-separator", defaultValue: StorageFoldersSeparator.singlePointingAngleQuotationMark)
   static let foldersConflictDirection = StorageKey("folders-conflict-direction", defaultValue: StorageDirection.rightToLeft)
+
+  static func directoryEnumerationOptions(
+    importHiddenFiles: Bool,
+    importSubdirectories: Bool,
+  ) -> FileManager.DirectoryEnumerationOptions {
+    var options = FileManager.DirectoryEnumerationOptions()
+
+    if !importHiddenFiles {
+      options.insert(.skipsHiddenFiles)
+    }
+
+    if !importSubdirectories {
+      options.insert(.skipsSubdirectoryDescendants)
+    }
+
+    return options
+  }
 }
 
 extension AppStorage {

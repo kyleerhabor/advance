@@ -52,14 +52,17 @@ struct ImagesSceneView: View {
         items.append(url)
         items.append(contentsOf: urls.dropLast())
 
-        let options = FileManager.DirectoryEnumerationOptions(
-          excludesHiddenFiles: !importHiddenFiles,
-          excludesSubdirectoryFiles: !importSubdirectories
-        )
-
         Task {
           do {
-            try await images.submit(items: await Self.source(urls: items, options: options))
+            try await images.submit(
+              items: await Self.source(
+                urls: items,
+                options: StorageKeys.directoryEnumerationOptions(
+                  importHiddenFiles: importHiddenFiles,
+                  importSubdirectories: importSubdirectories,
+                ),
+              ),
+            )
           } catch {
             Logger.model.error("\(error)")
 

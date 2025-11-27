@@ -49,8 +49,6 @@ extension FocusedValues {
 
 // MARK: - Keyboard Shortcuts
 extension KeyboardShortcut {
-  static let open = Self("o", modifiers: .command)
-  
   static let quicklook = Self("y", modifiers: .command)
 
   static let navigatorImages = Self("1", modifiers: .command)

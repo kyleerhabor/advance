@@ -102,14 +102,17 @@ struct ImagesSidebarImportView: View {
             return
         }
 
-        let options = FileManager.DirectoryEnumerationOptions(
-          excludesHiddenFiles: !importHiddenFiles,
-          excludesSubdirectoryFiles: !importSubdirectories
-        )
-
         Task {
           do {
-            try await images.submit(items: await Self.source(urls: urls, options: options))
+            try await images.submit(
+              items: await Self.source(
+                urls: urls,
+                options: StorageKeys.directoryEnumerationOptions(
+                  importHiddenFiles: importHiddenFiles,
+                  importSubdirectories: importSubdirectories,
+                ),
+              ),
+            )
           } catch {
             Logger.model.error("\(error)")
           }
@@ -278,9 +281,7 @@ struct ImagesSidebarContentView: View {
                 item.isBookmarked = isBookmarked
               }
 
-            Task {
-              // TODO: Implement persistence.
-            }
+            // TODO: Implement persistence.
           }
         }
 

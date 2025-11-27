@@ -31,7 +31,7 @@ struct ImagesCommands: Commands {
         MenuItemButton(item: windowOpen ?? AppMenuActionItem(identity: nil, enabled: true, action: open)) {
           Text("Images.Commands.File.Open")
         }
-        .keyboardShortcut(.windowOpen)
+        .keyboardShortcut(.open)
       }
     }
 
@@ -40,7 +40,7 @@ struct ImagesCommands: Commands {
         MenuItemButton(item: finderShow ?? AppMenuActionItem(identity: .unknown, enabled: false, action: noop)) {
           Text("Finder.Item.Show")
         }
-        .keyboardShortcut(.finderShowItem)
+        .keyboardShortcut(.showInFinder)
 
         MenuItemButton(item: finderOpen ?? AppMenuActionItem(identity: [], enabled: false, action: noop)) {
           Text("Finder.Item.Open")
@@ -76,7 +76,7 @@ struct ImagesCommands: Commands {
       MenuItemButton(item: windowResetSize ?? AppMenuActionItem(identity: nil, enabled: false, action: noop)) {
         Text("Images.Commands.Window.ResetSize")
       }
-      .keyboardShortcut(.windowResetSize)
+      .keyboardShortcut(.resetWindowSize)
     }
   }
 
@@ -121,13 +121,17 @@ struct ImagesCommands: Commands {
     }
 
     let images = ImagesModel(id: UUID())
-    let options = FileManager.DirectoryEnumerationOptions(
-      excludesHiddenFiles: !importHiddenFiles,
-      excludesSubdirectoryFiles: !importSubdirectories
-    )
 
     do {
-      try await images.submit(items: Self.source(urls: panel.urls, options: options))
+      try await images.submit(
+        items: Self.source(
+          urls: panel.urls,
+          options: StorageKeys.directoryEnumerationOptions(
+            importHiddenFiles: importHiddenFiles,
+            importSubdirectories: importSubdirectories,
+          ),
+        ),
+      )
     } catch {
       Logger.model.error("\(error)")
 
