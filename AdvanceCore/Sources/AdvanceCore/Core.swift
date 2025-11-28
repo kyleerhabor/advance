@@ -6,10 +6,13 @@
 //
 
 @preconcurrency import BigInt
+import Combine
 import Foundation
 import ImageIO
 import OSLog
 import UniformTypeIdentifiers
+
+//public typealias SubjectPublisher<Output, Error> = Subject<Output, Error> & Publisher<Output, Error>
 
 public func identity<T>(_ value: T) -> T {
   value
@@ -30,6 +33,13 @@ public func applying<Value, each Argument>(_ args: repeat each Argument) -> ((re
     f(repeat each args)
   }
 }
+
+extension Bool {
+  public var inverted: Self {
+    !self
+  }
+}
+
 extension Numeric {
   public func incremented() -> Self {
     self + 1

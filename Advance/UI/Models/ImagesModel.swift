@@ -341,14 +341,14 @@ extension ImagesModelStoreImagesItemsImagesInfo: FetchableRecord {}
 @MainActor
 final class ImagesItemModel2 {
   let id: RowID
-  var url: URL
+  var source: URLSource
   var title: String
   var isBookmarked: Bool
   var aspectRatio: Double
 
-  init(id: RowID, url: URL, title: String, isBookmarked: Bool, aspectRatio: Double) {
+  init(id: RowID, source: URLSource, title: String, isBookmarked: Bool, aspectRatio: Double) {
     self.id = id
-    self.url = url
+    self.source = source
     self.title = title
     self.isBookmarked = isBookmarked
     self.aspectRatio = aspectRatio
@@ -367,8 +367,6 @@ final class ImagesModel {
   let id: UUID
 
   var items2: IdentifiedArrayOf<ImagesItemModel2>
-  var selection: Set<ImagesItemModel2.ID>
-  var isFileImporterPresented: Bool
   private(set) var hasLoadedNoImages: Bool
   var items: IdentifiedArrayOf<ImagesItemModel>
   var itemID: ImagesItemModel.ID?
@@ -390,8 +388,6 @@ final class ImagesModel {
     self.id = id
     self.items = []
     self.items2 = []
-    self.selection = []
-    self.isFileImporterPresented = false
     self.hasLoadedNoImages = false
     self.bookmarkedItems = []
     self.source = Once {
@@ -417,7 +413,7 @@ final class ImagesModel {
     await _store(urls: urls, directoryEnumerationOptions: directoryEnumerationOptions)
   }
 
-  func store(items: [ImagesItemTransferable], enumerationOptions: FileManager.DirectoryEnumerationOptions) async {
+  func store(items: [ImagesItemTransfer], enumerationOptions: FileManager.DirectoryEnumerationOptions) async {
     await _store(items: items, enumerationOptions: enumerationOptions)
   }
 
@@ -425,7 +421,7 @@ final class ImagesModel {
     NSWorkspace.shared.activateFileViewerSelecting(_urls(forItems: items))
   }
 
-  func hasInvalidSelection(forItems ids: Set<ImagesItemModel2.ID>) -> Bool {
+  func isInvalidSelection(of ids: Set<ImagesItemModel2.ID>) -> Bool {
     ids.isEmpty
   }
 
@@ -439,7 +435,7 @@ final class ImagesModel {
   }
 
   private func _urls(forItems items: Set<ImagesItemModel2.ID>) -> [URL] {
-    items.compactMap { items2[id: $0]?.url }
+    items.compactMap { self.items2[id: $0]?.source.url }
   }
 
   nonisolated private func loadImages(connection: DatabasePool, images: ImagesModelLoadImagesInfo?) async {
@@ -740,7 +736,10 @@ final class ImagesModel {
 
             return ImagesItemModel2(
               id: item.item.item.rowID!,
-              url: data.bookmark.url,
+              source: URLSource(
+                url: data.bookmark.url,
+                options: item.item.fileBookmark.bookmark.bookmark.options!,
+              ),
               title: item.title,
               isBookmarked: item.item.item.isBookmarked!,
               aspectRatio: item.aspectRatio,
@@ -1070,7 +1069,7 @@ final class ImagesModel {
     await store(items: items)
   }
 
-  nonisolated private func _store(items: [ImagesItemTransferable], enumerationOptions: FileManager.DirectoryEnumerationOptions) async {
+  nonisolated private func _store(items: [ImagesItemTransfer], enumerationOptions: FileManager.DirectoryEnumerationOptions) async {
     let items = items.compactMap { item -> Item<URLSource>? in
       switch item.contentType {
         case .image:
@@ -1082,6 +1081,7 @@ final class ImagesModel {
             files = try item.source.accessingSecurityScopedResource {
               try FileManager.default
                 .enumerate(at: item.source.url, options: enumerationOptions)
+                // TODO: Sort using componentsToDisplay(forPath:)
                 .finderSort(by: \.pathComponents)
                 .map { URLSource(url: $0, options: []) }
             }

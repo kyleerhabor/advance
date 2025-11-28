@@ -639,6 +639,9 @@ enum FinderShow {
 extension FinderShow: Equatable {}
 
 extension FocusedValues {
+  @Entry var commandScene: AppModelCommandScene?
+
+  // MARK: - Old
   @Entry var windowOpen: AppMenuActionItem<WindowOpen?>?
   @Entry var finderShow: AppMenuActionItem<FinderShow>?
   @Entry var finderOpen: AppMenuActionItem<Set<FoldersSettingsItem.ID>>?
@@ -648,17 +651,14 @@ extension FocusedValues {
   @Entry var imagesLiveTextIcon: AppMenuToggleItem<ImagesModel.ID?>?
   @Entry var imagesLiveTextHighlight: AppMenuToggleItem<Set<ImagesItemModel.ID>>?
   @Entry var imagesWindowResetSize: AppMenuActionItem<ImagesModel.ID?>?
-
-  // MARK: - Old
-
   @Entry var imagesQuickLook: AppMenuToggleItem<Set<ImageCollectionItemImage.ID>>?
 }
 
 extension KeyboardShortcut {
   static let back = Self("[", modifiers: .command)
   static let forward = Self("]", modifiers: .command)
-  static let showInFinder = Self("r", modifiers: .command)
-  static let finderOpenItem = Self("r", modifiers: [.command, .shift])
+  static let showFinder = Self("r", modifiers: .command)
+  static let openFinder = Self("r", modifiers: [.command, .shift])
 
   static let sidebarShowItem = Self("l", modifiers: .command)
 

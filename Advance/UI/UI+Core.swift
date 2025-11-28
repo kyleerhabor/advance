@@ -6,12 +6,14 @@
 //
 
 import AdvanceCore
+import AppKit
 import SwiftUI
 import Combine
 import Defaults
 import UniformTypeIdentifiers
 
 let imagesContentTypes: [UTType] = [.image, .folder]
+let foldersContentTypes: [UTType] = [.folder]
 
 extension SchedulerTimeIntervalConvertible {
   static var imagesScrollInteraction: Self {

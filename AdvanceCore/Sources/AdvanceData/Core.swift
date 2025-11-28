@@ -321,7 +321,7 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
     ValueObservation
       .trackingConstantRegion { db in
         try FolderRecord
-          .select(.rowID, FolderRecord.Columns.url)
+          .select(.rowID)
           .including(
             required: FolderRecord.fileBookmark
               .forKey(FoldersSettingsModelTrackFoldersFolderInfo.CodingKeys.fileBookmark)
@@ -491,8 +491,8 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
     try images.update(db, columns: [ImagesRecord.Columns.currentItem])
   }
 
-  nonisolated public static func createFolder(_ db: Database, fileBookmark: RowID, url: URL) throws -> FolderRecord {
-    var folder = FolderRecord(fileBookmark: fileBookmark, url: url)
+  nonisolated public static func createFolder(_ db: Database, fileBookmark: RowID) throws -> FolderRecord {
+    var folder = FolderRecord(fileBookmark: fileBookmark)
     try folder.insert(db)
 
     return folder
@@ -600,73 +600,92 @@ public func createSchema(connection: DatabaseConnection) async throws {
         .references(ImagesItemRecord.databaseTableName)
     }
 
+    try db.create(table: FolderPathComponentRecord.databaseTableName) { table in
+      table.primaryKey(Column.rowID.name, .integer)
+      // We could de-duplicate this, but the table only exists so we don't have to encode an array of strings manually.
+      // That is, if encoding wasn't a concern, we'd have duplication regardless.
+      table
+        .column(FolderPathComponentRecord.Columns.component.name, .text)
+        .notNull()
+
+      table
+        .column(FolderPathComponentRecord.Columns.position.name, .integer)
+        .notNull()
+    }
+
     try db.create(table: FolderRecord.databaseTableName) { table in
       table.primaryKey(Column.rowID.name, .integer)
-
       table
         .column(FolderRecord.Columns.fileBookmark.name, .integer)
         .notNull()
         .unique()
         .references(BookmarkRecord.databaseTableName)
-
-      // If we ever need to store file bookmark URLs for the same bookmark in other tables, we'll need to denormalize
-      // this. This would probably be a file bookmark URL table mapping file bookmarks to URLs.
-      table
-        .column(FolderRecord.Columns.url.name, .text)
-        .notNull()
     }
 
-    // TODO: Use SQL literals.
+    try db.create(table: PathComponentFolderRecord.databaseTableName) { table in
+      table.primaryKey(Column.rowID.name, .integer)
+      table
+        .column(PathComponentFolderRecord.Columns.folder.name, .integer)
+        .notNull()
+        .references(FolderRecord.databaseTableName, onDelete: .cascade)
+        .indexed()
 
-//    try db.execute(
-//      sql: """
-//        CREATE TRIGGER remove_orphaned_bookmarks_from_image_collection_bookmarks
-//        AFTER DELETE ON \(ImagesItemFileBookmarkRecord.databaseTableName)
-//        WHEN NOT EXISTS (SELECT 1 FROM \(FolderRecord.databaseTableName) WHERE \(FolderRecord.databaseTableName).\(FolderRecord.Columns.fileBookmark.name) = OLD.\(ImagesItemFileBookmarkRecord.Columns.fileBookmark.name))
-//        BEGIN
-//          DELETE FROM \(BookmarkRecord.databaseTableName)
-//          WHERE \(BookmarkRecord.databaseTableName).\(Column.rowID.name) = OLD.\(ImagesItemFileBookmarkRecord.Columns.fileBookmark.name);
-//        END
-//        """
-//    )
-//
-//    try db.execute(
-//      sql: """
-//        CREATE TRIGGER remove_orphaned_bookmarks_from_folders
-//        AFTER DELETE ON \(FolderRecord.databaseTableName)
-//        WHEN NOT EXISTS (SELECT 1 FROM \(ImagesItemFileBookmarkRecord.databaseTableName) WHERE \(ImagesItemFileBookmarkRecord.databaseTableName).\(ImagesItemFileBookmarkRecord.Columns.fileBookmark.name) = OLD.\(FolderRecord.Columns.fileBookmark.name))
-//        BEGIN
-//          DELETE FROM \(BookmarkRecord.databaseTableName)
-//          WHERE \(BookmarkRecord.databaseTableName).\(Column.rowID.name) = OLD.\(FolderRecord.Columns.bookmark.name);
-//        END
-//        """
-//    )
+      table
+        .column(PathComponentFolderRecord.Columns.pathComponent.name, .integer)
+        .notNull()
+        .unique()
+        .references(FolderPathComponentRecord.databaseTableName)
+    }
+
+    let pathComponentFolderPathComponentPosition = "\(PathComponentFolderRecord.databaseTableName).\(PathComponentFolderRecord.Columns.pathComponent.name).\(FolderPathComponentRecord.Columns.position.name)"
+    let pathComponentFolderPathComponentPositionWhen: SQL = """
+      SELECT 1
+      FROM \(FolderPathComponentRecord.self)
+      LEFT JOIN \(PathComponentFolderRecord.self) other
+        ON other.\(.rowID) != NEW.\(.rowID)
+      LEFT JOIN \(FolderPathComponentRecord.self) other_folder_path_component
+        ON other_folder_path_component.\(.rowID) = other.\(PathComponentFolderRecord.Columns.pathComponent)
+      WHERE \(FolderPathComponentRecord.self).\(.rowID) = NEW.\(PathComponentFolderRecord.Columns.pathComponent)
+        AND other.\(PathComponentFolderRecord.Columns.folder) = NEW.\(PathComponentFolderRecord.Columns.folder)
+        AND \(FolderPathComponentRecord.self).\(FolderPathComponentRecord.Columns.position) = other_folder_path_component.\(FolderPathComponentRecord.Columns.position)
+      """
+
+    let pathComponentFolderPathComponentPositionMessage = "(\(PathComponentFolderRecord.databaseTableName).\(PathComponentFolderRecord.Columns.folder.name), \(PathComponentFolderRecord.databaseTableName).\(PathComponentFolderRecord.Columns.pathComponent.name).\(FolderPathComponentRecord.Columns.position.name)) must be unique"
+
+    try db.execute(
+      literal: """
+      CREATE TRIGGER \(sql: "\(pathComponentFolderPathComponentPosition)_ai".quotedDatabaseIdentifier)
+      AFTER INSERT ON \(PathComponentFolderRecord.self)
+      FOR EACH ROW WHEN (\(pathComponentFolderPathComponentPositionWhen))
+      BEGIN
+        SELECT RAISE(ABORT, \(sql: pathComponentFolderPathComponentPositionMessage.quotedDatabaseIdentifier));
+      END
+      """,
+    )
+
+    try db.execute(
+      literal: """
+      CREATE TRIGGER \(sql: "\(pathComponentFolderPathComponentPosition)_au".quotedDatabaseIdentifier)
+      AFTER UPDATE ON \(PathComponentFolderRecord.self)
+      FOR EACH ROW WHEN (\(pathComponentFolderPathComponentPositionWhen))
+      BEGIN
+        SELECT RAISE(ABORT, \(sql: pathComponentFolderPathComponentPositionMessage.quotedDatabaseIdentifier));
+      END
+      """,
+    )
+
+    try db.execute(
+      literal: """
+      CREATE TRIGGER \(sql: "\(PathComponentFolderRecord.databaseTableName)_ad".quotedDatabaseIdentifier)
+      AFTER DELETE ON \(PathComponentFolderRecord.self)
+      FOR EACH ROW
+      BEGIN
+        DELETE FROM \(FolderPathComponentRecord.self)
+        WHERE \(FolderPathComponentRecord.self).\(.rowID) = OLD.\(PathComponentFolderRecord.Columns.pathComponent);
+      END
+      """,
+    )
   }
 
   try migrator.migrate(connection)
-
-  // MARK: - Triggers
-
-  //    try Self.creatingSchema(context: &context) {
-  //      let subQuery = """
-  //      SELECT 0
-  //      FROM \(ImagesItemRecord.databaseTableName)
-  //        LEFT JOIN \(ImagesBookmarkRecord.databaseTableName)
-  //          ON \(ImagesBookmarkRecord.databaseTableName).\(Column.rowID.name) = NEW.\(ImagesItemRecord.Columns.bookmark.name)
-  //        LEFT JOIN \(BookmarkRecord.databaseTableName)
-  //          ON \(BookmarkRecord.databaseTableName).\(Column.rowID.name) = \(ImagesBookmarkRecord.databaseTableName).\(ImagesBookmarkRecord.Columns.bookmark.name)
-  //      WHERE \(ImagesItemRecord.databaseTableName).\(Column.rowID.name) != NEW.\(Column.rowID.name)
-  //      """
-  //
-  //      try db.execute(
-  //        sql: """
-  //        CREATE TRIGGER check_bookmarks_from_image_collection_items
-  //        AFTER INSERT ON \(ImagesItemRecord.databaseTableName)
-  //        WHEN (\(subQuery))
-  //        BEGIN
-  //          SELECT RAISE(ABORT, "\(ImagesItemRecord.databaseTableName).\(ImagesItemRecord.Columns.bookmark.name).\(ImagesBookmarkRecord.Columns.bookmark.name) must be unique");
-  //        END
-  //        """
-  //      )
-  //    }
 }

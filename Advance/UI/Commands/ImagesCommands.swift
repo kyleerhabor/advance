@@ -40,12 +40,12 @@ struct ImagesCommands: Commands {
         MenuItemButton(item: finderShow ?? AppMenuActionItem(identity: .unknown, enabled: false, action: noop)) {
           Text("Finder.Item.Show")
         }
-        .keyboardShortcut(.showInFinder)
+        .keyboardShortcut(.showFinder)
 
         MenuItemButton(item: finderOpen ?? AppMenuActionItem(identity: [], enabled: false, action: noop)) {
           Text("Finder.Item.Open")
         }
-        .keyboardShortcut(.finderOpenItem)
+        .keyboardShortcut(.openFinder)
       }
     }
 

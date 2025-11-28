@@ -9,19 +9,23 @@ import SwiftUI
 
 struct FoldersSettingsScene: Scene {
   @Environment(FoldersSettingsModel2.self) private var folders
+  @Environment(\.locale) private var locale
+  @State private var task: Task<Void, Never>?
   static let id = "folders"
 
   var body: some Scene {
     Window("Settings.Accessory.Folders.Window.Title", id: Self.id) {
-      FoldersSettingsView2()
-        .frame(width: 500, height: 250)
-        .focusedValue(folders)
+      FoldersSettingsView()
+        .frame(width: 600, height: 300)
     }
     .windowToolbarStyle(.unifiedCompact)
     .windowResizability(.contentSize)
     .keyboardShortcut(.foldersSettings)
-    .commandsReplaced {
-      FolderSettingsCommands()
+    .onChange(of: locale, initial: true) {
+      task?.cancel()
+      task = Task {
+        await folders.load(locale: locale)
+      }
     }
   }
 }

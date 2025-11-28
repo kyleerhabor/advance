@@ -224,13 +224,16 @@ extension Bookmark: Codable {
   }
 }
 
-struct ResolvedBookmark {
-  let url: URL
-  let isStale: Bool
-}
+public struct ResolvedBookmark {
+  public let url: URL
+  public let isStale: Bool
 
-extension ResolvedBookmark {
-  init(data: Data, options: URL.BookmarkResolutionOptions, relativeTo relative: URL?) throws {
+  public init(url: URL, isStale: Bool) {
+    self.url = url
+    self.isStale = isStale
+  }
+
+  public init(data: Data, options: URL.BookmarkResolutionOptions, relativeTo relative: URL?) throws {
     var isStale = false
 
     self.url = try URL(resolvingBookmarkData: data, options: options, relativeTo: relative, bookmarkDataIsStale: &isStale)
@@ -270,6 +273,37 @@ public struct AssignedBookmark {
 }
 
 extension AssignedBookmark: Sendable {}
+
+// https://english.stackexchange.com/a/227919
+public struct AssignedBookmark2 {
+  public let resolved: ResolvedBookmark
+  public let data: Data
+
+  public init(resolved: ResolvedBookmark, data: Data) {
+    self.resolved = resolved
+    self.data = data
+  }
+
+  public init(
+    data: Data,
+    options: URL.BookmarkResolutionOptions,
+    relativeTo relative: URL?,
+    create: (URL) throws -> Data,
+  ) throws {
+    var data = data
+    let resolved = try ResolvedBookmark(data: data, options: options, relativeTo: relative)
+
+    if resolved.isStale {
+      Logger.sandbox.log("Bookmark for URL '\(resolved.url.pathString)' is stale: re-creating...")
+
+      data = try create(resolved.url)
+    }
+
+    self.init(resolved: resolved, data: data)
+  }
+}
+
+extension AssignedBookmark2: Sendable {}
 
 public struct URLBookmark {
   public let url: URL

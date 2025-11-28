@@ -299,10 +299,53 @@ extension ItemImagesRecord: TableRecord {
   }
 }
 
+public struct FolderPathComponentRecord {
+  public var rowID: RowID?
+  public let component: String?
+  public let position: Int?
+
+  public init(rowID: RowID? = nil, component: String?, position: Int?) {
+    self.rowID = rowID
+    self.component = component
+    self.position = position
+  }
+}
+
+extension FolderPathComponentRecord: Sendable, Equatable {}
+
+extension FolderPathComponentRecord: Codable {
+  enum CodingKeys: String, CodingKey {
+    case rowID = "rowid",
+         component, position
+  }
+
+  public enum Columns {
+    public static let component = Column(CodingKeys.component)
+    public static let position = Column(CodingKeys.position)
+  }
+}
+
+extension FolderPathComponentRecord: MutablePersistableRecord {
+  public mutating func didInsert(_ inserted: InsertionSuccess) {
+    rowID = inserted.rowID
+  }
+}
+
+extension FolderPathComponentRecord: TableRecord {
+  public static let databaseTableName = "folder_path_components"
+  public static var databaseSelection: [any SQLSelectable] {
+    Self.everyColumn
+  }
+}
+
 public struct FolderRecord {
   public var rowID: RowID?
   public let fileBookmark: RowID?
-  public let url: URL?
+
+  public init(rowID: RowID? = nil, fileBookmark: RowID?) {
+    self.rowID = rowID
+    self.fileBookmark = fileBookmark
+  }
 }
 
 extension FolderRecord: Sendable, Equatable {}
@@ -310,13 +353,11 @@ extension FolderRecord: Sendable, Equatable {}
 extension FolderRecord: Codable {
   enum CodingKeys: String, CodingKey {
     case rowID = "rowid",
-         fileBookmark = "file_bookmark",
-         url
+         fileBookmark = "file_bookmark"
   }
 
   public enum Columns {
     static let fileBookmark = Column(CodingKeys.fileBookmark)
-    static let url = Column(CodingKeys.url)
   }
 }
 
@@ -332,7 +373,61 @@ extension FolderRecord: TableRecord {
     Self.everyColumn
   }
 
-  static var fileBookmark: BelongsToAssociation<Self, FileBookmarkRecord> {
+  public static var fileBookmark: BelongsToAssociation<Self, FileBookmarkRecord> {
     Self.belongsTo(FileBookmarkRecord.self, using: ForeignKey([Columns.fileBookmark]))
+  }
+
+  static var pathComponentFolders: HasManyAssociation<Self, PathComponentFolderRecord> {
+    Self.hasMany(PathComponentFolderRecord.self, using: ForeignKey([PathComponentFolderRecord.Columns.folder]))
+  }
+
+  public static var pathComponents: HasManyThroughAssociation<Self, FolderPathComponentRecord> {
+    Self.hasMany(
+      FolderPathComponentRecord.self,
+      through: pathComponentFolders,
+      using: PathComponentFolderRecord.pathComponent,
+    )
+  }
+}
+
+public struct PathComponentFolderRecord {
+  public var rowID: RowID?
+  public let folder: RowID?
+  public let pathComponent: RowID?
+
+  public init(rowID: RowID? = nil, folder: RowID?, pathComponent: RowID?) {
+    self.rowID = rowID
+    self.folder = folder
+    self.pathComponent = pathComponent
+  }
+}
+
+extension PathComponentFolderRecord: Encodable {
+  enum CodingKeys: String, CodingKey {
+    case rowID = "rowid",
+         folder,
+         pathComponent = "path_component"
+  }
+
+  public enum Columns {
+    static let folder = Column(CodingKeys.folder)
+    static let pathComponent = Column(CodingKeys.pathComponent)
+  }
+}
+
+extension PathComponentFolderRecord: MutablePersistableRecord {
+  public mutating func didInsert(_ inserted: InsertionSuccess) {
+    rowID = inserted.rowID
+  }
+}
+
+extension PathComponentFolderRecord: TableRecord {
+  public static let databaseTableName = "path_component_folders"
+  public static var databaseSelection: [any SQLSelectable] {
+    Self.everyColumn
+  }
+
+  static var pathComponent: BelongsToAssociation<Self, FolderPathComponentRecord> {
+    Self.belongsTo(FolderPathComponentRecord.self, using: ForeignKey([Columns.pathComponent]))
   }
 }

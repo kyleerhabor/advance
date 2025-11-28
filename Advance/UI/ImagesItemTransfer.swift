@@ -1,5 +1,5 @@
 //
-//  ImagesItemTransferable.swift
+//  ImagesItemTransfer.swift
 //  Advance
 //
 //  Created by Kyle Erhabor on 11/25/25.
@@ -10,12 +10,12 @@ import CoreTransferable
 import OSLog
 import UniformTypeIdentifiers
 
-struct ImagesItemTransferable {
+struct ImagesItemTransfer {
   let source: URLSource
   let contentType: UTType
 }
 
-extension ImagesItemTransferable: Transferable {
+extension ImagesItemTransfer: Transferable {
   init(received: ReceivedTransferredFile, contentType: UTType) async throws {
     let source = URLSource(
       url: received.file,

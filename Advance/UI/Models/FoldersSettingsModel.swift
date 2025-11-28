@@ -110,7 +110,7 @@ class FoldersSettingsModel {
         )
 
         do {
-          _ = try DataStackDependencyKey.DataStack.createFolder(db, fileBookmark: fileBookmark.rowID!, url: urb.url)
+          _ = try DataStackDependencyKey.DataStack.createFolder(db, fileBookmark: fileBookmark.rowID!)
         } catch let error as DatabaseError where error.extendedResultCode == .SQLITE_CONSTRAINT_UNIQUE {
           // The folder's file bookmark is likely associated with some other folder.
           return
@@ -208,7 +208,7 @@ class FoldersSettingsModel {
             }
 
             dataBookmark = DataBookmark(
-              bookmark: AssignedBookmark(url: response.folder.url!, data: data),
+              bookmark: AssignedBookmark(url: .homeDirectory /*response.folder.url!*/, data: data),
               hash: hash
             )
 

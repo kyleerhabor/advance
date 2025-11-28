@@ -24,12 +24,15 @@ struct ImagesImportLabelStyle: LabelStyle {
 }
 
 struct ImagesView2: View {
+  @Environment(AppModel.self) private var app
+  @Environment(Windowed.self) private var windowed
   @Environment(ImagesModel.self) private var images
-  @Environment(\.locale) private var locale
   @SceneStorage(StorageKeys.columnVisibility) private var columnVisibilityStorage
   @AppStorage(StorageKeys.importHiddenFiles) private var importHiddenFiles
   @AppStorage(StorageKeys.importSubdirectories) private var importSubdirectories
   @State private var columnVisibility = StorageKeys.columnVisibility.defaultValue.columnVisibility
+  @State private var selection = Set<ImagesItemModel2.ID>()
+  @State private var isFileImporterPresented = false
   private var directoryEnumerationOptions: FileManager.DirectoryEnumerationOptions {
     StorageKeys.directoryEnumerationOptions(
       importHiddenFiles: importHiddenFiles,
@@ -37,11 +40,13 @@ struct ImagesView2: View {
     )
   }
 
+  private var sceneID: AppModelCommandSceneID {
+    .images(images.id)
+  }
+
   var body: some View {
     NavigationSplitView(columnVisibility: $columnVisibility) {
-      @Bindable var images = images
-
-      List(images.items2, selection: $images.selection) { item in
+      List(images.items2, selection: $selection) { item in
         VStack {
           Text(item.title)
             .font(.subheadline)
@@ -50,7 +55,7 @@ struct ImagesView2: View {
             .help(item.title)
         }
       }
-      .copyable(images.urls(forItems: images.selection))
+      .copyable(images.urls(forItems: selection))
       .contextMenu { ids in
         Group {
           Section {
@@ -65,9 +70,9 @@ struct ImagesView2: View {
             }
           }
         }
-        .disabled(images.hasInvalidSelection(forItems: ids))
+        .disabled(images.isInvalidSelection(of: ids))
       }
-      .dropDestination(for: ImagesItemTransferable.self) { items, _ in
+      .dropDestination(for: ImagesItemTransfer.self) { items, _ in
         Task {
           await images.store(items: items, enumerationOptions: directoryEnumerationOptions)
         }
@@ -77,7 +82,7 @@ struct ImagesView2: View {
       .overlay {
         ContentUnavailableView {
           Button {
-            images.isFileImporterPresented = true
+            isFileImporterPresented = true
           } label: {
             Label("Images.Sidebar.Import", systemImage: "square.and.arrow.down")
               .labelStyle(ImagesSidebarImportLabelStyle())
@@ -86,7 +91,7 @@ struct ImagesView2: View {
           .disabled(!images.hasLoadedNoImages)
           .opacity(images.hasLoadedNoImages ? OPACITY_OPAQUE : OPACITY_TRANSPARENT)
           .fileImporter(
-            isPresented: $images.isFileImporterPresented,
+            isPresented: $isFileImporterPresented,
             allowedContentTypes: imagesContentTypes,
             allowsMultipleSelection: true,
           ) { result in
@@ -112,12 +117,41 @@ struct ImagesView2: View {
     } detail: {
 
     }
+    .focusedSceneValue(\.commandScene, AppModelCommandScene(
+      id: sceneID,
+      disablesShowFinder: images.isInvalidSelection(of: selection),
+      disablesOpenFinder: true,
+      disablesResetWindowSize: false,
+    ))
     .task(id: images) {
       guard !Task.isCancelled else {
         return
       }
 
       await images.load2()
+    }
+    .onReceive(app.commandsPublisher) { command in
+      guard command.sceneID == sceneID else {
+        return
+      }
+
+      switch command.action {
+        case .open:
+          guard images.hasLoadedNoImages else {
+            app.isImagesFileImporterPresented = true
+
+            return
+          }
+
+          isFileImporterPresented = true
+        case .showFinder:
+          images.showFinder(items: selection)
+        case .openFinder:
+          // If there are many items, calling this would invoke a disaster.
+          unreachable()
+        case .resetWindowSize:
+          windowed.window?.setContentSize(ImagesScene.defaultSize)
+      }
     }
     .onChange(of: columnVisibility) {
       columnVisibilityStorage = StorageColumnVisibility(columnVisibility)

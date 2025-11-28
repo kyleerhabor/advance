@@ -25,16 +25,6 @@
     "Collapse margins" : {
 
     },
-    "Commands.Images.Window.Size.Reset" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Return to Default Size"
-          }
-        }
-      }
-    },
     "Commands.Open" : {
       "localizations" : {
         "en" : {
@@ -45,13 +35,12 @@
         }
       }
     },
-    "Commands.Settings.Accessory.Folders.Open" : {
-      "extractionState" : "stale",
+    "Commands.Window.Size.Reset" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open..."
+            "value" : "Return to Default Size"
           }
         }
       }
@@ -489,6 +478,7 @@
       }
     },
     "Settings.Accessory.Folders.Add" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -498,7 +488,48 @@
         }
       }
     },
+    "Settings.Accessory.Folders.Item.Add" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add..."
+          }
+        }
+      }
+    },
+    "Settings.Accessory.Folders.Item.Path.Help.Separator" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " 􂉐 "
+          }
+        }
+      }
+    },
+    "Settings.Accessory.Folders.Item.Path.Separator" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " 􀰇 "
+          }
+        }
+      }
+    },
+    "Settings.Accessory.Folders.Item.Unresolved" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The folder could not be found. This can happen when the folder has been removed or is temporarily unavailable, such as when located on a volume that is not mounted."
+          }
+        }
+      }
+    },
     "Settings.Accessory.Folders.Remove" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -509,6 +540,7 @@
       }
     },
     "Settings.Accessory.Folders.Unresolved" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
