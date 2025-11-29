@@ -59,7 +59,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open “%@” in Finder"
+            "value" : "Open “%@\" in Finder"
           }
         }
       }
@@ -150,16 +150,6 @@
         }
       }
     },
-    "Images.Commands.File.Open" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Open..."
-          }
-        }
-      }
-    },
     "Images.Commands.Image" : {
       "localizations" : {
         "en" : {
@@ -240,16 +230,6 @@
         }
       }
     },
-    "Images.Commands.Window.ResetSize" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Return to Default Size"
-          }
-        }
-      }
-    },
     "Images.Copying.Action" : {
       "localizations" : {
         "en" : {
@@ -282,6 +262,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Copy"
+          }
+        }
+      }
+    },
+    "Images.Item.Folder.Copy" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy to Folder"
           }
         }
       }
@@ -477,17 +467,6 @@
         }
       }
     },
-    "Settings.Accessory.Folders.Add" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Add..."
-          }
-        }
-      }
-    },
     "Settings.Accessory.Folders.Item.Add" : {
       "localizations" : {
         "en" : {
@@ -524,28 +503,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The folder could not be found. This can happen when the folder has been removed or is temporarily unavailable, such as when located on a volume that is not mounted."
-          }
-        }
-      }
-    },
-    "Settings.Accessory.Folders.Remove" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Remove"
-          }
-        }
-      }
-    },
-    "Settings.Accessory.Folders.Unresolved" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The item at the listed path could not be located.\n\nThis may occur when the item has been deleted or is temporarily unavailable, such as when located on a removable volume."
           }
         }
       }

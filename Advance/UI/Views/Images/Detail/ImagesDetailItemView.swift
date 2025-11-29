@@ -195,7 +195,7 @@ struct ImagesDetailItemView: View {
         }
       }
     }
-    .fileDialogCustomizationID(NSUserInterfaceItemIdentifier.foldersOpen.rawValue)
+    .fileDialogCustomizationID(FoldersSettingsScene.id)
     .fileDialogConfirmationLabel(Text("Copy"))
     .contextMenu {
       Section {

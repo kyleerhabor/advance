@@ -53,37 +53,22 @@ struct ImagesSceneView: View {
         items.append(contentsOf: urls.dropLast())
 
         Task {
-          do {
-            try await images.submit(
-              items: await Self.source(
-                urls: items,
-                options: StorageKeys.directoryEnumerationOptions(
-                  importHiddenFiles: importHiddenFiles,
-                  importSubdirectories: importSubdirectories,
-                ),
-              ),
-            )
-          } catch {
-            Logger.model.error("\(error)")
-
-            return
-          }
+//          do {
+//            try await images.submit(
+//              items: await Self.source(
+//                urls: items,
+//                options: StorageKeys.directoryEnumerationOptions(
+//                  importHiddenFiles: importHiddenFiles,
+//                  importSubdirectories: importSubdirectories,
+//                ),
+//              ),
+//            )
+//          } catch {
+//            Logger.model.error("\(error)")
+//
+//            return
+//          }
         }
       }
-  }
-
-  private nonisolated static func source(
-    urls: [URL],
-    options: FileManager.DirectoryEnumerationOptions
-  ) async -> [Source<[URL]>] {
-    urls.compactMap { url in
-      do {
-        return try ImagesModel.source(url: url, options: options)
-      } catch {
-        Logger.model.error("Could not source URL \"\(url.pathString)\" with options \"\(options.rawValue)\" for application open: \(error)")
-
-        return nil
-      }
-    }
   }
 }

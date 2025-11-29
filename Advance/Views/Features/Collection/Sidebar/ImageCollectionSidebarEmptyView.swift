@@ -76,7 +76,8 @@ struct ImageCollectionSidebarEmptyView: View {
             return true
           }
       }
-    }.fileImporter(isPresented: $isFileImporterPresented, allowedContentTypes: imagesContentTypes, allowsMultipleSelection: true) { result in
+    }
+    .fileImporter(isPresented: $isFileImporterPresented, allowedContentTypes: imagesContentTypes, allowsMultipleSelection: true) { result in
       switch result {
         case .success(let urls):
           Task {
@@ -106,7 +107,6 @@ struct ImageCollectionSidebarEmptyView: View {
           Logger.ui.error("Could not import files from sidebar button: \(err)")
       }
     }
-    .fileDialogOpen()
     .disabled(!visible)
   }
 

@@ -160,7 +160,7 @@ struct ImageCollectionSidebarContentView: View {
   @State private var quicklookItem: URL?
   @State private var quicklookItems = [URL]()
   @State private var quicklookSelection = Set<ImageCollectionItemImage.ID>()
-  @State private var quicklookScopes = [ImageCollectionItemImage: ImageCollectionItemImage.Scope]()
+  @State private var quicklookScopes = [ImageCollectionItemImage: ImageCollectionItemImage.SecurityScope]()
 
   @State private var isCopyingFileImporterPresented = false
   @State private var copyingSelection = ImageCollectionSidebar.Selection()

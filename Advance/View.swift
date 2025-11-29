@@ -28,14 +28,6 @@ extension EdgeInsets {
   }
 }
 
-struct FileDialogOpenViewModifier: ViewModifier {
-  static let id = "open"
-
-  func body(content: Content) -> some View {
-    content.fileDialogCustomizationID(Self.id)
-  }
-}
-
 struct FileDialogCopyViewModifier: ViewModifier {
   static let id = "copy"
 
@@ -55,10 +47,6 @@ struct FileDialogCopyingViewModifier: ViewModifier {
 }
 
 extension View {
-  func fileDialogOpen() -> some View {
-    self.modifier(FileDialogOpenViewModifier())
-  }
-
   func fileDialogCopy() -> some View {
     self.modifier(FileDialogCopyViewModifier())
   }

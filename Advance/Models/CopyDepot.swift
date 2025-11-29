@@ -25,7 +25,7 @@ struct CopyDepotItemDestination {
   }
 
   static func format(components: some Sequence<String>) -> AttributedString {
-    var separator = AttributedString(" 􀰇 ")
+    let separator = AttributedString(" 􀰇 ")
 
     return components
       .map { AttributedString($0) }
@@ -148,12 +148,12 @@ class CopyDepot: Codable {
       bookmarks.forEach { bookmark in
         group.addTask {
           let data = bookmark.bookmark
-          let resolved = try BookmarkStoreItem.resolve(data: data.data, options: data.options, relativeTo: nil)
+          let resolved = try AssignedBookmark(data: data.data, options: data.options, relativeTo: nil)
 
           return .init(
             left: bookmark.id,
             right: .init(
-              url: resolved.url,
+              url: resolved.resolved.url,
               bookmark: .init(data: resolved.data, options: data.options)
             )
           )

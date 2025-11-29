@@ -137,14 +137,14 @@ extension ImageCollectionItemImage: Hashable {
 extension ImageCollectionItemImage: SecurityScopedResource {
   var url: URL { source.url }
 
-  func startSecurityScope() -> Scope {
+  func startSecurityScope() -> SecurityScope {
     .init(
       image: .init(source: source),
       relative: relative.map { .init(source: $0) }
     )
   }
 
-  func endSecurityScope(_ scope: Scope) {
+  func endSecurityScope(_ scope: SecurityScope) {
     if scope.image.accessing {
       scope.image.url.endSecurityScope()
     }
@@ -155,7 +155,7 @@ extension ImageCollectionItemImage: SecurityScopedResource {
     }
   }
 
-  struct Scope {
+  struct SecurityScope {
     let image: URLSecurityScope
     let relative: URLSecurityScope?
   }
@@ -390,7 +390,7 @@ class ImageCollection: Codable {
           let bookmark = item.bookmark
 
           if let url = store.urls[item.hash] {
-            assigned = .init(url: url, data: bookmark.data)
+            assigned = .init(resolved: ResolvedBookmark(url: url, isStale: false), data: bookmark.data)
           } else {
             let relative: URL?
 
@@ -405,11 +405,7 @@ class ImageCollection: Codable {
               relative = nil
             }
 
-            assigned = try BookmarkStoreItem.resolve(
-              data: bookmark.data,
-              options: bookmark.options,
-              relativeTo: relative
-            )
+            assigned = try AssignedBookmark(data: bookmark.data, options: bookmark.options, relativeTo: relative)
           }
 
           return .init(left: item.id, right: assigned)
@@ -427,7 +423,7 @@ class ImageCollection: Codable {
             }
 
             let id = pair.left
-            let resolved = pair.right
+            let assigned = pair.right
 
             ids.insert(id)
 
@@ -435,14 +431,14 @@ class ImageCollection: Codable {
             let bookmark = BookmarkStoreItem(
               id: id,
               bookmark: .init(
-                data: resolved.data,
+                data: assigned.data,
                 options: item.bookmark.options
               ),
               relative: item.relative
             )
 
             store.register(item: bookmark)
-            store.urls[bookmark.hash] = resolved.url
+            store.urls[bookmark.hash] = assigned.resolved.url
           case .failure(let err):
             Logger.model.error("Could not resolve bookmark: \(err)")
         }

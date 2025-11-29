@@ -5,6 +5,7 @@
 //  Created by Kyle Erhabor on 11/26/25.
 //
 
+import AdvanceCore
 import OSLog
 import SwiftUI
 
@@ -14,7 +15,7 @@ struct FoldersSettingsView: View {
   @State private var selection = Set<FoldersSettingsItemModel.ID>()
   @State private var isFileImporterPresented = false
   private var isFinderDisabled: Bool {
-    folders.isInvalidSelection(of: selection)
+    folders.isInvalidFinderSelection(of: selection)
   }
 
   var body: some View {

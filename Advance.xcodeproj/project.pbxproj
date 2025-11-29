@@ -193,9 +193,9 @@
 				0008556A2A72FECF00309905 /* Views */,
 				00BE70C62A97BAD800315808 /* Models */,
 				00DC498E2A75B92000161495 /* Info.plist */,
-				001CB51F2A718D4200DBB6FA /* Assets.xcassets */,
 				001CB5242A718D4200DBB6FA /* Advance.entitlements */,
 				00BA40B62B4E353C0022C488 /* Localizable.xcstrings */,
+				001CB51F2A718D4200DBB6FA /* Assets.xcassets */,
 				000FD1E82C77042D00248E98 /* Resources */,
 			);
 			path = Advance;

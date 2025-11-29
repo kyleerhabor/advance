@@ -9,20 +9,6 @@ import AdvanceCore
 @preconcurrency import BigInt
 import AdvanceData
 import Foundation
-import OSLog
-
-func unreachable() -> Never {
-  fatalError("Reached supposedly unreachable code")
-}
-
-extension Logger {
-  static let ui = Self(subsystem: Bundle.appID, category: "UI")
-  static let model = Self(subsystem: Bundle.appID, category: "Model")
-}
-
-extension BFraction {
-  static let two = BFraction(2)!
-}
 
 // MARK: - Files
 
@@ -41,7 +27,7 @@ extension URL {
 
   #endif
 
-  // homeDirectory returns the home directory, which is relative to App Sandbox. This returns the real user directory.
+  // homeDirectory returns the home directory relative to App Sandbox. This returns the real user directory.
   static let userDirectory = Self(
     // https://stackoverflow.com/a/46789483
     fileURLWithFileSystemRepresentation: getpwuid(getuid()).pointee.pw_dir!,

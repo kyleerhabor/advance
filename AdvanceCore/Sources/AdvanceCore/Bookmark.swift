@@ -13,9 +13,9 @@ extension URL {
     let accessing = self.startAccessingSecurityScopedResource()
 
     if accessing {
-      Logger.sandbox.debug("Started security scope for URL '\(self.pathString)'")
+      Logger.sandbox.debug("Started security scope for file URL '\(self.pathString)'")
     } else {
-      Logger.sandbox.log("Could not start security scope for URL '\(self.pathString)'")
+      Logger.sandbox.log("Could not start security scope for file URL '\(self.pathString)'")
     }
 
     return accessing
@@ -24,30 +24,16 @@ extension URL {
   public func endSecurityScope() {
     self.stopAccessingSecurityScopedResource()
 
-    Logger.sandbox.debug("Ended security scope for URL '\(self.pathString)'")
-  }
-}
-
-extension URL.BookmarkResolutionOptions {
-  public init(_ options: URL.BookmarkCreationOptions) {
-    self.init()
-
-    if options.contains(.withSecurityScope) {
-      self.insert(.withSecurityScope)
-    }
-
-    if options.contains(.withoutImplicitSecurityScope) {
-      self.insert(.withoutImplicitStartAccessing)
-    }
+    Logger.sandbox.debug("Ended security scope for file URL '\(self.pathString)'")
   }
 }
 
 public protocol SecurityScopedResource {
-  associatedtype Scope
+  associatedtype SecurityScope
 
-  func startSecurityScope() -> Scope
+  func startSecurityScope() -> SecurityScope
 
-  func endSecurityScope(_ scope: Scope)
+  func endSecurityScope(_ scope: SecurityScope)
 }
 
 extension SecurityScopedResource {
@@ -96,6 +82,13 @@ public struct URLSource {
 
 extension URLSource: Sendable, Equatable {}
 
+extension URLSource: Hashable {
+  public func hash(into hasher: inout Hasher) {
+    hasher.combine(url)
+    hasher.combine(options.rawValue)
+  }
+}
+
 extension URLSource: SecurityScopedResource {
   public func startSecurityScope() -> Bool {
     options.contains(.withSecurityScope) && url.startSecurityScope()
@@ -119,19 +112,19 @@ public struct URLSourceDocument {
 extension URLSourceDocument: Sendable {}
 
 extension URLSourceDocument: SecurityScopedResource {
-  public struct Scope {
-    let source: URLSource.Scope
-    let relative: URLSource.Scope?
+  public struct SecurityScope {
+    let source: URLSource.SecurityScope
+    let relative: URLSource.SecurityScope?
   }
 
-  public func startSecurityScope() -> Scope {
+  public func startSecurityScope() -> SecurityScope {
     let relative = relative?.startSecurityScope()
     let source = source.startSecurityScope()
 
-    return Scope(source: source, relative: relative)
+    return SecurityScope(source: source, relative: relative)
   }
 
-  public func endSecurityScope(_ scope: Scope) {
+  public func endSecurityScope(_ scope: SecurityScope) {
     source.endSecurityScope(scope.source)
 
     if let scope = scope.relative {
@@ -140,12 +133,15 @@ extension URLSourceDocument: SecurityScopedResource {
   }
 }
 
+// TODO: Remove.
+//
+// With URLSourceDocument, this is a hazard for our use case.
 extension Optional: SecurityScopedResource where Wrapped: SecurityScopedResource {
-  public func startSecurityScope() -> Wrapped.Scope? {
+  public func startSecurityScope() -> Wrapped.SecurityScope? {
     self?.startSecurityScope()
   }
 
-  public func endSecurityScope(_ scope: Wrapped.Scope?) {
+  public func endSecurityScope(_ scope: Wrapped.SecurityScope?) {
     guard let scope else {
       return
     }
@@ -224,6 +220,27 @@ extension Bookmark: Codable {
   }
 }
 
+public struct URLBookmark {
+  public let url: URL
+  public let bookmark: Bookmark
+
+  public init(url: URL, bookmark: Bookmark) {
+    self.url = url
+    self.bookmark = bookmark
+  }
+}
+
+extension URLBookmark {
+  public init(url: URL, options: URL.BookmarkCreationOptions, relativeTo relative: URL?) throws {
+    self.init(
+      url: url,
+      bookmark: try Bookmark(url: url, options: options, relativeTo: relative),
+    )
+  }
+}
+
+extension URLBookmark: Sendable, Codable {}
+
 public struct ResolvedBookmark {
   public let url: URL
   public let isStale: Bool
@@ -245,37 +262,6 @@ extension ResolvedBookmark: Sendable {}
 
 // https://english.stackexchange.com/a/227919
 public struct AssignedBookmark {
-  public let url: URL
-  public let data: Data
-
-  public init(url: URL, data: Data) {
-    self.url = url
-    self.data = data
-  }
-
-  public init(
-    data: Data,
-    options: URL.BookmarkResolutionOptions,
-    relativeTo relative: URL?,
-    create: (URL) throws -> Data,
-  ) throws {
-    var data = data
-    let resolved = try ResolvedBookmark(data: data, options: options, relativeTo: relative)
-
-    if resolved.isStale {
-      Logger.sandbox.log("Bookmark for URL '\(resolved.url.pathString)' is stale: re-creating...")
-
-      data = try create(resolved.url)
-    }
-
-    self.init(url: resolved.url, data: data)
-  }
-}
-
-extension AssignedBookmark: Sendable {}
-
-// https://english.stackexchange.com/a/227919
-public struct AssignedBookmark2 {
   public let resolved: ResolvedBookmark
   public let data: Data
 
@@ -294,7 +280,7 @@ public struct AssignedBookmark2 {
     let resolved = try ResolvedBookmark(data: data, options: options, relativeTo: relative)
 
     if resolved.isStale {
-      Logger.sandbox.log("Bookmark for URL '\(resolved.url.pathString)' is stale: re-creating...")
+      Logger.sandbox.log("Bookmark for file URL '\(resolved.url.pathString)' is stale: re-creating...")
 
       data = try create(resolved.url)
     }
@@ -303,25 +289,4 @@ public struct AssignedBookmark2 {
   }
 }
 
-extension AssignedBookmark2: Sendable {}
-
-public struct URLBookmark {
-  public let url: URL
-  public let bookmark: Bookmark
-
-  public init(url: URL, bookmark: Bookmark) {
-    self.url = url
-    self.bookmark = bookmark
-  }
-}
-
-extension URLBookmark {
-  public init(url: URL, options: URL.BookmarkCreationOptions, relativeTo relative: URL?) throws {
-    self.init(
-      url: url,
-      bookmark: try Bookmark(url: url, options: options, relativeTo: relative),
-    )
-  }
-}
-
-extension URLBookmark: Sendable, Codable {}
+extension AssignedBookmark: Sendable {}

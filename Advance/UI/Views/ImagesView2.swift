@@ -5,6 +5,7 @@
 //  Created by Kyle Erhabor on 11/23/25.
 //
 
+import AdvanceCore
 import OSLog
 import SwiftUI
 
@@ -27,12 +28,14 @@ struct ImagesView2: View {
   @Environment(AppModel.self) private var app
   @Environment(Windowed.self) private var windowed
   @Environment(ImagesModel.self) private var images
+  @Environment(FoldersSettingsModel2.self) private var folders
   @SceneStorage(StorageKeys.columnVisibility) private var columnVisibilityStorage
   @AppStorage(StorageKeys.importHiddenFiles) private var importHiddenFiles
   @AppStorage(StorageKeys.importSubdirectories) private var importSubdirectories
   @State private var columnVisibility = StorageKeys.columnVisibility.defaultValue.columnVisibility
   @State private var selection = Set<ImagesItemModel2.ID>()
   @State private var isFileImporterPresented = false
+  @State private var isCopyFolderFileImporterPresented = false
   private var directoryEnumerationOptions: FileManager.DirectoryEnumerationOptions {
     StorageKeys.directoryEnumerationOptions(
       importHiddenFiles: importHiddenFiles,
@@ -65,9 +68,14 @@ struct ImagesView2: View {
           }
 
           Section {
-            Button("Images.Item.Copy") {
+            Button("Images.Item.Copy", systemImage: "document.on.document") {
               images.copy(items: ids)
             }
+
+            ImagesSidebarItemCopyFolderView(
+              isFileImporterPresented: $isCopyFolderFileImporterPresented,
+              selection: ids,
+            )
           }
         }
         .disabled(images.isInvalidSelection(of: ids))
@@ -111,6 +119,7 @@ struct ImagesView2: View {
               await images.store(urls: urls, directoryEnumerationOptions: directoryEnumerationOptions)
             }
           }
+          .fileDialogCustomizationID(ImagesScene.id)
         }
       }
       .navigationSplitViewColumnWidth(min: 128, max: 256)
@@ -123,6 +132,24 @@ struct ImagesView2: View {
       disablesOpenFinder: true,
       disablesResetWindowSize: false,
     ))
+    .fileImporter(isPresented: $isCopyFolderFileImporterPresented, allowedContentTypes: foldersContentTypes) { result in
+      let url: URL
+
+      switch result {
+        case let .success(x):
+          url = x
+        case let .failure(error):
+          // TODO: Elaborate.
+          Logger.ui.error("\(error)")
+
+          return
+      }
+
+      Task {
+        await folders.copyFolder(destination: url, items: selection)
+      }
+    }
+    .fileDialogCustomizationID(FoldersSettingsScene.id)
     .task(id: images) {
       guard !Task.isCancelled else {
         return
@@ -147,7 +174,7 @@ struct ImagesView2: View {
         case .showFinder:
           images.showFinder(items: selection)
         case .openFinder:
-          // If there are many items, calling this would invoke a disaster.
+          // If there are many items, supporting this would be a disaster.
           unreachable()
         case .resetWindowSize:
           windowed.window?.setContentSize(ImagesScene.defaultSize)

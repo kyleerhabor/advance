@@ -12,6 +12,10 @@ import Foundation
 import GRDB
 import OSLog
 
+extension Logger {
+  static let data = Self(subsystem: Bundle.appID, category: "Data")
+}
+
 extension URL {
   static let databaseFile = Self.dataDirectory
     .appending(component: "Data", directoryHint: .notDirectory)

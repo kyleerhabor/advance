@@ -11,9 +11,14 @@ import Combine
 import CoreGraphics
 import SwiftUI
 import IdentifiedCollections
+import OSLog
 
 let OPACITY_TRANSPARENT = 0.0
 let OPACITY_OPAQUE = 1.0
+
+extension Logger {
+  static let ui = Self(subsystem: Bundle.appID, category: "UI")
+}
 
 extension CGSize {
   var length: Double {
@@ -21,7 +26,6 @@ extension CGSize {
   }
 }
 
-// This is not (really) a view. Move elsewhere?
 extension NSWorkspace {
   func icon(forFileAt url: URL) -> NSImage {
     self.icon(forFile: url.pathString)
@@ -502,8 +506,8 @@ where Source: PreferenceKey,
 // MARK: - Extensions
 
 extension View {
-  func transform(@ViewBuilder _ transform: (Self) -> some View) -> some View {
-    transform(self)
+  func transform(@ViewBuilder _ content: (Self) -> some View) -> some View {
+    content(self)
   }
 
   func windowed() -> some View {
@@ -623,60 +627,36 @@ extension EnvironmentValues {
   @Entry var imagesID = UUID()
 }
 
-enum WindowOpen {
-  case images(ImagesModel.ID),
-       folders
-}
-
-extension WindowOpen: Equatable {}
-
-enum FinderShow {
-  case unknown,
-       images(Set<ImagesItemModel.ID>),
-       folders(Set<FoldersSettingsItem.ID>)
-}
-
-extension FinderShow: Equatable {}
-
 extension FocusedValues {
   @Entry var commandScene: AppModelCommandScene?
 
   // MARK: - Old
-  @Entry var windowOpen: AppMenuActionItem<WindowOpen?>?
-  @Entry var finderShow: AppMenuActionItem<FinderShow>?
-  @Entry var finderOpen: AppMenuActionItem<Set<FoldersSettingsItem.ID>>?
   @Entry var imagesSidebarJump: ImagesNavigationJumpAction?
   @Entry var imagesSidebarShow: AppMenuActionItem<ImagesModel.ID?>?
   @Entry var imagesDetailJump: ImagesNavigationJumpAction?
   @Entry var imagesLiveTextIcon: AppMenuToggleItem<ImagesModel.ID?>?
   @Entry var imagesLiveTextHighlight: AppMenuToggleItem<Set<ImagesItemModel.ID>>?
-  @Entry var imagesWindowResetSize: AppMenuActionItem<ImagesModel.ID?>?
   @Entry var imagesQuickLook: AppMenuToggleItem<Set<ImageCollectionItemImage.ID>>?
 }
 
 extension KeyboardShortcut {
-  static let back = Self("[", modifiers: .command)
-  static let forward = Self("]", modifiers: .command)
+  static let open = Self("o", modifiers: .command)
   static let showFinder = Self("r", modifiers: .command)
   static let openFinder = Self("r", modifiers: [.command, .shift])
-
-  static let sidebarShowItem = Self("l", modifiers: .command)
-
-  static let fullScreen = Self("f", modifiers: [.command, .control])
-  static let systemFullScreen = Self("f", modifiers: .function) // See WindowFullScreenToggleViewModifier
-
-  static let liveTextIcon = Self("t", modifiers: .command)
-  static let liveTextHighlight = Self("t", modifiers: [.command, .shift])
-
-  static let open = Self("o", modifiers: .command)
   // Terminal > Window > Return to Default Size
   static let resetWindowSize = Self("m", modifiers: [.command, .control])
-
-  static let searchSettings = Self("2", modifiers: .command)
   static let foldersSettings = Self("3", modifiers: .command)
+
+  static let back = Self("[", modifiers: .command)
+  static let forward = Self("]", modifiers: .command)
+  static let sidebarShowItem = Self("l", modifiers: .command)
+  static let fullScreen = Self("f", modifiers: [.command, .control])
+  static let systemFullScreen = Self("f", modifiers: .function) // See WindowFullScreenToggleViewModifier
+  static let liveTextIcon = Self("t", modifiers: .command)
+  static let liveTextHighlight = Self("t", modifiers: [.command, .shift])
+  static let searchSettings = Self("2", modifiers: .command)
 }
 
 extension NSUserInterfaceItemIdentifier {
   static let imagesWindowOpen = Self(rawValue: "images-window-open")
-  static let foldersOpen = Self(rawValue: "folders-open")
 }

@@ -61,6 +61,7 @@ struct AppCommands: Commands {
           openWindow(value: images)
         }
       }
+      .fileDialogCustomizationID(ImagesScene.id)
     }
 
     CommandGroup(after: .saveItem) {

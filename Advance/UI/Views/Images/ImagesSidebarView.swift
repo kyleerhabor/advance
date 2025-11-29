@@ -78,7 +78,7 @@ struct ImagesSidebarImportView: View {
   @Environment(ImagesModel.self) private var images
   @AppStorage(StorageKeys.importHiddenFiles) private var importHiddenFiles
   @AppStorage(StorageKeys.importSubdirectories) private var importSubdirectories
-  @Binding var isFileImporterPresented: Bool
+  @State private var isFileImporterPresented = false
 
   var body: some View {
     ContentUnavailableView {
@@ -90,55 +90,40 @@ struct ImagesSidebarImportView: View {
       }
       .buttonStyle(.plain)
 //      .frame(maxWidth: .infinity, maxHeight: .infinity)
-      .fileImporter(isPresented: $isFileImporterPresented, allowedContentTypes: imagesContentTypes, allowsMultipleSelection: true) { result in
-        let urls: [URL]
-
-        switch result {
-          case .success(let value):
-            urls = value
-          case .failure(let error):
-            Logger.ui.error("\(error)")
-
-            return
-        }
-
-        Task {
-          do {
-            try await images.submit(
-              items: await Self.source(
-                urls: urls,
-                options: StorageKeys.directoryEnumerationOptions(
-                  importHiddenFiles: importHiddenFiles,
-                  importSubdirectories: importSubdirectories,
-                ),
-              ),
-            )
-          } catch {
-            Logger.model.error("\(error)")
-          }
-        }
-      }
+//      .fileImporter(isPresented: $isFileImporterPresented, allowedContentTypes: imagesContentTypes, allowsMultipleSelection: true) { result in
+//        let urls: [URL]
+//
+//        switch result {
+//          case .success(let value):
+//            urls = value
+//          case .failure(let error):
+//            Logger.ui.error("\(error)")
+//
+//            return
+//        }
+//
+//        Task {
+//          do {
+//            try await images.submit(
+//              items: await Self.source(
+//                urls: urls,
+//                options: StorageKeys.directoryEnumerationOptions(
+//                  importHiddenFiles: importHiddenFiles,
+//                  importSubdirectories: importSubdirectories,
+//                ),
+//              ),
+//            )
+//          } catch {
+//            Logger.model.error("\(error)")
+//          }
+//        }
+//      }
       .fileDialogCustomizationID(NSUserInterfaceItemIdentifier.imagesWindowOpen.rawValue)
 //      .dropDestination(for: ImagesItemTransfer.self) { items, _ in
 //        Logger.ui.info("\(items)")
 //
 //        return true
 //      }
-    }
-  }
-
-  private nonisolated static func source(
-    urls: [URL],
-    options: FileManager.DirectoryEnumerationOptions
-  ) async -> [Source<[URL]>] {
-    urls.compactMap { url in
-      do {
-        return try ImagesModel.source(url: url, options: options)
-      } catch {
-        Logger.model.error("Could not source URL \"\(url.pathString)\" with options \"\(options.rawValue)\" for sidebar open: \(error)")
-
-        return nil
-      }
     }
   }
 }
@@ -364,7 +349,7 @@ struct ImagesSidebarContentView: View {
           }
         }
       }
-      .fileDialogCustomizationID(NSUserInterfaceItemIdentifier.foldersOpen.rawValue)
+      .fileDialogCustomizationID(FoldersSettingsScene.id)
       .fileDialogConfirmationLabel(Text("Copy"))
       .alert(Text(copyingError?.localizedDescription ?? ""), isPresented: $isCopyingErrorAlertPresented) {
         // Empty
@@ -378,9 +363,6 @@ struct ImagesSidebarContentView: View {
         }
 
         showSidebar(proxy, at: item)
-      })
-      .focusedValue(\.finderShow, AppMenuActionItem(identity: .images(selection), enabled: !selection.isEmpty) {
-        showFinder(forSelection: selection)
       })
       .onReceive(incomingItemID) { id in
         guard restoreLastImage else {
@@ -455,7 +437,6 @@ struct ImagesSidebarContentView: View {
 
 struct ImagesSidebarView: View {
   @Environment(ImagesModel.self) private var images
-  @State private var isFileImporterPresented = false
   var isEmpty: Bool {
     images.isReady && images.items.isEmpty
   }
@@ -465,17 +446,10 @@ struct ImagesSidebarView: View {
       .overlay {
         let isEmpty = isEmpty
 
-        ImagesSidebarImportView(isFileImporterPresented: $isFileImporterPresented)
+        ImagesSidebarImportView()
           .visible(isEmpty)
           .animation(.default, value: isEmpty)
           .transaction(value: isEmpty, setter(on: \.disablesAnimations, value: !isEmpty))
-          .background {
-            if self.isEmpty {
-              Color.clear.focusedSceneValue(\.windowOpen, AppMenuActionItem(identity: .images(images.id), enabled: true) {
-                isFileImporterPresented = true
-              })
-            }
-          }
       }
   }
 }

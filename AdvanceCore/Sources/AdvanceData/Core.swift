@@ -5,51 +5,8 @@
 //  Created by Kyle Erhabor on 6/11/24.
 //
 
-import AdvanceCore
-import BigInt
 import Foundation
 import GRDB
-import OSLog
-
-public struct DataBookmark {
-  public let bookmark: AssignedBookmark
-  public let hash: Data
-
-  public init(bookmark: AssignedBookmark, hash: Data) {
-    self.bookmark = bookmark
-    self.hash = hash
-  }
-
-  static func hash(data: Data) -> Data {
-    AdvanceData.hash(data: data)
-  }
-}
-
-extension DataBookmark {
-  public init(
-    data: Data,
-    options: URL.BookmarkResolutionOptions,
-    hash: Data,
-    relativeTo relative: URL?,
-    create: (URL) throws -> Data,
-  ) throws {
-    var hash = hash
-    let resolved = try AssignedBookmark(
-      data: data,
-      options: options,
-      relativeTo: relative
-    ) { url in
-      let data = try create(url)
-      hash = Self.hash(data: data)
-
-      return data
-    }
-
-    self.init(bookmark: resolved, hash: hash)
-  }
-}
-
-extension DataBookmark: Sendable {}
 
 public struct LibraryModelUpdateImagesItemFileBookmarkBookmarkInfo {
   public let bookmark: BookmarkRecord
@@ -171,39 +128,6 @@ extension LibraryModelTrackImagesPropertiesImagesInfo: Decodable {
 
 extension LibraryModelTrackImagesPropertiesImagesInfo: Sendable, FetchableRecord {}
 
-public struct FoldersSettingsModelTrackFoldersFolderFileBookmarkBookmarkInfo {
-  public let bookmark: BookmarkRecord
-}
-
-extension FoldersSettingsModelTrackFoldersFolderFileBookmarkBookmarkInfo: Sendable, Decodable, FetchableRecord {}
-
-public struct FoldersSettingsModelTrackFoldersFolderFileBookmarkInfo {
-  public let fileBookmark: FileBookmarkRecord
-  public let bookmark: FoldersSettingsModelTrackFoldersFolderFileBookmarkBookmarkInfo
-}
-
-extension FoldersSettingsModelTrackFoldersFolderFileBookmarkInfo: Decodable {
-  enum CodingKeys: String, CodingKey {
-    case fileBookmark,
-         bookmark = "_bookmark"
-  }
-}
-
-extension FoldersSettingsModelTrackFoldersFolderFileBookmarkInfo: Sendable, FetchableRecord {}
-
-public struct FoldersSettingsModelTrackFoldersFolderInfo {
-  public let folder: FolderRecord
-  public let fileBookmark: FoldersSettingsModelTrackFoldersFolderFileBookmarkInfo
-}
-
-extension FoldersSettingsModelTrackFoldersFolderInfo: Decodable {
-  enum CodingKeys: CodingKey {
-    case folder, fileBookmark
-  }
-}
-
-extension FoldersSettingsModelTrackFoldersFolderInfo: Sendable, FetchableRecord {}
-
 public typealias DatabaseConnection = DatabaseReader & DatabaseWriter
 
 public actor DataStack<Connection> where Connection: DatabaseConnection {
@@ -215,10 +139,6 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
     self.connection = connection
   }
 
-  public func register(hash: Data, url: URL) {
-    urls[hash] = url
-  }
-
   public func register(urls: [Data: URL]) -> [Data: URL] {
     self.urls.merge(urls) { $1 }
 
@@ -226,66 +146,6 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
   }
 
   // MARK: - Reading
-
-  nonisolated static func buildBookmarkRequest<Request>(_ bookmark: Request) -> Request where Request: DerivableRequest {
-    bookmark.select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options, BookmarkRecord.Columns.hash)
-  }
-
-  nonisolated static func buildLimitedBookmarkRequest<Request>(_ bookmark: Request) -> Request where Request: DerivableRequest {
-    bookmark.select(.rowID, BookmarkRecord.Columns.options, BookmarkRecord.Columns.hash)
-  }
-
-  nonisolated public static func fetch(_ db: Database, items: some Sequence<RowID>) throws -> [LibraryModelUpdateImagesItemInfo] {
-    try ImagesItemRecord
-      .select(.rowID, ImagesItemRecord.Columns.isBookmarked)
-      .filter(items.contains(Column.rowID))
-      .including(
-        required: ImagesItemRecord.fileBookmark
-          .forKey(LibraryModelUpdateImagesItemInfo.CodingKeys.fileBookmark)
-          .select(.rowID)
-          .including(
-            required: buildBookmarkRequest(FileBookmarkRecord.bookmark)
-              .forKey(LibraryModelUpdateImagesItemFileBookmarkInfo.CodingKeys.bookmark),
-          )
-          .including(
-            optional: buildBookmarkRequest(FileBookmarkRecord.relative)
-              .forKey(LibraryModelUpdateImagesItemFileBookmarkInfo.CodingKeys.relative),
-          ),
-      )
-      .asRequest(of: LibraryModelUpdateImagesItemInfo.self)
-      .fetchAll(db)
-  }
-
-  nonisolated public func trackImagesItems(images: RowID) -> AsyncValueObservation<LibraryModelTrackImagesItemsImagesInfo?> {
-    ValueObservation
-      .trackingConstantRegion { db in
-        try ImagesRecord
-          .select(.rowID)
-          .filter(key: images)
-          .including(
-            all: ImagesRecord.items
-              .forKey(LibraryModelTrackImagesItemsImagesInfo.CodingKeys.items)
-              .select(.rowID, ImagesItemRecord.Columns.isBookmarked)
-              .order(ImagesItemRecord.Columns.priority)
-              .including(
-                required: ImagesItemRecord.fileBookmark
-                  .forKey(LibraryModelTrackImagesItemsImagesItemInfo.CodingKeys.fileBookmark)
-                  .select(.rowID)
-                  .including(
-                    required: Self.buildLimitedBookmarkRequest(FileBookmarkRecord.bookmark)
-                      .forKey(LibraryModelTrackImagesItemsImagesItemFileBookmarkInfo.CodingKeys.bookmark),
-                  )
-                  .including(
-                    optional: Self.buildLimitedBookmarkRequest(FileBookmarkRecord.relative)
-                      .forKey(LibraryModelTrackImagesItemsImagesItemFileBookmarkInfo.CodingKeys.relative),
-                  ),
-              ),
-          )
-          .asRequest(of: LibraryModelTrackImagesItemsImagesInfo.self)
-          .fetchOne(db)
-      }
-      .values(in: connection, bufferingPolicy: .bufferingNewest(1))
-  }
 
   nonisolated public func trackImagesProperties(
     images: RowID,
@@ -302,37 +162,6 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
           )
           .asRequest(of: LibraryModelTrackImagesPropertiesImagesInfo.self)
           .fetchOne(db)
-      }
-      .values(in: connection, bufferingPolicy: .bufferingNewest(1))
-  }
-
-  nonisolated public static func fetchBookmarks(
-    _ db: Database,
-    bookmarks: some Sequence<RowID>,
-  ) throws -> Dictionary<RowID, BookmarkRecord> {
-    let cursor = try buildBookmarkRequest(BookmarkRecord.filter(bookmarks.contains(Column.rowID)))
-      .fetchCursor(db)
-      .map { ($0.rowID!, $0) }
-
-    return try Dictionary(uniqueKeysWithValues: cursor)
-  }
-
-  nonisolated public func trackFolders() -> AsyncValueObservation<[FoldersSettingsModelTrackFoldersFolderInfo]> {
-    ValueObservation
-      .trackingConstantRegion { db in
-        try FolderRecord
-          .select(.rowID)
-          .including(
-            required: FolderRecord.fileBookmark
-              .forKey(FoldersSettingsModelTrackFoldersFolderInfo.CodingKeys.fileBookmark)
-              .select(.rowID)
-              .including(
-                required: Self.buildLimitedBookmarkRequest(FileBookmarkRecord.bookmark)
-                  .forKey(FoldersSettingsModelTrackFoldersFolderFileBookmarkInfo.CodingKeys.bookmark),
-              ),
-          )
-          .asRequest(of: FoldersSettingsModelTrackFoldersFolderInfo.self)
-          .fetchAll(db)
       }
       .values(in: connection, bufferingPolicy: .bufferingNewest(1))
   }
@@ -355,29 +184,6 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
     return LibraryModelIDImagesInfo(images: images)
   }
 
-  nonisolated public static func submitBookmark(
-    _ db: Database,
-    data: Data,
-    options: URL.BookmarkCreationOptions,
-    hash: Data,
-  ) throws -> BookmarkRecord {
-    var bookmark = BookmarkRecord(data: data, options: options, hash: hash)
-    try bookmark.upsert(db)
-
-    return bookmark
-  }
-
-  nonisolated public static func submitFileBookmark(
-    _ db: Database,
-    bookmark: RowID,
-    relative: RowID?,
-  ) throws -> FileBookmarkRecord {
-    var fileBookmark = FileBookmarkRecord(bookmark: bookmark, relative: relative)
-    try fileBookmark.upsert(db)
-
-    return fileBookmark
-  }
-
   // TODO: Refactor.
   //
   // Creating a method for each column to update will get unwieldly real quick.
@@ -389,97 +195,11 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
     let imagesItem = ImagesItemRecord(
       rowID: item,
       position: nil,
-      priority: nil,
       isBookmarked: isBookmarked,
       fileBookmark: nil,
     )
 
     try imagesItem.update(db, columns: [ImagesItemRecord.Columns.isBookmarked])
-  }
-
-  nonisolated public static func submitImagesItems(
-    _ db: Database,
-    bookmark: Source<some RangeReplaceableCollection<Bookmark>>,
-    images: RowID,
-    priority: Int,
-  ) throws -> [(bookmark: BookmarkRecord, item: ImagesItemRecord?)] {
-    var data: [(bookmark: BookmarkRecord, item: ImagesItemRecord?)]
-
-    switch bookmark {
-      case .source(let bookmark):
-        var bookmark = BookmarkRecord(
-          data: bookmark.data,
-          options: bookmark.options,
-          hash: hash(data: bookmark.data),
-        )
-
-        try bookmark.upsert(db)
-
-        var fileBookmark = FileBookmarkRecord(bookmark: bookmark.rowID, relative: nil)
-        try fileBookmark.upsert(db)
-
-        let priority = priority.incremented()
-        var imagesItem = ImagesItemRecord(
-          position: BigFraction.zero,
-          priority: priority,
-          isBookmarked: false,
-          fileBookmark: fileBookmark.rowID,
-        )
-
-        try imagesItem.insert(db)
-
-        var itemImages = ItemImagesRecord(images: images, item: imagesItem.rowID)
-        try itemImages.insert(db)
-
-        data = [(bookmark: bookmark, item: imagesItem)]
-      case .document(let document):
-        var bookmark = BookmarkRecord(
-          data: document.source.data,
-          options: document.source.options,
-          hash: hash(data: document.source.data),
-        )
-
-        try bookmark.upsert(db)
-
-        var fileBookmark = FileBookmarkRecord(bookmark: bookmark.rowID, relative:  nil)
-        try fileBookmark.upsert(db)
-
-        let values = try document.items.reduce(
-          into: [(bookmark: BookmarkRecord, item: ImagesItemRecord?)](),
-        ) { partialResult, book in
-          var bookmark2 = BookmarkRecord(
-            data: book.data,
-            options: book.options,
-            hash: hash(data: book.data),
-          )
-
-          try bookmark2.upsert(db)
-
-          var fileBookmark = FileBookmarkRecord(bookmark: bookmark2.rowID, relative: bookmark.rowID)
-          try fileBookmark.upsert(db)
-
-          let priority = (partialResult.last?.item?.priority ?? priority).incremented()
-          var imagesItem = ImagesItemRecord(
-            position: BigFraction.zero,
-            priority: priority,
-            isBookmarked: false,
-            fileBookmark: fileBookmark.rowID,
-          )
-
-          try imagesItem.insert(db)
-
-          var itemImages = ItemImagesRecord(images: images, item: imagesItem.rowID)
-          try itemImages.insert(db)
-
-          partialResult.append((bookmark: bookmark2, item: imagesItem))
-        }
-
-        data = Array(reservingCapacity: values.count.incremented())
-        data.append((bookmark: bookmark, item: nil))
-        data.append(contentsOf: values)
-    }
-
-    return data
   }
 
   nonisolated public static func submitImagesCurrentItem(
@@ -490,19 +210,6 @@ public actor DataStack<Connection> where Connection: DatabaseConnection {
     let images = ImagesRecord(rowID: images, id: nil, currentItem: currentItem)
     try images.update(db, columns: [ImagesRecord.Columns.currentItem])
   }
-
-  nonisolated public static func createFolder(_ db: Database, fileBookmark: RowID) throws -> FolderRecord {
-    var folder = FolderRecord(fileBookmark: fileBookmark)
-    try folder.insert(db)
-
-    return folder
-  }
-
-  nonisolated public static func deleteFolders(_ db: Database, folders: [RowID]) throws {
-    try FolderRecord.deleteAll(db, keys: folders)
-  }
-
-  // MARK: - Old
 }
 
 extension DataStack: Sendable where Connection: Sendable {}
@@ -526,12 +233,6 @@ public func createSchema(connection: DatabaseConnection) async throws {
       table
         .column(BookmarkRecord.Columns.options.name, .integer)
         .notNull()
-
-      // Do we need to embed this here?
-      table
-        .column(BookmarkRecord.Columns.hash.name, .blob)
-        .notNull()
-        .unique()
     }
 
     try db.create(table: FileBookmarkRecord.databaseTableName) { table in
@@ -554,10 +255,6 @@ public func createSchema(connection: DatabaseConnection) async throws {
       // TODO: Enforce uniqueness via trigger.
       table
         .column(ImagesItemRecord.Columns.position.name, .blob)
-        .notNull()
-
-      table
-        .column(ImagesItemRecord.Columns.priority.name, .integer)
         .notNull()
 
       table

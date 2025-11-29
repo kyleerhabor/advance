@@ -189,40 +189,6 @@ final class ImagesItemModel {
     self.info = info
     self.isBookmarked = isBookmarked
   }
-
-  // This really has little to do with this class.
-  static func source(urls: [Data: URL], hash: Data, options: URL.BookmarkCreationOptions) -> URLSource? {
-    urls[hash].map { url in
-      URLSource(url: url, options: options)
-    }
-  }
-
-  static func document(
-    urls: [Data: URL],
-    response: LibraryModelTrackImagesItemsImagesItemFileBookmarkInfo,
-  ) -> URLSourceDocument? {
-    guard let source = Self.source(
-      urls: urls,
-      hash: response.bookmark.bookmark.hash!,
-      options: response.bookmark.bookmark.options!,
-    ) else {
-      return nil
-    }
-
-    let relative: URLSource?
-
-    if let rel = response.relative?.relative {
-      guard let source = Self.source(urls: urls, hash: rel.hash!, options: rel.options!) else {
-        return nil
-      }
-
-      relative = source
-    } else {
-      relative = nil
-    }
-
-    return URLSourceDocument(source: source, relative: relative)
-  }
 }
 
 extension ImagesItemModel: Identifiable {}
@@ -357,6 +323,10 @@ final class ImagesItemModel2 {
 
 extension ImagesItemModel2: Identifiable {}
 
+struct ImagesModelStoreState {
+  var bookmarks: [URL: Bookmark]
+}
+
 @Observable
 @MainActor
 final class ImagesModel {
@@ -421,8 +391,8 @@ final class ImagesModel {
     NSWorkspace.shared.activateFileViewerSelecting(_urls(forItems: items))
   }
 
-  func isInvalidSelection(of ids: Set<ImagesItemModel2.ID>) -> Bool {
-    ids.isEmpty
+  func isInvalidSelection(of items: Set<ImagesItemModel2.ID>) -> Bool {
+    items.isEmpty
   }
 
   func urls(forItems items: Set<ImagesItemModel2.ID>) -> [URL] {
@@ -434,10 +404,6 @@ final class ImagesModel {
     NSPasteboard.general.writeObjects(_urls(forItems: items) as [NSURL])
   }
 
-  private func _urls(forItems items: Set<ImagesItemModel2.ID>) -> [URL] {
-    items.compactMap { self.items2[id: $0]?.source.url }
-  }
-
   nonisolated private func loadImages(connection: DatabasePool, images: ImagesModelLoadImagesInfo?) async {
     guard let images else {
       Task { @MainActor in
@@ -447,179 +413,30 @@ final class ImagesModel {
       return
     }
 
-    struct State1 {
-      var bookmarks: [RowID: DataBookmark]
-    }
-
-    struct State1ChildResolution {
-      let bookmark: BookmarkRecord
-      let data: DataBookmark
-    }
-
-    enum State1Child {
-      case resolved(State1ChildResolution),
-           unresolved
-    }
-
-    let state1 = await withThrowingTaskGroup(of: State1Child.self) { group in
-      images.items
-        .compactMap(\.fileBookmark.relative)
-        .uniqued(on: \.relative.rowID)
-        .forEach { relative in
-          group.addTask {
-            let options = relative.relative.options!
-            let data = try DataBookmark(
-              data: relative.relative.data!,
-              options: URL.BookmarkResolutionOptions(options).union(.withoutMounting),
-              hash: relative.relative.hash!,
-              relativeTo: nil,
-            ) { url in
-              let source = URLSource(url: url, options: options)
-              let bookmark = try source.accessingSecurityScopedResource {
-                try url.bookmarkData(options: options)
-              }
-
-              return bookmark
-            }
-
-            return .resolved(State1ChildResolution(bookmark: relative.relative, data: data))
-          }
-        }
-
-      var state = State1(bookmarks: [:])
-
-      while let result = await group.nextResult() {
-        switch result {
-          case let .success(child):
-            switch child {
-              case let .resolved(resolved):
-                state.bookmarks[resolved.bookmark.rowID!] = resolved.data
-              case .unresolved:
-                unreachable()
-            }
-          case let .failure(error):
-            // TODO: Elaborate.
-            Logger.model.error("\(error)")
-        }
-      }
-
-      images.items.forEach { item in
-        let state = state
-
-        group.addTask {
-          let relative: URLSource?
-
-          if let r = item.fileBookmark.relative {
-            guard let data = state.bookmarks[r.relative.rowID!] else {
-              return .unresolved
-            }
-
-            relative = URLSource(url: data.bookmark.url, options: r.relative.options!)
-          } else {
-            relative = nil
-          }
-
-          let options = item.fileBookmark.bookmark.bookmark.options!
-          let data = try relative.accessingSecurityScopedResource {
-            try DataBookmark(
-              data: item.fileBookmark.bookmark.bookmark.data!,
-              options: URL.BookmarkResolutionOptions(options).union(.withoutMounting),
-              hash: item.fileBookmark.bookmark.bookmark.hash!,
-              relativeTo: relative?.url,
-            ) { url in
-              let source = URLSource(url: url, options: options)
-              let bookmark = try source.accessingSecurityScopedResource {
-                try url.bookmarkData(options: options, relativeTo: relative?.url)
-              }
-
-              return bookmark
-            }
-          }
-
-          return .resolved(State1ChildResolution(bookmark: item.fileBookmark.bookmark.bookmark, data: data))
-        }
-      }
-
-      while let result = await group.nextResult() {
-        switch result {
-          case let .success(child):
-            switch child {
-              case let .resolved(resolved):
-                state.bookmarks[resolved.bookmark.rowID!] = resolved.data
-              case .unresolved:
-                // TODO: Log.
-                break
-            }
-          case let .failure(error):
-            // TODO: Elaborate.
-            Logger.model.error("\(error)")
-        }
-      }
-
-      return state
-    }
-
-    let satisfied = images.items.allSatisfy { item in
-      if let relative = item.fileBookmark.relative {
-        guard let bookmark = state1.bookmarks[relative.relative.rowID!] else {
-          // It's possible resolving the bookmark failed, in which we don't want to potentially spin in an infinite loop.
-          return true
-        }
-
-        // We could save on performance by running this once, but this only compares 32 bytes, so I imagine it isn't
-        // that expensive.
-        guard bookmark.hash == relative.relative.hash else {
-          return false
-        }
-      }
-
-      guard let data = state1.bookmarks[item.fileBookmark.bookmark.bookmark.rowID!] else {
-        // It's possible resolving the bookmark failed.
-        return true
-      }
-
-      return data.hash == item.fileBookmark.bookmark.bookmark.hash
-    }
-
-    guard satisfied else {
-      do {
-        try await connection.write { db in
-          try images.items
-            .compactMap(\.fileBookmark.relative)
-            .uniqued(on: \.relative.rowID)
-            .forEach { relative in
-              let rowID = relative.relative.rowID!
-
-              guard let data = state1.bookmarks[rowID] else {
-                return
-              }
-
-              let bookmark = BookmarkRecord(
-                rowID: rowID,
-                data: data.bookmark.data,
-                options: nil,
-                hash: data.hash,
-              )
-
-              try bookmark.update(db, columns: [BookmarkRecord.Columns.data, BookmarkRecord.Columns.hash])
-            }
-
-          try images.items.forEach { item in
-            let rowID = item.fileBookmark.bookmark.bookmark.rowID!
-
-            guard let data = state1.bookmarks[rowID] else {
-              return
-            }
-
-            let bookmark = BookmarkRecord(
-              rowID: rowID,
-              data: data.bookmark.data,
-              options: nil,
-              hash: data.hash,
+    let items = images.items.map { item in
+      ImagesItemInfo(
+        item: item.item,
+        fileBookmark: ImagesItemFileBookmarkInfo(
+          fileBookmark: item.fileBookmark.fileBookmark,
+          bookmark: ImagesItemFileBookmarkBookmarkInfo(
+            bookmark: item.fileBookmark.bookmark.bookmark,
+          ),
+          relative: item.fileBookmark.relative.map { relative in
+            ImagesItemFileBookmarkRelativeInfo(
+              relative: relative.relative,
             )
+          },
+        ),
+      )
+    }
 
-            try bookmark.update(db, columns: [BookmarkRecord.Columns.data, BookmarkRecord.Columns.hash])
-          }
+    var state1 = ImagesItemAssignment()
+    await state1.assign(items: items)
+
+    guard state1.isSatisified(with: items) else {
+      do {
+        try await connection.write { [state1] db in
+          try state1.write(db, items: items)
         }
       } catch {
         // TODO: Elaborate.
@@ -642,25 +459,26 @@ final class ImagesModel {
     }
 
     let state2 = await withTaskGroup(of: State2Item?.self) { group in
+      // TODO: Rewrite.
       images.items.forEach { item in
-        group.addTask {
+        group.addTask { [state1] in
           let relative: URLSource?
 
           if let r = item.fileBookmark.relative {
-            guard let data = state1.bookmarks[r.relative.rowID!] else {
+            guard let bookmark = state1.bookmarks[r.relative.rowID!] else {
               return nil
             }
 
-            relative = URLSource(url: data.bookmark.url, options: r.relative.options!)
+            relative = URLSource(url: bookmark.resolved.url, options: r.relative.options!)
           } else {
             relative = nil
           }
 
-          guard let data = state1.bookmarks[item.fileBookmark.bookmark.bookmark.rowID!] else {
+          guard let bookmark = state1.bookmarks[item.fileBookmark.bookmark.bookmark.rowID!] else {
             return nil
           }
 
-          let source = URLSource(url: data.bookmark.url, options: item.fileBookmark.bookmark.bookmark.options!)
+          let source = URLSource(url: bookmark.resolved.url, options: item.fileBookmark.bookmark.bookmark.options!)
           let item = relative.accessingSecurityScopedResource { () -> State2Item? in
             source.accessingSecurityScopedResource {
               let resourceValues: URLResourceValues
@@ -688,6 +506,16 @@ final class ImagesModel {
               }
 
               let options = [kCGImageSourceShouldCache: false]
+
+//              let orientation: CGImagePropertyOrientation? = if let displayOrientation = imageProperties[kCGImagePropertyOrientation] as? UInt32{
+//                CGImagePropertyOrientation(rawValue: displayOrientation)
+//              } else {
+//                .up
+//              }
+//
+//              let aspectRatio = orientation.isReflected
+//              ? pixelHeight / pixelWidth
+//              : pixelWidth / pixelHeight
 
               guard let imageProperties = CGImageSourceCopyPropertiesAtIndex(
                 imageSource,
@@ -730,14 +558,14 @@ final class ImagesModel {
               return nil
             }
 
-            guard let data = state1.bookmarks[item.item.fileBookmark.bookmark.bookmark.rowID!] else {
+            guard let bookmark = state1.bookmarks[item.item.fileBookmark.bookmark.bookmark.rowID!] else {
               return nil
             }
 
             return ImagesItemModel2(
               id: item.item.item.rowID!,
               source: URLSource(
-                url: data.bookmark.url,
+                url: bookmark.resolved.url,
                 options: item.item.fileBookmark.bookmark.bookmark.options!,
               ),
               title: item.title,
@@ -769,22 +597,12 @@ final class ImagesModel {
                   .including(
                     required: FileBookmarkRecord.bookmark
                       .forKey(ImagesModelLoadImagesItemFileBookmarkInfo.CodingKeys.bookmark)
-                      .select(
-                        .rowID,
-                        BookmarkRecord.Columns.data,
-                        BookmarkRecord.Columns.options,
-                        BookmarkRecord.Columns.hash,
-                      ),
+                      .select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options),
                   )
                   .including(
                     optional: FileBookmarkRecord.relative
                       .forKey(ImagesModelLoadImagesItemFileBookmarkInfo.CodingKeys.relative)
-                      .select(
-                        .rowID,
-                        BookmarkRecord.Columns.data,
-                        BookmarkRecord.Columns.options,
-                        BookmarkRecord.Columns.hash,
-                      ),
+                      .select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options),
                   ),
               ),
           )
@@ -816,22 +634,12 @@ final class ImagesModel {
     }
   }
 
-  private struct State1Item {
-    let bookmark: Bookmark
-    let hash: Data
-  }
-
   nonisolated private func createFileBookmark(
     _ db: Database,
-    item: State1Item,
+    bookmark: Bookmark,
     relative: RowID?,
   ) throws -> FileBookmarkRecord {
-    var bookmark = BookmarkRecord(
-      data: item.bookmark.data,
-      options: item.bookmark.options,
-      hash: item.hash,
-    )
-
+    var bookmark = BookmarkRecord(data: bookmark.data, options: bookmark.options)
     try bookmark.upsert(db)
 
     var fileBookmark = FileBookmarkRecord(
@@ -850,13 +658,7 @@ final class ImagesModel {
     fileBookmark: RowID,
     position: BigFraction,
   ) throws -> ItemImagesRecord {
-    var imagesItem = ImagesItemRecord(
-      position: position,
-      priority: Int(position.asDouble()), // This should always be 0.
-      isBookmarked: false,
-      fileBookmark: fileBookmark,
-    )
-
+    var imagesItem = ImagesItemRecord(position: position, isBookmarked: false, fileBookmark: fileBookmark)
     try imagesItem.insert(db)
 
     var itemImages = ItemImagesRecord(images: images, item: imagesItem.rowID)
@@ -865,78 +667,104 @@ final class ImagesModel {
     return itemImages
   }
 
-  nonisolated private func store(items: [Item<URLSource>]) async {
-    struct State1 {
-      var items: [URL: State1Item]
+  nonisolated private func addTask(
+    to group: inout ThrowingTaskGroup<URLBookmark, any Error>,
+    from iterator: inout some IteratorProtocol<URLSource>,
+    bookmarkRelativeTo relative: URL,
+  ) {
+    guard let source = iterator.next() else {
+      return
     }
 
-    struct State1Child {
-      let bookmark: URLBookmark
-      let hash: Data
+    group.addTask {
+      try source.accessingSecurityScopedResource {
+        try URLBookmark(url: source.url, options: source.options, relativeTo: relative)
+      }
+    }
+  }
+
+  nonisolated private func addTask(
+    to taskGroup: inout ThrowingTaskGroup<Item<URLBookmark>, any Error>,
+    from iterator: inout some IteratorProtocol<Item<URLSource>>,
+  ) {
+    guard let item = iterator.next() else {
+      return
     }
 
-    let state1 = await withThrowingTaskGroup(of: Item<State1Child>.self) { group in
-      items.forEach { item in
-        group.addTask {
-          switch item {
-            case let .file(source):
-              let urb = try source.accessingSecurityScopedResource {
-                try URLBookmark(
-                  url: source.url,
-                  options: source.options,
-                  relativeTo: nil,
-                )
+    taskGroup.addTask {
+      switch item {
+        case let .file(source):
+          let bookmark = try source.accessingSecurityScopedResource {
+            try URLBookmark(url: source.url, options: source.options, relativeTo: nil)
+          }
+
+          return .file(bookmark)
+        case let .directory(directory):
+          return try await directory.item.accessingSecurityScopedResource {
+            let bookmark = try URLBookmark(url: directory.item.url, options: directory.item.options, relativeTo: nil)
+            let files = await withThrowingTaskGroup { group in
+              var iterator = directory.files.makeIterator()
+              var items = [URLBookmark](reservingCapacity: directory.files.count)
+
+              // For some reason, adding more than 12 concurrent tasks on my 2019 MacBook Pro causes the task group
+              // to hang. I presume this is internal to sub-task groups that execute certain code because it doesn't
+              // occur in the parent nor when the code is simple (e.g., sleeping for a second before returning a
+              // constant value).
+              (ProcessInfo.processInfo.activeProcessorCount / 2).times {
+                self.addTask(to: &group, from: &iterator, bookmarkRelativeTo: bookmark.url)
               }
 
-              let hash = Advance.hash(data: urb.bookmark.data)
-
-              return .file(State1Child(bookmark: urb, hash: hash))
-            case let .directory(directory):
-              return try directory.item.accessingSecurityScopedResource {
-                let urb = try URLBookmark(url: directory.item.url, options: directory.item.options, relativeTo: nil)
-                let hash = Advance.hash(data: urb.bookmark.data)
-                let files = try directory.files.map { source in
-                  let bookmark = try URLBookmark(
-                    url: source.url,
-                    options: source.options,
-                    relativeTo: urb.url,
-                  )
-
-                  let hash = Advance.hash(data: bookmark.bookmark.data)
-
-                  return State1Child(bookmark: bookmark, hash: hash)
+              while let result = await group.nextResult() {
+                switch result {
+                  case let .success(child):
+                    items.append(child)
+                  case let .failure(error):
+                    // TODO: Elaborate.
+                    Logger.model.error("\(error)")
                 }
 
-                return .directory(ItemDirectory(
-                  item: State1Child(bookmark: urb, hash: hash),
-                  files: files,
-                ))
+                self.addTask(to: &group, from: &iterator, bookmarkRelativeTo: bookmark.url)
               }
-          }
-        }
-      }
 
-      var state = State1(items: [:])
+              return items
+            }
+
+            return .directory(ItemDirectory(item: bookmark, files: files))
+          }
+      }
+    }
+  }
+
+  nonisolated private func store(items: [Item<URLSource>]) async {
+    let state1 = await withThrowingTaskGroup { group in
+      var state = ImagesModelStoreState(bookmarks: [:])
+      var iterator = items.makeIterator()
+
+      (ProcessInfo.processInfo.activeProcessorCount / 2).times {
+        addTask(to: &group, from: &iterator)
+      }
 
       while let result = await group.nextResult() {
         switch result {
           case let .success(item):
             switch item {
               case let .file(item):
-                state.items[item.bookmark.url] = State1Item(bookmark: item.bookmark.bookmark, hash: item.hash)
+                state.bookmarks[item.url] = item.bookmark
               case let .directory(directory):
                 let item = directory.item
 
-                state.items[item.bookmark.url] = State1Item(bookmark: item.bookmark.bookmark, hash: item.hash)
+                state.bookmarks[item.url] = item.bookmark
 
                 directory.files.forEach { item in
-                  state.items[item.bookmark.url] = State1Item(bookmark: item.bookmark.bookmark, hash: item.hash)
+                  state.bookmarks[item.url] = item.bookmark
                 }
             }
           case let .failure(error):
             // TODO: Elaborate.
             Logger.model.error("\(error)")
         }
+
+        addTask(to: &group, from: &iterator)
       }
 
       return state
@@ -974,7 +802,7 @@ final class ImagesModel {
         _ = try items.reduce(images2.items.first?.item.position ?? BigFraction.zero) { position, item in
           switch item {
             case let .file(source):
-              guard let item = state1.items[source.url] else {
+              guard let item = state1.bookmarks[source.url] else {
                 return position
               }
 
@@ -986,7 +814,7 @@ final class ImagesModel {
               }
 
               let position = position + delta
-              let fileBookmark = try createFileBookmark(db, item: item, relative: nil)
+              let fileBookmark = try createFileBookmark(db, bookmark: item, relative: nil)
               _ = try createItemImages(
                 db,
                 images: images.rowID!,
@@ -996,14 +824,17 @@ final class ImagesModel {
 
               return position
             case let .directory(directory):
-              guard let item = state1.items[directory.item.url] else {
+              guard let item = state1.bookmarks[directory.item.url] else {
                 return position
               }
 
-              let fileBookmark = try createFileBookmark(db, item: item, relative: nil)
+              let fileBookmark = try createFileBookmark(db, bookmark: item, relative: nil)
 
               return try directory.files.reduce(position) { position, source in
-                let item = state1.items[source.url]!
+                guard let item = state1.bookmarks[source.url] else {
+                  return position
+                }
+
                 let size = position.denominator.size.asInt()!
                 var delta = BigFraction(BInt.ONE, BInt.TEN ** size)
 
@@ -1012,7 +843,7 @@ final class ImagesModel {
                 }
 
                 let position = position + delta
-                let fileBookmark = try createFileBookmark(db, item: item, relative: fileBookmark.rowID)
+                let fileBookmark = try createFileBookmark(db, bookmark: item, relative: fileBookmark.rowID)
                 _ = try createItemImages(
                   db,
                   images: images.rowID!,
@@ -1101,104 +932,8 @@ final class ImagesModel {
     await store(items: items)
   }
 
-  nonisolated static func source(url: URL, options: FileManager.DirectoryEnumerationOptions) throws -> Source<[URL]> {
-    do {
-      let enumerator = try url.accessingSecurityScopedResource {
-        try FileManager.default.enumerate(at: url, options: options.union(.skipsPackageDescendants))
-      }
-
-      return .document(SourceDocument(source: url, items: enumerator.finderSort(by: \.pathComponents)))
-    } catch let error as CocoaError where error.code == .fileReadUnknown {
-      guard let error = error.underlying as? POSIXError,
-            error.code == .ENOTDIR else {
-        throw error
-      }
-
-      return .source(url)
-    }
-  }
-
-  static func submit(
-    _ dataStack: DataStackDependencyKey.DataStack,
-    images: ImagesRecord,
-    items: [Source<[URL]>],
-    priority: Int
-  ) async throws {
-    let options = URL.BookmarkCreationOptions([
-      .withSecurityScope,
-      .securityScopeAllowOnlyReadAccess,
-      .withoutImplicitSecurityScope,
-    ])
-    
-    // FIXME: Optimize.
-    //
-    // Creating bookmarks is slow.
-    let urbs: [Source<[URLBookmark]>] = items.compactMap { item in
-      do {
-        switch item {
-          case .source(let url):
-            let urb = try url.accessingSecurityScopedResource {
-              try URLBookmark(url: url, options: options, relativeTo: nil)
-            }
-
-            return .source(urb)
-          case .document(let document):
-            let url = document.source
-
-            return try url.accessingSecurityScopedResource {
-              let urb = try URLBookmark(url: url, options: options, relativeTo: nil)
-
-              return .document(SourceDocument(
-                source: urb,
-                items: document.items.compactMap { url in
-                  do {
-                    return try URLBookmark(url: url, options: [], relativeTo: urb.url)
-                  } catch {
-                    Logger.model.error("\(error)")
-
-                    return nil
-                  }
-                }
-              ))
-            }
-        }
-      } catch {
-        Logger.model.error("\(error)")
-
-        return nil
-      }
-    }
-
-    let bookmarks: [Source<[Bookmark]>] = urbs.map { urb in
-      switch urb {
-        case .source(let urb):
-            .source(urb.bookmark)
-        case .document(let document):
-            .document(SourceDocument(
-              source: document.source.bookmark,
-              items: document.items.map(\.bookmark)
-            ))
-      }
-    }
-
-    let books = try await dataStack.connection.write { db in
-      try bookmarks.reduce(into: [[(bookmark: BookmarkRecord, item: ImagesItemRecord?)]]()) { vals, source in
-        vals.append(try DataStackDependencyKey.DataStack.submitImagesItems(
-          db,
-          bookmark: source,
-          images: images.rowID!,
-          priority: vals.last?.last?.item?.priority ?? priority
-        ))
-      }
-    }
-
-    for (urb, bookmarks) in zip(urbs, books) {
-      for (urb, bookmark) in zip(urb.items, bookmarks) {
-        let bookmark = bookmark.bookmark
-
-        await dataStack.register(hash: bookmark.hash!, url: urb.url)
-      }
-    }
+  private func _urls(forItems items: Set<ImagesItemModel2.ID>) -> [URL] {
+    items.compactMap { self.items2[id: $0]?.source.url }
   }
 
   static func submitCurrentItem(
@@ -1221,276 +956,9 @@ final class ImagesModel {
     }
   }
 
-  static func resolve(responses: [LibraryModelUpdateImagesItemInfo]) -> [Data: (info: BookmarkRecord, bookmark: DataBookmark, relative: Data?)] {
-    var result = [Data: (info: BookmarkRecord, bookmark: DataBookmark, relative: Data?)]()
-    let responses = responses.map { $0.fileBookmark }
-    let relatives = responses.compactMap { $0.relative?.relative }.uniqued(on: \.hash)
-    var store = [Data: Data](minimumCapacity: relatives.count)
-    let rels = relatives
-      .compactMap { bookmark -> (bookmark: DataBookmark, options: URL.BookmarkCreationOptions)? in
-        let options = bookmark.options!
-        let hash = bookmark.hash!
-        let resolved: DataBookmark
-
-        do {
-          resolved = try DataBookmark(
-            data: bookmark.data!,
-            options: URL.BookmarkResolutionOptions(options).union(.withoutMounting),
-            hash: hash,
-            relativeTo: nil,
-          ) { url in
-            let source = URLSource(url: url, options: options)
-            let bookmark = try source.accessingSecurityScopedResource {
-              try url.bookmarkData(options: options, relativeTo: nil)
-            }
-
-            return bookmark
-          }
-        } catch {
-          Logger.model.error("Could not resolve bookmark with hash \"\(hash.hexEncodedString())\": \(error, privacy: .public)")
-
-          return nil
-        }
-
-        store[hash] = resolved.hash
-        result[resolved.hash] = (info: bookmark, bookmark: resolved, relative: nil)
-
-        return (bookmark: resolved, options: options)
-      }
-
-    let scopes = rels.map { relative in
-      let source = URLSource(url: relative.bookmark.bookmark.url, options: relative.options)
-
-      return (source: source, scope: source.startSecurityScope())
-    }
-
-    defer {
-      scopes.forEach { scope in
-        let (source: source, scope: scope) = scope
-
-        source.endSecurityScope(scope)
-      }
-    }
-
-    responses.forEach { response in
-      let relative: DataBookmark?
-
-      if let rel = response.relative?.relative {
-        guard let hash = store[rel.hash!],
-              let rel = result[hash] else {
-          return
-        }
-
-        relative = rel.bookmark
-      } else {
-        relative = nil
-      }
-
-      let options = response.bookmark.bookmark.options!
-      let hash = response.bookmark.bookmark.hash!
-      let r = relative?.bookmark.url
-      let resolved: DataBookmark
-
-      do {
-        resolved = try DataBookmark(
-          data: response.bookmark.bookmark.data!,
-          options: URL.BookmarkResolutionOptions(options).union(.withoutMounting),
-          hash: hash,
-          relativeTo: r,
-        ) { url in
-          let source = URLSource(url: url, options: options)
-          let bookmark = try source.accessingSecurityScopedResource {
-            try url.bookmarkData(options: options, relativeTo: r)
-          }
-
-          return bookmark
-        }
-      } catch {
-        Logger.model.error("Could not resolve bookmark with hash \"\(hash.hexEncodedString())\": \(error, privacy: .public)")
-
-        return
-      }
-
-      result[resolved.hash] = (info: response.bookmark.bookmark, bookmark: resolved, relative: relative?.hash)
-    }
-
-    return result
-  }
-
-  static func update(
-    _ dataStack: DataStackDependencyKey.DataStack,
-    responses: some Sequence<LibraryModelTrackImagesItemsImagesItemInfo> & Sendable
-  ) async throws -> [Data: URL] {
-    let responses = try await dataStack.connection.read { db in
-      // TODO: Don't map in reader.
-      try DataStackDependencyKey.DataStack.fetch(db, items: Set(responses.map(\.item.rowID!)))
-    }
-
-    let resolved = Self.resolve(responses: responses)
-
-    try await dataStack.connection.write { db in
-      try resolved.values.forEach { entry in
-        let (info: info, bookmark: bookmark, relative: relative) = entry
-        let bookmark2 = BookmarkRecord(
-          rowID: info.rowID,
-          data: bookmark.bookmark.data,
-          options: info.options,
-          hash: bookmark.hash,
-        )
-
-        try bookmark2.update(db)
-
-        var fileBookmark = FileBookmarkRecord(
-          rowID: nil,
-          bookmark: bookmark2.rowID,
-          relative: relative.flatMap { resolved[$0]?.info.rowID },
-        )
-
-        try fileBookmark.upsert(db)
-      }
-    }
-
-    // This will contain outdated keys.
-    return resolved.mapValues(\.bookmark.bookmark.url)
-  }
-
-  static func update(
-    _ dataStack: DataStackDependencyKey.DataStack,
-    response: LibraryModelTrackImagesItemsImagesInfo,
-  ) async throws -> [Data: URL] {
-    var urls = await dataStack.urls
-    let fetch = response.items.filter { ImagesItemModel.document(urls: urls, response: $0.fileBookmark) == nil }
-
-    if !fetch.isEmpty {
-      urls = await dataStack.register(urls: try await update(dataStack, responses: fetch))
-    }
-
-    return urls
-  }
-
-  static func resolve(
-    _ dataStack: DataStackDependencyKey.DataStack,
-    response: LibraryModelTrackImagesItemsImagesInfo,
-  ) async throws -> [RowID: (document: URLSourceDocument?, data: ImagesItemModelProperties)] {
-    let urls = try await Self.update(dataStack, response: response)
-    let data = response.items.reduce(into: [RowID: (document: URLSourceDocument?, data: ImagesItemModelProperties)]()) { partialResult, response in
-      guard let document = ImagesItemModel.document(urls: urls, response: response.fileBookmark) else {
-        return
-      }
-
-      let url = document.source.url
-      let data = document.accessingSecurityScopedResource { () -> ImagesItemModelProperties? in
-        guard let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil) else {
-          return nil
-        }
-
-        let options = [kCGImageSourceShouldCache: false]
-        let imageIndex = CGImageSourceGetPrimaryImageIndex(imageSource)
-
-        guard let imageProperties = CGImageSourceCopyPropertiesAtIndex(
-          imageSource,
-          imageIndex,
-          options as CFDictionary,
-        ) as? [CFString: Any] else {
-          return nil
-        }
-
-        let orientation: CGImagePropertyOrientation? = if let displayOrientation = imageProperties[kCGImagePropertyOrientation] as? UInt32{
-          CGImagePropertyOrientation(rawValue: displayOrientation)
-        } else {
-          .up
-        }
-
-        guard let orientation,
-              let pixelWidth = imageProperties[kCGImagePropertyPixelWidth] as? Double,
-              let pixelHeight = imageProperties[kCGImagePropertyPixelHeight] as? Double else {
-          return nil
-        }
-
-        let aspectRatio = orientation.isReflected
-        ? pixelHeight / pixelWidth
-        : pixelWidth / pixelHeight
-
-        return ImagesItemModelProperties(aspectRatio: aspectRatio)
-      }
-
-      guard let data else {
-        return
-      }
-
-      partialResult[response.item.rowID!] = (document: document, data: data)
-    }
-
-    return data
-  }
-
-  @MainActor
-  private func load(_ dataStack: DataStackDependencyKey.DataStack, response: LibraryModelTrackImagesItemsImagesInfo?) async throws {
-    guard let response else {
-      self.items = []
-
-      return
-    }
-
-    let data = try await Self.resolve(dataStack, response: response)
-    let items = response.items
-    let value = items.reduce(into: (
-      IdentifiedArrayOf<ImagesItemModel>(reservingCapacity: items.count),
-      Set<ImagesItemModel.ID>(minimumCapacity: items.count)
-    )) { partialResult, item in
-      let id = item.item.rowID!
-
-      guard let data = data[id] else {
-        return
-      }
-
-      // TODO: Don't force unwrap.
-      //
-      // An images item may have one of several sources (currently file and data).
-      let source = ImagesItemModelFileSource(document: data.document!)
-      let model = self.items[id: id].map { model in
-        model.source = AnyImagesItemModelSource(source: source)
-        model.properties = data.data
-        model.isBookmarked = item.item.isBookmarked ?? false
-
-        return model
-      } ?? ImagesItemModel(
-        id: id,
-        source: AnyImagesItemModelSource(source: source),
-        properties: data.data,
-        info: item,
-        isBookmarked: item.item.isBookmarked ?? false
-      )
-
-      partialResult.0.append(model)
-
-      if model.isBookmarked {
-        partialResult.1.insert(model.id)
-      }
-    }
-
-    // TODO: Verify.
-    self.items = value.0
-    self.bookmarkedItems = value.1
-  }
-
   @MainActor
   private func load(response: LibraryModelTrackImagesPropertiesImagesInfo) {
     itemID = response.currentItem.item.rowID
-  }
-
-  @MainActor
-  private func fetch(
-    _ dataStack: DataStackDependencyKey.DataStack,
-    from iterator: inout AsyncValueObservation<LibraryModelTrackImagesItemsImagesInfo?>.Iterator
-  ) async throws -> Bool {
-    guard let value = try await iterator.next() else {
-      return false
-    }
-
-    try await load(dataStack, response: value)
-
-    return true
   }
 
   @MainActor
@@ -1508,18 +976,6 @@ final class ImagesModel {
     load(response: response)
 
     return .value(response)
-  }
-
-  @MainActor
-  private func performFetch(
-    _ dataStack: DataStackDependencyKey.DataStack,
-    from iterator: inout AsyncValueObservation<LibraryModelTrackImagesItemsImagesInfo?>.Iterator
-  ) async throws -> Bool {
-    defer {
-      performedItemsFetch = true
-    }
-
-    return try await fetch(dataStack, from: &iterator)
   }
 
   private func performFetch(
@@ -1543,14 +999,6 @@ final class ImagesModel {
 
   @MainActor
   private func track(
-    _ dataStack: DataStackDependencyKey.DataStack,
-    from iterator: inout AsyncValueObservation<LibraryModelTrackImagesItemsImagesInfo?>.Iterator,
-  ) async throws {
-    while try await fetch(dataStack, from: &iterator) {}
-  }
-
-  @MainActor
-  private func track(
     from iterator: inout AsyncValueObservation<LibraryModelTrackImagesPropertiesImagesInfo?>.Iterator,
   ) async throws {
     while try await !fetch(from: &iterator).isEnd {}
@@ -1568,11 +1016,6 @@ final class ImagesModel {
   @MainActor
   private func loadTrackers() async throws {
     let source = try await source()
-    var items = source.dataStack.trackImagesItems(images: source.id.images.rowID!).makeAsyncIterator()
-
-    guard try await performFetch(source.dataStack, from: &items) else {
-      return
-    }
 
     // TODO: Decouple properties from items.
     //
@@ -1584,9 +1027,8 @@ final class ImagesModel {
       return
     }
 
-    async let itemsTracker: () = track(source.dataStack, from: &items)
     async let propertiesTracker: () = track(from: &properties)
-    _ = try await [itemsTracker, propertiesTracker]
+    _ = try await [propertiesTracker]
   }
 
   @MainActor
@@ -1594,18 +1036,6 @@ final class ImagesModel {
     async let runGroups: () = loadRunGroups()
     async let trackers: () = loadTrackers()
     _ = try await [runGroups, trackers]
-  }
-
-  @MainActor
-  func submit(items: [Source<[URL]>]) async throws {
-    let source = try await source()
-
-    try await Self.submit(
-      source.dataStack,
-      images: source.id.images,
-      items: items,
-      priority: self.items.last?.info.item.priority ?? -1
-    )
   }
 
   @MainActor

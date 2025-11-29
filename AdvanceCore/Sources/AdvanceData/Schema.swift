@@ -7,15 +7,10 @@
 
 import AdvanceCore
 @preconcurrency import BigInt
-import CryptoKit
 import Foundation
 import GRDB
 
 public typealias RowID = Int64
-
-func hash(data: Data) -> Data {
-  Data(SHA256.hash(data: data))
-}
 
 extension TableRecord {
   static var everyColumn: [SQLSelectable] {
@@ -27,13 +22,11 @@ public struct BookmarkRecord {
   public var rowID: RowID?
   public let data: Data?
   public let options: URL.BookmarkCreationOptions?
-  public let hash: Data?
 
-  public init(rowID: RowID? = nil, data: Data?, options: URL.BookmarkCreationOptions?, hash: Data?) {
+  public init(rowID: RowID? = nil, data: Data?, options: URL.BookmarkCreationOptions?) {
     self.rowID = rowID
     self.data = data
     self.options = options
-    self.hash = hash
   }
 }
 
@@ -42,23 +35,20 @@ extension BookmarkRecord: Sendable, Equatable, FetchableRecord {}
 extension BookmarkRecord: Codable {
   enum CodingKeys: String, CodingKey {
     case rowID = "rowid",
-         data, options, hash
+         data, options
   }
 
   public enum Columns {
     public static let data = Column(CodingKeys.data)
     public static let options = Column(CodingKeys.options)
-    public static let hash = Column(CodingKeys.hash)
   }
 
   public init(from decoder: any Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
-
     self.init(
       rowID: try container.decodeIfPresent(RowID.self, forKey: .rowID),
       data: try container.decodeIfPresent(Data.self, forKey: .data),
       options: try container.decodeIfPresent(URL.BookmarkCreationOptions.self, forKey: .options),
-      hash: try container.decodeIfPresent(Data.self, forKey: .hash),
     )
   }
 
@@ -67,7 +57,6 @@ extension BookmarkRecord: Codable {
     try container.encode(rowID, forKey: .rowID)
     try container.encode(data, forKey: .data)
     try container.encode(options, forKey: .options)
-    try container.encode(hash, forKey: .hash)
   }
 }
 
@@ -134,15 +123,12 @@ extension FileBookmarkRecord: TableRecord {
 public struct ImagesItemRecord {
   public var rowID: RowID?
   public let position: BigFraction?
-  // TODO: Replace with above.
-  public let priority: Int?
   public let isBookmarked: Bool?
   public let fileBookmark: RowID?
 
-  public init(rowID: RowID? = nil, position: BigFraction?, priority: Int?, isBookmarked: Bool?, fileBookmark: RowID?) {
+  public init(rowID: RowID? = nil, position: BigFraction?, isBookmarked: Bool?, fileBookmark: RowID?) {
     self.rowID = rowID
     self.position = position
-    self.priority = priority
     self.isBookmarked = isBookmarked
     self.fileBookmark = fileBookmark
   }
@@ -153,14 +139,13 @@ extension ImagesItemRecord: Sendable, Equatable, FetchableRecord {}
 extension ImagesItemRecord: Codable {
   enum CodingKeys: String, CodingKey {
     case rowID = "rowid",
-         position, priority,
+         position,
          isBookmarked = "is_bookmarked",
          fileBookmark = "file_bookmark"
   }
 
   public enum Columns {
     public static let position = Column(CodingKeys.position)
-    public static let priority = Column(CodingKeys.priority)
     public static let isBookmarked = Column(CodingKeys.isBookmarked)
     public static let fileBookmark = Column(CodingKeys.fileBookmark)
   }
@@ -172,7 +157,6 @@ extension ImagesItemRecord: Codable {
       .decodeIfPresent(String.self, forKey: .position)
       .flatMap(BigFraction.init(_:))
 
-    self.priority = try container.decodeIfPresent(Int.self, forKey: .priority)
     self.isBookmarked = try container.decodeIfPresent(Bool.self, forKey: .isBookmarked)
     self.fileBookmark = try container.decodeIfPresent(RowID.self, forKey: .fileBookmark)
   }
@@ -182,7 +166,6 @@ extension ImagesItemRecord: Codable {
     try container.encode(rowID, forKey: .rowID)
     // We should probably compute the precision, but I'm not aware of a method that doesn't involve loops.
     try container.encode(position.map { $0.asDecimalString(precision: 10) }, forKey: .position)
-    try container.encode(priority, forKey: .priority)
     try container.encode(isBookmarked, forKey: .isBookmarked)
     try container.encode(fileBookmark, forKey: .fileBookmark)
   }

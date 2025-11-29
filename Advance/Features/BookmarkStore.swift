@@ -18,27 +18,6 @@ struct BookmarkStoreItem {
   let hash: Hash
   let relative: ID?
 
-  static func resolve(
-    data: Data,
-    options: URL.BookmarkCreationOptions,
-    relativeTo relative: URL?
-  ) throws -> AssignedBookmark {
-    try .init(
-      data: data,
-      // In my experience, if the user has a volume that was created as an image in Disk Utility and it's not mounted,
-      // resolution will fail while prompting the user to unlock the volume. Now, we're not a file managing app, so we
-      // don't need to invest in making that work.
-      //
-      // Note there is also a .withoutUI option, but I haven't checked whether or not it performs the same action.
-      options: .init(options).union(.withoutMounting),
-      relativeTo: relative
-    ) { url in
-      try url.accessingSecurityScopedResource {
-        try url.bookmarkData(options: options, relativeTo: relative)
-      }
-    }
-  }
-
   // Swift's Hasher is pseudo-randomly seeded per-program execution, so it's not reliable to compute a bookmark's hash
   // and persist it to always have a fast lookup. A SHA256, meanwhile, is persistent, so we can use it.
   static func hash(data: Data) -> Hash {

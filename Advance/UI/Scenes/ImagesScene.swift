@@ -9,6 +9,7 @@ import SwiftUI
 
 struct ImagesScene: Scene {
   static let defaultSize = CGSize(width: 900, height: 450)
+  static let id = "images"
 
   var body: some Scene {
     WindowGroup(for: ImagesModel.self) { $images in

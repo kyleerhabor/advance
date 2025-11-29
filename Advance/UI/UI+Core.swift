@@ -6,7 +6,6 @@
 //
 
 import AdvanceCore
-import AppKit
 import SwiftUI
 import Combine
 import Defaults

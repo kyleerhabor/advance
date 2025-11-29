@@ -72,12 +72,6 @@ struct ImagesView: View {
     // windowToolbarFullScreenVisibility(_:) exists, but does not restore to a hidden toolbar.
     .toolbar(isWindowFullScreen ? .hidden : .automatic)
     // In macOS 15, toolbar IDs need to be unique across scenes.
-    .focusedSceneValue(\.finderShow, AppMenuActionItem(
-      identity: .images(images.itemID.map { [$0] } ?? []),
-      enabled: images.itemID != nil
-    ) {
-      images.item?.source.showFinder()
-    })
     .focusedSceneValue(\.imagesLiveTextIcon, AppMenuToggleItem(
       identity: images.id,
       enabled: isImageAnalysisEnabled,
