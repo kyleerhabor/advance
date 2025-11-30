@@ -10,7 +10,7 @@ import SwiftUI
 struct SettingsAccessoriesView: View {
   @Environment(SearchSettingsModel.self) private var search
   @Environment(\.openWindow) private var openWindow
-  @AppStorage(StorageKeys.foldersResolveConflicts) private var copyingResolveConflicts
+  @AppStorage(StorageKeys.resolveConflicts) private var resolveConflicts
   @AppStorage(StorageKeys.searchUseSystemDefault) private var searchUseSystemDefault
   private var engine: Binding<SearchSettingsEngineModel.ID?> {
     Binding {
@@ -65,7 +65,7 @@ struct SettingsAccessoriesView: View {
           }
           .buttonStyle(.accessory)
 
-          Toggle(isOn: $copyingResolveConflicts) {
+          Toggle(isOn: $resolveConflicts) {
             Text("Settings.Accessories.Folders.ResolveConflicts")
 
             Text("Settings.Accessories.Folders.ResolveConflicts.Note")

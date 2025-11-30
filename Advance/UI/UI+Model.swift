@@ -75,7 +75,7 @@ struct ImagesItemAssignmentTaskResult {
   let bookmark: AssignedBookmark
 }
 
-enum ImagesItemAssignmentTaskError: Error {
+enum ImagesItemAssignmentError: Error {
   case relativeUnresolved
 }
 
@@ -112,7 +112,7 @@ struct ImagesItemAssignment {
 
       if let r = item.fileBookmark.relative {
         guard let bookmark = bookmarks[r.relative.rowID!] else {
-          throw ImagesItemAssignmentTaskError.relativeUnresolved
+          throw ImagesItemAssignmentError.relativeUnresolved
         }
 
         relative = URLSource(url: bookmark.resolved.url, options: r.relative.options!)
@@ -172,23 +172,27 @@ struct ImagesItemAssignment {
     }
   }
 
+  private func isSatisified(with bookmark: BookmarkRecord) -> Bool {
+    guard let bookmark = bookmarks[bookmark.rowID!] else {
+      // It's possible resolving the bookmark failed, in which we don't want to potentially spin in an infinite loop.
+      return true
+    }
+
+    return !bookmark.resolved.isStale
+  }
+
   func isSatisified(with items: [ImagesItemInfo]) -> Bool {
     items.allSatisfy { item in
-      if let relative = item.fileBookmark.relative {
-        guard let bookmark = bookmarks[relative.relative.rowID!] else {
-          // It's possible resolving the bookmark failed, in which we don't want to potentially spin in an infinite loop.
-          return true
-        }
-
-        return !bookmark.resolved.isStale
+      // We don't need to test this if the relative is not satisfied.
+      var isBookmarkSatisfied: Bool {
+        isSatisified(with: item.fileBookmark.bookmark.bookmark)
       }
 
-      guard let bookmark = bookmarks[item.fileBookmark.bookmark.bookmark.rowID!] else {
-        // It's possible resolving the bookmark failed.
-        return true
+      guard let relative = item.fileBookmark.relative else {
+        return isBookmarkSatisfied
       }
 
-      return !bookmark.resolved.isStale
+      return isSatisified(with: relative.relative) && isBookmarkSatisfied
     }
   }
 
@@ -217,6 +221,18 @@ struct ImagesItemAssignment {
       let bookmark = BookmarkRecord(rowID: rowID, data: assigned.data, options: nil)
       try bookmark.update(db, columns: [BookmarkRecord.Columns.data])
     }
+  }
+
+  func relative(_ relative: ImagesItemFileBookmarkRelativeInfo?) throws(ImagesItemAssignmentError) -> URLSource? {
+    guard let relative else {
+      return nil
+    }
+
+    guard let bookmark = bookmarks[relative.relative.rowID!] else {
+      throw .relativeUnresolved
+    }
+
+    return URLSource(url: bookmark.resolved.url, options: relative.relative.options!)
   }
 }
 

@@ -38,21 +38,9 @@ struct FileDialogCopyViewModifier: ViewModifier {
   }
 }
 
-struct FileDialogCopyingViewModifier: ViewModifier {
-  func body(content: Content) -> some View {
-    content
-      .fileDialogCustomizationID(FileDialogCopyViewModifier.id)
-      .fileDialogConfirmationLabel("Add")
-  }
-}
-
 extension View {
   func fileDialogCopy() -> some View {
     self.modifier(FileDialogCopyViewModifier())
-  }
-
-  func fileDialogCopying() -> some View {
-    self.modifier(FileDialogCopyingViewModifier())
   }
 }
 

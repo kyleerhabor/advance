@@ -136,14 +136,7 @@ struct ImagesDetailItemView: View {
   @Environment(\.localize) private var localize
   @Environment(\.openURL) private var openURL
   @AppStorage(StorageKeys.searchUseSystemDefault) private var searchUseSystemDefault
-  @AppStorage(StorageKeys.foldersResolveConflicts) private var copyingResolveConflicts
-  @AppStorage(StorageKeys.foldersConflictFormat) private var copyingConflictFormat
-  @AppStorage(StorageKeys.foldersConflictSeparator) private var copyingConflictSeparator
-  @AppStorage(StorageKeys.foldersConflictDirection) private var copyingConflictDirection
   @State private var selectedText = ""
-  @State private var isCopyingFileImporterPresented = false
-  @State private var isCopyingErrorAlertPresented = false
-  @State private var copyingError: CocoaError?
   // TODO: Replace.
   private var isBookmarked: Binding<Bool> {
     Binding {
@@ -172,29 +165,6 @@ struct ImagesDetailItemView: View {
       )
     }
     .id(item.id)
-    .fileImporter(isPresented: $isCopyingFileImporterPresented, allowedContentTypes: foldersContentTypes) { result in
-      let url: URL
-
-      switch result {
-        case let .success(item):
-          url = item
-        case let .failure(error):
-          Logger.ui.error("\(error)")
-
-          return
-      }
-
-      Task {
-        do {
-          try await copy(to: URLSource(url: url, options: .withSecurityScope))
-        } catch let error as CocoaError where error.code == .fileWriteFileExists {
-          copyingError = error
-          isCopyingErrorAlertPresented = true
-        } catch {
-          Logger.ui.error("\(error)")
-        }
-      }
-    }
     .fileDialogCustomizationID(FoldersSettingsScene.id)
     .fileDialogConfirmationLabel(Text("Copy"))
     .contextMenu {
@@ -225,61 +195,12 @@ struct ImagesDetailItemView: View {
             Logger.ui.error("Could not write URL \"\(url.pathString)\" to the general pasteboard")
           }
         }
-
-        CopyingSettingsMenuView { source in
-          Task {
-            do {
-              try await copy(to: source)
-            } catch let error as CocoaError where error.code == .fileWriteFileExists {
-              copyingError = error
-              isCopyingErrorAlertPresented = true
-            } catch {
-              Logger.ui.error("\(error)")
-            }
-          }
-        } primaryAction: {
-          isCopyingFileImporterPresented.toggle()
-        }
       }
 
       Section {
         ImagesBookmarkView(isBookmarked: isBookmarked)
       }
     }
-    .alert(Text(copyingError?.localizedDescription ?? ""), isPresented: $isCopyingErrorAlertPresented) {
-      // Empty
-    }
-  }
-
-  private nonisolated static func copy(
-    source itemSource: some ImagesItemModelSource & Sendable,
-    to source: URLSource,
-    resolveConflicts: Bool,
-    format: String,
-    separator: Character,
-    direction: StorageDirection
-  ) async throws {
-    try await source.accessingSecurityScopedResource {
-      try await CopyingSettingsMenuView.copy(
-        itemSource: itemSource,
-        to: source,
-        resolveConflicts: resolveConflicts,
-        format: format,
-        separator: separator,
-        direction: direction
-      )
-    }
-  }
-
-  private func copy(to source: URLSource) async throws {
-    try await Self.copy(
-      source: item.source,
-      to: source,
-      resolveConflicts: copyingResolveConflicts,
-      format: copyingConflictFormat,
-      separator: copyingConflictSeparator.separator.separator(direction: copyingConflictDirection),
-      direction: copyingConflictDirection
-    )
   }
 
   private func performSearch() {

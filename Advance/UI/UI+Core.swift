@@ -228,6 +228,14 @@ enum StorageFoldersSeparator: Int {
   }
 }
 
+enum StorageFoldersPathSeparator: Int {
+  case inequalitySign, singlePointingAngleQuotationMark, blackPointingTriangle, blackPointingSmallTriangle
+}
+
+enum StorageFoldersPathDirection: Int {
+  case leading, trailing
+}
+
 struct StorageKey<Value> {
   let name: String
   let defaultValue: Value
@@ -253,21 +261,23 @@ enum StorageKeys {
     "\(Bundle.appID).hidden-layout-styles",
     defaultValue: StorageHiddenLayoutStyles.cursor,
   )
-  
+
+  static let resolveConflicts = StorageKey("\(Bundle.appID).resolve-conflicts", defaultValue: false)
+  static let foldersPathSeparator = StorageKey(
+    "\(Bundle.appID).folders-path-separator",
+    defaultValue: StorageFoldersPathSeparator.singlePointingAngleQuotationMark
+  )
+  static let foldersPathDirection = StorageKey(
+    "\(Bundle.appID).folders-path-direction",
+    defaultValue: StorageFoldersPathDirection.trailing,
+  )
+
   static let restoreLastImage = StorageKey("restore-last-image", defaultValue: true)
   static let liveTextEnabled = StorageKey("live-text-is-enabled", defaultValue: true)
   static let liveTextIcon = StorageKey("live-text-is-icon-visible", defaultValue: false)
   static let liveTextIconVisibility = StorageKey("live-text-icon-visibility", defaultValue: StorageVisibility(.automatic))
   static let liveTextSubject = StorageKey("live-text-is-subject-highlighted", defaultValue: false)
   static let searchUseSystemDefault = StorageKey("search-use-system-default", defaultValue: false)
-  static let foldersResolveConflicts = StorageKey("folders-resolve-conflicts", defaultValue: true)
-  static let foldersConflictFormat = StorageKey(
-    "folders-conflict-format",
-    defaultValue: "\(FoldersSettingsModel.nameKeyword) [\(FoldersSettingsModel.pathKeyword)]"
-  )
-
-  static let foldersConflictSeparator = StorageKey("folders-conflict-separator", defaultValue: StorageFoldersSeparator.singlePointingAngleQuotationMark)
-  static let foldersConflictDirection = StorageKey("folders-conflict-direction", defaultValue: StorageDirection.rightToLeft)
 
   static func directoryEnumerationOptions(
     importHiddenFiles: Bool,

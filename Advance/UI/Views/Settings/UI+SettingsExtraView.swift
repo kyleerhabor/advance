@@ -16,81 +16,41 @@ struct SettingsExtraWallpaper {
 struct SettingsExtraView2: View {
   @Environment(Windowed.self) private var windowed
   @Environment(\.localize) private var localize
-  @AppStorage(StorageKeys.foldersConflictFormat) private var copyingConflictFormat
-  @AppStorage(StorageKeys.foldersConflictSeparator) private var copyingConflictSeparator
-  @AppStorage(StorageKeys.foldersConflictDirection) private var copyingConflictDirection
-  private var copyingConflictFormatTokens: Binding<[String]> {
-    Binding {
-      TokenFieldView.parse(token: copyingConflictFormat, enclosing: FoldersSettingsModel.keywordEnclosing)
-    } set: { tokens in
-      copyingConflictFormat = TokenFieldView.string(tokens: tokens)
-    }
-  }
-  
+  @AppStorage(StorageKeys.resolveConflicts) private var resolveConflicts
+  @AppStorage(StorageKeys.foldersPathSeparator) private var foldersPathSeparator
+  @AppStorage(StorageKeys.foldersPathDirection) private var foldersPathDirection
+
   var body: some View {
     Form {
-      LabeledContent("Settings.Extra.FoldersName") {
-        HStack(alignment: .firstTextBaseline) {
-          TokenFieldView(
-            prompt: nil,
-            isBezeled: true,
-            tokens: copyingConflictFormatTokens,
-            enclosing: FoldersSettingsModel.keywordEnclosing
-          ) { token in
-            token == FoldersSettingsModel.nameKeyword || token == FoldersSettingsModel.pathKeyword
-          } title: { token in
-            title(for: token)
-          }
-          .frame(width: SettingsView2.textFieldWidth, alignment: .leading)
-          .truncationMode(.middle)
-
-          Menu("Substitute", systemImage: "plus") {
-            Button("Name") {
-              copyingConflictFormat.append(FoldersSettingsModel.nameKeyword)
-            }
-
-            Button("Path") {
-              copyingConflictFormat.append(FoldersSettingsModel.pathKeyword)
-            }
-          }
-          .buttonStyle(.plain)
-          .labelStyle(.iconOnly)
-          .foregroundStyle(.secondary)
-          .fontWeight(.medium)
-
-          Spacer()
-        }
-      }
-
-      LabeledContent("Settings.Extra.FoldersSeparator") {
-        Picker("Settings.Extra.FoldersSeparator.Use", selection: $copyingConflictSeparator) {
-          let separators: [StorageFoldersSeparator] = [
+      LabeledContent("Settings.Extra.FoldersPathSeparator") {
+        Picker("Settings.Extra.FoldersPathSeparator", selection: $foldersPathSeparator) {
+          let separators: [StorageFoldersPathSeparator] = [
             .singlePointingAngleQuotationMark,
             .blackPointingSmallTriangle,
             .blackPointingTriangle,
-            .inequalitySign
+            .inequalitySign,
           ]
 
           ForEach(separators, id: \.self) { separator in
-            let node = separator.separator.separator(direction: copyingConflictDirection)
-
-            Text("Settings.Extra.FoldersSeparator.Use.\(String(node))")
+            Text(pathComponent(of: separator, in: foldersPathDirection))
               .tag(separator, includeOptional: false)
           }
         }
+        .disabled(!resolveConflicts)
         .pickerStyle(.inline)
         .labelsHidden()
         .horizontalRadioGroupLayout()
       }
 
-      LabeledContent("Settings.Extra.FoldersDirection") {
-        Picker("Settings.Extra.FoldersDirection.Use", selection: $copyingConflictDirection) {
-          Text("Settings.Extra.FoldersDirection.Use.Leading")
-            .tag(StorageDirection.leftToRight, includeOptional: false)
+      LabeledContent("Settings.Extra.FoldersPathDirection") {
+        Picker("Settings.Extra.FoldersPathDirection.Use", selection: $foldersPathDirection) {
+          Text("Settings.Extra.FoldersPathDirection.Use.Leading")
+            .tag(StorageFoldersPathDirection.leading, includeOptional: false)
 
-          Text("Settings.Extra.FoldersDirection.Use.Trailing")
-            .tag(StorageDirection.rightToLeft, includeOptional: false)
+          Text("Settings.Extra.FoldersPathDirection.Use.Trailing")
+            .tag(StorageFoldersPathDirection.trailing, includeOptional: false)
         }
+        .disabled(!resolveConflicts)
         .pickerStyle(.inline)
         .labelsHidden()
         .horizontalRadioGroupLayout()
@@ -116,27 +76,27 @@ struct SettingsExtraView2: View {
         }
         ?? SettingsExtraWallpaper(url: defaultWallpaperFile(base: .userDirectory), isReachable: false)
 
-        let component = component(
-          url: wallpaper.url,
-          separator: copyingConflictSeparator.separator,
-          direction: copyingConflictDirection,
-          format: copyingConflictFormat
-        )
-
-        Text("Settings.Extra.FoldersExample")
-          .fontWeight(.regular)
-          .foregroundStyle(.secondary)
-
-        Button {
-          // I've no idea why this silently fails on URLs composed with relatives.
-          NSWorkspace.shared.activateFileViewerSelecting([wallpaper.url])
-        } label: {
-          Text(component)
-            .truncationMode(.middle)
-            .help(component)
-        }
-        .buttonStyle(.plain)
-        .disabled(!wallpaper.isReachable)
+//        let component = component(
+//          url: wallpaper.url,
+//          separator: copyingConflictSeparator.separator,
+//          direction: copyingConflictDirection,
+//          format: copyingConflictFormat
+//        )
+//
+//        Text("Settings.Extra.FoldersExample")
+//          .fontWeight(.regular)
+//          .foregroundStyle(.secondary)
+//
+//        Button {
+//          // I've no idea why this silently fails on URLs composed with relatives.
+//          NSWorkspace.shared.activateFileViewerSelecting([wallpaper.url])
+//        } label: {
+//          Text(component)
+//            .truncationMode(.middle)
+//            .help(component)
+//        }
+//        .buttonStyle(.plain)
+//        .disabled(!wallpaper.isReachable)
       }
       .font(.subheadline)
       .padding(.horizontal)
@@ -145,6 +105,30 @@ struct SettingsExtraView2: View {
       Divider()
     }
     .formStyle(.settings(width: SettingsView2.contentWidth))
+  }
+
+  private func pathComponent(
+    of separator: StorageFoldersPathSeparator,
+    in direction: StorageFoldersPathDirection,
+  ) -> LocalizedStringKey {
+    switch (separator, direction) {
+      case (.inequalitySign, .leading):
+        "Settings.Extra.FoldersSeparator.Use.InequalitySign.LeftToRight"
+      case (.inequalitySign, .trailing):
+        "Settings.Extra.FoldersSeparator.Use.InequalitySign.RightToLeft"
+      case (.singlePointingAngleQuotationMark, .leading):
+        "Settings.Extra.FoldersSeparator.Use.SinglePointingAngleQuotationMark.LeftToRight"
+      case (.singlePointingAngleQuotationMark, .trailing):
+        "Settings.Extra.FoldersSeparator.Use.SinglePointingAngleQuotationMark.RightToLeft"
+      case (.blackPointingTriangle, .leading):
+        "Settings.Extra.FoldersSeparator.Use.BlackPointingTriangle.LeftToRight"
+      case (.blackPointingTriangle, .trailing):
+        "Settings.Extra.FoldersSeparator.Use.BlackPointingTriangle.RightToLeft"
+      case (.blackPointingSmallTriangle, .leading):
+        "Settings.Extra.FoldersSeparator.Use.BlackPointingSmallTriangle.LeftToRight"
+      case (.blackPointingSmallTriangle, .trailing):
+        "Settings.Extra.FoldersSeparator.Use.BlackPointingSmallTriangle.RightToLeft"
+    }
   }
 
   private func defaultWallpaperFile(base: URL) -> URL {
@@ -156,31 +140,23 @@ struct SettingsExtraView2: View {
       .appendingPathExtension(for: .jxl)
   }
 
-  private func title(for token: String) -> String {
-    switch token {
-      case FoldersSettingsModel.nameKeyword: localize("Settings.Extra.FoldersName.Token.Name")
-      case FoldersSettingsModel.pathKeyword: localize("Settings.Extra.FoldersName.Token.Path")
-      default: fatalError()
-    }
-  }
-
-  private func component(
-    url: URL,
-    separator: StorageFoldersSeparatorItem,
-    direction: StorageDirection,
-    format: String
-  ) -> String {
-    let formatted = FoldersSettingsModel.formatPathComponents(components: url.pathComponents)
-    let pathComponents = formatted
-      .dropFirst() // "/"
-      .dropLast() // The path we initially tried (e.g. "image.png")
-      .suffix(2)
-
-    let separator = separator.separator(direction: direction)
-    let name = url.lastPath
-    let path = FoldersSettingsModel.formatPath(components: pathComponents, separator: " \(separator) ", direction: direction)
-    let component = FoldersSettingsModel.format(string: format, name: name, path: path)
-
-    return component
-  }
+//  private func component(
+//    url: URL,
+//    separator: StorageFoldersSeparatorItem,
+//    direction: StorageDirection,
+//    format: String
+//  ) -> String {
+//    let formatted = FoldersSettingsModel.formatPathComponents(components: url.pathComponents)
+//    let pathComponents = formatted
+//      .dropFirst() // "/"
+//      .dropLast() // The path we initially tried (e.g. "image.png")
+//      .suffix(2)
+//
+//    let separator = separator.separator(direction: direction)
+//    let name = url.lastPath
+//    let path = FoldersSettingsModel.formatPath(components: pathComponents, separator: " \(separator) ", direction: direction)
+//    let component = FoldersSettingsModel.format(string: format, name: name, path: path)
+//
+//    return component
+//  }
 }

@@ -7,19 +7,10 @@
     "A lot" : {
 
     },
-    "Add" : {
-
-    },
-    "Add..." : {
-
-    },
     "Bookmark" : {
 
     },
     "Clear" : {
-
-    },
-    "Close" : {
 
     },
     "Collapse margins" : {
@@ -85,6 +76,7 @@
       }
     },
     "Finder.Open" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -231,6 +223,7 @@
       }
     },
     "Images.Copying.Action" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -312,13 +305,7 @@
     "Margins:" : {
 
     },
-    "Name" : {
-
-    },
     "None" : {
-
-    },
-    "Path" : {
 
     },
     "QuickLook.Hide" : {
@@ -340,9 +327,6 @@
           }
         }
       }
-    },
-    "Remove" : {
-
     },
     "Search" : {
 
@@ -458,6 +442,7 @@
       }
     },
     "Settings.Accessory.Copying.Menu.Title" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -473,6 +458,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Add..."
+          }
+        }
+      }
+    },
+    "Settings.Accessory.Folders.Item.Copy.Error.FileExists.Source.%@.Destination.%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%1$@” couldn’t be copied to “%2$@” because an item with the same name already exists."
+          }
+        }
+      }
+    },
+    "Settings.Accessory.Folders.Item.Copy.Name.%@.Path.%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ [%2$@]"
           }
         }
       }
@@ -493,6 +498,86 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : " 􀰇 "
+          }
+        }
+      }
+    },
+    "Settings.Accessory.Folders.Item.Path.Separator.BlackPointingSmallTriangle.LeftToRight" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " ▸ "
+          }
+        }
+      }
+    },
+    "Settings.Accessory.Folders.Item.Path.Separator.BlackPointingSmallTriangle.RightToLeft" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " ◂ "
+          }
+        }
+      }
+    },
+    "Settings.Accessory.Folders.Item.Path.Separator.BlackPointingTriangle.LeftToRight" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " ▶ "
+          }
+        }
+      }
+    },
+    "Settings.Accessory.Folders.Item.Path.Separator.BlackPointingTriangle.RightToLeft" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " ◀ "
+          }
+        }
+      }
+    },
+    "Settings.Accessory.Folders.Item.Path.Separator.InequalitySign.LeftToLeft" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " > "
+          }
+        }
+      }
+    },
+    "Settings.Accessory.Folders.Item.Path.Separator.InequalitySign.RightToLeft" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " < "
+          }
+        }
+      }
+    },
+    "Settings.Accessory.Folders.Item.Path.Separator.SinglePointingAngleQuotationMark.LeftToRight" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " › "
+          }
+        }
+      }
+    },
+    "Settings.Accessory.Folders.Item.Path.Separator.SinglePointingAngleQuotationMark.RightToLeft" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " ‹ "
           }
         }
       }
@@ -617,47 +702,8 @@
         }
       }
     },
-    "Settings.Extra.FoldersDirection" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Path Direction:"
-          }
-        }
-      }
-    },
-    "Settings.Extra.FoldersDirection.Use" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Use"
-          }
-        }
-      }
-    },
-    "Settings.Extra.FoldersDirection.Use.Leading" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Leading"
-          }
-        }
-      }
-    },
-    "Settings.Extra.FoldersDirection.Use.Trailing" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Trailing"
-          }
-        }
-      }
-    },
     "Settings.Extra.FoldersExample" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -668,6 +714,7 @@
       }
     },
     "Settings.Extra.FoldersName" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -678,6 +725,7 @@
       }
     },
     "Settings.Extra.FoldersName.Token.Name" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -688,6 +736,7 @@
       }
     },
     "Settings.Extra.FoldersName.Token.Path" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -697,17 +746,17 @@
         }
       }
     },
-    "Settings.Extra.FoldersSeparator" : {
+    "Settings.Extra.FoldersPathDirection" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Path Separator:"
+            "value" : "Path direction:"
           }
         }
       }
     },
-    "Settings.Extra.FoldersSeparator.Use" : {
+    "Settings.Extra.FoldersPathDirection.Use" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -717,12 +766,112 @@
         }
       }
     },
-    "Settings.Extra.FoldersSeparator.Use.%@" : {
+    "Settings.Extra.FoldersPathDirection.Use.Leading" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "“%@”"
+            "value" : "Leading"
+          }
+        }
+      }
+    },
+    "Settings.Extra.FoldersPathDirection.Use.Trailing" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trailing"
+          }
+        }
+      }
+    },
+    "Settings.Extra.FoldersPathSeparator" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Path separator:"
+          }
+        }
+      }
+    },
+    "Settings.Extra.FoldersSeparator.Use.BlackPointingSmallTriangle.LeftToRight" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“▸”"
+          }
+        }
+      }
+    },
+    "Settings.Extra.FoldersSeparator.Use.BlackPointingSmallTriangle.RightToLeft" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“◂”"
+          }
+        }
+      }
+    },
+    "Settings.Extra.FoldersSeparator.Use.BlackPointingTriangle.LeftToRight" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“▶”"
+          }
+        }
+      }
+    },
+    "Settings.Extra.FoldersSeparator.Use.BlackPointingTriangle.RightToLeft" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“◀”"
+          }
+        }
+      }
+    },
+    "Settings.Extra.FoldersSeparator.Use.InequalitySign.LeftToRight" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“>”"
+          }
+        }
+      }
+    },
+    "Settings.Extra.FoldersSeparator.Use.InequalitySign.RightToLeft" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“<“"
+          }
+        }
+      }
+    },
+    "Settings.Extra.FoldersSeparator.Use.SinglePointingAngleQuotationMark.LeftToRight" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“›”"
+          }
+        }
+      }
+    },
+    "Settings.Extra.FoldersSeparator.Use.SinglePointingAngleQuotationMark.RightToLeft" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“‹”"
           }
         }
       }
@@ -1036,9 +1185,6 @@
           }
         }
       }
-    },
-    "Substitute" : {
-
     }
   },
   "version" : "1.0"

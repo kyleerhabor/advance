@@ -449,7 +449,7 @@ final class ImagesModel {
     }
 
     struct State2Item {
-      let item: ImagesModelLoadImagesItemInfo
+      let item: ImagesItemInfo
       let title: String
       let aspectRatio: Double
     }
@@ -460,18 +460,17 @@ final class ImagesModel {
 
     let state2 = await withTaskGroup(of: State2Item?.self) { group in
       // TODO: Rewrite.
-      images.items.forEach { item in
+      items.forEach { item in
         group.addTask { [state1] in
           let relative: URLSource?
 
-          if let r = item.fileBookmark.relative {
-            guard let bookmark = state1.bookmarks[r.relative.rowID!] else {
-              return nil
-            }
+          do {
+            relative = try state1.relative(item.fileBookmark.relative)
+          } catch {
+            // TODO: Elaborate.
+            Logger.model.error("\(error)")
 
-            relative = URLSource(url: bookmark.resolved.url, options: r.relative.options!)
-          } else {
-            relative = nil
+            return nil
           }
 
           guard let bookmark = state1.bookmarks[item.fileBookmark.bookmark.bookmark.rowID!] else {

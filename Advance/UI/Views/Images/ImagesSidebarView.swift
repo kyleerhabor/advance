@@ -210,17 +210,9 @@ struct ImagesSidebarContentView: View {
   @Environment(ImagesModel.self) private var images
   @Environment(\.imagesDetailJump) private var jumpDetail
   @AppStorage(StorageKeys.restoreLastImage) private var restoreLastImage
-  @AppStorage(StorageKeys.foldersResolveConflicts) private var copyingResolveConflicts
-  @AppStorage(StorageKeys.foldersConflictFormat) private var copyingConflictFormat
-  @AppStorage(StorageKeys.foldersConflictSeparator) private var copyingConflictSeparator
-  @AppStorage(StorageKeys.foldersConflictDirection) private var copyingConflictDirection
   @SceneStorage(StorageKeys.columnVisibility) private var columnVisibility
   @FocusState private var isFocused: Bool
   @State private var selection = Set<ImagesItemModel.ID>()
-  @State private var copyingSelection = Set<ImagesItemModel.ID>()
-  @State private var isCopyingFileImporterPresented = false
-  @State private var isCopyingErrorAlertPresented = false
-  @State private var copyingError: CocoaError?
   // TODO: Replace.
   private var selected: Binding<Set<ImagesItemModel.ID>> {
     Binding {
@@ -296,64 +288,14 @@ struct ImagesSidebarContentView: View {
               Logger.ui.error("Could not write the following URLs to the general pasteboard:\n\(s)")
             }
           }
-
-          CopyingSettingsMenuView { source in
-            let sources = images.items
-              .filter(in: ids, by: \.id)
-              .map(\.source)
-
-            Task {
-              do {
-                try await copy(sources: sources, to: source)
-              } catch let error as CocoaError where error.code == .fileWriteFileExists {
-                copyingError = error
-                isCopyingErrorAlertPresented = true
-              } catch {
-                Logger.ui.error("\(error)")
-              }
-            }
-          } primaryAction: {
-            copyingSelection = ids
-            isCopyingFileImporterPresented = true
-          }
         }
 
         Section {
           ImagesBookmarkView(isBookmarked: isBookmarked)
         }
       }
-      .fileImporter(isPresented: $isCopyingFileImporterPresented, allowedContentTypes: foldersContentTypes) { result in
-        let url: URL
-
-        switch result {
-          case let .success(item):
-            url = item
-          case let .failure(error):
-            Logger.ui.error("\(error)")
-
-            return
-        }
-
-        let sources = images.items
-          .filter(in: copyingSelection, by: \.id)
-          .map(\.source)
-
-        Task {
-          do {
-            try await copy(sources: sources, to: URLSource(url: url, options: .withSecurityScope))
-          } catch let error as CocoaError where error.code == .fileWriteFileExists {
-            copyingError = error
-            isCopyingErrorAlertPresented = true
-          } catch {
-            Logger.ui.error("\(error)")
-          }
-        }
-      }
       .fileDialogCustomizationID(FoldersSettingsScene.id)
       .fileDialogConfirmationLabel(Text("Copy"))
-      .alert(Text(copyingError?.localizedDescription ?? ""), isPresented: $isCopyingErrorAlertPresented) {
-        // Empty
-      }
       .focusedSceneValue(\.imagesSidebarJump, ImagesNavigationJumpAction(identity: ImagesNavigationJumpIdentity(id: images.id, isReady: images.isReady)) { item in
         showSidebar(proxy, at: item)
       })
@@ -396,42 +338,6 @@ struct ImagesSidebarContentView: View {
         isFocused = true
       }
     }
-  }
-
-  private nonisolated static func copy(
-    sources: some Sequence<some ImagesItemModelSource & Sendable> & Sendable,
-    to source: URLSource,
-    resolveConflicts: Bool,
-    format: String,
-    separator: Character,
-    direction: StorageDirection
-  ) async throws {
-    try await source.accessingSecurityScopedResource {
-      for src in sources {
-        try await CopyingSettingsMenuView.copy(
-          itemSource: src,
-          to: source,
-          resolveConflicts: resolveConflicts,
-          format: format,
-          separator: separator,
-          direction: direction
-        )
-      }
-    }
-  }
-  
-  private func copy(
-    sources: some Sequence<some ImagesItemModelSource & Sendable> & Sendable,
-    to source: URLSource
-  ) async throws {
-    try await Self.copy(
-      sources: sources,
-      to: source,
-      resolveConflicts: copyingResolveConflicts,
-      format: copyingConflictFormat,
-      separator: copyingConflictSeparator.separator.separator(direction: copyingConflictDirection),
-      direction: copyingConflictDirection
-    )
   }
 }
 

@@ -36,6 +36,8 @@ struct ImagesView2: View {
   @State private var selection = Set<ImagesItemModel2.ID>()
   @State private var isFileImporterPresented = false
   @State private var isCopyFolderFileImporterPresented = false
+  @State private var copyFolderError: FoldersSettingsModelCopyError?
+  @State private var isCopyFolderErrorPresented = false
   private var directoryEnumerationOptions: FileManager.DirectoryEnumerationOptions {
     StorageKeys.directoryEnumerationOptions(
       importHiddenFiles: importHiddenFiles,
@@ -74,6 +76,8 @@ struct ImagesView2: View {
 
             ImagesSidebarItemCopyFolderView(
               isFileImporterPresented: $isCopyFolderFileImporterPresented,
+              error: $copyFolderError,
+              isErrorPresented: $isCopyFolderErrorPresented,
               selection: ids,
             )
           }
@@ -126,6 +130,7 @@ struct ImagesView2: View {
     } detail: {
 
     }
+    .alert(isPresented: $isCopyFolderErrorPresented, error: copyFolderError) {}
     .focusedSceneValue(\.commandScene, AppModelCommandScene(
       id: sceneID,
       disablesShowFinder: images.isInvalidSelection(of: selection),
@@ -146,7 +151,14 @@ struct ImagesView2: View {
       }
 
       Task {
-        await folders.copyFolder(destination: url, items: selection)
+        do {
+          try await folders.copyFolder(to: url, items: selection)
+        } catch let error as FoldersSettingsModelCopyError {
+          self.copyFolderError = error
+          self.isCopyFolderErrorPresented = true
+        } catch {
+          unreachable()
+        }
       }
     }
     .fileDialogCustomizationID(FoldersSettingsScene.id)

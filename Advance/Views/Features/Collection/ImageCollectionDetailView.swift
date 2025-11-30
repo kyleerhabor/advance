@@ -250,18 +250,6 @@ struct ImageCollectionDetailItemPhaseView: View {
 }
 
 struct ImageCollectionDetailItemView: View {
-  @State private var isCopyingFileImporterPresented = false
-  @State private var error: String?
-  private var isErrorPresented: Binding<Bool> {
-    .init {
-      self.error != nil
-    } set: { present in
-      if !present {
-        self.error = nil
-      }
-    }
-  }
-
   let image: ImageCollectionItemImage
 
   var body: some View {
@@ -270,7 +258,8 @@ struct ImageCollectionDetailItemView: View {
       // For some reason, we need to isolate the phase state to its own view for SwiftUI to automatically discard the
       // view and its memory.
       ImageCollectionDetailItemPhaseView(image: image)
-    }.contextMenu {
+    }
+    .contextMenu {
       @Bindable var image = image
 
       Section {
@@ -278,57 +267,10 @@ struct ImageCollectionDetailItemView: View {
       }
 
       Section {
-        ImageCollectionCopyingView(isPresented: $isCopyingFileImporterPresented) { destination in
-          Task(priority: .medium) {
-            do {
-              try await copy(image: image, to: destination)
-            } catch {
-              self.error = error.localizedDescription
-            }
-          }
-        }
-      }
-
-      Section {
         ImageCollectionDetailItemBookmarkView(bookmarked: $image.bookmarked)
-      }
-    }.fileImporter(isPresented: $isCopyingFileImporterPresented, allowedContentTypes: [.folder]) { result in
-      switch result {
-        case .success(let url):
-          Task(priority: .medium) {
-            do {
-              try await copy(image: image, to: url)
-            } catch {
-              self.error = error.localizedDescription
-            }
-          }
-        case .failure(let err):
-          Logger.ui.info("Could not import copy destination from file picker: \(err)")
       }
     }
     .fileDialogCopy()
-    // TODO: Create a view modifier to automatically specify an empty actions
-    .alert(error ?? "", isPresented: isErrorPresented) {}
-  }
-
-  nonisolated func copy(image: ImageCollectionItemImage, to destination: URL) async throws {
-    try await Self.copy(image: image, to: destination, resolvingConflicts: true)
-  }
-
-  static nonisolated func copy(
-    image: ImageCollectionItemImage,
-    to destination: URL,
-    resolvingConflicts resolveConflicts: Bool
-  ) async throws {
-    try ImageCollectionCopyingView.saving {
-      try destination.accessingSecurityScopedResource {
-        try ImageCollectionCopyingView.saving(url: image, to: destination) { url in
-          try image.accessingSecurityScopedResource {
-            try ImageCollectionCopyingView.save(url: url, to: destination, resolvingConflicts: resolveConflicts)
-          }
-        }
-      }
-    }
   }
 }
 

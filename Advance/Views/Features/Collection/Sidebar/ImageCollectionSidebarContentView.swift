@@ -161,32 +161,19 @@ struct ImageCollectionSidebarContentView: View {
   @State private var quicklookItems = [URL]()
   @State private var quicklookSelection = Set<ImageCollectionItemImage.ID>()
   @State private var quicklookScopes = [ImageCollectionItemImage: ImageCollectionItemImage.SecurityScope]()
-
-  @State private var isCopyingFileImporterPresented = false
-  @State private var copyingSelection = ImageCollectionSidebar.Selection()
-  @State private var error: String?
   private var selection: ImageCollectionSidebar.Selection { sidebar.selection }
   private var selected: Binding<ImageCollectionSidebar.Selection> {
     .init {
       selection
     } set: { selection in
-      let difference = selection.subtracting(self.selection)
-      let id = sidebar.images.last { difference.contains($0.id) }?.id
-
-      if let id {
+//      let difference = selection.subtracting(self.selection)
+//      let id = sidebar.images.last { difference.contains($0.id) }?.id
+//
+//      if let id {
 //        detailScroller.scroll(id)
-      }
+//      }
 
       sidebar.selection = selection
-    }
-  }
-  private var isErrorPresented: Binding<Bool> {
-    .init {
-      error != nil
-    } set: { present in
-      if !present {
-        error = nil
-      }
     }
   }
 
@@ -301,45 +288,13 @@ struct ImageCollectionSidebarContentView: View {
 //            Logger.ui.error("Failed to write URLs \"\(urls.map(\.string))\" to pasteboard")
 //          }
 //        }
-//
-//        let isPresented = Binding {
-//          isCopyingFileImporterPresented
-//        } set: { isPresenting in
-//          isCopyingFileImporterPresented = isPresenting
-//          copyingSelection = ids
-//        }
-//
-//        ImageCollectionCopyingView(isPresented: isPresented) { destination in
-//          Task(priority: .medium) {
-//            do {
-//              try await copy(images: images(from: ids), to: destination)
-//            } catch {
-//              self.error = error.localizedDescription
-//            }
-//          }
-//        }
 //      }
 //
 //      Section {
 //        ImageCollectionBookmarkView(isOn: bookmarked)
 //      }
 //    }
-//    .fileImporter(isPresented: $isCopyingFileImporterPresented, allowedContentTypes: [.folder]) { result in
-//      switch result {
-//        case .success(let url):
-//          Task(priority: .medium) {
-//            do {
-//              try await copy(images: images(from: copyingSelection), to: url)
-//            } catch {
-//              self.error = error.localizedDescription
-//            }
-//          }
-//        case .failure(let err):
-//          Logger.ui.error("Could not import folder for copying operation: \(err)")
-//      }
-//    }
 //    .fileDialogCopy()
-//    .alert(self.error ?? "", isPresented: isErrorPresented) {}
 //    .focusedValue(\.imagesQuickLook, .init(
 //      identity: quicklookSelection,
 //      enabled: quicklookItem != nil || !selection.isEmpty,
@@ -419,28 +374,6 @@ struct ImageCollectionSidebarContentView: View {
         try await collection.persist(id: id)
       } catch {
         Logger.model.error("Could not persist image collection \"\(id)\" from sidebar bookmark: \(error)")
-      }
-    }
-  }
-
-  nonisolated func copy(images: some Sequence<ImageCollectionItemImage>, to destination: URL) async throws {
-    try await Self.copy(images: images, to: destination, resolvingConflicts: true)
-  }
-
-  nonisolated static func copy(
-    images: some Sequence<ImageCollectionItemImage>,
-    to destination: URL,
-    resolvingConflicts resolveConflicts: Bool
-  ) async throws {
-    try ImageCollectionCopyingView.saving {
-      try destination.accessingSecurityScopedResource {
-        try images.forEach { image in
-          try ImageCollectionCopyingView.saving(url: image, to: destination) { url in
-            try image.accessingSecurityScopedResource {
-              try ImageCollectionCopyingView.save(url: url, to: destination, resolvingConflicts: resolveConflicts)
-            }
-          }
-        }
       }
     }
   }

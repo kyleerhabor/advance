@@ -11,10 +11,7 @@
 		0008556E2A7306CB00309905 /* Standard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0008556D2A7306CB00309905 /* Standard.swift */; };
 		0013F6082C2208720038BB2A /* IdentifiedCollections in Frameworks */ = {isa = PBXBuildFile; productRef = 0013F6072C2208720038BB2A /* IdentifiedCollections */; };
 		001CB5202A718D4200DBB6FA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 001CB51F2A718D4200DBB6FA /* Assets.xcassets */; };
-		001D8A282B36790B00A285BD /* SettingsCopyingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001D8A272B36790B00A285BD /* SettingsCopyingView.swift */; };
 		001D8D0E2A74AC5400B58790 /* Model.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001D8D0D2A74AC5400B58790 /* Model.swift */; };
-		001E1E672AC4DD79005EE188 /* CopyDepot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001E1E662AC4DD79005EE188 /* CopyDepot.swift */; };
-		001E1E692AC4DEC8005EE188 /* ImageCollectionCopyingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001E1E682AC4DEC8005EE188 /* ImageCollectionCopyingView.swift */; };
 		001E7B652AD8394C001EAF72 /* SettingsGeneralView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001E7B642AD8394C001EAF72 /* SettingsGeneralView.swift */; };
 		0021270E2C19517F0000D996 /* AdvanceData in Frameworks */ = {isa = PBXBuildFile; productRef = 0021270D2C19517F0000D996 /* AdvanceData */; };
 		0021272B2C1A26180000D996 /* Dependencies in Frameworks */ = {isa = PBXBuildFile; productRef = 0021272A2C1A26180000D996 /* Dependencies */; };
@@ -67,10 +64,7 @@
 		001CB5182A718D3C00DBB6FA /* Advance.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Advance.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		001CB51F2A718D4200DBB6FA /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		001CB5242A718D4200DBB6FA /* Advance.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Advance.entitlements; sourceTree = "<group>"; };
-		001D8A272B36790B00A285BD /* SettingsCopyingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsCopyingView.swift; sourceTree = "<group>"; };
 		001D8D0D2A74AC5400B58790 /* Model.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Model.swift; sourceTree = "<group>"; };
-		001E1E662AC4DD79005EE188 /* CopyDepot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopyDepot.swift; sourceTree = "<group>"; };
-		001E1E682AC4DEC8005EE188 /* ImageCollectionCopyingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionCopyingView.swift; sourceTree = "<group>"; };
 		001E7B642AD8394C001EAF72 /* SettingsGeneralView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsGeneralView.swift; sourceTree = "<group>"; };
 		002379082B3DFC9F00097BF0 /* Scened.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Scened.swift; sourceTree = "<group>"; };
 		002629D12AD59DC700ABFEB6 /* DisplayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayView.swift; sourceTree = "<group>"; };
@@ -242,14 +236,6 @@
 			path = Commands;
 			sourceTree = "<group>";
 		};
-		0056083A2B6F6BC90063DCE2 /* Shared */ = {
-			isa = PBXGroup;
-			children = (
-				001D8A272B36790B00A285BD /* SettingsCopyingView.swift */,
-			);
-			path = Shared;
-			sourceTree = "<group>";
-		};
 		005B45022A8FFE1F00699AF0 /* Documentation */ = {
 			isa = PBXGroup;
 			children = (
@@ -272,7 +258,6 @@
 			children = (
 				003375192B34EBC800423A58 /* ImageCollectionItemView.swift */,
 				002FB7742B0BE0F900E930AF /* ImageCollectionBookmarkView.swift */,
-				001E1E682AC4DEC8005EE188 /* ImageCollectionCopyingView.swift */,
 				00FD27A02B715111000F38CE /* ImageCollectionQuickLookView.swift */,
 			);
 			path = Shared;
@@ -299,7 +284,6 @@
 			children = (
 				00C369522AB766DC0033F10A /* ImageCollection.swift */,
 				00E42E9A2B33EB8000BC05A7 /* ImageCollectionManager.swift */,
-				001E1E662AC4DD79005EE188 /* CopyDepot.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -350,7 +334,6 @@
 			children = (
 				001E7B642AD8394C001EAF72 /* SettingsGeneralView.swift */,
 				0043C6042B40E78E0092AB71 /* SettingsExtraView.swift */,
-				0056083A2B6F6BC90063DCE2 /* Shared */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -472,13 +455,10 @@
 				0077AF922ABB8650002E3FF4 /* Image.swift in Sources */,
 				000855692A72FE2C00309905 /* AdvanceApp.swift in Sources */,
 				003763CC2AB40FD800D53F2E /* ImageCollectionSidebarEmptyView.swift in Sources */,
-				001E1E692AC4DEC8005EE188 /* ImageCollectionCopyingView.swift in Sources */,
 				00D0E1C12B9E68F500624018 /* ImageCollectionNavigatorCommands.swift in Sources */,
 				00CBAB5C2AB2470C0045FF83 /* ImageCollectionDetailView.swift in Sources */,
-				001D8A282B36790B00A285BD /* SettingsCopyingView.swift in Sources */,
 				005608392B6F24970063DCE2 /* ImageCollectionWindowCommands.swift in Sources */,
 				0042B5DB2AB8C450009F251B /* ImageCollectionCommands.swift in Sources */,
-				001E1E672AC4DD79005EE188 /* CopyDepot.swift in Sources */,
 				00D38C312AD73672005505F5 /* ImageCollectionSidebarContentView.swift in Sources */,
 				003B1EFA2B6804AA0046594E /* Collection.swift in Sources */,
 				005608372B6F24810063DCE2 /* ImageCollectionImageCommands.swift in Sources */,
