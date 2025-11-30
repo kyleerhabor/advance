@@ -166,7 +166,7 @@ extension SetAlgebra {
   }
 }
 
-struct StorageHiddenLayoutStyles: OptionSet {
+struct StorageHiddenLayout: OptionSet {
   let rawValue: Int
 
   static let toolbar = Self(rawValue: 1 << 0)
@@ -257,9 +257,9 @@ enum StorageKeys {
 
   static let importHiddenFiles = StorageKey("\(Bundle.appID).import-hidden-files", defaultValue: false)
   static let importSubdirectories = StorageKey("\(Bundle.appID).import-subdirectories", defaultValue: true)
-  static let hiddenLayoutStyles = StorageKey(
-    "\(Bundle.appID).hidden-layout-styles",
-    defaultValue: StorageHiddenLayoutStyles.cursor,
+  static let hiddenLayout = StorageKey(
+    "\(Bundle.appID).hidden-layout",
+    defaultValue: StorageHiddenLayout.cursor,
   )
 
   static let resolveConflicts = StorageKey("\(Bundle.appID).resolve-conflicts", defaultValue: false)

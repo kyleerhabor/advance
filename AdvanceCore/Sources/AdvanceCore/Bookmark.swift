@@ -13,9 +13,9 @@ extension URL {
     let accessing = self.startAccessingSecurityScopedResource()
 
     if accessing {
-      Logger.sandbox.debug("Started security scope for file URL '\(self.pathString)'")
+      Logger.sandbox.debug("Started security scope for resource at file URL '\(self.pathString)'")
     } else {
-      Logger.sandbox.log("Could not start security scope for file URL '\(self.pathString)'")
+      Logger.sandbox.log("Could not start security scope for resource at file URL '\(self.pathString)'")
     }
 
     return accessing

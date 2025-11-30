@@ -25,14 +25,8 @@ extension URL {
   static let imagesDirectory = Self.dataDirectory.appending(component: "Images", directoryHint: .isDirectory)
 }
 
-struct ImagesItemModelSourceCopier {
-  let copy: (URL) throws -> Void
-  let close: () -> Void
-}
-
 protocol ImagesItemModelSource: CustomStringConvertible {
   var url: URL? { get }
-  var copier: ImagesItemModelSourceCopier { get async }
 
   func resampleImage(length: Int) async -> CGImage?
 }
@@ -50,12 +44,6 @@ extension AnyImagesItemModelSource: ImagesItemModelSource {
 
   var url: URL? {
     source.url
-  }
-
-  var copier: ImagesItemModelSourceCopier {
-    get async {
-      await source.copier
-    }
   }
 
   func resampleImage(length: Int) async -> CGImage? {
@@ -107,11 +95,6 @@ extension ImagesItemModelDataSource: ImagesItemModelSource {
     nil
   }
 
-  var copier: ImagesItemModelSourceCopier {
-    // Not implemented.
-    fatalError()
-  }
-
   func resampleImage(length: Int) async -> CGImage? {
     // Not implemented.
     nil
@@ -129,16 +112,6 @@ extension ImagesItemModelFileSource: ImagesItemModelSource {
 
   var url: URL? {
     document.source.url
-  }
-
-  var copier: ImagesItemModelSourceCopier {
-    let scope = document.startSecurityScope()
-
-    return ImagesItemModelSourceCopier { destination in
-      try FileManager.default.copyItem(at: document.source.url, to: destination)
-    } close: {
-      document.endSecurityScope(scope)
-    }
   }
 
   func resampleImage(length: Int) async -> CGImage? {

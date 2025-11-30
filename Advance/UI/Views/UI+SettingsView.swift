@@ -54,14 +54,14 @@ struct SettingsLabeledContentStyle: LabeledContentStyle {
         .frame(maxWidth: .infinity, maxHeight: 0)
 
       configuration.label
-        .frame(width: width * 0.3, alignment: .trailing)
+        .frame(width: width * 0.35, alignment: .trailing)
 
       VStack(alignment: .leading) {
         configuration.content
           .groupBoxStyle(.settings)
           .fixedSize(horizontal: false, vertical: true)
       }
-      .frame(width: width * 0.7, alignment: .leading)
+      .frame(width: width * 0.65, alignment: .leading)
 
       BlankView()
         .frame(maxWidth: .infinity, maxHeight: 0)
@@ -94,7 +94,7 @@ extension FormStyle {
 }
 
 struct SettingsView2: View {
-  static let contentWidth: CGFloat = 448 // 384 - 512
+  static let contentWidth: CGFloat = 500
   static let pickerWidth: CGFloat = 128
   static let textFieldWidth: CGFloat = 192
 
@@ -105,11 +105,6 @@ struct SettingsView2: View {
           Label("Settings.Tab.General", systemImage: "gearshape")
         }
 
-      SettingsLayoutView()
-        .tabItem {
-          Label("Settings.Tab.Layout", systemImage: "align.vertical.center")
-        }
-
       SettingsFilesView()
         .tabItem {
           Label("Settings.Tab.Files", systemImage: "folder")
@@ -118,12 +113,6 @@ struct SettingsView2: View {
       SettingsAccessoriesView()
         .tabItem {
           Label("Settings.Tab.Accessories", systemImage: "macwindow.badge.plus")
-        }
-
-      SettingsExtraView2()
-        .localized()
-        .tabItem {
-          Label("Settings.Tab.Extra", systemImage: "wand.and.stars")
         }
     }
     .scenePadding()

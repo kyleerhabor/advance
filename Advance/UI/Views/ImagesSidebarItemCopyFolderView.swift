@@ -5,21 +5,21 @@
 //  Created by Kyle Erhabor on 11/29/25.
 //
 
-import AdvanceCore
 import OSLog
 import SwiftUI
 
 struct ImagesSidebarItemCopyFolderView: View {
-  @Environment(FoldersSettingsModel2.self) private var folders
+  @Environment(FoldersSettingsModel.self) private var folders
   @Environment(ImagesModel.self) private var images
+  @Environment(\.locale) private var locale
   @AppStorage(StorageKeys.resolveConflicts) private var resolveConflicts
   @AppStorage(StorageKeys.foldersPathSeparator) private var foldersPathSeparator
   @AppStorage(StorageKeys.foldersPathDirection) private var foldersPathDirection
-  @Environment(\.locale) private var locale
+  @Binding var selection: Set<ImagesItemModel2.ID>
   @Binding var isFileImporterPresented: Bool
   @Binding var error: FoldersSettingsModelCopyError?
   @Binding var isErrorPresented: Bool
-  let selection: Set<ImagesItemModel2.ID>
+  let items: Set<ImagesItemModel2.ID>
 
   var body: some View {
     Menu("Images.Item.Folder.Copy") {
@@ -29,7 +29,7 @@ struct ImagesSidebarItemCopyFolderView: View {
             do {
               try await folders.copy(
                 to: item,
-                items: selection,
+                items: items,
                 locale: locale,
                 resolveConflicts: resolveConflicts,
                 pathSeparator: foldersPathSeparator,
@@ -38,8 +38,6 @@ struct ImagesSidebarItemCopyFolderView: View {
             } catch let error as FoldersSettingsModelCopyError {
               self.error = error
               self.isErrorPresented = true
-            } catch {
-              unreachable()
             }
           }
         } label: {
@@ -59,6 +57,7 @@ struct ImagesSidebarItemCopyFolderView: View {
         }
       }
     } primaryAction: {
+      selection = items
       isFileImporterPresented = true
     }
   }

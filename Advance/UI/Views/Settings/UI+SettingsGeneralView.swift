@@ -11,6 +11,7 @@ import VisionKit
 
 struct SettingsGeneralView2: View {
   @AppStorage(StorageKeys.restoreLastImage) private var restoreLastImage
+  @AppStorage(StorageKeys.hiddenLayout) private var hiddenLayout
   @AppStorage(StorageKeys.liveTextEnabled) private var liveTextEnabled
   @AppStorage(StorageKeys.liveTextIcon) private var liveTextIcon
   @AppStorage(StorageKeys.liveTextSubject) private var liveTextSubject
@@ -44,6 +45,24 @@ struct SettingsGeneralView2: View {
 
           Text("Settings.General.Window.ImageRestore.Note")
             .fixedSize(horizontal: false, vertical: true)
+        }
+      }
+
+      LabeledContent("Settings.General.Layout") {
+        GroupBox {
+          HStack(alignment: .firstTextBaseline) {
+            Toggle("Settings.General.Layout.Hidden.Toolbar", isOn: $hiddenLayout.toolbar)
+
+            Toggle("Settings.General.Layout.Hidden.Cursor", isOn: $hiddenLayout.cursor)
+
+            Toggle("Settings.General.Layout.Hidden.Scroll", isOn: $hiddenLayout.scroll)
+          }
+        } label: {
+          Toggle(
+            "Settings.General.Layout.Hidden",
+            sources: [$hiddenLayout.toolbar, $hiddenLayout.cursor, $hiddenLayout.scroll],
+            isOn: \.self
+          )
         }
       }
 

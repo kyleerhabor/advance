@@ -284,7 +284,7 @@ struct ImageCollectionDetailVisibleView: View {
 
   private var primary: ImageCollectionItemImage? { images.first }
 
-  var body: some View { // Note: This is slow to type-check.
+  var body: some View {
     let analysis = images.filter(\.hasAnalysisResults)
     let hasAnalysis = !analysis.isEmpty
     let isHighlighted = analysis.allSatisfy(\.isAnalysisHighlighted)

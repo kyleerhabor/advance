@@ -33,6 +33,7 @@
 		005608352B6F24680063DCE2 /* ImageCollectionEditCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005608342B6F24680063DCE2 /* ImageCollectionEditCommands.swift */; };
 		005608372B6F24810063DCE2 /* ImageCollectionImageCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005608362B6F24810063DCE2 /* ImageCollectionImageCommands.swift */; };
 		005608392B6F24970063DCE2 /* ImageCollectionWindowCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005608382B6F24970063DCE2 /* ImageCollectionWindowCommands.swift */; };
+		00609EC42EDBEF0700A742DA /* AsyncAlgorithms in Frameworks */ = {isa = PBXBuildFile; productRef = 00609EC32EDBEF0700A742DA /* AsyncAlgorithms */; };
 		0077AF922ABB8650002E3FF4 /* Image.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0077AF912ABB8650002E3FF4 /* Image.swift */; };
 		008815F62B07DC8A00D8F3D8 /* Algorithms in Frameworks */ = {isa = PBXBuildFile; productRef = 008815F52B07DC8A00D8F3D8 /* Algorithms */; };
 		0099BE812E84C95F007B04D8 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = 0099BE802E84C95F007B04D8 /* GRDB */; };
@@ -135,6 +136,7 @@
 				0021272B2C1A26180000D996 /* Dependencies in Frameworks */,
 				00B0B27E2C55EA2300542E0D /* DequeModule in Frameworks */,
 				0021270E2C19517F0000D996 /* AdvanceData in Frameworks */,
+				00609EC42EDBEF0700A742DA /* AsyncAlgorithms in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -370,6 +372,7 @@
 				0029E59F2C79A9F3000BFBA8 /* Defaults */,
 				0099BE802E84C95F007B04D8 /* GRDB */,
 				004015DE2ED422B8001DB655 /* BigInt */,
+				00609EC32EDBEF0700A742DA /* AsyncAlgorithms */,
 			);
 			productName = Sequential;
 			productReference = 001CB5182A718D3C00DBB6FA /* Advance.app */;
@@ -409,6 +412,7 @@
 				0029E59E2C79A9F3000BFBA8 /* XCRemoteSwiftPackageReference "Defaults" */,
 				0099BE7F2E84C95F007B04D8 /* XCRemoteSwiftPackageReference "GRDB" */,
 				004015DD2ED422B7001DB655 /* XCRemoteSwiftPackageReference "BigInt" */,
+				00609EC22EDBEF0700A742DA /* XCRemoteSwiftPackageReference "swift-async-algorithms" */,
 			);
 			productRefGroup = 001CB5192A718D3C00DBB6FA /* Products */;
 			projectDirPath = "";
@@ -769,6 +773,14 @@
 				revision = 8c6f93aa37504b7b1ba3954335b5548a19fbbd82;
 			};
 		};
+		00609EC22EDBEF0700A742DA /* XCRemoteSwiftPackageReference "swift-async-algorithms" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-async-algorithms.git";
+			requirement = {
+				kind = revision;
+				revision = 042e1c4d9d19748c9c228f8d4ebc97bb1e339b0b;
+			};
+		};
 		008815F42B07DC8A00D8F3D8 /* XCRemoteSwiftPackageReference "swift-algorithms" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/apple/swift-algorithms.git";
@@ -828,6 +840,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 004015DD2ED422B7001DB655 /* XCRemoteSwiftPackageReference "BigInt" */;
 			productName = BigInt;
+		};
+		00609EC32EDBEF0700A742DA /* AsyncAlgorithms */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 00609EC22EDBEF0700A742DA /* XCRemoteSwiftPackageReference "swift-async-algorithms" */;
+			productName = AsyncAlgorithms;
 		};
 		008815F52B07DC8A00D8F3D8 /* Algorithms */ = {
 			isa = XCSwiftPackageProductDependency;

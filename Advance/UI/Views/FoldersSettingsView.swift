@@ -11,7 +11,7 @@ import SwiftUI
 
 struct FoldersSettingsView: View {
   @Environment(AppModel.self) private var app
-  @Environment(FoldersSettingsModel2.self) private var folders
+  @Environment(FoldersSettingsModel.self) private var folders
   @State private var selection = Set<FoldersSettingsItemModel.ID>()
   @State private var isFileImporterPresented = false
   private var isFinderDisabled: Bool {
@@ -85,21 +85,27 @@ struct FoldersSettingsView: View {
         await folders.remove(items: selection)
       }
     }
-    .onReceive(app.commandsPublisher) { command in
-      guard command.sceneID == .folders else {
-        return
+    .task {
+      for await command in app.commands {
+        onCommand(command)
       }
+    }
+  }
 
-      switch command.action {
-        case .open:
-          isFileImporterPresented = true
-        case .showFinder:
-          folders.showFinder(items: selection)
-        case .openFinder:
-          folders.openFinder(items: selection)
-        case .resetWindowSize:
-          unreachable()
-      }
+  func onCommand(_ command: AppModelCommand) {
+    guard command.sceneID == .folders else {
+      return
+    }
+
+    switch command.action {
+      case .open:
+        isFileImporterPresented = true
+      case .showFinder:
+        folders.showFinder(items: selection)
+      case .openFinder:
+        folders.openFinder(items: selection)
+      case .resetWindowSize:
+        unreachable()
     }
   }
 }

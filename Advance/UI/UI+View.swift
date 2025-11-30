@@ -656,7 +656,3 @@ extension KeyboardShortcut {
   static let liveTextHighlight = Self("t", modifiers: [.command, .shift])
   static let searchSettings = Self("2", modifiers: .command)
 }
-
-extension NSUserInterfaceItemIdentifier {
-  static let imagesWindowOpen = Self(rawValue: "images-window-open")
-}

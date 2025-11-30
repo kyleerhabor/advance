@@ -1,5 +1,5 @@
 //
-//  FoldersSettingsModel2.swift
+//  FoldersSettingsModel.swift
 //  Advance
 //
 //  Created by Kyle Erhabor on 11/26/25.
@@ -128,7 +128,7 @@ extension FoldersSettingsModelCopyError: LocalizedError {
 
 @Observable
 @MainActor
-final class FoldersSettingsModel2 {
+final class FoldersSettingsModel {
   var items: IdentifiedArrayOf<FoldersSettingsItemModel>
   var resolved: IdentifiedArrayOf<FoldersSettingsItemModel>
 
@@ -195,8 +195,22 @@ final class FoldersSettingsModel2 {
     )
   }
 
-  func copyFolder(to url: URL, items: Set<ImagesItemModel2.ID>) async throws(FoldersSettingsModelCopyError) {
-
+  func copy(
+    to source: URLSource,
+    items: Set<ImagesItemModel2.ID>,
+    locale: Locale,
+    resolveConflicts: Bool,
+    pathSeparator: StorageFoldersPathSeparator,
+    pathDirection: StorageFoldersPathDirection,
+  ) async throws(FoldersSettingsModelCopyError) {
+    try await _copy(
+      to: source,
+      items: items,
+      locale: locale,
+      resolveConflicts: resolveConflicts,
+      pathSeparator: pathSeparator,
+      pathDirection: pathDirection,
+    )
   }
 
   nonisolated private func load(
@@ -524,6 +538,163 @@ final class FoldersSettingsModel2 {
     }
   }
 
+  nonisolated private func copy(
+    to source: URLSource,
+    items: [ImagesItemInfo],
+    state: ImagesItemAssignment,
+    locale: Locale,
+    resolveConflicts: Bool,
+    pathSeparator: StorageFoldersPathSeparator,
+    pathDirection: StorageFoldersPathDirection,
+  ) async throws(FoldersSettingsModelCopyError) {
+    do {
+      try source.accessingSecurityScopedResource {
+        try items.forEach { item in
+          let relative: URLSource?
+
+          do {
+            relative = try state.relative(item.fileBookmark.relative)
+          } catch {
+            // TODO: Elaborate.
+            Logger.model.error("\(error)")
+
+            return
+          }
+
+          guard let bookmark = state.bookmarks[item.fileBookmark.bookmark.bookmark.rowID!] else {
+            return
+          }
+
+          let item = URLSource(url: bookmark.resolved.url, options: item.fileBookmark.bookmark.bookmark.options!)
+          try relative.accessingSecurityScopedResource {
+            try item.accessingSecurityScopedResource {
+              // I've no idea whether or not this contains characters that are invalid for file paths.
+              guard let components = FileManager.default.componentsToDisplay(
+                forPath: item.url.deletingLastPathComponent().pathString,
+              ) else {
+                // TODO: Log.
+                return
+              }
+
+              let lastPathComponent = item.url.lastPathComponent
+
+              do {
+                // TODO: Don't use lastPathComponent.
+                do {
+                  try FileManager.default.copyItem(
+                    at: item.url,
+                    to: source.url.appending(component: lastPathComponent, directoryHint: .notDirectory),
+                  )
+                } catch let error as CocoaError where error.code == .fileWriteFileExists {
+                  guard resolveConflicts else {
+                    throw error
+                  }
+
+                  // TODO: Interpolate separator
+                  //
+                  // Given that localization supports this, I think it should be safe to assume that a collection of path
+                  // components can be strung together by a common separator (in English, a space) embedding the true
+                  // separator (say, an inequality sign).
+                  let separator = switch (pathSeparator, pathDirection) {
+                    case (.inequalitySign, .leading):
+                      String(
+                        localized: "Settings.Accessory.Folders.Item.Path.Separator.InequalitySign.LeftToLeft",
+                        locale: locale,
+                      )
+                    case (.inequalitySign, .trailing):
+                      String(
+                        localized: "Settings.Accessory.Folders.Item.Path.Separator.InequalitySign.RightToLeft",
+                        locale: locale,
+                      )
+                    case (.singlePointingAngleQuotationMark, .leading):
+                      String(
+                        localized: "Settings.Accessory.Folders.Item.Path.Separator.SinglePointingAngleQuotationMark.LeftToRight",
+                        locale: locale,
+                      )
+                    case (.singlePointingAngleQuotationMark, .trailing):
+                      String(
+                        localized: "Settings.Accessory.Folders.Item.Path.Separator.SinglePointingAngleQuotationMark.RightToLeft",
+                        locale: locale,
+                      )
+                    case (.blackPointingTriangle, .leading):
+                      String(
+                        localized: "Settings.Accessory.Folders.Item.Path.Separator.BlackPointingTriangle.LeftToRight",
+                        locale: locale,
+                      )
+                    case (.blackPointingTriangle, .trailing):
+                      String(
+                        localized: "Settings.Accessory.Folders.Item.Path.Separator.BlackPointingTriangle.RightToLeft",
+                        locale: locale,
+                      )
+                    case (.blackPointingSmallTriangle, .leading):
+                      String(
+                        localized: "Settings.Accessory.Folders.Item.Path.Separator.BlackPointingSmallTriangle.LeftToRight",
+                        locale: locale,
+                      )
+                    case (.blackPointingSmallTriangle, .trailing):
+                      String(
+                        localized: "Settings.Accessory.Folders.Item.Path.Separator.BlackPointingSmallTriangle.RightToLeft",
+                        locale: locale,
+                      )
+                  }
+
+                  let pathComponents = components
+                    .reversed()
+                    .reductions(into: []) { $0.append($1) }
+                    .dropFirst() // The initial reduction (an empty array)
+
+                  for pathComponents in pathComponents {
+                    let path = pathComponents.joined(separator: separator)
+                    let component = String(
+                      localized: "Settings.Accessory.Folders.Item.Copy.Name.\(item.url.deletingPathExtension().lastPathComponent).Path.\(path)",
+                      locale: locale,
+                    )
+
+                    do {
+                      try FileManager.default.copyItem(
+                        at: item.url,
+                        to: source.url
+                          .appending(component: component, directoryHint: .notDirectory)
+                          .appendingPathExtension(item.url.pathExtension),
+                      )
+                    } catch let error as CocoaError where error.code == .fileWriteFileExists {
+                      continue
+                    } catch {
+                      // TODO: Elaborate.
+                      Logger.model.error("\(error)")
+
+                      return
+                    }
+
+                    return
+                  }
+
+                  throw error
+                } catch {
+                  // TODO: Elaborate.
+                  Logger.model.error("\(error)")
+
+                  return
+                }
+              } catch {
+                throw FoldersSettingsModelCopyError(
+                  locale: locale,
+                  type: .fileExists(FoldersSettingsModelCopyFileExistsError(
+                    source: lastPathComponent,
+                    destination: source.url.lastPathComponent,
+                  )),
+                )
+              }
+            }
+          }
+        }
+      }
+    } catch {
+      // I don't see why Swift thinks this is any Error.
+      throw error as! FoldersSettingsModelCopyError
+    }
+  }
+
   nonisolated private func _copy(
     to folder: FoldersSettingsItemModel.ID,
     items: Set<ImagesItemModel2.ID>,
@@ -654,155 +825,110 @@ final class FoldersSettingsModel2 {
       }
     }
 
-    let source = URLSource(url: bookmark.resolved.url, options: options)
+    try await copy(
+      to: URLSource(url: bookmark.resolved.url, options: options),
+      items: items,
+      state: state2,
+      locale: locale,
+      resolveConflicts: resolveConflicts,
+      pathSeparator: pathSeparator,
+      pathDirection: pathDirection,
+    )
+  }
+
+  nonisolated private func _copy(
+    to source: URLSource,
+    items: Set<ImagesItemModel2.ID>,
+    locale: Locale,
+    resolveConflicts: Bool,
+    pathSeparator: StorageFoldersPathSeparator,
+    pathDirection: StorageFoldersPathDirection,
+  ) async throws(FoldersSettingsModelCopyError) {
+    let connection: DatabasePool
 
     do {
-      try source.accessingSecurityScopedResource {
-        try items.forEach { item in
-          let relative: URLSource?
+      connection = try await databaseConnection()
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
 
-          do {
-            relative = try state2.relative(item.fileBookmark.relative)
-          } catch {
-            // TODO: Elaborate.
-            Logger.model.error("\(error)")
+      return
+    }
 
-            return
-          }
+    // TODO: De-duplicate.
+    let items2: [FoldersSettingsModelCopyImagesItemInfo]
 
-          guard let bookmark = state2.bookmarks[item.fileBookmark.bookmark.bookmark.rowID!] else {
-            return
-          }
-
-          let item = URLSource(url: bookmark.resolved.url, options: item.fileBookmark.bookmark.bookmark.options!)
-          try relative.accessingSecurityScopedResource {
-            try item.accessingSecurityScopedResource {
-              // I've no idea whether or not this contains characters that are invalid for file paths.
-              guard let components = FileManager.default.componentsToDisplay(
-                forPath: item.url.deletingLastPathComponent().pathString,
-              ) else {
-                // TODO: Log.
-                return
-              }
-
-              let lastPathComponent = item.url.lastPathComponent
-
-              do {
-                // TODO: Don't use lastPathComponent.
-                do {
-                  try FileManager.default.copyItem(
-                    at: item.url,
-                    to: source.url.appending(component: lastPathComponent, directoryHint: .notDirectory),
-                  )
-                } catch let error as CocoaError where error.code == .fileWriteFileExists {
-                  guard resolveConflicts else {
-                    // TODO: Elaborate.
-                    Logger.model.error("\(error)")
-
-                    return
-                  }
-
-                  // TODO: Interpolate separator
-                  //
-                  // Given that localization supports this, I think it should be safe to assume that a collection of path
-                  // components can be strung together by a common separator (in English, a space) embedding the true
-                  // separator (say, an inequality sign).
-                  let separator = switch (pathSeparator, pathDirection) {
-                    case (.inequalitySign, .leading):
-                      String(
-                        localized: "Settings.Accessory.Folders.Item.Path.Separator.InequalitySign.LeftToLeft",
-                        locale: locale,
-                      )
-                    case (.inequalitySign, .trailing):
-                      String(
-                        localized: "Settings.Accessory.Folders.Item.Path.Separator.InequalitySign.RightToLeft",
-                        locale: locale,
-                      )
-                    case (.singlePointingAngleQuotationMark, .leading):
-                      String(
-                        localized: "Settings.Accessory.Folders.Item.Path.Separator.SinglePointingAngleQuotationMark.LeftToRight",
-                        locale: locale,
-                      )
-                    case (.singlePointingAngleQuotationMark, .trailing):
-                      String(
-                        localized: "Settings.Accessory.Folders.Item.Path.Separator.SinglePointingAngleQuotationMark.RightToLeft",
-                        locale: locale,
-                      )
-                    case (.blackPointingTriangle, .leading):
-                      String(
-                        localized: "Settings.Accessory.Folders.Item.Path.Separator.BlackPointingTriangle.LeftToRight",
-                        locale: locale,
-                      )
-                    case (.blackPointingTriangle, .trailing):
-                      String(
-                        localized: "Settings.Accessory.Folders.Item.Path.Separator.BlackPointingTriangle.RightToLeft",
-                        locale: locale,
-                      )
-                    case (.blackPointingSmallTriangle, .leading):
-                      String(
-                        localized: "Settings.Accessory.Folders.Item.Path.Separator.BlackPointingSmallTriangle.LeftToRight",
-                        locale: locale,
-                      )
-                    case (.blackPointingSmallTriangle, .trailing):
-                      String(
-                        localized: "Settings.Accessory.Folders.Item.Path.Separator.BlackPointingSmallTriangle.RightToLeft",
-                        locale: locale,
-                      )
-                  }
-
-                  let pathComponents = components
-                    .reversed()
-                    .reductions(into: []) { $0.append($1) }
-                    .dropFirst() // The initial reduction (an empty array)
-
-                  for pathComponents in pathComponents {
-                    let path = pathComponents.joined(separator: separator)
-                    let component = String(
-                      localized: "Settings.Accessory.Folders.Item.Copy.Name.\(item.url.deletingPathExtension().lastPathComponent).Path.\(path)",
-                      locale: locale,
-                    )
-
-                    do {
-                      try FileManager.default.copyItem(
-                        at: item.url,
-                        to: source.url
-                          .appending(component: component, directoryHint: .notDirectory)
-                          .appendingPathExtension(item.url.pathExtension),
-                      )
-                    } catch let error as CocoaError where error.code == .fileWriteFileExists {
-                      continue
-                    } catch {
-                      // TODO: Elaborate.
-                      Logger.model.error("\(error)")
-
-                      return
-                    }
-
-                    return
-                  }
-
-                  throw error
-                } catch {
-                  // TODO: Elaborate.
-                  Logger.model.error("\(error)")
-
-                  return
-                }
-              } catch {
-                throw FoldersSettingsModelCopyError(
-                  locale: locale,
-                  type: .fileExists(FoldersSettingsModelCopyFileExistsError(
-                    source: lastPathComponent,
-                    destination: source.url.lastPathComponent,
-                  )),
-                )
-              }
-            }
-          }
-        }
+    do {
+      items2 = try await connection.read { db in
+        try ImagesItemRecord
+          .select(.rowID)
+          .filter(keys: items)
+          .including(
+            required: ImagesItemRecord.fileBookmark
+              .forKey(FoldersSettingsModelCopyImagesItemInfo.CodingKeys.fileBookmark)
+              .select(.rowID)
+              .including(
+                required: FileBookmarkRecord.bookmark
+                  .forKey(FoldersSettingsModelCopyImagesItemFileBookmarkInfo.CodingKeys.bookmark)
+                  .select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options),
+              )
+              .including(
+                optional: FileBookmarkRecord.relative
+                  .forKey(FoldersSettingsModelCopyImagesItemFileBookmarkInfo.CodingKeys.relative)
+                  .select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options),
+              ),
+          )
+          .asRequest(of: FoldersSettingsModelCopyImagesItemInfo.self)
+          .fetchAll(db)
       }
     } catch {
-      throw error as! FoldersSettingsModelCopyError
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return
     }
+
+    let items3 = items2.map { item in
+      ImagesItemInfo(
+        item: item.item,
+        fileBookmark: ImagesItemFileBookmarkInfo(
+          fileBookmark: item.fileBookmark.fileBookmark,
+          bookmark: ImagesItemFileBookmarkBookmarkInfo(
+            bookmark: item.fileBookmark.bookmark.bookmark,
+          ),
+          relative: item.fileBookmark.relative.map { relative in
+            ImagesItemFileBookmarkRelativeInfo(
+              relative: relative.relative,
+            )
+          },
+        ),
+      )
+    }
+
+    var state2 = ImagesItemAssignment()
+    await state2.assign(items: items3)
+
+    if !state2.isSatisified(with: items3) {
+      do {
+        try await connection.write { [state2] db in
+          try state2.write(db, items: items3)
+        }
+      } catch {
+        // TODO: Elaborate.
+        Logger.model.error("\(error)")
+
+        return
+      }
+    }
+
+    try await copy(
+      to: source,
+      items: items3,
+      state: state2,
+      locale: locale,
+      resolveConflicts: resolveConflicts,
+      pathSeparator: pathSeparator,
+      pathDirection: pathDirection,
+    )
   }
 }

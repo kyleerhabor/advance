@@ -16,7 +16,7 @@ struct AdvanceApp: App {
   @NSApplicationDelegateAdaptor private var delegate: AppDelegate2
   @State private var app = AppModel()
   @State private var search = SearchSettingsModel()
-  @State private var folders = FoldersSettingsModel2()
+  @State private var folders = FoldersSettingsModel()
 
   var body: some Scene {
     AppScene()

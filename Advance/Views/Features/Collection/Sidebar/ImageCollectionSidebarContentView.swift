@@ -6,7 +6,6 @@
 //
 
 import Defaults
-import Combine
 import QuickLook
 import OSLog
 import SwiftUI
@@ -255,7 +254,6 @@ struct ImageCollectionSidebarContentView: View {
 //          .padding(8)
 //      }
 //    }
-//    .copyable(urls(from: selection))
 //    // TODO: Figure out how to extract this.
 //    //
 //    // I tried moving this into a ViewModifier and View, but the passed binding for the selected item wouldn't always

@@ -28,13 +28,18 @@ struct ImagesView2: View {
   @Environment(AppModel.self) private var app
   @Environment(Windowed.self) private var windowed
   @Environment(ImagesModel.self) private var images
-  @Environment(FoldersSettingsModel2.self) private var folders
+  @Environment(FoldersSettingsModel.self) private var folders
+  @Environment(\.locale) private var locale
   @SceneStorage(StorageKeys.columnVisibility) private var columnVisibilityStorage
   @AppStorage(StorageKeys.importHiddenFiles) private var importHiddenFiles
   @AppStorage(StorageKeys.importSubdirectories) private var importSubdirectories
+  @AppStorage(StorageKeys.resolveConflicts) private var resolveConflicts
+  @AppStorage(StorageKeys.foldersPathSeparator) private var foldersPathSeparator
+  @AppStorage(StorageKeys.foldersPathDirection) private var foldersPathDirection
   @State private var columnVisibility = StorageKeys.columnVisibility.defaultValue.columnVisibility
   @State private var selection = Set<ImagesItemModel2.ID>()
   @State private var isFileImporterPresented = false
+  @State private var copyFolderSelection = Set<ImagesItemModel2.ID>()
   @State private var isCopyFolderFileImporterPresented = false
   @State private var copyFolderError: FoldersSettingsModelCopyError?
   @State private var isCopyFolderErrorPresented = false
@@ -75,10 +80,11 @@ struct ImagesView2: View {
             }
 
             ImagesSidebarItemCopyFolderView(
+              selection: $copyFolderSelection,
               isFileImporterPresented: $isCopyFolderFileImporterPresented,
               error: $copyFolderError,
               isErrorPresented: $isCopyFolderErrorPresented,
-              selection: ids,
+              items: ids,
             )
           }
         }
@@ -152,12 +158,17 @@ struct ImagesView2: View {
 
       Task {
         do {
-          try await folders.copyFolder(to: url, items: selection)
+          try await folders.copy(
+            to: URLSource(url: url, options: [.withSecurityScope]),
+            items: copyFolderSelection,
+            locale: locale,
+            resolveConflicts: resolveConflicts,
+            pathSeparator: foldersPathSeparator,
+            pathDirection: foldersPathDirection,
+          )
         } catch let error as FoldersSettingsModelCopyError {
           self.copyFolderError = error
           self.isCopyFolderErrorPresented = true
-        } catch {
-          unreachable()
         }
       }
     }
@@ -169,31 +180,37 @@ struct ImagesView2: View {
 
       await images.load2()
     }
-    .onReceive(app.commandsPublisher) { command in
-      guard command.sceneID == sceneID else {
-        return
-      }
-
-      switch command.action {
-        case .open:
-          guard images.hasLoadedNoImages else {
-            app.isImagesFileImporterPresented = true
-
-            return
-          }
-
-          isFileImporterPresented = true
-        case .showFinder:
-          images.showFinder(items: selection)
-        case .openFinder:
-          // If there are many items, supporting this would be a disaster.
-          unreachable()
-        case .resetWindowSize:
-          windowed.window?.setContentSize(ImagesScene.defaultSize)
+    .task(id: images) {
+      for await command in app.commands {
+        onCommand(command)
       }
     }
     .onChange(of: columnVisibility) {
       columnVisibilityStorage = StorageColumnVisibility(columnVisibility)
+    }
+  }
+
+  func onCommand(_ command: AppModelCommand) {
+    guard command.sceneID == sceneID else {
+      return
+    }
+
+    switch command.action {
+      case .open:
+        guard images.hasLoadedNoImages else {
+          app.isImagesFileImporterPresented = true
+
+          return
+        }
+
+        isFileImporterPresented = true
+      case .showFinder:
+        images.showFinder(items: selection)
+      case .openFinder:
+        // If there are many items, supporting this would be a disaster.
+        unreachable()
+      case .resetWindowSize:
+        windowed.window?.setContentSize(ImagesScene.defaultSize)
     }
   }
 }

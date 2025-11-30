@@ -12,7 +12,7 @@ struct SettingsScene: Scene {
     Settings {
       SettingsView2()
         .windowed()
-        .frame(width: 576) // 512 - 640
+        .frame(width: 600)
     }
     .windowResizability(.contentSize)
   }

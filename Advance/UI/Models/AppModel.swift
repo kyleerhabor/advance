@@ -6,7 +6,7 @@
 //
 
 import AdvanceCore
-import Combine
+import AsyncAlgorithms
 import Observation
 
 enum AppModelCommandAction {
@@ -34,14 +34,11 @@ struct AppModelCommand {
 @Observable
 @MainActor
 final class AppModel {
-//  let commands: any SubjectPublisher<AppModelCommand, Never>
-  let commandsSubject: any Subject<AppModelCommand, Never>
-  let commandsPublisher: AnyPublisher<AppModelCommand, Never>
+  let commands: AsyncChannel<AppModelCommand>
   var isImagesFileImporterPresented: Bool
 
   init() {
-    self.commandsSubject = PassthroughSubject()
-    self.commandsPublisher = commandsSubject.eraseToAnyPublisher()
+    self.commands = AsyncChannel()
     self.isImagesFileImporterPresented = false
   }
 

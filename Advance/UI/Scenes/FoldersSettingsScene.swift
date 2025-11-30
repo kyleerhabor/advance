@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct FoldersSettingsScene: Scene {
-  @Environment(FoldersSettingsModel2.self) private var folders
+  @Environment(FoldersSettingsModel.self) private var folders
   @Environment(\.locale) private var locale
   @State private var task: Task<Void, Never>?
   static let id = "folders"

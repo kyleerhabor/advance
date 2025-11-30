@@ -90,40 +90,6 @@ struct ImagesSidebarImportView: View {
       }
       .buttonStyle(.plain)
 //      .frame(maxWidth: .infinity, maxHeight: .infinity)
-//      .fileImporter(isPresented: $isFileImporterPresented, allowedContentTypes: imagesContentTypes, allowsMultipleSelection: true) { result in
-//        let urls: [URL]
-//
-//        switch result {
-//          case .success(let value):
-//            urls = value
-//          case .failure(let error):
-//            Logger.ui.error("\(error)")
-//
-//            return
-//        }
-//
-//        Task {
-//          do {
-//            try await images.submit(
-//              items: await Self.source(
-//                urls: urls,
-//                options: StorageKeys.directoryEnumerationOptions(
-//                  importHiddenFiles: importHiddenFiles,
-//                  importSubdirectories: importSubdirectories,
-//                ),
-//              ),
-//            )
-//          } catch {
-//            Logger.model.error("\(error)")
-//          }
-//        }
-//      }
-      .fileDialogCustomizationID(NSUserInterfaceItemIdentifier.imagesWindowOpen.rawValue)
-//      .dropDestination(for: ImagesItemTransfer.self) { items, _ in
-//        Logger.ui.info("\(items)")
-//
-//        return true
-//      }
     }
   }
 }

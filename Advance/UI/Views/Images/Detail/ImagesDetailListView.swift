@@ -80,7 +80,7 @@ struct ImagesDetailListView: View {
   @Environment(\.isWindowFullScreen) private var isWindowFullScreen
   @Environment(\.isWindowLiveResizeActive) private var isWindowLiveResizeActive
   @AppStorage(StorageKeys.restoreLastImage) private var restoreLastImage
-  @AppStorage(StorageKeys.hiddenLayoutStyles) private var hiddenLayoutStyles
+  @AppStorage(StorageKeys.hiddenLayout) private var hiddenLayout
   @SceneStorage(StorageKeys.columnVisibility) private var columnVisibility
   @State private var model = ImagesDetailListViewModel()
 
@@ -153,21 +153,21 @@ struct ImagesDetailListView: View {
         }
       }
       .toolbarVisible(
-        !hiddenLayoutStyles.toolbar
+        !hiddenLayout.toolbar
         || isWindowFullScreen
         || columnVisibility.columnVisibility != .detailOnly
         || !model.isActive
 //        || !(model.isHovering && model.isActive)
       )
       .cursorVisible(
-        !hiddenLayoutStyles.cursor
+        !hiddenLayout.cursor
         || columnVisibility.columnVisibility != .detailOnly
         || !model.isActive
 //        || !(model.isHovering && model.isActive)
       )
       // TODO: Document rationale for not hiding on scroll.
       .scrollIndicators(
-        hiddenLayoutStyles.scroll && columnVisibility.columnVisibility == .detailOnly
+        hiddenLayout.scroll && columnVisibility.columnVisibility == .detailOnly
           ? .hidden
           : .automatic,
       )
