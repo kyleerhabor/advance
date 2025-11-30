@@ -40,14 +40,6 @@ extension Bool {
   }
 }
 
-extension Int {
-  public func times(_ body: () -> Void) {
-    for _ in .zero..<self {
-      body()
-    }
-  }
-}
-
 extension Numeric {
   public func incremented() -> Self {
     self + 1
@@ -55,6 +47,14 @@ extension Numeric {
 
   public func decremented() -> Self {
     self - 1
+  }
+}
+
+extension BinaryInteger {
+  public func times(_ body: () -> Void) {
+    for _ in stride(from: Self.zero, to: self, by: 1) {
+      body()
+    }
   }
 }
 

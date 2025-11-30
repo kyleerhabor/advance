@@ -29,9 +29,7 @@ struct AppCommands: Commands {
             return
           }
 
-          Task {
-            await app.commands.send(AppModelCommand(action: .open, sceneID: scene.id))
-          }
+          app.commandsSubject.send(AppModelCommand(action: .open, sceneID: scene.id))
         }
         .keyboardShortcut(.open)
       }
@@ -75,9 +73,7 @@ struct AppCommands: Commands {
             return
           }
 
-          Task {
-            await app.commands.send(AppModelCommand(action: .showFinder, sceneID: scene.id))
-          }
+          app.commandsSubject.send(AppModelCommand(action: .showFinder, sceneID: scene.id))
         }
         .keyboardShortcut(.showFinder)
         .disabled(app.isShowFinderDisabled(for: scene))
@@ -87,9 +83,7 @@ struct AppCommands: Commands {
             return
           }
 
-          Task {
-            await app.commands.send(AppModelCommand(action: .openFinder, sceneID: scene.id))
-          }
+          app.commandsSubject.send(AppModelCommand(action: .openFinder, sceneID: scene.id))
         }
         .keyboardShortcut(.openFinder)
         .disabled(app.isOpenFinderDisabled(for: scene))
@@ -103,9 +97,7 @@ struct AppCommands: Commands {
             return
           }
 
-          Task {
-            await app.commands.send(AppModelCommand(action: .resetWindowSize, sceneID: scene.id))
-          }
+          app.commandsSubject.send(AppModelCommand(action: .resetWindowSize, sceneID: scene.id))
         }
         .keyboardShortcut(.resetWindowSize)
         .disabled(app.isResetWindowSizeDisabled(for: scene))

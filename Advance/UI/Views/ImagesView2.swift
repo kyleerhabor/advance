@@ -180,10 +180,8 @@ struct ImagesView2: View {
 
       await images.load2()
     }
-    .task(id: images) {
-      for await command in app.commands {
-        onCommand(command)
-      }
+    .onReceive(app.commandsPublisher) { command in
+      onCommand(command)
     }
     .onChange(of: columnVisibility) {
       columnVisibilityStorage = StorageColumnVisibility(columnVisibility)

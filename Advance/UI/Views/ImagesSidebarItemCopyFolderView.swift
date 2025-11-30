@@ -50,7 +50,9 @@ struct ImagesSidebarItemCopyFolderView: View {
             content
               .modifierKeyAlternate(.option) {
                 Button("Finder.Item.\(item.path).Open") {
-                  folders.openFinder(item: item)
+                  Task {
+                    await folders.openFinder(item: item)
+                  }
                 }
               }
           }

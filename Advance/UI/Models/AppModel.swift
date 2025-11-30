@@ -6,7 +6,7 @@
 //
 
 import AdvanceCore
-import AsyncAlgorithms
+import Combine
 import Observation
 
 enum AppModelCommandAction {
@@ -34,11 +34,17 @@ struct AppModelCommand {
 @Observable
 @MainActor
 final class AppModel {
-  let commands: AsyncChannel<AppModelCommand>
+  // Swift Async Algorithms has AsyncSequence.share(bufferingPolicy:) for consuming from many tasks, but because it uses
+  // AsyncSequence's Failure generic, it requires at least macOS 15.
+  //
+  //   'Failure' is only available in macOS 15.0 or newer
+  let commandsSubject: any Subject<AppModelCommand, Never>
+  let commandsPublisher: AnyPublisher<AppModelCommand, Never>
   var isImagesFileImporterPresented: Bool
 
   init() {
-    self.commands = AsyncChannel()
+    self.commandsSubject = PassthroughSubject()
+    self.commandsPublisher = commandsSubject.eraseToAnyPublisher()
     self.isImagesFileImporterPresented = false
   }
 
@@ -47,7 +53,7 @@ final class AppModel {
   }
 
   func isOpenFinderDisabled(for scene: AppModelCommandScene?) -> Bool {
-    scene?.disablesOpenFinder ?? false
+    scene?.disablesOpenFinder ?? true
   }
 
   func isResetWindowSizeDisabled(for scene: AppModelCommandScene?) -> Bool {

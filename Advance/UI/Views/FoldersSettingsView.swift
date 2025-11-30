@@ -15,7 +15,7 @@ struct FoldersSettingsView: View {
   @State private var selection = Set<FoldersSettingsItemModel.ID>()
   @State private var isFileImporterPresented = false
   private var isFinderDisabled: Bool {
-    folders.isInvalidFinderSelection(of: selection)
+    folders.isInvalidSelection(of: selection)
   }
 
   var body: some View {
@@ -85,14 +85,14 @@ struct FoldersSettingsView: View {
         await folders.remove(items: selection)
       }
     }
-    .task {
-      for await command in app.commands {
-        onCommand(command)
+    .onReceive(app.commandsPublisher) { command in
+      Task {
+        await onCommand(command)
       }
     }
   }
 
-  func onCommand(_ command: AppModelCommand) {
+  func onCommand(_ command: AppModelCommand) async {
     guard command.sceneID == .folders else {
       return
     }
@@ -101,9 +101,9 @@ struct FoldersSettingsView: View {
       case .open:
         isFileImporterPresented = true
       case .showFinder:
-        folders.showFinder(items: selection)
+        await folders.showFinder(items: selection)
       case .openFinder:
-        folders.openFinder(items: selection)
+        await folders.openFinder(items: selection)
       case .resetWindowSize:
         unreachable()
     }
