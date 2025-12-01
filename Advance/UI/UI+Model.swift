@@ -11,6 +11,43 @@ import Foundation
 import GRDB
 import OSLog
 
+enum BookmarkStatus {
+  case old, current, new
+}
+
+func bookmark(data: Data, assigned: AssignedBookmark?) -> BookmarkStatus {
+  // If the bookmark wasn't assigned, return the same bookmark data to notify observers that the state of the underlying
+  // resource has changed (e.g., a file we think is available is no longer available).
+  guard let assigned else {
+    return .old
+  }
+
+  // If the bookmark was resolved and is not stale, return to signal that the state of the underlying resource hasn't
+  // changed (e.g., a file we think is available is still available).
+  guard assigned.resolved.isStale else {
+    return .current
+  }
+
+  // If the bookmark was resolved and is stale, return the new bookmark data to notify observers that the state of the
+  // underlying resource has changed (e.g., a file we think is available is still available, but has new data
+  // represent it).
+  return .new
+}
+
+func write(_ db: Database, bookmark: BookmarkRecord, assigned: AssignedBookmark?) throws {
+  let id = bookmark.rowID!
+
+  switch Advance.bookmark(data: bookmark.data!, assigned: assigned) {
+    case .old:
+      try db.notifyChanges(in: BookmarkRecord.all())
+    case .current:
+      break
+    case .new:
+      let bookmark = BookmarkRecord(rowID: id, data: assigned?.data, options: nil)
+      try bookmark.update(db, columns: [BookmarkRecord.Columns.data])
+  }
+}
+
 extension Logger {
   static let model = Self(subsystem: Bundle.appID, category: "Model")
 }
@@ -56,7 +93,7 @@ extension AssignedBookmark {
       // resolution will fail while prompting the user to unlock the volume. Now, we're not a file managing app, so we
       // don't need to invest in making that work.
       //
-      // Note there is also a .withoutUI option, but I haven't checked whether or not it performs the same action.
+      // Note there is also a withoutUI option, but I haven't checked whether or not it performs the same action.
       options: URL.BookmarkResolutionOptions(options).union(.withoutMounting),
       relativeTo: nil,
     ) { url in
@@ -78,7 +115,6 @@ struct ImagesItemAssignmentTaskResult {
 enum ImagesItemAssignmentError: Error {
   case relativeUnresolved
 }
-
 
 struct ImagesItemAssignment {
   var bookmarks: [RowID: AssignedBookmark]
@@ -201,25 +237,13 @@ struct ImagesItemAssignment {
       .compactMap(\.fileBookmark.relative)
       .uniqued(on: \.relative.rowID)
       .forEach { relative in
-        let rowID = relative.relative.rowID!
-
-        guard let assigned = bookmarks[rowID] else {
-          return
-        }
-
-        let bookmark = BookmarkRecord(rowID: rowID, data: assigned.data, options: nil)
-        try bookmark.update(db, columns: [BookmarkRecord.Columns.data])
+        let item = relative.relative
+        try Advance.write(db, bookmark: item, assigned: bookmarks[item.rowID!])
       }
 
     try items.forEach { item in
-      let rowID = item.fileBookmark.bookmark.bookmark.rowID!
-
-      guard let assigned = bookmarks[rowID] else {
-        return
-      }
-
-      let bookmark = BookmarkRecord(rowID: rowID, data: assigned.data, options: nil)
-      try bookmark.update(db, columns: [BookmarkRecord.Columns.data])
+      let item = item.fileBookmark.bookmark.bookmark
+      try Advance.write(db, bookmark: item, assigned: bookmarks[item.rowID!])
     }
   }
 

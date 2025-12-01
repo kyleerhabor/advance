@@ -88,7 +88,7 @@ struct FoldersSettingsModelStoreItem {
 
 struct FoldersSettingsModelCopyState1 {
   let folder: FoldersSettingsModelCopyFolderInfo?
-  let items: [FoldersSettingsModelCopyImagesItemInfo]
+  let items: [RowID: FoldersSettingsModelCopyImagesItemInfo]
 }
 
 struct FoldersSettingsModelCopyFileExistsError {
@@ -123,11 +123,39 @@ extension FoldersSettingsModelCopyError: LocalizedError {
   }
 }
 
-struct FoldersSettingsModelShowFinderState {
+struct FoldersSettingsModelLoadState1Item {
+  let folder: FoldersSettingsModelLoadFolderInfo
+  let bookmark: AssignedBookmark?
+}
+
+struct FoldersSettingsModelLoadState2Item {
+  let id: RowID
+  let isResolved: Bool
+  let icon: NSImage
+  let pathComponents: [String]
+}
+
+struct FoldersSettingsModelLoadState3Item {
+  let id: RowID
+  let isResolved: Bool
+  let icon: NSImage
+  let path: AttributedString
+  let helpPath: AttributedString
+}
+
+struct FoldersSettingsModelShowFinderState1 {
+  let folders: [RowID: FoldersSettingsModelShowFinderFolderInfo]
+}
+
+struct FoldersSettingsModelShowFinderState2 {
   var bookmarks: [RowID: AssignedBookmark]
 }
 
-struct FoldersSettingsModelOpenFinderState {
+struct FoldersSettingsModelOpenFinderState1 {
+  let folders: [RowID: FoldersSettingsModelOpenFinderFolderInfo]
+}
+
+struct FoldersSettingsModelOpenFinderState2 {
   var bookmarks: [RowID: AssignedBookmark]
 }
 
@@ -216,37 +244,26 @@ final class FoldersSettingsModel {
     )
   }
 
+  nonisolated private func separator(from separator: AttributedString) -> AttributedString {
+    var separator = separator
+    separator.foregroundColor = .tertiaryLabelColor
+
+    return separator
+  }
+
+  nonisolated private func path(components: [AttributedString], separator: AttributedString) -> AttributedString {
+    components
+      .interspersed(with: separator)
+      .reduce(AttributedString(), +)
+  }
+
   nonisolated private func load(
     connection: DatabasePool,
     folders: [FoldersSettingsModelLoadFolderInfo],
     locale: Locale,
   ) async {
-    struct State1ItemBookmark {
-      let bookmark: AssignedBookmark
-    }
-
-    struct State1Item {
-      let folder: FoldersSettingsModelLoadFolderInfo
-      let bookmark: State1ItemBookmark?
-    }
-
-    struct State2Item {
-      let folder: FoldersSettingsModelLoadFolderInfo
-      let isResolved: Bool
-      let icon: NSImage
-      let path: AttributedString
-      let helpPath: AttributedString
-    }
-
-    struct State2ItemItem {
-      let folder: FoldersSettingsModelLoadFolderInfo
-      let isResolved: Bool
-      let icon: NSImage
-      let pathComponents: [String]
-    }
-
     let items = folders.map { folder in
-      let bookmark: AssignedBookmark
+      let bookmark: AssignedBookmark?
 
       do {
         bookmark = try AssignedBookmark(
@@ -254,19 +271,17 @@ final class FoldersSettingsModel {
           options: folder.fileBookmark.bookmark.bookmark.options!,
           relativeTo: nil,
         )
-      } catch let error as CocoaError where error.code == .fileNoSuchFile {
-        return State1Item(folder: folder, bookmark: nil)
       } catch {
         // TODO: Elaborate.
         Logger.model.error("\(error)")
 
-        return State1Item(folder: folder, bookmark: nil)
+        bookmark = nil
       }
 
-      return State1Item(folder: folder, bookmark: State1ItemBookmark(bookmark: bookmark))
+      return FoldersSettingsModelLoadState1Item(folder: folder, bookmark: bookmark)
     }
 
-    guard items.compactMap(\.bookmark).allSatisfy(\.bookmark.resolved.isStale.inverted) else {
+    guard items.compactMap(\.bookmark).allSatisfy(\.resolved.isStale.inverted) else {
       do {
         try await connection.write { db in
           try items.forEach { item in
@@ -276,7 +291,7 @@ final class FoldersSettingsModel {
 
             var bookmark2 = BookmarkRecord(
               rowID: item.folder.fileBookmark.bookmark.bookmark.rowID,
-              data: bookmark.bookmark.data,
+              data: bookmark.data,
               options: item.folder.fileBookmark.bookmark.bookmark.options,
             )
 
@@ -293,24 +308,23 @@ final class FoldersSettingsModel {
       return
     }
 
-    // TODO: De-duplicate.
-    var separator = AttributedString(localized: "Settings.Accessory.Folders.Item.Path.Separator", locale: locale)
-    separator.foregroundColor = .tertiaryLabelColor
+    let separator = self.separator(from: AttributedString(
+      localized: "Settings.Accessory.Folders.Item.Path.Separator",
+      locale: locale,
+    ))
 
-    var helpSeparator = AttributedString(
+    let helpSeparator = self.separator(from: AttributedString(
       localized: "Settings.Accessory.Folders.Item.Path.Help.Separator",
       locale: locale,
-    )
-
-    helpSeparator.foregroundColor = .tertiaryLabelColor
+    ))
 
     let items2 = items
       .map { item in
         let defaultPathComponents = item.folder.pathComponents.map(\.pathComponent.component!)
 
         guard let bookmark = item.bookmark else {
-          return State2ItemItem(
-            folder: item.folder,
+          return FoldersSettingsModelLoadState2Item(
+            id: item.folder.folder.rowID!,
             isResolved: false,
             icon: NSImage(),
             pathComponents: defaultPathComponents,
@@ -318,16 +332,16 @@ final class FoldersSettingsModel {
         }
 
         let source = URLSource(
-          url: bookmark.bookmark.resolved.url,
+          url: bookmark.resolved.url,
           options: item.folder.fileBookmark.bookmark.bookmark.options!,
         )
 
         let item = source.accessingSecurityScopedResource {
-          State2ItemItem(
-            folder: item.folder,
+          FoldersSettingsModelLoadState2Item(
+            id: item.folder.folder.rowID!,
             isResolved: true,
-            icon: NSWorkspace.shared.icon(forFileAt: bookmark.bookmark.resolved.url),
-            pathComponents: FileManager.default.componentsToDisplay(forPath: bookmark.bookmark.resolved.url.pathString)
+            icon: NSWorkspace.shared.icon(forFileAt: bookmark.resolved.url),
+            pathComponents: FileManager.default.componentsToDisplay(forPath: bookmark.resolved.url.pathString)
               ?? defaultPathComponents,
           )
         }
@@ -336,18 +350,12 @@ final class FoldersSettingsModel {
       }
       .finderSort(by: \.pathComponents)
       .map { item in
-        let path = item.pathComponents
-          .map { AttributedString($0) }
-          .interspersed(with: separator)
-          .reduce(AttributedString(), +)
+        let pathComponents = item.pathComponents.map { AttributedString($0) }
+        let path = self.path(components: pathComponents, separator: separator)
+        let helpPath = self.path(components: pathComponents, separator: helpSeparator)
 
-        let helpPath = item.pathComponents
-          .map { AttributedString($0) }
-          .interspersed(with: helpSeparator)
-          .reduce(AttributedString(), +)
-
-        return State2Item(
-          folder: item.folder,
+        return FoldersSettingsModelLoadState3Item(
+          id: item.id,
           isResolved: item.isResolved,
           icon: item.icon,
           path: path,
@@ -358,11 +366,9 @@ final class FoldersSettingsModel {
     Task { @MainActor in
       self.items = IdentifiedArray(
         uniqueElements: items2.map { item in
-          let id = item.folder.folder.rowID!
-
-          guard let model = self.items[id: id] else {
+          guard let model = self.items[id: item.id] else {
             let model = FoldersSettingsItemModel(
-              id: id,
+              id: item.id,
               isResolved: item.isResolved,
               icon: item.icon,
               path: item.path,
@@ -543,11 +549,11 @@ final class FoldersSettingsModel {
       return
     }
 
-    let folders: [FoldersSettingsModelShowFinderFolderInfo]
+    let state1: FoldersSettingsModelShowFinderState1
 
     do {
-      folders = try await connection.read { db in
-        try FolderRecord
+      state1 = try await connection.read { db in
+        let folders = try FolderRecord
           .select(.rowID)
           .filter(keys: items)
           .including(
@@ -561,7 +567,13 @@ final class FoldersSettingsModel {
               ),
           )
           .asRequest(of: FoldersSettingsModelShowFinderFolderInfo.self)
-          .fetchAll(db)
+          .fetchCursor(db)
+
+        let state = FoldersSettingsModelShowFinderState1(
+          folders: try Dictionary(uniqueKeysWithValues: folders.map { ($0.folder.rowID!, $0) }),
+        )
+
+        return state
       }
     } catch {
       // TODO: Elaborate.
@@ -570,9 +582,10 @@ final class FoldersSettingsModel {
       return
     }
 
-    let state = folders.reduce(
-      into: FoldersSettingsModelShowFinderState(bookmarks: Dictionary(minimumCapacity: folders.count)),
-    ) { state, folder in
+    let state2 = items.reduce(
+      into: FoldersSettingsModelShowFinderState2(bookmarks: Dictionary(minimumCapacity: state1.folders.count)),
+    ) { state, item in
+      let folder = state1.folders[item]!
       let bookmark: AssignedBookmark
 
       do {
@@ -593,15 +606,10 @@ final class FoldersSettingsModel {
 
     do {
       try await connection.write { db in
-        try folders.forEach { folder in
-          let id = folder.fileBookmark.bookmark.bookmark.rowID!
-          let bookmark = BookmarkRecord(
-            rowID: id,
-            data: state.bookmarks[id]?.data ?? folder.fileBookmark.bookmark.bookmark.data,
-            options: nil,
-          )
-
-          try bookmark.update(db, columns: [BookmarkRecord.Columns.data])
+        try items.forEach { item in
+          let folder = state1.folders[item]!
+          let item = folder.fileBookmark.bookmark.bookmark
+          try write(db, bookmark: item, assigned: state2.bookmarks[item.rowID!])
         }
       }
     } catch {
@@ -611,7 +619,11 @@ final class FoldersSettingsModel {
       return
     }
 
-    let urls = folders.compactMap { state.bookmarks[$0.fileBookmark.bookmark.bookmark.rowID!]?.resolved.url }
+    let urls = items.compactMap { item in
+      let item = state1.folders[item]!
+
+      return state2.bookmarks[item.fileBookmark.bookmark.bookmark.rowID!]?.resolved.url
+    }
 
     // As of macOS Sequoia 15.7.2 (24G325), this produces error logs relating to App Sandbox's security scoped resources,
     // but otherwise works. I'd rather not use security scopes for this because we'd need them all open to call this
@@ -691,13 +703,7 @@ final class FoldersSettingsModel {
 
     do {
       try await connection.write { db in
-        let bookmark = BookmarkRecord(
-          rowID: folder.fileBookmark.bookmark.bookmark.rowID,
-          data: bookmark?.data ?? folder.fileBookmark.bookmark.bookmark.data,
-          options: nil,
-        )
-
-        try bookmark.update(db, columns: [BookmarkRecord.Columns.data])
+        try write(db, bookmark: folder.fileBookmark.bookmark.bookmark, assigned: bookmark)
       }
     } catch {
       // TODO: Elaborate.
@@ -730,11 +736,11 @@ final class FoldersSettingsModel {
       return
     }
 
-    let folders: [FoldersSettingsModelOpenFinderFolderInfo]
+    let state1: FoldersSettingsModelOpenFinderState1
 
     do {
-      folders = try await connection.read { db in
-        try FolderRecord
+      state1 = try await connection.read { db in
+        let folders = try FolderRecord
           .select(.rowID)
           .filter(keys: items)
           .including(
@@ -748,7 +754,13 @@ final class FoldersSettingsModel {
               ),
           )
           .asRequest(of: FoldersSettingsModelOpenFinderFolderInfo.self)
-          .fetchAll(db)
+          .fetchCursor(db)
+
+        let state = FoldersSettingsModelOpenFinderState1(
+          folders: try Dictionary(uniqueKeysWithValues: folders.map { ($0.folder.rowID!, $0) }),
+        )
+
+        return state
       }
     } catch {
       // TODO: Elaborate.
@@ -757,9 +769,10 @@ final class FoldersSettingsModel {
       return
     }
 
-    let state = folders.reduce(
-      into: FoldersSettingsModelOpenFinderState(bookmarks: Dictionary(minimumCapacity: folders.count)),
-    ) { state, folder in
+    let state2 = items.reduce(
+      into: FoldersSettingsModelOpenFinderState2(bookmarks: Dictionary(minimumCapacity: state1.folders.count)),
+    ) { state, item in
+      let folder = state1.folders[item]!
       let bookmark: AssignedBookmark
 
       do {
@@ -780,15 +793,10 @@ final class FoldersSettingsModel {
 
     do {
       try await connection.write { db in
-        try folders.forEach { folder in
-          let id = folder.fileBookmark.bookmark.bookmark.rowID!
-          let bookmark = BookmarkRecord(
-            rowID: id,
-            data: state.bookmarks[id]?.data ?? folder.fileBookmark.bookmark.bookmark.data,
-            options: nil,
-          )
-
-          try bookmark.update(db, columns: [BookmarkRecord.Columns.data])
+        try items.forEach { item in
+          let folder = state1.folders[item]!
+          let item = folder.fileBookmark.bookmark.bookmark
+          try write(db, bookmark: item, assigned: state2.bookmarks[item.rowID!])
         }
       }
     } catch {
@@ -798,8 +806,10 @@ final class FoldersSettingsModel {
       return
     }
 
-    folders.forEach { folder in
-      guard let bookmark = state.bookmarks[folder.fileBookmark.bookmark.bookmark.rowID!] else {
+    items.forEach { item in
+      let folder = state1.folders[item]!
+
+      guard let bookmark = state2.bookmarks[folder.fileBookmark.bookmark.bookmark.rowID!] else {
         return
       }
 
@@ -1027,9 +1037,12 @@ final class FoldersSettingsModel {
               ),
           )
           .asRequest(of: FoldersSettingsModelCopyImagesItemInfo.self)
-          .fetchAll(db)
+          .fetchCursor(db)
 
-        return FoldersSettingsModelCopyState1(folder: folder, items: items)
+        return FoldersSettingsModelCopyState1(
+          folder: folder,
+          items: try Dictionary(uniqueKeysWithValues: items.map { ($0.item.rowID!, $0) }),
+        )
       }
     } catch {
       // TODO: Elaborate.
@@ -1044,7 +1057,7 @@ final class FoldersSettingsModel {
     }
 
     let options = folder.fileBookmark.bookmark.bookmark.options!
-    let bookmark: AssignedBookmark
+    let bookmark: AssignedBookmark?
 
     do {
       bookmark = try AssignedBookmark(
@@ -1056,11 +1069,13 @@ final class FoldersSettingsModel {
       // TODO: Elaborate.
       Logger.model.error("\(error)")
 
-      return
+      bookmark = nil
     }
 
-    let items = state1.items.map { item in
-      ImagesItemInfo(
+    let items = items.map { item in
+      let item = state1.items[item]!
+
+      return ImagesItemInfo(
         item: item.item,
         fileBookmark: ImagesItemFileBookmarkInfo(
           fileBookmark: item.fileBookmark.fileBookmark,
@@ -1079,24 +1094,20 @@ final class FoldersSettingsModel {
     var state2 = ImagesItemAssignment()
     await state2.assign(items: items)
 
-    if bookmark.resolved.isStale || !state2.isSatisified(with: items) {
-      do {
-        try await connection.write { [state2] db in
-          let bookmark = BookmarkRecord(
-            rowID: folder.fileBookmark.bookmark.bookmark.rowID,
-            data: bookmark.data,
-            options: nil,
-          )
-
-          try bookmark.update(db, columns: [BookmarkRecord.Columns.data])
-          try state2.write(db, items: items)
-        }
-      } catch {
-        // TODO: Elaborate.
-        Logger.model.error("\(error)")
-
-        return
+    do {
+      try await connection.write { [state2] db in
+        try write(db, bookmark: folder.fileBookmark.bookmark.bookmark, assigned: bookmark)
+        try state2.write(db, items: items)
       }
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return
+    }
+
+    guard let bookmark else {
+      return
     }
 
     try await copy(
@@ -1130,11 +1141,11 @@ final class FoldersSettingsModel {
     }
 
     // TODO: De-duplicate.
-    let items2: [FoldersSettingsModelCopyImagesItemInfo]
+    let items2: [RowID: FoldersSettingsModelCopyImagesItemInfo]
 
     do {
       items2 = try await connection.read { db in
-        try ImagesItemRecord
+        let items = try ImagesItemRecord
           .select(.rowID)
           .filter(keys: items)
           .including(
@@ -1153,7 +1164,9 @@ final class FoldersSettingsModel {
               ),
           )
           .asRequest(of: FoldersSettingsModelCopyImagesItemInfo.self)
-          .fetchAll(db)
+          .fetchCursor(db)
+
+        return try Dictionary(uniqueKeysWithValues: items.map { ($0.item.rowID!, $0) })
       }
     } catch {
       // TODO: Elaborate.
@@ -1162,8 +1175,10 @@ final class FoldersSettingsModel {
       return
     }
 
-    let items3 = items2.map { item in
-      ImagesItemInfo(
+    let items3 = items.map { item in
+      let item = items2[item]!
+
+      return ImagesItemInfo(
         item: item.item,
         fileBookmark: ImagesItemFileBookmarkInfo(
           fileBookmark: item.fileBookmark.fileBookmark,
@@ -1182,17 +1197,15 @@ final class FoldersSettingsModel {
     var state2 = ImagesItemAssignment()
     await state2.assign(items: items3)
 
-    if !state2.isSatisified(with: items3) {
-      do {
-        try await connection.write { [state2] db in
-          try state2.write(db, items: items3)
-        }
-      } catch {
-        // TODO: Elaborate.
-        Logger.model.error("\(error)")
-
-        return
+    do {
+      try await connection.write { [state2] db in
+        try state2.write(db, items: items3)
       }
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return
     }
 
     try await copy(

@@ -12,7 +12,7 @@ struct FoldersSettingsModelCopyFolderFileBookmarkBookmarkInfo {
   let bookmark: BookmarkRecord
 }
 
-extension FoldersSettingsModelCopyFolderFileBookmarkBookmarkInfo: Decodable, Equatable, FetchableRecord {}
+extension FoldersSettingsModelCopyFolderFileBookmarkBookmarkInfo: Decodable, FetchableRecord {}
 
 struct FoldersSettingsModelCopyFolderFileBookmarkInfo {
   let fileBookmark: FileBookmarkRecord
@@ -26,7 +26,7 @@ extension FoldersSettingsModelCopyFolderFileBookmarkInfo: Decodable {
   }
 }
 
-extension FoldersSettingsModelCopyFolderFileBookmarkInfo: Equatable, FetchableRecord {}
+extension FoldersSettingsModelCopyFolderFileBookmarkInfo: FetchableRecord {}
 
 struct FoldersSettingsModelCopyFolderInfo {
   let folder: FolderRecord
@@ -39,4 +39,4 @@ extension FoldersSettingsModelCopyFolderInfo: Decodable {
   }
 }
 
-extension FoldersSettingsModelCopyFolderInfo: Equatable, FetchableRecord {}
+extension FoldersSettingsModelCopyFolderInfo: FetchableRecord {}
