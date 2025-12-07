@@ -247,6 +247,106 @@
         }
       }
     },
+    "Images.Item.Folder.Item.Copy.Error.FileExists.Source.%@.Destination.%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%1$@” couldn’t be copied to “%2$@” because an item with the same name already exists."
+          }
+        }
+      }
+    },
+    "Images.Item.Folder.Item.Copy.Name.%@.Path.%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ [%2$@]"
+          }
+        }
+      }
+    },
+    "Images.Item.Folder.Item.Copy.Path.Separator.BlackPointingSmallTriangle.LeftToRight" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " ▸ "
+          }
+        }
+      }
+    },
+    "Images.Item.Folder.Item.Copy.Path.Separator.BlackPointingSmallTriangle.RightToLeft" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " ◂ "
+          }
+        }
+      }
+    },
+    "Images.Item.Folder.Item.Copy.Path.Separator.BlackPointingTriangle.LeftToRight" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " ▶ "
+          }
+        }
+      }
+    },
+    "Images.Item.Folder.Item.Copy.Path.Separator.BlackPointingTriangle.RightToLeft" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " ◀ "
+          }
+        }
+      }
+    },
+    "Images.Item.Folder.Item.Copy.Path.Separator.InequalitySign.LeftToLeft" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " > "
+          }
+        }
+      }
+    },
+    "Images.Item.Folder.Item.Copy.Path.Separator.InequalitySign.RightToLeft" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " < "
+          }
+        }
+      }
+    },
+    "Images.Item.Folder.Item.Copy.Path.Separator.SinglePointingAngleQuotationMark.LeftToRight" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " › "
+          }
+        }
+      }
+    },
+    "Images.Item.Folder.Item.Copy.Path.Separator.SinglePointingAngleQuotationMark.RightToLeft" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " ‹ "
+          }
+        }
+      }
+    },
     "Images.Sidebar.Import" : {
       "localizations" : {
         "en" : {
@@ -569,26 +669,6 @@
         }
       }
     },
-    "Settings.Accessory.Folders.Item.Copy.Error.FileExists.Source.%@.Destination.%@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "“%1$@” couldn’t be copied to “%2$@” because an item with the same name already exists."
-          }
-        }
-      }
-    },
-    "Settings.Accessory.Folders.Item.Copy.Name.%@.Path.%@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ [%2$@]"
-          }
-        }
-      }
-    },
     "Settings.Accessory.Folders.Item.Path.Help.Separator" : {
       "localizations" : {
         "en" : {
@@ -605,86 +685,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : " 􀰇 "
-          }
-        }
-      }
-    },
-    "Settings.Accessory.Folders.Item.Path.Separator.BlackPointingSmallTriangle.LeftToRight" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : " ▸ "
-          }
-        }
-      }
-    },
-    "Settings.Accessory.Folders.Item.Path.Separator.BlackPointingSmallTriangle.RightToLeft" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : " ◂ "
-          }
-        }
-      }
-    },
-    "Settings.Accessory.Folders.Item.Path.Separator.BlackPointingTriangle.LeftToRight" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : " ▶ "
-          }
-        }
-      }
-    },
-    "Settings.Accessory.Folders.Item.Path.Separator.BlackPointingTriangle.RightToLeft" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : " ◀ "
-          }
-        }
-      }
-    },
-    "Settings.Accessory.Folders.Item.Path.Separator.InequalitySign.LeftToLeft" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : " > "
-          }
-        }
-      }
-    },
-    "Settings.Accessory.Folders.Item.Path.Separator.InequalitySign.RightToLeft" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : " < "
-          }
-        }
-      }
-    },
-    "Settings.Accessory.Folders.Item.Path.Separator.SinglePointingAngleQuotationMark.LeftToRight" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : " › "
-          }
-        }
-      }
-    },
-    "Settings.Accessory.Folders.Item.Path.Separator.SinglePointingAngleQuotationMark.RightToLeft" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : " ‹ "
           }
         }
       }

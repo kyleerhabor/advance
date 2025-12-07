@@ -17,7 +17,7 @@ struct ImagesSidebarItemCopyFolderView: View {
   @AppStorage(StorageKeys.foldersPathDirection) private var foldersPathDirection
   @Binding var selection: Set<ImagesItemModel2.ID>
   @Binding var isFileImporterPresented: Bool
-  @Binding var error: FoldersSettingsModelCopyError?
+  @Binding var error: ImagesModelCopyFolderError?
   @Binding var isErrorPresented: Bool
   let items: Set<ImagesItemModel2.ID>
 
@@ -27,15 +27,15 @@ struct ImagesSidebarItemCopyFolderView: View {
         Button {
           Task {
             do {
-              try await folders.copy(
-                to: item,
+              try await images.copyFolder(
                 items: items,
+                to: item,
                 locale: locale,
                 resolveConflicts: resolveConflicts,
                 pathSeparator: foldersPathSeparator,
                 pathDirection: foldersPathDirection,
               )
-            } catch let error as FoldersSettingsModelCopyError {
+            } catch let error as ImagesModelCopyFolderError {
               self.error = error
               self.isErrorPresented = true
             }

@@ -41,7 +41,7 @@ struct ImagesView2: View {
   @State private var isFileImporterPresented = false
   @State private var copyFolderSelection = Set<ImagesItemModel2.ID>()
   @State private var isCopyFolderFileImporterPresented = false
-  @State private var copyFolderError: FoldersSettingsModelCopyError?
+  @State private var copyFolderError: ImagesModelCopyFolderError?
   @State private var isCopyFolderErrorPresented = false
   private var directoryEnumerationOptions: FileManager.DirectoryEnumerationOptions {
     StorageKeys.directoryEnumerationOptions(
@@ -158,15 +158,15 @@ struct ImagesView2: View {
 
       Task {
         do {
-          try await folders.copy(
-            to: URLSource(url: url, options: [.withSecurityScope]),
+          try await images.copyFolder(
             items: copyFolderSelection,
+            to: URLSource(url: url, options: [.withSecurityScope]),
             locale: locale,
             resolveConflicts: resolveConflicts,
             pathSeparator: foldersPathSeparator,
             pathDirection: foldersPathDirection,
           )
-        } catch let error as FoldersSettingsModelCopyError {
+        } catch let error as ImagesModelCopyFolderError {
           self.copyFolderError = error
           self.isCopyFolderErrorPresented = true
         }

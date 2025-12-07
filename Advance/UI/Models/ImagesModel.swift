@@ -300,6 +300,43 @@ struct ImagesModelStoreState {
   var bookmarks: [URL: Bookmark]
 }
 
+struct ImagesModelCopyFolderLoadState {
+  let folder: ImagesModelCopyFolderFolderInfo?
+  let items: [RowID: ImagesModelCopyFolderImagesItemInfo]
+}
+
+struct ImagesModelCopyFolderFileExistsError {
+  let source: String
+  let destination: String
+}
+
+extension ImagesModelCopyFolderFileExistsError: Equatable, Error {}
+
+enum ImagesModelCopyFolderErrorType {
+  case fileExists(ImagesModelCopyFolderFileExistsError)
+}
+
+extension ImagesModelCopyFolderErrorType: Equatable, Error {}
+
+struct ImagesModelCopyFolderError {
+  let locale: Locale
+  let type: ImagesModelCopyFolderErrorType
+}
+
+extension ImagesModelCopyFolderError: Equatable, Error {}
+
+extension ImagesModelCopyFolderError: LocalizedError {
+  var errorDescription: String? {
+    switch type {
+      case let .fileExists(error):
+        String(
+          localized: "Images.Item.Folder.Item.Copy.Error.FileExists.Source.\(error.source).Destination.\(error.destination)",
+          locale: locale,
+        )
+    }
+  }
+}
+
 @Observable
 @MainActor
 final class ImagesModel {
@@ -375,6 +412,42 @@ final class ImagesModel {
   func copy(items: Set<ImagesItemModel2.ID>) {
     NSPasteboard.general.prepareForNewContents()
     NSPasteboard.general.writeObjects(_urls(forItems: items) as [NSURL])
+  }
+
+  func copyFolder(
+    items: Set<ImagesItemModel2.ID>,
+    to folder: FoldersSettingsItemModel,
+    locale: Locale,
+    resolveConflicts: Bool,
+    pathSeparator: StorageFoldersPathSeparator,
+    pathDirection: StorageFoldersPathDirection,
+  ) async throws(ImagesModelCopyFolderError) {
+    try await _copyFolder(
+      items: items,
+      to: folder.id,
+      locale: locale,
+      resolveConflicts: resolveConflicts,
+      pathSeparator: pathSeparator,
+      pathDirection: pathDirection,
+    )
+  }
+
+  func copyFolder(
+    items: Set<ImagesItemModel2.ID>,
+    to source: URLSource,
+    locale: Locale,
+    resolveConflicts: Bool,
+    pathSeparator: StorageFoldersPathSeparator,
+    pathDirection: StorageFoldersPathDirection,
+  ) async throws(ImagesModelCopyFolderError) {
+    try await _copyFolder(
+      items: items,
+      to: source,
+      locale: locale,
+      resolveConflicts: resolveConflicts,
+      pathSeparator: pathSeparator,
+      pathDirection: pathDirection,
+    )
   }
 
   nonisolated private func loadImages(connection: DatabasePool, images: ImagesModelLoadImagesInfo?) async {
@@ -906,6 +979,403 @@ final class ImagesModel {
 
   private func _urls(forItems items: Set<ImagesItemModel2.ID>) -> [URL] {
     items.compactMap { self.items2[id: $0]?.source.url }
+  }
+
+  nonisolated private func copy(
+    items: [ImagesItemInfo],
+    to source: URLSource,
+    state: ImagesItemAssignment,
+    locale: Locale,
+    resolveConflicts: Bool,
+    pathSeparator: StorageFoldersPathSeparator,
+    pathDirection: StorageFoldersPathDirection,
+  ) async throws(ImagesModelCopyFolderError) {
+    do {
+      try source.accessingSecurityScopedResource {
+        try items.forEach { item in
+          let relative: URLSource?
+
+          do {
+            relative = try state.relative(item.fileBookmark.relative)
+          } catch {
+            // TODO: Elaborate.
+            Logger.model.error("\(error)")
+
+            return
+          }
+
+          guard let bookmark = state.bookmarks[item.fileBookmark.bookmark.bookmark.rowID!] else {
+            return
+          }
+
+          let item = URLSource(url: bookmark.resolved.url, options: item.fileBookmark.bookmark.bookmark.options!)
+          try relative.accessingSecurityScopedResource {
+            try item.accessingSecurityScopedResource {
+              // I've no idea whether or not this contains characters that are invalid for file paths.
+              guard let components = FileManager.default.componentsToDisplay(
+                forPath: item.url.deletingLastPathComponent().pathString,
+              ) else {
+                // TODO: Log.
+                return
+              }
+
+              let lastPathComponent = item.url.lastPathComponent
+
+              do {
+                // TODO: Don't use lastPathComponent.
+                do {
+                  try FileManager.default.copyItem(
+                    at: item.url,
+                    to: source.url.appending(component: lastPathComponent, directoryHint: .notDirectory),
+                  )
+                } catch let error as CocoaError where error.code == .fileWriteFileExists {
+                  guard resolveConflicts else {
+                    throw error
+                  }
+
+                  // TODO: Interpolate separator
+                  //
+                  // Given that localization supports this, I think it should be safe to assume that a collection of
+                  // path components can be strung together by a common separator (in English, a space) embedding the
+                  // true separator (say, an inequality sign).
+                  let separator = switch (pathSeparator, pathDirection) {
+                    case (.inequalitySign, .leading):
+                      String(
+                        localized: "Images.Item.Folder.Item.Copy.Path.Separator.InequalitySign.LeftToLeft",
+                        locale: locale,
+                      )
+                    case (.inequalitySign, .trailing):
+                      String(
+                        localized: "Images.Item.Folder.Item.Copy.Path.Separator.InequalitySign.RightToLeft",
+                        locale: locale,
+                      )
+                    case (.singlePointingAngleQuotationMark, .leading):
+                      String(
+                        localized: "Images.Item.Folder.Item.Copy.Path.Separator.SinglePointingAngleQuotationMark.LeftToRight",
+                        locale: locale,
+                      )
+                    case (.singlePointingAngleQuotationMark, .trailing):
+                      String(
+                        localized: "Images.Item.Folder.Item.Copy.Path.Separator.SinglePointingAngleQuotationMark.RightToLeft",
+                        locale: locale,
+                      )
+                    case (.blackPointingTriangle, .leading):
+                      String(
+                        localized: "Images.Item.Folder.Item.Copy.Path.Separator.BlackPointingTriangle.LeftToRight",
+                        locale: locale,
+                      )
+                    case (.blackPointingTriangle, .trailing):
+                      String(
+                        localized: "Images.Item.Folder.Item.Copy.Path.Separator.BlackPointingTriangle.RightToLeft",
+                        locale: locale,
+                      )
+                    case (.blackPointingSmallTriangle, .leading):
+                      String(
+                        localized: "Images.Item.Folder.Item.Copy.Path.Separator.BlackPointingSmallTriangle.LeftToRight",
+                        locale: locale,
+                      )
+                    case (.blackPointingSmallTriangle, .trailing):
+                      String(
+                        localized: "Images.Item.Folder.Item.Copy.Path.Separator.BlackPointingSmallTriangle.RightToLeft",
+                        locale: locale,
+                      )
+                  }
+
+                  let pathComponents = components
+                    .reversed()
+                    .reductions(into: []) { $0.append($1) }
+                    .dropFirst() // The initial reduction (an empty array)
+
+                  for pathComponents in pathComponents {
+                    let path = pathComponents.joined(separator: separator)
+                    let component = String(
+                      localized: "Images.Item.Folder.Item.Copy.Name.\(item.url.deletingPathExtension().lastPathComponent).Path.\(path)",
+                      locale: locale,
+                    )
+
+                    do {
+                      try FileManager.default.copyItem(
+                        at: item.url,
+                        to: source.url
+                          .appending(component: component, directoryHint: .notDirectory)
+                          .appendingPathExtension(item.url.pathExtension),
+                      )
+                    } catch let error as CocoaError where error.code == .fileWriteFileExists {
+                      continue
+                    } catch {
+                      // TODO: Elaborate.
+                      Logger.model.error("\(error)")
+
+                      return
+                    }
+
+                    return
+                  }
+
+                  throw error
+                } catch {
+                  // TODO: Elaborate.
+                  Logger.model.error("\(error)")
+
+                  return
+                }
+              } catch {
+                throw ImagesModelCopyFolderError(
+                  locale: locale,
+                  type: .fileExists(ImagesModelCopyFolderFileExistsError(
+                    source: lastPathComponent,
+                    destination: source.url.lastPathComponent,
+                  )),
+                )
+              }
+            }
+          }
+        }
+      }
+    } catch {
+      // I don't see why Swift thinks this is any Error.
+      throw error as! ImagesModelCopyFolderError
+    }
+  }
+
+  nonisolated private func _copyFolder(
+    items: Set<ImagesItemModel2.ID>,
+    to folder: FoldersSettingsItemModel.ID,
+    locale: Locale,
+    resolveConflicts: Bool,
+    pathSeparator: StorageFoldersPathSeparator,
+    pathDirection: StorageFoldersPathDirection,
+  ) async throws(ImagesModelCopyFolderError) {
+    let connection: DatabasePool
+
+    do {
+      connection = try await databaseConnection()
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return
+    }
+
+    let state1: ImagesModelCopyFolderLoadState
+
+    do {
+      state1 = try await connection.read { db in
+        let folder = try FolderRecord
+          .select(.rowID)
+          .filter(key: folder)
+          .including(
+            required: FolderRecord.fileBookmark
+              .forKey(ImagesModelCopyFolderFolderInfo.CodingKeys.fileBookmark)
+              .select(.rowID)
+              .including(
+                required: FileBookmarkRecord.bookmark
+                  .forKey(ImagesModelCopyFolderFolderFileBookmarkInfo.CodingKeys.bookmark)
+                  .select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options),
+              ),
+          )
+          .asRequest(of: ImagesModelCopyFolderFolderInfo.self)
+          .fetchOne(db)
+
+        let items = try ImagesItemRecord
+          .select(.rowID)
+          .filter(keys: items)
+          .including(
+            required: ImagesItemRecord.fileBookmark
+              .forKey(ImagesModelCopyFolderImagesItemInfo.CodingKeys.fileBookmark)
+              .select(.rowID)
+              .including(
+                required: FileBookmarkRecord.bookmark
+                  .forKey(ImagesModelCopyFolderImagesItemFileBookmarkInfo.CodingKeys.bookmark)
+                  .select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options),
+              )
+              .including(
+                optional: FileBookmarkRecord.relative
+                  .forKey(ImagesModelCopyFolderImagesItemFileBookmarkInfo.CodingKeys.relative)
+                  .select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options),
+              ),
+          )
+          .asRequest(of: ImagesModelCopyFolderImagesItemInfo.self)
+          .fetchCursor(db)
+
+        return ImagesModelCopyFolderLoadState(
+          folder: folder,
+          items: try Dictionary(uniqueKeysWithValues: items.map { ($0.item.rowID!, $0) }),
+        )
+      }
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return
+    }
+
+    guard let folder = state1.folder else {
+      // TODO: Log.
+      return
+    }
+
+    let options = folder.fileBookmark.bookmark.bookmark.options!
+    let bookmark: AssignedBookmark?
+
+    do {
+      bookmark = try AssignedBookmark(
+        data: folder.fileBookmark.bookmark.bookmark.data!,
+        options: options,
+        relativeTo: nil,
+      )
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      bookmark = nil
+    }
+
+    let items = items.map { item in
+      let item = state1.items[item]!
+
+      return ImagesItemInfo(
+        item: item.item,
+        fileBookmark: ImagesItemFileBookmarkInfo(
+          fileBookmark: item.fileBookmark.fileBookmark,
+          bookmark: ImagesItemFileBookmarkBookmarkInfo(
+            bookmark: item.fileBookmark.bookmark.bookmark,
+          ),
+          relative: item.fileBookmark.relative.map { relative in
+            ImagesItemFileBookmarkRelativeInfo(
+              relative: relative.relative,
+            )
+          },
+        ),
+      )
+    }
+
+    var state2 = ImagesItemAssignment()
+    await state2.assign(items: items)
+
+    do {
+      try await connection.write { [state2] db in
+        try write(db, bookmark: folder.fileBookmark.bookmark.bookmark, assigned: bookmark)
+        try state2.write(db, items: items)
+      }
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return
+    }
+
+    guard let bookmark else {
+      return
+    }
+
+    try await copy(
+      items: items,
+      to: URLSource(url: bookmark.resolved.url, options: options),
+      state: state2,
+      locale: locale,
+      resolveConflicts: resolveConflicts,
+      pathSeparator: pathSeparator,
+      pathDirection: pathDirection,
+    )
+  }
+
+  nonisolated private func _copyFolder(
+    items: Set<ImagesItemModel2.ID>,
+    to source: URLSource,
+    locale: Locale,
+    resolveConflicts: Bool,
+    pathSeparator: StorageFoldersPathSeparator,
+    pathDirection: StorageFoldersPathDirection,
+  ) async throws(ImagesModelCopyFolderError) {
+    let connection: DatabasePool
+
+    do {
+      connection = try await databaseConnection()
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return
+    }
+
+    // TODO: De-duplicate.
+    let items2: [RowID: ImagesModelCopyFolderImagesItemInfo]
+
+    do {
+      items2 = try await connection.read { db in
+        let items = try ImagesItemRecord
+          .select(.rowID)
+          .filter(keys: items)
+          .including(
+            required: ImagesItemRecord.fileBookmark
+              .forKey(ImagesModelCopyFolderImagesItemInfo.CodingKeys.fileBookmark)
+              .select(.rowID)
+              .including(
+                required: FileBookmarkRecord.bookmark
+                  .forKey(ImagesModelCopyFolderImagesItemFileBookmarkInfo.CodingKeys.bookmark)
+                  .select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options),
+              )
+              .including(
+                optional: FileBookmarkRecord.relative
+                  .forKey(ImagesModelCopyFolderImagesItemFileBookmarkInfo.CodingKeys.relative)
+                  .select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options),
+              ),
+          )
+          .asRequest(of: ImagesModelCopyFolderImagesItemInfo.self)
+          .fetchCursor(db)
+
+        return try Dictionary(uniqueKeysWithValues: items.map { ($0.item.rowID!, $0) })
+      }
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return
+    }
+
+    let items3 = items.map { item in
+      let item = items2[item]!
+
+      return ImagesItemInfo(
+        item: item.item,
+        fileBookmark: ImagesItemFileBookmarkInfo(
+          fileBookmark: item.fileBookmark.fileBookmark,
+          bookmark: ImagesItemFileBookmarkBookmarkInfo(
+            bookmark: item.fileBookmark.bookmark.bookmark,
+          ),
+          relative: item.fileBookmark.relative.map { relative in
+            ImagesItemFileBookmarkRelativeInfo(
+              relative: relative.relative,
+            )
+          },
+        ),
+      )
+    }
+
+    var state2 = ImagesItemAssignment()
+    await state2.assign(items: items3)
+
+    do {
+      try await connection.write { [state2] db in
+        try state2.write(db, items: items3)
+      }
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return
+    }
+
+    try await copy(
+      items: items3,
+      to: source,
+      state: state2,
+      locale: locale,
+      resolveConflicts: resolveConflicts,
+      pathSeparator: pathSeparator,
+      pathDirection: pathDirection,
+    )
   }
 
   static func submitCurrentItem(
