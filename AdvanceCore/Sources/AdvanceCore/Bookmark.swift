@@ -290,3 +290,15 @@ public struct AssignedBookmark {
 }
 
 extension AssignedBookmark: Sendable {}
+
+public struct AssignedBookmarkDocument {
+  public let bookmark: AssignedBookmark
+  public let relative: AssignedBookmark?
+
+  public init(bookmark: AssignedBookmark, relative: AssignedBookmark?) {
+    self.bookmark = bookmark
+    self.relative = relative
+  }
+}
+
+extension AssignedBookmarkDocument: Sendable {}

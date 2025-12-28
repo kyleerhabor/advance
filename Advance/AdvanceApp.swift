@@ -5,7 +5,7 @@
 //  Created by Kyle Erhabor on 7/27/23.
 //
 
-import AdvanceData
+import AdvanceCore
 import Foundation
 import GRDB
 import OSLog
@@ -15,8 +15,8 @@ import SwiftUI
 struct AdvanceApp: App {
   @NSApplicationDelegateAdaptor private var delegate: AppDelegate2
   @State private var app = AppModel()
-  @State private var search = SearchSettingsModel()
   @State private var folders = FoldersSettingsModel()
+  @State private var search = SearchSettingsModel()
 
   var body: some Scene {
     AppScene()
@@ -24,17 +24,26 @@ struct AdvanceApp: App {
         AppCommands()
       }
       .environment(app)
-      .environment(search)
       .environment(folders)
+      .environment(search)
       .environmentObject(delegate)
       .defaultAppStorage(.default)
   }
 
   init() {
-    let search = search
+    Task { [search] in
+      await search.load()
+    }
 
     Task {
-      await search.load()
+      do {
+        try await run(base: analyses, count: 10)
+      } catch {
+        // TODO: Elaborate.
+        Logger.model.fault("\(error)")
+
+        return
+      }
     }
   }
 }

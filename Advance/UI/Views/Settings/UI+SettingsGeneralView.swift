@@ -12,9 +12,9 @@ import VisionKit
 struct SettingsGeneralView2: View {
   @AppStorage(StorageKeys.restoreLastImage) private var restoreLastImage
   @AppStorage(StorageKeys.hiddenLayout) private var hiddenLayout
-  @AppStorage(StorageKeys.liveTextEnabled) private var liveTextEnabled
-  @AppStorage(StorageKeys.liveTextIcon) private var liveTextIcon
-  @AppStorage(StorageKeys.liveTextSubject) private var liveTextSubject
+  @AppStorage(StorageKeys.isLiveTextEnabled) private var isLiveTextEnabled
+  @AppStorage(StorageKeys.isLiveTextIconEnabled) private var isLiveTextIconEnabled
+  @AppStorage(StorageKeys.isLiveTextSubjectEnabled) private var isLiveTextSubjectEnabled
   @Default(.colorScheme) private var colorScheme
   private let isImageAnalysisSupported = ImageAnalyzer.isSupported
 
@@ -68,13 +68,12 @@ struct SettingsGeneralView2: View {
 
       LabeledContent("Settings.General.LiveText") {
         VStack(alignment: .leading) {
-          Toggle("Settings.General.LiveText.Enabled", isOn: $liveTextEnabled)
+          Toggle("Settings.General.LiveText.Enable", isOn: $isLiveTextEnabled)
 
           GroupBox {
-            Toggle("Settings.General.LiveText.Icon", isOn: $liveTextIcon)
-              .disabled(!liveTextEnabled)
+            Toggle("Settings.General.LiveText.Icon", isOn: $isLiveTextIconEnabled)
 
-            Toggle(isOn: $liveTextSubject) {
+            Toggle(isOn: $isLiveTextSubjectEnabled) {
               Text("Settings.General.LiveText.Subject")
 
               Text("Settings.General.LiveText.Subject.Note")
@@ -82,6 +81,7 @@ struct SettingsGeneralView2: View {
             }
           }
           .groupBoxStyle(.settingsGrouped)
+          .disabled(!isLiveTextEnabled)
         }
         .disabled(!isImageAnalysisSupported)
         .help(isImageAnalysisSupported ? Text() : Text("Settings.LiveText.Unsupported"))

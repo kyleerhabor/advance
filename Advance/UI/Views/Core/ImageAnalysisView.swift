@@ -122,8 +122,8 @@ struct ImageAnalysisView: NSViewRepresentable {
     }
 
     func textSelectionDidChange(_ overlayView: ImageAnalysisOverlayView) {
-      // The representable seems to receieve the value after the menu has been presented. This means the view menu
-      // can't depend on selectedText's value in the UI, but can in other areas, such as the action.
+      // The representable seems to receive the value after the menu has been presented. This means the view menu can't
+      // depend on selectedText's value in the UI, but can in other areas, such as the action.
       //
       // Note that performing this update in overlayView(_:updatedMenuFor:for:at:) makes no difference.
       representable.selectedText = overlayView.selectedText

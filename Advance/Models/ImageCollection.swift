@@ -92,13 +92,13 @@ class ImageCollectionItemImage {
   let source: URLSource
   let relative: URLSource?
 
-  var properties: ImageProperties
+  var properties: SizeOrientation
   var bookmarked: Bool
 
   var hasAnalysisResults = false
   var isAnalysisHighlighted = false
 
-  init(bookmark: BookmarkStoreItem.ID, source: URLSource, relative: URLSource?, properties: ImageProperties, bookmarked: Bool) {
+  init(bookmark: BookmarkStoreItem.ID, source: URLSource, relative: URLSource?, properties: SizeOrientation, bookmarked: Bool) {
     self.bookmark = bookmark
     self.source = source
     self.relative = relative
@@ -106,13 +106,14 @@ class ImageCollectionItemImage {
     self.bookmarked = bookmarked
   }
 
-  func resolve() -> ImageProperties? {
+  func resolve() -> SizeOrientation? {
     guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
           let props = source.properties() as? MapCF else {
       return nil
     }
 
-    return .init(from: props)
+    fatalError()
+//    return .init(from: props)
   }
 }
 

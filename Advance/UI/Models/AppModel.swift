@@ -10,7 +10,7 @@ import Combine
 import Observation
 
 enum AppModelCommandAction {
-  case open, showFinder, openFinder, resetWindowSize
+  case open, showFinder, openFinder, showSidebar, bookmark, resetWindowSize
 }
 
 enum AppModelCommandSceneID {
@@ -23,6 +23,8 @@ struct AppModelCommandScene {
   let id: AppModelCommandSceneID
   let disablesShowFinder: Bool
   let disablesOpenFinder: Bool
+  let disablesShowSidebar: Bool
+  let disablesBookmark: Bool
   let disablesResetWindowSize: Bool
 }
 
@@ -54,6 +56,14 @@ final class AppModel {
 
   func isOpenFinderDisabled(for scene: AppModelCommandScene?) -> Bool {
     scene?.disablesOpenFinder ?? true
+  }
+
+  func isShowSidebarDisabled(for scene: AppModelCommandScene?) -> Bool {
+    scene?.disablesShowSidebar ?? true
+  }
+
+  func isBookmarkDisabled(for scene: AppModelCommandScene?) -> Bool {
+    scene?.disablesBookmark ?? true
   }
 
   func isResetWindowSizeDisabled(for scene: AppModelCommandScene?) -> Bool {

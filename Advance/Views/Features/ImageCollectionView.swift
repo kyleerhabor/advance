@@ -13,45 +13,8 @@ import SwiftUI
 // MARK: - Views
 
 struct ImageCollectionNavigationSidebarView: View {
-  @Environment(ImageCollection.self) private var collection
-  @Environment(\.imagesID) private var id
-  @FocusState private var focused: Bool
-
   var body: some View {
-    ScrollViewReader { proxy in
-      ImageCollectionSidebarView()
-        .focused($focused)
-        .focusedSceneValue(\.navigator, .init(identity: id, enabled: false) { navigator in
-          collection.sidebarPage = navigator.page
-
-          Task {
-            // For some reason, we need to animate this for the sidebar to always animate when opening.
-            await animate {
-              collection.updateBookmarks()
-            }
-
-            await showSidebar()
-          }
-        })
-    }
-  }
-
-  func animate(body: () -> Void) async {
-    await withCheckedContinuation { continuation in
-      withAnimation {
-        body()
-      } completion: {
-        continuation.resume()
-      }
-    }
-  }
-
-  func showSidebar() async {
-//    await animate {
-//      columns = .all
-//    }
-
-    focused = true
+    ImageCollectionSidebarView()
   }
 }
 
@@ -65,7 +28,7 @@ struct ImageCollectionNavigationDetailView: View {
 
 struct ImageCollectionView: View {
   @Environment(ImageCollection.self) private var collection
-  @Environment(Windowed.self) private var windowed
+  @Environment(Window.self) private var windowed
   @Environment(\.isTrackingMenu) private var isTrackingMenu
   @Environment(\.isWindowFullScreen) private var fullScreen
   @Environment(\.imagesID) private var id

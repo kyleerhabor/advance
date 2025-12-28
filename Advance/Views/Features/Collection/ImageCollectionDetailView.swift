@@ -240,12 +240,15 @@ struct ImageCollectionDetailItemPhaseView: View {
   let image: ImageCollectionItemImage
 
   var body: some View {
+    let size = image.properties.orientedSize
+
     ImageCollectionItemView(image: image, phase: $phase) {
       ImageCollectionItemPhaseView(phase: phase)
         .overlay {
           ImageCollectionDetailItemInteractionView(image: image, resample: phase.success)
         }
-    }.aspectRatio(image.properties.sized.aspectRatio, contentMode: .fit)
+    }
+    .aspectRatio(size.width / size.height, contentMode: .fit)
   }
 }
 
@@ -302,27 +305,6 @@ struct ImageCollectionDetailVisibleView: View {
         state: hasAnalysis && isHighlighted
       ) { highlight in
         analysis.forEach(setter(on: \.isAnalysisHighlighted, value: highlight))
-      })
-      .focusedSceneValue(\.bookmark, .init(
-        identity: primaryID,
-        enabled: primary != nil,
-        state: primary?.bookmarked ?? false
-      ) { bookmark in
-        guard let primary else {
-          return
-        }
-
-        primary.bookmarked = bookmark
-
-        collection.updateBookmarks()
-
-        Task {
-          do {
-            try await collection.persist(id: id)
-          } catch {
-            Logger.model.error("Could not persist image collection \"\(id)\" via bookmark focus: \(error)")
-          }
-        }
       })
       .onChange(of: primary) {
         collection.current = primary?.id

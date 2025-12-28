@@ -13,11 +13,11 @@ import OSLog
 struct ImagesSceneView: View {
   @EnvironmentObject private var delegate: AppDelegate2
   @Environment(ImagesModel.self) private var images
-  @Environment(Windowed.self) private var windowed
+  @Environment(Window.self) private var windowed
   @Environment(\.isWindowFullScreen) private var isWindowFullScreen
   @Environment(\.openWindow) private var openWindow
-  @AppStorage(StorageKeys.liveTextEnabled) private var liveTextEnabled
-  @AppStorage(StorageKeys.liveTextIcon) private var liveTextIcon
+  @AppStorage(StorageKeys.isLiveTextEnabled) private var isLiveTextEnabled
+  @AppStorage(StorageKeys.isLiveTextIconEnabled) private var isLiveTextIconEnabled
   @AppStorage(StorageKeys.importHiddenFiles) private var importHiddenFiles
   @AppStorage(StorageKeys.importSubdirectories) private var importSubdirectories
   @SceneStorage(StorageKeys.liveTextIconVisibility) private var liveTextIconVisibility
@@ -31,7 +31,7 @@ struct ImagesSceneView: View {
 //    }
 
     ImagesView()
-      .environment(\.isImageAnalysisEnabled, images.isReady && liveTextEnabled)
+      .environment(\.isImageAnalysisEnabled, images.isReady && isLiveTextEnabled)
 //      .environment(\.isImageAnalysisSupplementaryInterfaceHidden, isSupplementaryInterfaceHidden)
 //      .focusedSceneValue(\.imagesWindowResetSize, AppMenuActionItem(identity: images.id, enabled: !isWindowFullScreen) {
 //        windowed.window?.setContentSize(ImagesScene.defaultSize)

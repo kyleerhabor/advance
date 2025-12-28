@@ -125,8 +125,10 @@ struct ImageCollectionSidebarItemView: View {
 
   var body: some View {
     VStack {
+      let size = image.properties.orientedSize
+
       ImageCollectionItemImageView(image: image)
-        .aspectRatio(image.properties.sized.aspectRatio, contentMode: .fit)
+        .aspectRatio(size.width / size.height, contentMode: .fit)
 
       // Interestingly, this can be slightly expensive.
       let path = image.url.lastPathComponent

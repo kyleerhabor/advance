@@ -10,9 +10,25 @@ import SwiftUI
 import Combine
 import Defaults
 import UniformTypeIdentifiers
+import VisionKit
 
 let imagesContentTypes: [UTType] = [.image, .folder]
 let foldersContentTypes: [UTType] = [.folder]
+
+// MARK: - VisionKit
+
+struct ImageAnalysisTypes {
+  let rawValue: UInt
+}
+
+extension ImageAnalysisTypes: OptionSet {
+  static let text = Self(rawValue: ImageAnalyzer.AnalysisTypes.text.rawValue)
+  static let visualLookUp = Self(rawValue: ImageAnalyzer.AnalysisTypes.visualLookUp.rawValue)
+
+  var analyzerAnalysisTypes: ImageAnalyzer.AnalysisTypes {
+    ImageAnalyzer.AnalysisTypes(rawValue: self.rawValue)
+  }
+}
 
 extension SchedulerTimeIntervalConvertible {
   static var imagesScrollInteraction: Self {
@@ -108,7 +124,7 @@ extension StorageVisibility: RawRepresentable {
 }
 
 struct StorageColumnVisibility {
-  let columnVisibility: NavigationSplitViewVisibility
+  var columnVisibility: NavigationSplitViewVisibility
 }
 
 extension StorageColumnVisibility {
@@ -252,7 +268,7 @@ extension StorageKey: Sendable where Value: Sendable {}
 enum StorageKeys {
   static let columnVisibility = StorageKey(
     "\(Bundle.appID).column-visibility",
-    defaultValue: StorageColumnVisibility(.all),
+    defaultValue: StorageColumnVisibility(.automatic),
   )
 
   static let importHiddenFiles = StorageKey("\(Bundle.appID).import-hidden-files", defaultValue: false)
@@ -262,22 +278,24 @@ enum StorageKeys {
     defaultValue: StorageHiddenLayout.cursor,
   )
 
+  static let isLiveTextEnabled = StorageKey("\(Bundle.appID).live-text-is-enabled", defaultValue: true)
+  static let isLiveTextIconEnabled = StorageKey("\(Bundle.appID).live-text-icon-is-enabled", defaultValue: false)
+  static let isLiveTextSubjectEnabled = StorageKey("\(Bundle.appID).live-text-subject-is-enabled", defaultValue: false)
   static let resolveConflicts = StorageKey("\(Bundle.appID).resolve-conflicts", defaultValue: false)
   static let foldersPathSeparator = StorageKey(
     "\(Bundle.appID).folders-path-separator",
     defaultValue: StorageFoldersPathSeparator.singlePointingAngleQuotationMark
   )
+
   static let foldersPathDirection = StorageKey(
     "\(Bundle.appID).folders-path-direction",
     defaultValue: StorageFoldersPathDirection.trailing,
   )
 
-  static let restoreLastImage = StorageKey("restore-last-image", defaultValue: true)
-  static let liveTextEnabled = StorageKey("live-text-is-enabled", defaultValue: true)
-  static let liveTextIcon = StorageKey("live-text-is-icon-visible", defaultValue: false)
-  static let liveTextIconVisibility = StorageKey("live-text-icon-visibility", defaultValue: StorageVisibility(.automatic))
-  static let liveTextSubject = StorageKey("live-text-is-subject-highlighted", defaultValue: false)
-  static let searchUseSystemDefault = StorageKey("search-use-system-default", defaultValue: false)
+  static let isSystemSearchEnabled = StorageKey(
+    "\(Bundle.appID).search-system-is-enabled",
+    defaultValue: false,
+  )
 
   static func directoryEnumerationOptions(
     importHiddenFiles: Bool,
@@ -295,6 +313,11 @@ enum StorageKeys {
 
     return options
   }
+
+  // MARK: - Old
+
+  static let restoreLastImage = StorageKey("restore-last-image", defaultValue: true)
+  static let liveTextIconVisibility = StorageKey("live-text-icon-visibility", defaultValue: StorageVisibility(.automatic))
 }
 
 extension AppStorage {

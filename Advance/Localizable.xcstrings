@@ -16,6 +16,26 @@
     "Collapse margins" : {
 
     },
+    "Commands.Image" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Image"
+          }
+        }
+      }
+    },
+    "Commands.Image.Bookmark" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bookmark"
+          }
+        }
+      }
+    },
     "Commands.Open" : {
       "localizations" : {
         "en" : {
@@ -101,36 +121,6 @@
         }
       }
     },
-    "Images.Command.Bookmark.Add" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Add Bookmark"
-          }
-        }
-      }
-    },
-    "Images.Command.Bookmark.Remove" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Remove Bookmark"
-          }
-        }
-      }
-    },
-    "Images.Command.Section.Image" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Image"
-          }
-        }
-      }
-    },
     "Images.Commands.Image" : {
       "localizations" : {
         "en" : {
@@ -211,18 +201,33 @@
         }
       }
     },
-    "Images.Detail.Page.Next" : {
-
-    },
-    "Images.Detail.Page.Previous" : {
-
-    },
     "Images.Detail.Search.%@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Search With %@"
+          }
+        }
+      }
+    },
+    "Images.Item.Bookmark.Add" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bookmark"
+          }
+        }
+      }
+    },
+    "Images.Item.Bookmark.Remove" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unbookmark"
           }
         }
       }
@@ -237,7 +242,7 @@
         }
       }
     },
-    "Images.Item.Folder.Copy" : {
+    "Images.Item.Folder.Item.Copy" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -347,6 +352,36 @@
         }
       }
     },
+    "Images.Item.LiveText.Search.%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search With %@"
+          }
+        }
+      }
+    },
+    "Images.Item.SearchEngine.Item.URL.Error.InvalidLocation.Name.%@.Query.%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%2$@” couldn’t be searched with “%1$@” because the location is invalid."
+          }
+        }
+      }
+    },
+    "Images.Item.SearchEngine.Item.URL.Error.InvalidLocation.Name.Query.RecoverySuggestion" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Make sure that location is a URL like “https://website.com” and not a domain like “website.com.”"
+          }
+        }
+      }
+    },
     "Images.Sidebar.Import" : {
       "localizations" : {
         "en" : {
@@ -387,6 +422,7 @@
 
     },
     "QuickLook.Hide" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -397,6 +433,7 @@
       }
     },
     "QuickLook.Show" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -464,7 +501,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Folders path direction:"
+            "value" : "Folder path direction:"
           }
         }
       }
@@ -504,7 +541,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Folders path separator:"
+            "value" : "Folder path separator:"
           }
         }
       }
@@ -604,7 +641,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search Engine:"
+            "value" : "Search engine:"
           }
         }
       }
@@ -709,7 +746,28 @@
         }
       }
     },
+    "Settings.Accessory.Search.Column.Location" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Location"
+          }
+        }
+      }
+    },
+    "Settings.Accessory.Search.Column.Name" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name"
+          }
+        }
+      }
+    },
     "Settings.Accessory.Search.Delete" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -720,11 +778,12 @@
       }
     },
     "Settings.Accessory.Search.Location" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Location"
+            "value" : "Location:"
           }
         }
       }
@@ -734,12 +793,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "https://…"
+            "value" : "https://example.com/search?q=%query%"
           }
         }
       }
     },
     "Settings.Accessory.Search.Location.Substitute" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -749,7 +809,18 @@
         }
       }
     },
+    "Settings.Accessory.Search.Location.Token.Query" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Query"
+          }
+        }
+      }
+    },
     "Settings.Accessory.Search.Name" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -774,12 +845,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "…"
+            "value" : "Name…"
           }
         }
       }
     },
     "Settings.Accessory.Search.Token.Query" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -795,6 +867,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Add"
+          }
+        }
+      }
+    },
+    "Settings.Accessory.Search.Toolbar.Remove" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove"
           }
         }
       }
@@ -960,7 +1042,7 @@
         }
       }
     },
-    "Settings.General.LiveText.Enabled" : {
+    "Settings.General.LiveText.Enable" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {

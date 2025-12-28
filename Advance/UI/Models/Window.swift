@@ -1,5 +1,5 @@
 //
-//  Windowed.swift
+//  Window.swift
 //  Advance
 //
 //  Created by Kyle Erhabor on 6/11/24.
@@ -10,6 +10,6 @@ import Observation
 
 @Observable
 @MainActor
-class Windowed {
+class Window {
   weak var window: NSWindow?
 }

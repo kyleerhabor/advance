@@ -2,19 +2,18 @@
 //  SearchSettingsScene.swift
 //  Advance
 //
-//  Created by Kyle Erhabor on 7/31/24.
+//  Created by Kyle Erhabor on 12/23/25.
 //
 
 import SwiftUI
 
 struct SearchSettingsScene: Scene {
-  static let id = "search"
+  static let id = "search2"
 
   var body: some Scene {
-    Window("Settings.Accessory.Search.Window.Title", id: Self.id) {
+    SwiftUI.Window("Settings.Accessory.Search.Window.Title", id: Self.id) {
       SearchSettingsView()
-        .localized()
-        .frame(width: 625, height: 250)
+        .frame(width: 600, height: 300)
     }
     .windowResizability(.contentSize)
     .windowToolbarStyle(.unifiedCompact)

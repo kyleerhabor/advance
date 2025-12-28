@@ -21,7 +21,7 @@ struct ImagesDetailItemContentAnalysisView: View {
 
   @Environment(ImagesModel.self) private var images
   @Environment(\.isImageAnalysisEnabled) private var isImageAnalysisEnabled
-  @AppStorage(StorageKeys.liveTextSubject) private var liveTextSubject
+  @AppStorage(StorageKeys.isLiveTextSubjectEnabled) private var isLiveTextSubjectEnabled
   @State private var analysis: ImageAnalysis?
   private var interactionTypes: ImageAnalysisOverlayView.InteractionTypes {
     var types = ImageAnalysisOverlayView.InteractionTypes()
@@ -32,7 +32,7 @@ struct ImagesDetailItemContentAnalysisView: View {
 
     types.insert(.automaticTextOnly)
 
-    if liveTextSubject {
+    if isLiveTextSubjectEnabled {
       types.insert(.automatic)
     }
 
@@ -130,30 +130,7 @@ struct ImagesDetailItemContentView: View {
 }
 
 struct ImagesDetailItemView: View {
-  @Environment(ImagesModel.self) private var images
-  @Environment(SearchSettingsModel.self) private var search
-  @Environment(\.imagesSidebarJump) private var jumpSidebar
-  @Environment(\.localize) private var localize
-  @Environment(\.openURL) private var openURL
-  @AppStorage(StorageKeys.searchUseSystemDefault) private var searchUseSystemDefault
   @State private var selectedText = ""
-  // TODO: Replace.
-  private var isBookmarked: Binding<Bool> {
-    Binding {
-      item.isBookmarked
-    } set: { isBookmarked in
-      item.isBookmarked = isBookmarked
-
-      Task {
-        do {
-          try await images.submitItemBookmark(item: item, isBookmarked: isBookmarked)
-        } catch {
-          Logger.model.error("\(error)")
-        }
-      }
-    }
-  }
-
   let item: ImagesItemModel
 
   var body: some View {
@@ -161,106 +138,10 @@ struct ImagesDetailItemView: View {
       ImagesDetailItemContentView(
         item: item,
         selectedText: $selectedText,
-        transformMenu: transform
+        transformMenu: { menu, bind in menu }
       )
     }
     .id(item.id)
-    .fileDialogCustomizationID(FoldersSettingsScene.id)
     .fileDialogConfirmationLabel(Text("Copy"))
-    .contextMenu {
-      Section {
-        Button("Finder.Item.Show", action: item.source.showFinder)
-          .disabled(item.source.url == nil)
-
-        Button("Sidebar.Item.Show") {
-          jumpSidebar?.action(item)
-        }
-      }
-
-      Section {
-        Button("Copy") {
-          // TODO: Abstract.
-          //
-          // TODO: Use source to produce pasteboard item.
-          //
-          // The URL is not required to reference an existing item.
-          guard let url = item.source.url else {
-            return
-          }
-
-          let pasteboard = NSPasteboard.general
-          pasteboard.prepareForNewContents()
-
-          if !pasteboard.writeObjects([url as NSURL]) {
-            Logger.ui.error("Could not write URL \"\(url.pathString)\" to the general pasteboard")
-          }
-        }
-      }
-
-      Section {
-        ImagesBookmarkView(isBookmarked: isBookmarked)
-      }
-    }
-  }
-
-  private func performSearch() {
-    guard let engine = search.engine,
-          let url = engine.url(text: selectedText) else {
-      return
-    }
-
-    openURL(url)
-  }
-
-  private func transform(
-    menu: NSMenu,
-    bind: (NSMenuItem, @escaping ImageAnalysisView.BindMenuItemAction) -> Void
-  ) -> NSMenu {
-    if let item = menu.item(withTag: ImageAnalysisOverlayView.MenuTag.copyImage) {
-      menu.removeItem(item)
-    }
-
-    if let item = menu.item(withTag: ImageAnalysisOverlayView.MenuTag.shareImage) {
-      menu.removeItem(item)
-    }
-
-    let searchItem = menu.items.first { item in
-      item.tag == NSMenuItem.unknownTag
-      && item.isStandard
-      // We're checking for a represented object to distinguish exceptional items (such as "Create Reminder"). We could
-      // match the prefix of the action selector, but that could easily break with an OS update.
-      && item.representedObject == nil
-      && !item.isHidden
-    }
-
-    guard let searchItem else {
-      // The image analysis view did not create a "Search With ..." menu item. This means selectedText is
-      // irrelevant to this context and should not be visible.
-
-      return menu
-    }
-
-    if searchUseSystemDefault {
-      // The user prefers to use the default search experience.
-
-      return menu
-    }
-
-    guard let engine = search.engine else {
-      // The user hasn't set a search engine: display nothing.
-      menu.removeItem(searchItem)
-
-      return menu
-    }
-
-    let item = NSMenuItem()
-    item.title = localize("Images.Detail.Search.\(engine.name)")
-
-    bind(item, performSearch)
-
-    // index(of:) returns -1 on not found, but should not be a concern, given the objects exist.
-    menu.items[menu.index(of: searchItem)] = item
-
-    return menu
   }
 }

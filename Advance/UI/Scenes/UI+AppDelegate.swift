@@ -12,7 +12,6 @@ import Defaults
 @MainActor
 class AppDelegate2: NSObject, NSApplicationDelegate, ObservableObject {
   let open = PassthroughSubject<[URL], Never>()
-
   var colorSchemeAppearance: Task<Void, Never>!
 
   func applicationWillFinishLaunching(_ notification: Notification) {

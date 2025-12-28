@@ -14,33 +14,16 @@ struct ImagesView: View {
   @Environment(\.isWindowFullScreen) private var isWindowFullScreen
   @Environment(\.isImageAnalysisEnabled) private var isImageAnalysisEnabled
   @Environment(\.isImageAnalysisSupplementaryInterfaceHidden) private var isImageAnalysisIconHidden
-  @FocusedValue(\.imagesSidebarJump) private var jumpSidebar
-  @FocusedValue(\.imagesDetailJump) private var jumpDetail
   @SceneStorage(StorageKeys.columnVisibility) private var columnVisibility
   @SceneStorage(StorageKeys.liveTextIconVisibility) private var liveTextIconVisibility
-//  private var columns: Binding<NavigationSplitViewVisibility> {
-//    Binding {
-//      columnVisibility.columnVisibility
-//    } set: { columnVisibility in
-//      self.columnVisibility = StorageColumnVisibility(columnVisibility)
-//    }
-//  }
 
   var body: some View {
     NavigationSplitView/*(columnVisibility: columns)*/ {
       ImagesSidebarView()
         .navigationSplitViewColumnWidth(min: 128, max: 256)
-        .environment(\.imagesDetailJump, jumpDetail ?? ImagesNavigationJumpAction(
-          identity: ImagesNavigationJumpIdentity(id: images.id, isReady: false),
-          action: noop
-        ))
     } detail: {
       ImagesDetailView()
         .frame(minWidth: 256)
-        .environment(\.imagesSidebarJump, jumpSidebar ?? ImagesNavigationJumpAction(
-          identity: ImagesNavigationJumpIdentity(id: images.id, isReady: false),
-          action: noop
-        ))
         // In macOS 15, using the word "images" seems to create issues with NSToolbar. "i", as an abbreviation, still
         // causes issues, but is preferable to the app crashing.
         .toolbar(id: "\(Bundle.appID).i") {
@@ -60,14 +43,6 @@ struct ImagesView: View {
             .disabled(!isImageAnalysisEnabled)
           }
         }
-    }
-    .background {
-      if images.isReady,
-         let url = images.item?.source.url {
-        BlankView()
-          .navigationTitle(url.lastPath)
-          .navigationDocument(url)
-      }
     }
     // windowToolbarFullScreenVisibility(_:) exists, but does not restore to a hidden toolbar.
     .toolbar(isWindowFullScreen ? .hidden : .automatic)

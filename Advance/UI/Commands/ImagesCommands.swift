@@ -10,8 +10,6 @@ import OSLog
 import SwiftUI
 
 struct ImagesCommands: Commands {
-  @AppStorage(StorageKeys.liveTextIcon) private var liveTextIcon
-  @FocusedValue(\.imagesSidebarShow) private var sidebarShow
   @FocusedValue(\.imagesLiveTextIcon) private var imagesLiveTextIcon
   @FocusedValue(\.imagesLiveTextHighlight) private var liveTextHighlight
 
@@ -20,11 +18,6 @@ struct ImagesCommands: Commands {
     ToolbarCommands()
 
     CommandMenu("Images.Commands.Image") {
-      MenuItemButton(item: sidebarShow ?? AppMenuActionItem(identity: nil, enabled: false, action: noop)) {
-        Text("Sidebar.Item.Show")
-      }
-      .keyboardShortcut(.sidebarShowItem)
-
       Section("Images.Commands.Image.LiveText") {
         MenuItemToggle(toggle: imagesLiveTextIcon ?? AppMenuToggleItem(identity: nil, enabled: false, state: false, action: noop)) { $isOn in
           Button(isOn ? "Images.Commands.Image.LiveText.Icon.Hide" : "Images.Commands.Image.LiveText.Icon.Show") {

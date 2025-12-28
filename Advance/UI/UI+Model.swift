@@ -6,10 +6,51 @@
 //
 
 import AdvanceCore
-import AdvanceData
+import AsyncAlgorithms
+@preconcurrency import BigInt
 import Foundation
 import GRDB
+import ImageIO
 import OSLog
+import VisionKit
+
+let analyses = AsyncChannel<Run<ImageAnalysis, any Error>>()
+
+func delta(lowerBound: BigFraction, upperBound: BigFraction, base: BInt) -> BigFraction {
+  let denominator = lowerBound.denominator * upperBound.denominator
+  let d = BigFraction(.ONE, denominator)
+  let c = lowerBound + d
+
+  guard (c - upperBound).isZero else {
+    return d
+  }
+
+  return BigFraction(.ONE, denominator * base)
+}
+
+extension CGImagePropertyOrientation {
+  static let identity = Self.up
+
+  var isRotated90Degrees: Bool {
+    switch self {
+      case .leftMirrored, .right, .rightMirrored, .left: true
+      default: false
+    }
+  }
+}
+
+struct SizeOrientation {
+  let size: CGSize
+  let orientation: CGImagePropertyOrientation
+
+  var orientedSize: CGSize {
+    guard orientation.isRotated90Degrees else {
+      return size
+    }
+
+    return CGSize(width: size.height, height: size.width)
+  }
+}
 
 enum BookmarkStatus {
   case old, current, new

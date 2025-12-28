@@ -44,6 +44,8 @@ struct FoldersSettingsView: View {
       id: .folders,
       disablesShowFinder: isFinderDisabled,
       disablesOpenFinder: isFinderDisabled,
+      disablesShowSidebar: true,
+      disablesBookmark: true,
       disablesResetWindowSize: true,
     ))
     .toolbar {
@@ -104,6 +106,10 @@ struct FoldersSettingsView: View {
         await folders.showFinder(items: selection)
       case .openFinder:
         await folders.openFinder(items: selection)
+      case .showSidebar:
+        unreachable()
+      case .bookmark:
+        unreachable()
       case .resetWindowSize:
         unreachable()
     }

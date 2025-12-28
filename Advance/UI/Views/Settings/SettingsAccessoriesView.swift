@@ -10,40 +10,39 @@ import SwiftUI
 struct SettingsAccessoriesView: View {
   @Environment(SearchSettingsModel.self) private var search
   @Environment(\.openWindow) private var openWindow
-  @AppStorage(StorageKeys.resolveConflicts) private var resolveConflicts
-  @AppStorage(StorageKeys.foldersPathSeparator) private var foldersPathSeparator
   @AppStorage(StorageKeys.foldersPathDirection) private var foldersPathDirection
-  @AppStorage(StorageKeys.searchUseSystemDefault) private var searchUseSystemDefault
-  private var engine: Binding<SearchSettingsEngineModel.ID?> {
-    Binding {
-      search.engine?.id
-    } set: { id in
-      search.engineID = id
-      search.submitEngine()
-    }
-  }
+  @AppStorage(StorageKeys.foldersPathSeparator) private var foldersPathSeparator
+  @AppStorage(StorageKeys.isSystemSearchEnabled) private var isSystemSearchEnabled
+  @AppStorage(StorageKeys.resolveConflicts) private var resolveConflicts
 
   var body: some View {
     Form {
       LabeledContent("Settings.Accessories.SearchEngine") {
         VStack(alignment: .leading) {
           HStack(alignment: .firstTextBaseline) {
-            Picker("Settings.Accessories.SearchEngine.Use", selection: engine) {
+            @Bindable var search = search
+
+            Picker("Settings.Accessories.SearchEngine.Use", selection: $search.selection) {
               Section {
                 Text("Settings.Accessories.SearchEngine.Use.None")
                   .tag(nil as SearchSettingsEngineModel.ID?, includeOptional: false)
               }
 
               Section {
-                ForEach(search.settingsEngines) { engine in
+                ForEach(search.engines) { engine in
                   Text(engine.name)
                     .tag(engine.id as SearchSettingsEngineModel.ID?, includeOptional: false)
                 }
               }
             }
-            .disabled(searchUseSystemDefault)
+            .disabled(isSystemSearchEnabled)
             .labelsHidden()
             .frame(width: SettingsView2.pickerWidth)
+            .onChange(of: search.selection) {
+              Task {
+                await search.storeSelection()
+              }
+            }
 
             Button("Settings.Accessories.SearchEngine.Manage") {
               openWindow(id: SearchSettingsScene.id)
@@ -51,7 +50,7 @@ struct SettingsAccessoriesView: View {
             .buttonStyle(.accessory)
           }
 
-          Toggle(isOn: $searchUseSystemDefault) {
+          Toggle(isOn: $isSystemSearchEnabled) {
             Text("Settings.Accessories.SearchEngine.Default")
 
             Text("Settings.Accessories.SearchEngine.Default.Note")

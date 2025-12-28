@@ -73,8 +73,6 @@ class ImagesDetailListViewModel {
 }
 
 struct ImagesDetailListView: View {
-  static private let defaultScrollAnchor = UnitPoint.top
-
   @Environment(ImagesModel.self) private var images
   @Environment(\.isTrackingMenu) private var isTrackingMenu
   @Environment(\.isWindowFullScreen) private var isWindowFullScreen
@@ -86,11 +84,9 @@ struct ImagesDetailListView: View {
 
   var body: some View {
     ScrollViewReader { proxy in
-      List(images.isReady ? images.items : []) { item in
+      List(images.isReady ? images.items2 : []) { item in
         ImagesDetailItemView(item: item)
-          .localized()
-          // TODO: Don't hardcode.
-          .listRowInsets(EdgeInsets(top: 0, leading: -8, bottom: 0, trailing: -9))
+          .listRowInsets(.listRow)
           .listRowSeparator(.hidden)
           .anchorPreference(key: ScrollOffsetPreferenceKey.self, value: .origin, transform: identity)
       }
@@ -135,21 +131,7 @@ struct ImagesDetailListView: View {
             partialResult.isHighlighted = item.item.isHighlighted
           }
 
-          let item = visible.items.first
-
-          Color.clear
-            .preference(key: ImagesDetailVisiblePreferenceKey.self, value: visible)
-            .onChange(of: item) {
-              images.itemID = item?.id
-
-              Task {
-                do {
-                  try await images.submit(currentItem: item)
-                } catch {
-                  Logger.model.error("\(error)")
-                }
-              }
-            }
+          Color.clear.preference(key: ImagesDetailVisiblePreferenceKey.self, value: visible)
         }
       }
       .toolbarVisible(
@@ -171,9 +153,6 @@ struct ImagesDetailListView: View {
           ? .hidden
           : .automatic,
       )
-      .focusedSceneValue(\.imagesDetailJump, ImagesNavigationJumpAction(identity: ImagesNavigationJumpIdentity(id: images.id, isReady: images.isReady)) { item in
-        proxy.scrollTo(item.id, anchor: Self.defaultScrollAnchor)
-      })
       .onContinuousHover { phase in
         switch phase {
           case .active:
@@ -204,15 +183,6 @@ struct ImagesDetailListView: View {
       }
       .onChange(of: columnVisibility.columnVisibility) {
         model.isScrollingSubject.send(false)
-      }
-      .onReceive(images.incomingItemID) { id in
-        guard restoreLastImage else {
-          return
-        }
-
-        Task {
-          proxy.scrollTo(id, anchor: Self.defaultScrollAnchor)
-        }
       }
     }
   }

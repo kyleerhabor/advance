@@ -5,7 +5,6 @@
 //  Created by Kyle Erhabor on 11/30/25.
 //
 
-import AdvanceData
 import GRDB
 
 struct FoldersSettingsModelOpenFinderFolderFileBookmarkBookmarkInfo {

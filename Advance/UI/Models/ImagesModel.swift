@@ -5,20 +5,21 @@
 //  Created by Kyle Erhabor on 6/12/24.
 //
 
-import AppKit
 import AdvanceCore
-import AdvanceData
 import Algorithms
+import AppKit
+import AsyncAlgorithms
 import BigInt
 import Combine
 import CoreGraphics
-import Dependencies
+import CryptoKit
 import Foundation
 import GRDB
 import IdentifiedCollections
 import ImageIO
 import Observation
 import OSLog
+import SwiftUI
 import VisionKit
 
 extension URL {
@@ -54,14 +55,6 @@ extension AnyImagesItemModelSource: ImagesItemModelSource {
 extension ImagesItemModelSource {
   // MARK: - Convenience
 
-  func showFinder() {
-    guard let url else {
-      return
-    }
-
-    NSWorkspace.shared.activateFileViewerSelecting([url])
-  }
-
   static func resampleImage(source imageSource: CGImageSource, length: Int) -> CGImage? {
     let iimage = CGImageSourceGetPrimaryImageIndex(imageSource)
     let options: [CFString: Any] = [
@@ -77,8 +70,6 @@ extension ImagesItemModelSource {
     }
 
     return image
-
-//    return CGImageSourceCreateThumbnailAtIndex(imageSource, iimage, options as CFDictionary)
   }
 }
 
@@ -146,20 +137,17 @@ final class ImagesItemModel {
   // A generic parameter would be nice, but heavily infects views as a consequence.
   var source: AnyImagesItemModelSource
   var properties: ImagesItemModelProperties
-  @ObservationIgnored var info: LibraryModelTrackImagesItemsImagesItemInfo
   var isBookmarked: Bool
 
   init(
     id: RowID,
     source: AnyImagesItemModelSource,
     properties: ImagesItemModelProperties,
-    info: LibraryModelTrackImagesItemsImagesItemInfo,
     isBookmarked: Bool
   ) {
     self.id = id
     self.source = source
     self.properties = properties
-    self.info = info
     self.isBookmarked = isBookmarked
   }
 }
@@ -175,22 +163,6 @@ extension ImagesItemModel: Equatable {
 extension ImagesItemModel: Hashable {
   func hash(into hasher: inout Hasher) {
     hasher.combine(self.id)
-  }
-}
-
-struct ImagesModelSource {
-  let dataStack: DataStackDependencyKey.DataStack
-  let id: LibraryModelIDImagesInfo
-}
-
-enum ImagesModelFetchPhase<Value> {
-  case end, none, value(Value)
-
-  var isEnd: Bool {
-    switch self {
-      case .end: true
-      default: false
-    }
   }
 }
 
@@ -244,14 +216,21 @@ extension ImagesModelLoadImagesItemInfo: Decodable {
 
 extension ImagesModelLoadImagesItemInfo: Sendable, Equatable, FetchableRecord {}
 
+struct ImagesModelLoadImagesCurrentItemInfo {
+  let item: ImagesItemRecord
+}
+
+extension ImagesModelLoadImagesCurrentItemInfo: Sendable, Equatable, Decodable, FetchableRecord {}
+
 struct ImagesModelLoadImagesInfo {
   let images: ImagesRecord
+  let currentItem: ImagesModelLoadImagesCurrentItemInfo?
   let items: [ImagesModelLoadImagesItemInfo]
 }
 
 extension ImagesModelLoadImagesInfo: Decodable {
   enum CodingKeys: CodingKey {
-    case images, items
+    case images, currentItem, items
   }
 }
 
@@ -276,34 +255,68 @@ extension ImagesModelStoreImagesItemsImagesInfo: Decodable {
 
 extension ImagesModelStoreImagesItemsImagesInfo: FetchableRecord {}
 
+enum ImagesItemModelImagePhase {
+  case empty, success, failure
+}
+
 @Observable
 @MainActor
 final class ImagesItemModel2 {
   let id: RowID
-  var source: URLSource
+  var url: URL
   var title: String
-  var isBookmarked: Bool
   var aspectRatio: Double
+  var isBookmarked: Bool
+  var sidebarImage: NSImage
+  var sidebarImagePhase: ImagesItemModelImagePhase
+  var detailImage: NSImage
+  var detailImageOrientation: CGImagePropertyOrientation
+  var detailImageHash: Data
+  var detailImagePhase: ImagesItemModelImagePhase
+  var imageAnalysis: ImageAnalysis?
 
-  init(id: RowID, source: URLSource, title: String, isBookmarked: Bool, aspectRatio: Double) {
+  init(
+    id: RowID,
+    url: URL,
+    title: String,
+    aspectRatio: Double,
+    isBookmarked: Bool,
+    sidebarImage: NSImage,
+    sidebarImagePhase: ImagesItemModelImagePhase,
+    detailImage: NSImage,
+    detailImageOrientation: CGImagePropertyOrientation,
+    detailImageHash: Data,
+    detailImagePhase: ImagesItemModelImagePhase,
+    imageAnalysis: ImageAnalysis?,
+  ) {
     self.id = id
-    self.source = source
+    self.url = url
     self.title = title
-    self.isBookmarked = isBookmarked
     self.aspectRatio = aspectRatio
+    self.isBookmarked = isBookmarked
+    self.sidebarImage = sidebarImage
+    self.sidebarImagePhase = sidebarImagePhase
+    self.detailImage = detailImage
+    self.detailImageOrientation = detailImageOrientation
+    self.detailImageHash = detailImageHash
+    self.detailImagePhase = detailImagePhase
+    self.imageAnalysis = imageAnalysis
+  }
+}
+
+extension ImagesItemModel2: @MainActor Equatable {
+  static func ==(lhs: ImagesItemModel2, rhs: ImagesItemModel2) -> Bool {
+    lhs.id == rhs.id
+  }
+}
+
+extension ImagesItemModel2: @MainActor Hashable {
+  func hash(into hasher: inout Hasher) {
+    hasher.combine(id)
   }
 }
 
 extension ImagesItemModel2: Identifiable {}
-
-struct ImagesModelStoreState {
-  var bookmarks: [URL: Bookmark]
-}
-
-struct ImagesModelCopyFolderLoadState {
-  let folder: ImagesModelCopyFolderFolderInfo?
-  let items: [RowID: ImagesModelCopyFolderImagesItemInfo]
-}
 
 struct ImagesModelCopyFolderFileExistsError {
   let source: String
@@ -337,6 +350,62 @@ extension ImagesModelCopyFolderError: LocalizedError {
   }
 }
 
+struct ImagesModelLoadImagesLoadState {
+  let items: [RowID: ImagesModelLoadImageImagesItemInfo]
+}
+
+struct ImagesModelLoadImagesResampleState {
+  var images: [RowID: NSImage]
+}
+
+struct ImagesModelLoadImagesResampleChild {
+  let bookmark: RowID
+  let image: NSImage
+}
+
+struct ImagesModelStoreState {
+  var bookmarks: [URL: Bookmark]
+}
+
+struct ImagesModelCopyFolderLoadItemState {
+  let folder: ImagesModelCopyFolderFolderInfo?
+  let item: ImagesModelCopyFolderImagesItemInfo?
+}
+
+struct ImagesModelCopyFolderLoadState {
+  let folder: ImagesModelCopyFolderFolderInfo?
+  let items: [RowID: ImagesModelCopyFolderImagesItemInfo]
+}
+
+struct ImagesModelLoadDetailsStateItem {
+  let item: ImagesItemInfo
+  let title: String
+  let aspectRatio: Double
+}
+
+struct ImagesModelLoadDetailsState {
+  var items: [RowID: ImagesModelLoadDetailsStateItem]
+}
+
+struct ImagesModelLoadURLState {
+  let items: [RowID: ImagesModelLoadURLImagesItemInfo]
+}
+
+struct ImagesModelSidebarElement {
+  let item: ImagesItemModel2.ID
+  let isSelected: Bool
+}
+
+struct ImagesModelImageOrientation {
+  let image: NSImage
+  let orientation: CGImagePropertyOrientation
+}
+
+struct ImagesModelLoadImage {
+  let hash: Data
+  let imageOrientation: ImagesModelImageOrientation
+}
+
 @Observable
 @MainActor
 final class ImagesModel {
@@ -344,21 +413,20 @@ final class ImagesModel {
   typealias Resampler = AsyncStream<Runner<CGImage?, Never>>
   typealias Analyzer = AsyncStream<Runner<ImageAnalysis, any Error>>
 
-  let id: UUID
+  let id: ID
+  @ObservationIgnored private var hasLoaded: Bool
+  var items: IdentifiedArrayOf<ImagesItemModel2>
+  var hasLoadedNoImages: Bool
+  var currentItem: ImagesItemModel2?
+  var bookmarkedItems: Set<ImagesItemModel2.ID>
+  let sidebar: AsyncChannel<ImagesModelSidebarElement>
+  let detail: AsyncChannel<ImagesItemModel2.ID>
+  @ObservationIgnored private var resolvedItems: Set<ImagesItemModel2.ID>
 
-  var items2: IdentifiedArrayOf<ImagesItemModel2>
-  private(set) var hasLoadedNoImages: Bool
-  var items: IdentifiedArrayOf<ImagesItemModel>
-  var itemID: ImagesItemModel.ID?
-  var bookmarkedItems: Set<ImagesItemModel.ID>
-  var item: ImagesItemModel? {
-    itemID.flatMap { items[id: $0] } ?? items.first
-  }
+  var items2: IdentifiedArrayOf<ImagesItemModel>
   var isReady: Bool {
     performedItemsFetch && performedPropertiesFetch
   }
-  @ObservationIgnored var incomingItemID = PassthroughSubject<ImagesItemModel.ID, Never>()
-  @ObservationIgnored private var source: Once<ImagesModelSource>
   @ObservationIgnored var resampler: (stream: Resampler, continuation: Resampler.Continuation)
   @ObservationIgnored var analyzer: (stream: Analyzer, continuation: Analyzer.Continuation)
   private var performedItemsFetch = false
@@ -366,20 +434,15 @@ final class ImagesModel {
 
   init(id: UUID) {
     self.id = id
+    self.hasLoaded = false
     self.items = []
-    self.items2 = []
     self.hasLoadedNoImages = false
     self.bookmarkedItems = []
-    self.source = Once {
-      @Dependency(\.dataStack) var dataStack
+    self.sidebar = AsyncChannel()
+    self.detail = AsyncChannel()
+    self.resolvedItems = []
 
-      let ds = try await dataStack()
-      let id = try await ds.connection.write { db in
-        try DataStackDependencyKey.DataStack.idImages(db, id: id)
-      }
-
-      return ImagesModelSource(dataStack: ds, id: id)
-    }
+    self.items2 = []
     // Should we set an explicit buffering policy?
     self.resampler = AsyncStream.makeStream()
     self.analyzer = AsyncStream.makeStream()
@@ -387,6 +450,48 @@ final class ImagesModel {
 
   func load2() async {
     await _load()
+  }
+
+  func loadImage(item: ImagesItemModel2.ID, length: Double) async -> NSImage? {
+    await _loadImage(item: item, length: length)
+  }
+
+  func loadImages(items: [ImagesItemModel2.ID], width: Double, pixelLength: Double) async {
+    await _loadImages(items: items, width: width, pixelLength: pixelLength)
+  }
+
+  func loadImageAnalysis(for item: ImagesItemModel2, types: ImageAnalysisTypes) async {
+    guard item.detailImagePhase == .success else {
+      return
+    }
+
+    let analyzer = ImageAnalyzer()
+    let analysis: ImageAnalysis?
+
+    do {
+      analysis = try await withCheckedThrowingContinuation { continuation in
+        Task {
+          await analyses.send(Run(continuation: continuation) {
+            let configuration = ImageAnalyzer.Configuration(types.analyzerAnalysisTypes)
+            // The analysis is performed by mediaanalysisd, so it's not like this is all that expensive.
+            let analysis = try await analyzer.analyze(
+              item.detailImage,
+              orientation: item.detailImageOrientation,
+              configuration: configuration,
+            )
+
+            return analysis
+          })
+        }
+      }
+    } catch {
+      // This kind of sucks since the URL may be outdated.
+      Logger.model.error("Could not analyze image at file URL '\(item.url.pathString)': \(error)")
+
+      return
+    }
+
+    item.imageAnalysis = analysis
   }
 
   func store(urls: [URL], directoryEnumerationOptions: FileManager.DirectoryEnumerationOptions) async {
@@ -397,25 +502,74 @@ final class ImagesModel {
     await _store(items: items, enumerationOptions: enumerationOptions)
   }
 
-  func showFinder(items: Set<ImagesItemModel2.ID>) {
-    NSWorkspace.shared.activateFileViewerSelecting(_urls(forItems: items))
-  }
-
   func isInvalidSelection(of items: Set<ImagesItemModel2.ID>) -> Bool {
     items.isEmpty
   }
 
-  func urls(forItems items: Set<ImagesItemModel2.ID>) -> [URL] {
-    _urls(forItems: items)
+  func showFinder(item: ImagesItemModel2.ID) async {
+    await _showFinder(item: item)
   }
 
-  func copy(items: Set<ImagesItemModel2.ID>) {
-    NSPasteboard.general.prepareForNewContents()
-    NSPasteboard.general.writeObjects(_urls(forItems: items) as [NSURL])
+  func showFinder(items: Set<ImagesItemModel2.ID>) async {
+    await _showFinder(items: items)
+  }
+
+  // This should be async, but is a consequence of View.copyable(_:) only accepting a synchronous closure.
+  func urls(ofItems items: Set<ImagesItemModel2.ID>) -> [URL] {
+    // We don't want partial results.
+    guard items.isNonEmptySubset(of: resolvedItems) else {
+      return []
+    }
+
+    return items.map { self.items[id: $0]!.url }
+  }
+
+  func copy(item: ImagesItemModel2.ID) async {
+    await _copy(item: item)
+  }
+
+  func copy(items: Set<ImagesItemModel2.ID>) async {
+    await _copy(items: items)
   }
 
   func copyFolder(
-    items: Set<ImagesItemModel2.ID>,
+    item: ImagesItemModel2.ID?,
+    to folder: FoldersSettingsItemModel,
+    locale: Locale,
+    resolveConflicts: Bool,
+    pathSeparator: StorageFoldersPathSeparator,
+    pathDirection: StorageFoldersPathDirection,
+  ) async throws(ImagesModelCopyFolderError) {
+    try await _copyFolder(
+      item: item,
+      to: folder.id,
+      locale: locale,
+      resolveConflicts: resolveConflicts,
+      pathSeparator: pathSeparator,
+      pathDirection: pathDirection,
+    )
+  }
+
+  func copyFolder(
+    item: ImagesItemModel2.ID?,
+    to folder: URL,
+    locale: Locale,
+    resolveConflicts: Bool,
+    pathSeparator: StorageFoldersPathSeparator,
+    pathDirection: StorageFoldersPathDirection,
+  ) async throws(ImagesModelCopyFolderError) {
+    try await _copyFolder(
+      item: item,
+      to: folder,
+      locale: locale,
+      resolveConflicts: resolveConflicts,
+      pathSeparator: pathSeparator,
+      pathDirection: pathDirection,
+    )
+  }
+
+  func copyFolder(
+    items: [ImagesItemModel2.ID],
     to folder: FoldersSettingsItemModel,
     locale: Locale,
     resolveConflicts: Bool,
@@ -433,8 +587,8 @@ final class ImagesModel {
   }
 
   func copyFolder(
-    items: Set<ImagesItemModel2.ID>,
-    to source: URLSource,
+    items: [ImagesItemModel2.ID],
+    to folder: URL,
     locale: Locale,
     resolveConflicts: Bool,
     pathSeparator: StorageFoldersPathSeparator,
@@ -442,7 +596,7 @@ final class ImagesModel {
   ) async throws(ImagesModelCopyFolderError) {
     try await _copyFolder(
       items: items,
-      to: source,
+      to: folder,
       locale: locale,
       resolveConflicts: resolveConflicts,
       pathSeparator: pathSeparator,
@@ -450,7 +604,80 @@ final class ImagesModel {
     )
   }
 
-  nonisolated private func loadImages(connection: DatabasePool, images: ImagesModelLoadImagesInfo?) async {
+  func isBookmarked(items: Set<ImagesItemModel2.ID>) -> Bool {
+    items.isNonEmptySubset(of: bookmarkedItems)
+  }
+
+  func bookmark(item: ImagesItemModel2.ID, isBookmarked: Bool) async {
+    if isBookmarked {
+      bookmarkedItems.insert(item)
+    } else {
+      bookmarkedItems.remove(item)
+    }
+
+    self.items[id: item]!.isBookmarked = isBookmarked
+
+    await _bookmark(item: item, isBookmarked: isBookmarked)
+  }
+
+  func bookmark(items: Set<ImagesItemModel2.ID>, isBookmarked: Bool) async {
+    if isBookmarked {
+      bookmarkedItems.formUnion(items)
+    } else {
+      bookmarkedItems.subtract(items)
+    }
+
+    items.forEach { item in
+      self.items[id: item]!.isBookmarked = isBookmarked
+    }
+
+    await _bookmark(items: items, isBookmarked: isBookmarked)
+  }
+
+  func setCurrentItem(item: ImagesItemModel2?) async {
+    self.currentItem = item
+
+    await _setCurrentItem(item: item?.id)
+  }
+
+  nonisolated private func orientationImageProperty(data: [CFString : Any]) -> CGImagePropertyOrientation? {
+    guard let value = data[kCGImagePropertyOrientation] as? UInt32 else {
+      return .identity
+    }
+
+    guard let orientation = CGImagePropertyOrientation(rawValue: value) else {
+      return nil
+    }
+
+    return orientation
+  }
+
+  nonisolated private func sizeOrientation(at url: URL, data: [CFString : Any]) -> SizeOrientation? {
+    guard let pixelWidth = data[kCGImagePropertyPixelWidth] as? Double else {
+      Logger.model.fault("Properties of image source at file URL '\(url.pathString)' has no pixel width")
+
+      return nil
+    }
+
+    guard let pixelHeight = data[kCGImagePropertyPixelHeight] as? Double else {
+      Logger.model.fault("Properties of image source at file URL '\(url.pathString)' has no pixel height")
+
+      return nil
+    }
+
+    guard let orientation = orientationImageProperty(data: data) else {
+      Logger.model.fault("Properties of image source at file URL '\(url.pathString)' has invalid orientation")
+
+      return nil
+    }
+
+    return SizeOrientation(
+      size: CGSize(width: pixelWidth, height: pixelHeight),
+      orientation: orientation,
+    )
+  }
+
+  nonisolated private func load(connection: DatabasePool, images: ImagesModelLoadImagesInfo?) async {
     guard let images else {
       Task { @MainActor in
         hasLoadedNoImages = true
@@ -494,17 +721,7 @@ final class ImagesModel {
       return
     }
 
-    struct State2Item {
-      let item: ImagesItemInfo
-      let title: String
-      let aspectRatio: Double
-    }
-
-    struct State2 {
-      var items: [RowID: State2Item]
-    }
-
-    let state2 = await withTaskGroup(of: State2Item?.self) { group in
+    let state2 = await withTaskGroup(of: ImagesModelLoadDetailsStateItem?.self) { group in
       // TODO: Rewrite.
       items.forEach { item in
         group.addTask { [state1] in
@@ -524,7 +741,7 @@ final class ImagesModel {
           }
 
           let source = URLSource(url: bookmark.resolved.url, options: item.fileBookmark.bookmark.bookmark.options!)
-          let item = relative.accessingSecurityScopedResource { () -> State2Item? in
+          let item = relative.accessingSecurityScopedResource { () -> ImagesModelLoadDetailsStateItem? in
             source.accessingSecurityScopedResource {
               let resourceValues: URLResourceValues
 
@@ -552,30 +769,23 @@ final class ImagesModel {
 
               let options = [kCGImageSourceShouldCache: false]
 
-//              let orientation: CGImagePropertyOrientation? = if let displayOrientation = imageProperties[kCGImagePropertyOrientation] as? UInt32{
-//                CGImagePropertyOrientation(rawValue: displayOrientation)
-//              } else {
-//                .up
-//              }
-//
-//              let aspectRatio = orientation.isReflected
-//              ? pixelHeight / pixelWidth
-//              : pixelWidth / pixelHeight
+              guard let copyProperties = CGImageSourceCopyPropertiesAtIndex(
+                      imageSource,
+                      CGImageSourceGetPrimaryImageIndex(imageSource),
+                      options as CFDictionary,
+                    ) else {
+                Logger.model.error("Could not copy properties of image source at file URL '\(source.url.pathString)'")
 
-              guard let imageProperties = CGImageSourceCopyPropertiesAtIndex(
-                imageSource,
-                CGImageSourceGetPrimaryImageIndex(imageSource),
-                options as CFDictionary,
-              ) as? [CFString: Any],
-                    let pixelWidth = imageProperties[kCGImagePropertyPixelWidth] as? Double,
-                    let pixelHeight = imageProperties[kCGImagePropertyPixelHeight] as? Double else {
-                // TODO: Log.
                 return nil
               }
 
-              let aspectRatio = pixelWidth / pixelHeight
+              guard let sizeOrientation = self.sizeOrientation(at: source.url, data: copyProperties as! [CFString: Any]) else {
+                return nil
+              }
 
-              return State2Item(item: item, title: title, aspectRatio: aspectRatio)
+              let size = sizeOrientation.orientedSize
+
+              return ImagesModelLoadDetailsStateItem(item: item, title: title, aspectRatio: size.width / size.height)
             }
           }
 
@@ -583,9 +793,8 @@ final class ImagesModel {
         }
       }
 
-
       return await group.reduce(
-        into: State2(items: Dictionary(minimumCapacity: images.items.count)),
+        into: ImagesModelLoadDetailsState(items: Dictionary(minimumCapacity: images.items.count)),
       ) { partialResult, child in
         guard let child else {
           return
@@ -596,31 +805,58 @@ final class ImagesModel {
     }
 
     Task { @MainActor in
-      items2 = IdentifiedArray(
+      self.items = IdentifiedArray(
         uniqueElements: images.items
-          .compactMap { item in
-            guard let item = state2.items[item.item.rowID!] else {
+          .compactMap { imagesItem in
+            let id = imagesItem.item.rowID!
+
+            if let item = self.items[id: id] {
+              guard let item2 = state2.items[id] else {
+                // TODO: Log.
+                return item
+              }
+
+              let bookmark = state1.bookmarks[imagesItem.fileBookmark.bookmark.bookmark.rowID!]!
+              item.url = bookmark.resolved.url
+              item.title = item2.title
+              item.aspectRatio = item2.aspectRatio
+              item.isBookmarked = item2.item.item.isBookmarked!
+
+              return item
+            }
+
+            guard let item2 = state2.items[id] else {
+              // TODO: Log.
               return nil
             }
 
-            guard let bookmark = state1.bookmarks[item.item.fileBookmark.bookmark.bookmark.rowID!] else {
-              return nil
-            }
+            let bookmark = state1.bookmarks[imagesItem.fileBookmark.bookmark.bookmark.rowID!]!
 
             return ImagesItemModel2(
-              id: item.item.item.rowID!,
-              source: URLSource(
-                url: bookmark.resolved.url,
-                options: item.item.fileBookmark.bookmark.bookmark.options!,
-              ),
-              title: item.title,
-              isBookmarked: item.item.item.isBookmarked!,
-              aspectRatio: item.aspectRatio,
+              id: id,
+              url: bookmark.resolved.url,
+              title: item2.title,
+              aspectRatio: item2.aspectRatio,
+              isBookmarked: item2.item.item.isBookmarked!,
+              sidebarImage: NSImage(),
+              sidebarImagePhase: .empty,
+              detailImage: NSImage(),
+              detailImageOrientation: .identity,
+              detailImageHash: Data(),
+              detailImagePhase: .empty,
+              imageAnalysis: nil,
             )
-          },
+          }
       )
 
-      hasLoadedNoImages = items2.isEmpty
+      if !self.hasLoaded {
+        self.currentItem = images.currentItem.flatMap { self.items[id: $0.item.rowID!] }
+      }
+
+      self.hasLoaded = true
+      self.hasLoadedNoImages = self.items.isEmpty
+      self.bookmarkedItems = Set(self.items.filter(\.isBookmarked).map(\.id))
+      self.resolvedItems = Set(self.items.filter { state2.items[$0.id] != nil }.map(\.id))
     }
   }
 
@@ -651,10 +887,30 @@ final class ImagesModel {
                   ),
               ),
           )
+          .including(
+            optional: ImagesRecord.currentItem
+              .forKey(ImagesModelLoadImagesInfo.CodingKeys.currentItem)
+              .select(.rowID),
+          )
           .asRequest(of: ImagesModelLoadImagesInfo.self)
           .fetchOne(db)
       }
-      .removeDuplicates()
+      .removeDuplicates { a, b in
+        switch (a, b) {
+          case (nil, nil):
+            true
+          case (nil, .some):
+            false
+          case (.some, nil):
+            false
+          case (.some(let a), .some(let b)):
+            // currentItem is loaded once and set by setCurrentItem(item:), so we don't need to load images again if it
+            // changes. If we wanted to get rid of removeDuplicates(by:), we could cache items so bookmarks and images
+            // aren't re-computed. I'd prefer that be the implementation, but diagnosing the performance in this async
+            // code is not easy.
+            a.images == b.images && a.items == b.items && a.currentItem != b.currentItem
+        }
+      }
 
     let connection: DatabasePool
 
@@ -669,13 +925,360 @@ final class ImagesModel {
 
     do {
       for try await images in observation.values(in: connection, bufferingPolicy: .bufferingNewest(1)) {
-        await loadImages(connection: connection, images: images)
+        await load(connection: connection, images: images)
       }
     } catch {
       // TODO: Elaborate.
       Logger.model.error("\(error)")
 
       return
+    }
+  }
+
+  nonisolated private func loadImage(url: URL, length: Double) -> NSImage? {
+    guard let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+      // TODO: Log.
+      return nil
+    }
+
+    let index = CGImageSourceGetPrimaryImageIndex(imageSource)
+    let options = [
+      kCGImageSourceCreateThumbnailFromImageAlways: true,
+      kCGImageSourceThumbnailMaxPixelSize: length,
+      // TODO: Document.
+      kCGImageSourceCreateThumbnailWithTransform: true,
+    ] as [CFString : Any]
+
+    guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(imageSource, index, options as CFDictionary) else {
+      // TODO: Log.
+      return nil
+    }
+
+    return NSImage(cgImage: thumbnail, size: .zero)
+  }
+
+  nonisolated private func loadImage(at url: URL, width: Double, pixelLength: Double) -> ImagesModelImageOrientation? {
+    guard let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+      Logger.model.error("Could not create image source for file URL '\(url.pathString)'")
+
+      return nil
+    }
+
+    let index = CGImageSourceGetPrimaryImageIndex(imageSource)
+    let copyPropertiesOptions = [
+      kCGImageSourceShouldCache: true,
+      kCGImageSourceShouldCacheImmediately: true,
+    ] as [CFString: Any]
+
+    guard let copyProperties = CGImageSourceCopyPropertiesAtIndex(
+            imageSource,
+            index,
+            copyPropertiesOptions as CFDictionary,
+          ) else {
+      Logger.model.error("Could not copy properties of image source at file URL '\(url.pathString)'")
+
+      return nil
+    }
+
+    guard let sizeOrientation = sizeOrientation(at: url, data: copyProperties as! [CFString: Any]) else {
+      return nil
+    }
+
+    let sized = sizeOrientation.orientedSize
+    let height = width * (sized.height / sized.width)
+    let length = max(width, height) / pixelLength
+    let thumbnailCreationOptions = [
+      kCGImageSourceCreateThumbnailFromImageAlways: true,
+      kCGImageSourceThumbnailMaxPixelSize: length,
+      kCGImageSourceCreateThumbnailWithTransform: true,
+    ] as [CFString : Any]
+
+    // This is memory-intensive, so it shouldn't be called from a task group with a variable number of child tasks.
+    guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(
+            imageSource,
+            index,
+            thumbnailCreationOptions as CFDictionary,
+          ) else {
+      Logger.model.error("Could not create thumbnail at pixel size '\(length)' for image source at file URL '\(url.pathString)'")
+
+      return nil
+    }
+
+    return ImagesModelImageOrientation(
+      image: NSImage(cgImage: thumbnail, size: .zero),
+      orientation: sizeOrientation.orientation,
+    )
+  }
+
+  nonisolated private func _loadImage(item: ImagesItemModel2.ID, length: Double) async -> NSImage? {
+    let connection: DatabasePool
+
+    do {
+      connection = try await databaseConnection()
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return nil
+    }
+
+    let imagesItem: ImagesModelLoadImageImagesItemInfo?
+
+    do {
+      imagesItem = try await connection.read { db in
+        try ImagesItemRecord
+          .select(.rowID)
+          .filter(key: item)
+          .including(
+            required: ImagesItemRecord.fileBookmark
+              .forKey(ImagesModelLoadImageImagesItemInfo.CodingKeys.fileBookmark)
+              .select(.rowID)
+              .including(
+                required: FileBookmarkRecord.bookmark
+                  .forKey(ImagesModelLoadImageImagesItemFileBookmarkInfo.CodingKeys.bookmark)
+                  .select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options),
+              )
+              .including(
+                optional: FileBookmarkRecord.relative
+                  .forKey(ImagesModelLoadImageImagesItemFileBookmarkInfo.CodingKeys.relative)
+                  .select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options),
+              ),
+          )
+          .asRequest(of: ImagesModelLoadImageImagesItemInfo.self)
+          .fetchOne(db)
+      }
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return nil
+    }
+
+    guard let item = imagesItem else {
+      return nil
+    }
+
+    let assigned = assign(bookmark: item.fileBookmark.bookmark.bookmark, relative: item.fileBookmark.relative?.relative)
+
+    do {
+      try await connection.write { db in
+        if let rel = item.fileBookmark.relative {
+          try write(db, bookmark: rel.relative, assigned: assigned?.relative)
+        }
+
+        try write(db, bookmark: item.fileBookmark.bookmark.bookmark, assigned: assigned?.bookmark)
+      }
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return nil
+    }
+
+    guard let assigned else {
+      return nil
+    }
+
+    let source = source(
+      assigned: assigned,
+      bookmark: item.fileBookmark.bookmark.bookmark,
+      relative: item.fileBookmark.relative?.relative,
+    )
+
+    let image = source.accessingSecurityScopedResource {
+      loadImage(url: source.source.url, length: length)
+    }
+
+    return image
+  }
+
+  nonisolated private func loadImage(
+    state: ImagesItemAssignment,
+    item: ImagesItemInfo,
+    width: Double,
+    pixelLength: Double,
+  ) -> ImagesModelLoadImage? {
+    let relative: URLSource?
+
+    do {
+      relative = try state.relative(item.fileBookmark.relative)
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return nil
+    }
+
+    let id = item.fileBookmark.bookmark.bookmark.rowID!
+
+    guard let bookmark = state.bookmarks[id] else {
+      return nil
+    }
+
+    let document = URLSourceDocument(
+      source: URLSource(url: bookmark.resolved.url, options: item.fileBookmark.bookmark.bookmark.options!),
+      relative: relative,
+    )
+
+    return document.accessingSecurityScopedResource {
+      guard let stream = InputStream(url: document.source.url) else {
+        Logger.model.error("Could not create input stream at file URL '\(document.source.url.pathString)'")
+
+        return nil
+      }
+
+      stream.open()
+
+      defer {
+        stream.close()
+      }
+
+      let capacity = 65536 // 2^16
+      let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: capacity)
+
+      defer {
+        buffer.deallocate()
+      }
+
+      var hasher = SHA256()
+
+      while stream.hasBytesAvailable {
+        let result = stream.read(buffer, maxLength: capacity)
+
+        guard result != -1 else {
+          Logger.model.error("Could not read input stream at file URL '\(document.source.url.pathString)': \(stream.streamError)")
+
+          return nil
+        }
+
+        hasher.update(bufferPointer: UnsafeRawBufferPointer(start: buffer, count: result))
+      }
+
+      let hash = Data(hasher.finalize())
+
+      guard let imageOrientation = self.loadImage(at: document.source.url, width: width, pixelLength: pixelLength) else {
+        return nil
+      }
+
+      return ImagesModelLoadImage(hash: hash, imageOrientation: imageOrientation)
+    }
+  }
+
+  nonisolated private func _loadImages(items: [ImagesItemModel2.ID], width: Double, pixelLength: Double) async {
+    let connection: DatabasePool
+
+    do {
+      connection = try await databaseConnection()
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return
+    }
+
+    let state1: ImagesModelLoadImagesLoadState
+
+    do {
+      state1 = try await connection.read { db in
+        let items = try ImagesItemRecord
+          .select(.rowID)
+          .filter(keys: items)
+          .including(
+            required: ImagesItemRecord.fileBookmark
+              .forKey(ImagesModelLoadImageImagesItemInfo.CodingKeys.fileBookmark)
+              .select(.rowID)
+              .including(
+                required: FileBookmarkRecord.bookmark
+                  .forKey(ImagesModelLoadImageImagesItemFileBookmarkInfo.CodingKeys.bookmark)
+                  .select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options),
+              )
+              .including(
+                optional: FileBookmarkRecord.relative
+                  .forKey(ImagesModelLoadImageImagesItemFileBookmarkInfo.CodingKeys.relative)
+                  .select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options),
+              ),
+          )
+          .asRequest(of: ImagesModelLoadImageImagesItemInfo.self)
+          .fetchCursor(db)
+
+        let state = ImagesModelLoadImagesLoadState(
+          items: try Dictionary(uniqueKeysWithValues: items.map { ($0.item.rowID!, $0) }),
+        )
+
+        return state
+      }
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return
+    }
+
+    let items2 = items.map { item in
+      let item = state1.items[item]!
+
+      return ImagesItemInfo(
+        item: item.item,
+        fileBookmark: ImagesItemFileBookmarkInfo(
+          fileBookmark: item.fileBookmark.fileBookmark,
+          bookmark: ImagesItemFileBookmarkBookmarkInfo(
+            bookmark: item.fileBookmark.bookmark.bookmark,
+          ),
+          relative: item.fileBookmark.relative.map { relative in
+            ImagesItemFileBookmarkRelativeInfo(
+              relative: relative.relative,
+            )
+          },
+        ),
+      )
+    }
+
+    var state2 = ImagesItemAssignment()
+    await state2.assign(items: items2)
+
+    do {
+      try await connection.write { [state2] db in
+        try state2.write(db, items: items2)
+      }
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return
+    }
+
+    for item in items2 {
+      let result = loadImage(state: state2, item: item, width: width, pixelLength: pixelLength)
+
+      await MainActor.run {
+        let imagesItem = self.items[id: item.item.rowID!]!
+
+        guard let result else {
+          imagesItem.detailImage = imagesItem.detailImage
+          imagesItem.detailImageHash = imagesItem.detailImageHash
+          imagesItem.detailImagePhase = .failure
+
+          return
+        }
+
+        imagesItem.detailImage = result.imageOrientation.image
+        imagesItem.detailImageHash = result.hash
+        imagesItem.detailImagePhase = .success
+      }
+    }
+
+    let items = Set(items)
+
+    Task { @MainActor in
+      self.items.forEach { item in
+        guard !items.contains(item.id) else {
+          return
+        }
+
+        item.detailImage = NSImage()
+        item.detailImageHash = Data()
+        item.detailImagePhase = .empty
+      }
     }
   }
 
@@ -828,6 +1431,7 @@ final class ImagesModel {
 
     do {
       try await connection.write { db in
+        // FIXME: Don't reset currentItem.
         var images = ImagesRecord(rowID: nil, id: id, currentItem: nil)
         try images.upsert(db)
 
@@ -851,14 +1455,7 @@ final class ImagesModel {
                 return position
               }
 
-              let size = position.denominator.size.asInt()!
-              var delta = BigFraction(BInt.ONE, BInt.TEN ** size)
-
-              if (position + delta).simplified == 1 {
-                delta = BigFraction(BInt.ONE, BInt.TEN ** (size + 1))
-              }
-
-              let position = position + delta
+              let position = position + delta(lowerBound: position, upperBound: .one, base: .TEN)
               let fileBookmark = try createFileBookmark(db, bookmark: item, relative: nil)
               _ = try createItemImages(
                 db,
@@ -880,14 +1477,7 @@ final class ImagesModel {
                   return position
                 }
 
-                let size = position.denominator.size.asInt()!
-                var delta = BigFraction(BInt.ONE, BInt.TEN ** size)
-
-                if (position + delta).simplified == 1 {
-                  delta = BigFraction(BInt.ONE, BInt.TEN ** (size + 1))
-                }
-
-                let position = position + delta
+                let position = position + delta(lowerBound: position, upperBound: .one, base: .TEN)
                 let fileBookmark = try createFileBookmark(db, bookmark: item, relative: fileBookmark.rowID)
                 _ = try createItemImages(
                   db,
@@ -977,26 +1567,373 @@ final class ImagesModel {
     await store(items: items)
   }
 
-  private func _urls(forItems items: Set<ImagesItemModel2.ID>) -> [URL] {
-    items.compactMap { self.items2[id: $0]?.source.url }
+  nonisolated private func assign(bookmark: BookmarkRecord, relative: BookmarkRecord?) -> AssignedBookmarkDocument? {
+    // If relative is resolved while bookmark isn't, this will send notifications for both. This isn't the best design,
+    // but it's not the worst, either, since we'll be notified of the region changing, rather than of the individual
+    // bookmarks. As a result, returning nil instead of, say, nil for the property, has no visible effect on the
+    // application, which is flexible.
+
+    if let r = relative {
+      let relative: AssignedBookmark
+
+      do {
+        relative = try AssignedBookmark(data: r.data!, options: r.options!, relativeTo: nil)
+      } catch {
+        // TODO: Elaborate.
+        Logger.model.error("\(error)")
+
+        return nil
+      }
+
+      let source = URLSource(url: relative.resolved.url, options: [])
+      let assigned: AssignedBookmark
+
+      do {
+        assigned = try source.accessingSecurityScopedResource {
+          try AssignedBookmark(data: bookmark.data!, options: bookmark.options!, relativeTo: relative.resolved.url)
+        }
+      } catch {
+        // TODO: Elaborate.
+        Logger.model.error("\(error)")
+
+        return nil
+      }
+
+      return AssignedBookmarkDocument(bookmark: assigned, relative: relative)
+    }
+
+    let assigned: AssignedBookmark
+
+    do {
+      assigned = try AssignedBookmark(data: bookmark.data!, options: bookmark.options!, relativeTo: nil)
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return nil
+    }
+
+    return AssignedBookmarkDocument(bookmark: assigned, relative: nil)
   }
 
-  nonisolated private func copy(
-    items: [ImagesItemInfo],
-    to source: URLSource,
-    state: ImagesItemAssignment,
+  nonisolated private func source(
+    assigned: AssignedBookmarkDocument,
+    bookmark: BookmarkRecord,
+    relative: BookmarkRecord?,
+  ) -> URLSourceDocument {
+    let rel: URLSource?
+
+    if let relative {
+      // If relative is non-nil, assigned.relative should be non-nil, too, because assign(bookmark:relative:) returns
+      // nil for cases where resolving relative fails.
+      rel = URLSource(url: assigned.relative!.resolved.url, options: relative.options!)
+    } else {
+      rel = nil
+    }
+
+    return URLSourceDocument(
+      source: URLSource(url: assigned.bookmark.resolved.url, options: bookmark.options!),
+      relative: rel,
+    )
+  }
+
+  nonisolated private func loadURL(forItem item: ImagesItemModel2.ID) async -> URLSourceDocument? {
+    let connection: DatabasePool
+
+    do {
+      connection = try await databaseConnection()
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return nil
+    }
+
+    let imagesItem: ImagesModelLoadURLImagesItemInfo?
+
+    do {
+      imagesItem = try await connection.read { db in
+        try ImagesItemRecord
+          .select(.rowID)
+          .filter(key: item)
+          .including(
+            required: ImagesItemRecord.fileBookmark
+              .forKey(ImagesModelLoadURLImagesItemInfo.CodingKeys.fileBookmark)
+              .select(.rowID)
+              .including(
+                required: FileBookmarkRecord.bookmark
+                  .forKey(ImagesModelLoadURLImagesItemFileBookmarkInfo.CodingKeys.bookmark)
+                  .select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options),
+              )
+              .including(
+                optional: FileBookmarkRecord.relative
+                  .forKey(ImagesModelLoadURLImagesItemFileBookmarkInfo.CodingKeys.relative)
+                  .select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options),
+              ),
+          )
+          .asRequest(of: ImagesModelLoadURLImagesItemInfo.self)
+          .fetchOne(db)
+      }
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return nil
+    }
+
+    guard let item = imagesItem else {
+      return nil
+    }
+
+    let assigned = assign(bookmark: item.fileBookmark.bookmark.bookmark, relative: item.fileBookmark.relative?.relative)
+
+    do {
+      try await connection.write { db in
+        if let rel = item.fileBookmark.relative {
+          try write(db, bookmark: rel.relative, assigned: assigned?.relative)
+        }
+
+        try write(db, bookmark: item.fileBookmark.bookmark.bookmark, assigned: assigned?.bookmark)
+      }
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return nil
+    }
+
+    guard let assigned else {
+      return nil
+    }
+
+    return source(
+      assigned: assigned,
+      bookmark: item.fileBookmark.bookmark.bookmark,
+      relative: item.fileBookmark.relative?.relative,
+    )
+  }
+
+  nonisolated private func loadURLs(forItems items: Set<ImagesItemModel2.ID>) async -> [URL]? {
+    let connection: DatabasePool
+
+    do {
+      connection = try await databaseConnection()
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return nil
+    }
+
+    let state1: ImagesModelLoadURLState
+
+    do {
+      state1 = try await connection.read { db in
+        let items = try ImagesItemRecord
+          .select(.rowID)
+          .filter(keys: items)
+          .including(
+            required: ImagesItemRecord.fileBookmark
+              .forKey(ImagesModelLoadURLImagesItemInfo.CodingKeys.fileBookmark)
+              .select(.rowID)
+              .including(
+                required: FileBookmarkRecord.bookmark
+                  .forKey(ImagesModelLoadURLImagesItemFileBookmarkInfo.CodingKeys.bookmark)
+                  .select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options),
+              )
+              .including(
+                optional: FileBookmarkRecord.relative
+                  .forKey(ImagesModelLoadURLImagesItemFileBookmarkInfo.CodingKeys.relative)
+                  .select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options),
+              ),
+          )
+          .asRequest(of: ImagesModelLoadURLImagesItemInfo.self)
+          .fetchCursor(db)
+
+        let state = ImagesModelLoadURLState(
+          items: try Dictionary(uniqueKeysWithValues: items.map { ($0.item.rowID!, $0) }),
+        )
+
+        return state
+      }
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return nil
+    }
+
+    let items2 = items.map { item in
+      let item = state1.items[item]!
+
+      return ImagesItemInfo(
+        item: item.item,
+        fileBookmark: ImagesItemFileBookmarkInfo(
+          fileBookmark: item.fileBookmark.fileBookmark,
+          bookmark: ImagesItemFileBookmarkBookmarkInfo(
+            bookmark: item.fileBookmark.bookmark.bookmark,
+          ),
+          relative: item.fileBookmark.relative.map { relative in
+            ImagesItemFileBookmarkRelativeInfo(
+              relative: relative.relative,
+            )
+          },
+        ),
+      )
+    }
+
+    var state2 = ImagesItemAssignment()
+    await state2.assign(items: items2)
+
+    do {
+      try await connection.write { [state2] db in
+        try state2.write(db, items: items2)
+      }
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return nil
+    }
+
+    return items
+      .compactMap { state1.items[$0] }
+      .compactMap { state2.bookmarks[$0.fileBookmark.bookmark.bookmark.rowID!]?.resolved.url }
+  }
+
+  nonisolated private func _showFinder(items: Set<ImagesItemModel2.ID>) async {
+    guard let urls = await loadURLs(forItems: items) else {
+      return
+    }
+
+    NSWorkspace.shared.activateFileViewerSelecting(urls)
+  }
+
+  nonisolated private func _showFinder(item: ImagesItemModel2.ID) async {
+    guard let document = await loadURL(forItem: item) else {
+      return
+    }
+
+    NSWorkspace.shared.activateFileViewerSelecting([document.source.url])
+  }
+
+  nonisolated private func _copy(item: ImagesItemModel2.ID) async {
+    guard let item = await loadURL(forItem: item) else {
+      return
+    }
+
+    NSPasteboard.general.prepareForNewContents()
+    NSPasteboard.general.writeObjects([item.source.url as NSURL])
+  }
+
+  nonisolated private func _copy(items: Set<ImagesItemModel2.ID>) async {
+    guard let urls = await loadURLs(forItems: items) else {
+      return
+    }
+
+    NSPasteboard.general.prepareForNewContents()
+    NSPasteboard.general.writeObjects(urls as [NSURL])
+  }
+
+  nonisolated private func copyFolder(
+    item: URL,
+    to folder: URL,
     locale: Locale,
     resolveConflicts: Bool,
     pathSeparator: StorageFoldersPathSeparator,
     pathDirection: StorageFoldersPathDirection,
-  ) async throws(ImagesModelCopyFolderError) {
+  ) throws(ImagesModelCopyFolderError) {
+    // I've no idea whether or not this contains characters that are invalid for file paths.
+    guard let components = FileManager.default.componentsToDisplay(
+      forPath: item.deletingLastPathComponent().pathString,
+    ) else {
+      // TODO: Log.
+      return
+    }
+
+    let lastPathComponent = item.lastPathComponent
+
     do {
-      try source.accessingSecurityScopedResource {
-        try items.forEach { item in
-          let relative: URLSource?
+      // TODO: Don't use lastPathComponent.
+      do {
+        try FileManager.default.copyItem(
+          at: item,
+          to: folder.appending(component: lastPathComponent, directoryHint: .notDirectory),
+        )
+      } catch let error as CocoaError where error.code == .fileWriteFileExists {
+        guard resolveConflicts else {
+          throw error
+        }
+
+        // TODO: Interpolate separator
+        //
+        // Given that localization supports this, I think it should be safe to assume that a collection of
+        // path components can be strung together by a common separator (in English, a space) embedding the
+        // true separator (say, an inequality sign).
+        let separator = switch (pathSeparator, pathDirection) {
+          case (.inequalitySign, .leading):
+            String(
+              localized: "Images.Item.Folder.Item.Copy.Path.Separator.InequalitySign.LeftToLeft",
+              locale: locale,
+            )
+          case (.inequalitySign, .trailing):
+            String(
+              localized: "Images.Item.Folder.Item.Copy.Path.Separator.InequalitySign.RightToLeft",
+              locale: locale,
+            )
+          case (.singlePointingAngleQuotationMark, .leading):
+            String(
+              localized: "Images.Item.Folder.Item.Copy.Path.Separator.SinglePointingAngleQuotationMark.LeftToRight",
+              locale: locale,
+            )
+          case (.singlePointingAngleQuotationMark, .trailing):
+            String(
+              localized: "Images.Item.Folder.Item.Copy.Path.Separator.SinglePointingAngleQuotationMark.RightToLeft",
+              locale: locale,
+            )
+          case (.blackPointingTriangle, .leading):
+            String(
+              localized: "Images.Item.Folder.Item.Copy.Path.Separator.BlackPointingTriangle.LeftToRight",
+              locale: locale,
+            )
+          case (.blackPointingTriangle, .trailing):
+            String(
+              localized: "Images.Item.Folder.Item.Copy.Path.Separator.BlackPointingTriangle.RightToLeft",
+              locale: locale,
+            )
+          case (.blackPointingSmallTriangle, .leading):
+            String(
+              localized: "Images.Item.Folder.Item.Copy.Path.Separator.BlackPointingSmallTriangle.LeftToRight",
+              locale: locale,
+            )
+          case (.blackPointingSmallTriangle, .trailing):
+            String(
+              localized: "Images.Item.Folder.Item.Copy.Path.Separator.BlackPointingSmallTriangle.RightToLeft",
+              locale: locale,
+            )
+        }
+
+        let pathComponents = components
+          .reversed()
+          .reductions(into: []) { $0.append($1) }
+          .dropFirst() // The initial reduction (an empty array)
+
+        for pathComponents in pathComponents {
+          let path = pathComponents.joined(separator: separator)
+          let component = String(
+            localized: "Images.Item.Folder.Item.Copy.Name.\(item.deletingPathExtension().lastPathComponent).Path.\(path)",
+            locale: locale,
+          )
 
           do {
-            relative = try state.relative(item.fileBookmark.relative)
+            try FileManager.default.copyItem(
+              at: item,
+              to: folder
+                .appending(component: component, directoryHint: .notDirectory)
+                .appendingPathExtension(item.pathExtension),
+            )
+          } catch let error as CocoaError where error.code == .fileWriteFileExists {
+            continue
           } catch {
             // TODO: Elaborate.
             Logger.model.error("\(error)")
@@ -1004,142 +1941,270 @@ final class ImagesModel {
             return
           }
 
-          guard let bookmark = state.bookmarks[item.fileBookmark.bookmark.bookmark.rowID!] else {
-            return
-          }
-
-          let item = URLSource(url: bookmark.resolved.url, options: item.fileBookmark.bookmark.bookmark.options!)
-          try relative.accessingSecurityScopedResource {
-            try item.accessingSecurityScopedResource {
-              // I've no idea whether or not this contains characters that are invalid for file paths.
-              guard let components = FileManager.default.componentsToDisplay(
-                forPath: item.url.deletingLastPathComponent().pathString,
-              ) else {
-                // TODO: Log.
-                return
-              }
-
-              let lastPathComponent = item.url.lastPathComponent
-
-              do {
-                // TODO: Don't use lastPathComponent.
-                do {
-                  try FileManager.default.copyItem(
-                    at: item.url,
-                    to: source.url.appending(component: lastPathComponent, directoryHint: .notDirectory),
-                  )
-                } catch let error as CocoaError where error.code == .fileWriteFileExists {
-                  guard resolveConflicts else {
-                    throw error
-                  }
-
-                  // TODO: Interpolate separator
-                  //
-                  // Given that localization supports this, I think it should be safe to assume that a collection of
-                  // path components can be strung together by a common separator (in English, a space) embedding the
-                  // true separator (say, an inequality sign).
-                  let separator = switch (pathSeparator, pathDirection) {
-                    case (.inequalitySign, .leading):
-                      String(
-                        localized: "Images.Item.Folder.Item.Copy.Path.Separator.InequalitySign.LeftToLeft",
-                        locale: locale,
-                      )
-                    case (.inequalitySign, .trailing):
-                      String(
-                        localized: "Images.Item.Folder.Item.Copy.Path.Separator.InequalitySign.RightToLeft",
-                        locale: locale,
-                      )
-                    case (.singlePointingAngleQuotationMark, .leading):
-                      String(
-                        localized: "Images.Item.Folder.Item.Copy.Path.Separator.SinglePointingAngleQuotationMark.LeftToRight",
-                        locale: locale,
-                      )
-                    case (.singlePointingAngleQuotationMark, .trailing):
-                      String(
-                        localized: "Images.Item.Folder.Item.Copy.Path.Separator.SinglePointingAngleQuotationMark.RightToLeft",
-                        locale: locale,
-                      )
-                    case (.blackPointingTriangle, .leading):
-                      String(
-                        localized: "Images.Item.Folder.Item.Copy.Path.Separator.BlackPointingTriangle.LeftToRight",
-                        locale: locale,
-                      )
-                    case (.blackPointingTriangle, .trailing):
-                      String(
-                        localized: "Images.Item.Folder.Item.Copy.Path.Separator.BlackPointingTriangle.RightToLeft",
-                        locale: locale,
-                      )
-                    case (.blackPointingSmallTriangle, .leading):
-                      String(
-                        localized: "Images.Item.Folder.Item.Copy.Path.Separator.BlackPointingSmallTriangle.LeftToRight",
-                        locale: locale,
-                      )
-                    case (.blackPointingSmallTriangle, .trailing):
-                      String(
-                        localized: "Images.Item.Folder.Item.Copy.Path.Separator.BlackPointingSmallTriangle.RightToLeft",
-                        locale: locale,
-                      )
-                  }
-
-                  let pathComponents = components
-                    .reversed()
-                    .reductions(into: []) { $0.append($1) }
-                    .dropFirst() // The initial reduction (an empty array)
-
-                  for pathComponents in pathComponents {
-                    let path = pathComponents.joined(separator: separator)
-                    let component = String(
-                      localized: "Images.Item.Folder.Item.Copy.Name.\(item.url.deletingPathExtension().lastPathComponent).Path.\(path)",
-                      locale: locale,
-                    )
-
-                    do {
-                      try FileManager.default.copyItem(
-                        at: item.url,
-                        to: source.url
-                          .appending(component: component, directoryHint: .notDirectory)
-                          .appendingPathExtension(item.url.pathExtension),
-                      )
-                    } catch let error as CocoaError where error.code == .fileWriteFileExists {
-                      continue
-                    } catch {
-                      // TODO: Elaborate.
-                      Logger.model.error("\(error)")
-
-                      return
-                    }
-
-                    return
-                  }
-
-                  throw error
-                } catch {
-                  // TODO: Elaborate.
-                  Logger.model.error("\(error)")
-
-                  return
-                }
-              } catch {
-                throw ImagesModelCopyFolderError(
-                  locale: locale,
-                  type: .fileExists(ImagesModelCopyFolderFileExistsError(
-                    source: lastPathComponent,
-                    destination: source.url.lastPathComponent,
-                  )),
-                )
-              }
-            }
-          }
+          return
         }
+
+        throw error
+      } catch {
+        // TODO: Elaborate.
+        Logger.model.error("\(error)")
+
+        return
       }
     } catch {
-      // I don't see why Swift thinks this is any Error.
-      throw error as! ImagesModelCopyFolderError
+      throw ImagesModelCopyFolderError(
+        locale: locale,
+        type: .fileExists(ImagesModelCopyFolderFileExistsError(
+          source: lastPathComponent,
+          destination: folder.lastPathComponent,
+        )),
+      )
     }
   }
 
   nonisolated private func _copyFolder(
-    items: Set<ImagesItemModel2.ID>,
+    item: ImagesItemModel2.ID?,
+    to folder: FoldersSettingsItemModel.ID,
+    locale: Locale,
+    resolveConflicts: Bool,
+    pathSeparator: StorageFoldersPathSeparator,
+    pathDirection: StorageFoldersPathDirection,
+  ) async throws(ImagesModelCopyFolderError) {
+    guard let item else {
+      return
+    }
+
+    let connection: DatabasePool
+
+    do {
+      connection = try await databaseConnection()
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return
+    }
+
+    let state: ImagesModelCopyFolderLoadItemState
+
+    do {
+      state = try await connection.read { db in
+        let folder = try FolderRecord
+          .select(.rowID)
+          .filter(key: folder)
+          .including(
+            required: FolderRecord.fileBookmark
+              .forKey(ImagesModelCopyFolderFolderInfo.CodingKeys.fileBookmark)
+              .select(.rowID)
+              .including(
+                required: FileBookmarkRecord.bookmark
+                  .forKey(ImagesModelCopyFolderFolderFileBookmarkInfo.CodingKeys.bookmark)
+                  .select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options),
+              ),
+          )
+          .asRequest(of: ImagesModelCopyFolderFolderInfo.self)
+          .fetchOne(db)
+
+        let item = try ImagesItemRecord
+          .select(.rowID)
+          .filter(key: item)
+          .including(
+            required: ImagesItemRecord.fileBookmark
+              .forKey(ImagesModelCopyFolderImagesItemInfo.CodingKeys.fileBookmark)
+              .select(.rowID)
+              .including(
+                required: FileBookmarkRecord.bookmark
+                  .forKey(ImagesModelCopyFolderImagesItemFileBookmarkInfo.CodingKeys.bookmark)
+                  .select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options),
+              )
+              .including(
+                optional: FileBookmarkRecord.relative
+                  .forKey(ImagesModelCopyFolderImagesItemFileBookmarkInfo.CodingKeys.relative)
+                  .select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options),
+              ),
+          )
+          .asRequest(of: ImagesModelCopyFolderImagesItemInfo.self)
+          .fetchOne(db)
+
+        return ImagesModelCopyFolderLoadItemState(folder: folder, item: item)
+      }
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return
+    }
+
+    guard let folder = state.folder,
+          let item = state.item else {
+      // TODO: Log.
+      return
+    }
+
+    let options = folder.fileBookmark.bookmark.bookmark.options!
+    let assignedFolder: AssignedBookmark?
+
+    do {
+      assignedFolder = try AssignedBookmark(
+        data: folder.fileBookmark.bookmark.bookmark.data!,
+        options: options,
+        relativeTo: nil,
+      )
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      assignedFolder = nil
+    }
+
+    let assignedItem = assign(bookmark: item.fileBookmark.bookmark.bookmark, relative: item.fileBookmark.relative?.relative)
+
+    do {
+      try await connection.write { db in
+        try write(db, bookmark: folder.fileBookmark.bookmark.bookmark, assigned: assignedFolder)
+
+        if let rel = item.fileBookmark.relative {
+          try write(db, bookmark: rel.relative, assigned: assignedItem?.relative)
+        }
+
+        try write(db, bookmark: item.fileBookmark.bookmark.bookmark, assigned: assignedItem?.bookmark)
+      }
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return
+    }
+
+    guard let assignedFolder,
+          let assignedItem else {
+      return
+    }
+
+    let folderSource = URLSource(url: assignedFolder.resolved.url, options: options)
+    let itemSource = self.source(
+      assigned: assignedItem,
+      bookmark: item.fileBookmark.bookmark.bookmark,
+      relative: item.fileBookmark.relative?.relative,
+    )
+
+    try folderSource.accessingSecurityScopedResource { () throws(ImagesModelCopyFolderError) in
+      try itemSource.accessingSecurityScopedResource { () throws(ImagesModelCopyFolderError) in
+        try copyFolder(
+          item: itemSource.source.url,
+          to: folderSource.url,
+          locale: locale,
+          resolveConflicts: resolveConflicts,
+          pathSeparator: pathSeparator,
+          pathDirection: pathDirection,
+        )
+      }
+    }
+  }
+
+  nonisolated private func _copyFolder(
+    item: ImagesItemModel2.ID?,
+    to folder: URL,
+    locale: Locale,
+    resolveConflicts: Bool,
+    pathSeparator: StorageFoldersPathSeparator,
+    pathDirection: StorageFoldersPathDirection,
+  ) async throws(ImagesModelCopyFolderError) {
+    guard let item else {
+      return
+    }
+
+    let connection: DatabasePool
+
+    do {
+      connection = try await databaseConnection()
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return
+    }
+
+    let imagesItem: ImagesModelCopyFolderImagesItemInfo?
+
+    do {
+      imagesItem = try await connection.read { db in
+        try ImagesItemRecord
+          .select(.rowID)
+          .filter(key: item)
+          .including(
+            required: ImagesItemRecord.fileBookmark
+              .forKey(ImagesModelCopyFolderImagesItemInfo.CodingKeys.fileBookmark)
+              .select(.rowID)
+              .including(
+                required: FileBookmarkRecord.bookmark
+                  .forKey(ImagesModelCopyFolderImagesItemFileBookmarkInfo.CodingKeys.bookmark)
+                  .select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options),
+              )
+              .including(
+                optional: FileBookmarkRecord.relative
+                  .forKey(ImagesModelCopyFolderImagesItemFileBookmarkInfo.CodingKeys.relative)
+                  .select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options),
+              ),
+          )
+          .asRequest(of: ImagesModelCopyFolderImagesItemInfo.self)
+          .fetchOne(db)
+      }
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return
+    }
+
+    guard let item = imagesItem else {
+      // TODO: Log.
+      return
+    }
+
+    let assigned = assign(bookmark: item.fileBookmark.bookmark.bookmark, relative: item.fileBookmark.relative?.relative)
+
+    do {
+      try await connection.write { db in
+        if let rel = item.fileBookmark.relative {
+          try write(db, bookmark: rel.relative, assigned: assigned?.relative)
+        }
+
+        try write(db, bookmark: item.fileBookmark.bookmark.bookmark, assigned: assigned?.bookmark)
+      }
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return
+    }
+
+    guard let assigned else {
+      return
+    }
+
+    let itemSource = self.source(
+      assigned: assigned,
+      bookmark: item.fileBookmark.bookmark.bookmark,
+      relative: item.fileBookmark.relative?.relative,
+    )
+
+    try folder.accessingSecurityScopedResource { () throws(ImagesModelCopyFolderError) in
+      try itemSource.accessingSecurityScopedResource { () throws(ImagesModelCopyFolderError) in
+        try copyFolder(
+          item: itemSource.source.url,
+          to: folder,
+          locale: locale,
+          resolveConflicts: resolveConflicts,
+          pathSeparator: pathSeparator,
+          pathDirection: pathDirection,
+        )
+      }
+    }
+  }
+
+  nonisolated private func _copyFolder(
+    items: [ImagesItemModel2.ID],
     to folder: FoldersSettingsItemModel.ID,
     locale: Locale,
     resolveConflicts: Bool,
@@ -1269,20 +2334,50 @@ final class ImagesModel {
       return
     }
 
-    try await copy(
-      items: items,
-      to: URLSource(url: bookmark.resolved.url, options: options),
-      state: state2,
-      locale: locale,
-      resolveConflicts: resolveConflicts,
-      pathSeparator: pathSeparator,
-      pathDirection: pathDirection,
-    )
+    let source = URLSource(url: bookmark.resolved.url, options: options)
+    try source.accessingSecurityScopedResource { () throws(ImagesModelCopyFolderError) in
+      do {
+        try items.forEach { item in
+          let relative: URLSource?
+
+          do {
+            relative = try state2.relative(item.fileBookmark.relative)
+          } catch {
+            // TODO: Elaborate.
+            Logger.model.error("\(error)")
+
+            return
+          }
+
+          guard let bookmark = state2.bookmarks[item.fileBookmark.bookmark.bookmark.rowID!] else {
+            return
+          }
+
+          let itemSource = URLSourceDocument(
+            source: URLSource(url: bookmark.resolved.url, options: item.fileBookmark.bookmark.bookmark.options!),
+            relative: relative,
+          )
+
+          try itemSource.accessingSecurityScopedResource {
+            try copyFolder(
+              item: itemSource.source.url,
+              to: source.url,
+              locale: locale,
+              resolveConflicts: resolveConflicts,
+              pathSeparator: pathSeparator,
+              pathDirection: pathDirection,
+            )
+          }
+        }
+      } catch {
+        throw error as! ImagesModelCopyFolderError
+      }
+    }
   }
 
   nonisolated private func _copyFolder(
-    items: Set<ImagesItemModel2.ID>,
-    to source: URLSource,
+    items: [ImagesItemModel2.ID],
+    to folder: URL,
     locale: Locale,
     resolveConflicts: Bool,
     pathSeparator: StorageFoldersPathSeparator,
@@ -1367,84 +2462,136 @@ final class ImagesModel {
       return
     }
 
-    try await copy(
-      items: items3,
-      to: source,
-      state: state2,
-      locale: locale,
-      resolveConflicts: resolveConflicts,
-      pathSeparator: pathSeparator,
-      pathDirection: pathDirection,
-    )
-  }
+    try folder.accessingSecurityScopedResource { () throws(ImagesModelCopyFolderError) in
+      do {
+        try items3.forEach { item in
+          let relative: URLSource?
 
-  static func submitCurrentItem(
-    _ dataStack: DataStackDependencyKey.DataStack,
-    images: RowID,
-    currentItem: RowID?,
-  ) async throws {
-    try await dataStack.connection.write { db in
-      try DataStackDependencyKey.DataStack.submitImagesCurrentItem(db, images: images, currentItem: currentItem)
+          do {
+            relative = try state2.relative(item.fileBookmark.relative)
+          } catch {
+            // TODO: Elaborate.
+            Logger.model.error("\(error)")
+
+            return
+          }
+
+          guard let bookmark = state2.bookmarks[item.fileBookmark.bookmark.bookmark.rowID!] else {
+            return
+          }
+
+          let itemSource = URLSourceDocument(
+            source: URLSource(url: bookmark.resolved.url, options: item.fileBookmark.bookmark.bookmark.options!),
+            relative: relative,
+          )
+
+          try itemSource.accessingSecurityScopedResource {
+            try copyFolder(
+              item: itemSource.source.url,
+              to: folder,
+              locale: locale,
+              resolveConflicts: resolveConflicts,
+              pathSeparator: pathSeparator,
+              pathDirection: pathDirection,
+            )
+          }
+        }
+      } catch {
+        throw error as! ImagesModelCopyFolderError
+      }
     }
   }
 
-  static func submitItemBookmark(
-    _ dataStack: DataStackDependencyKey.DataStack,
-    item: RowID,
-    isBookmarked: Bool,
-  ) async throws {
-    try await dataStack.connection.write { db in
-      try DataStackDependencyKey.DataStack.submitImagesItemBookmark(db, item: item, isBookmarked: isBookmarked)
+  nonisolated private func _bookmark(item: ImagesItemModel2.ID, isBookmarked: Bool) async {
+    let connection: DatabasePool
+
+    do {
+      connection = try await databaseConnection()
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return
+    }
+
+    do {
+      try await connection.write { db in
+        let item = ImagesItemRecord(rowID: item, position: nil, isBookmarked: isBookmarked, fileBookmark: nil)
+        try item.update(db, columns: [ImagesItemRecord.Columns.isBookmarked])
+      }
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return
     }
   }
 
-  @MainActor
-  private func load(response: LibraryModelTrackImagesPropertiesImagesInfo) {
-    itemID = response.currentItem.item.rowID
-  }
+  nonisolated private func _bookmark(items: Set<ImagesItemModel2.ID>, isBookmarked: Bool) async {
+    let connection: DatabasePool
 
-  @MainActor
-  private func fetch(
-    from iterator: inout AsyncValueObservation<LibraryModelTrackImagesPropertiesImagesInfo?>.Iterator
-  ) async throws -> ImagesModelFetchPhase<LibraryModelTrackImagesPropertiesImagesInfo> {
-    guard let value = try await iterator.next() else {
-      return .end
+    do {
+      connection = try await databaseConnection()
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return
     }
 
-    guard let response = value else {
-      return .none
-    }
+    do {
+      try await connection.write { db in
+        try items.forEach { item in
+          let item = ImagesItemRecord(rowID: item, position: nil, isBookmarked: isBookmarked, fileBookmark: nil)
+          try item.update(db, columns: [ImagesItemRecord.Columns.isBookmarked])
+        }
+      }
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
 
-    load(response: response)
-
-    return .value(response)
-  }
-
-  private func performFetch(
-    from iterator: inout AsyncValueObservation<LibraryModelTrackImagesPropertiesImagesInfo?>.Iterator
-  ) async throws -> Bool {
-    defer {
-      performedPropertiesFetch = true
-    }
-
-    switch try await fetch(from: &iterator) {
-      case .end:
-        return false
-      case .none:
-        return true
-      case let .value(response):
-        response.currentItem.item.rowID.map(incomingItemID.send(_:))
-
-        return true
+      return
     }
   }
 
-  @MainActor
-  private func track(
-    from iterator: inout AsyncValueObservation<LibraryModelTrackImagesPropertiesImagesInfo?>.Iterator,
-  ) async throws {
-    while try await !fetch(from: &iterator).isEnd {}
+  nonisolated private func _setCurrentItem(item: ImagesItemModel2.ID?) async {
+    let connection: DatabasePool
+
+    do {
+      connection = try await databaseConnection()
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return
+    }
+
+    do {
+      try await connection.write { db in
+        let rowID = try ImagesRecord
+          .filter(key: [ImagesRecord.Columns.id.name: id])
+          .selectPrimaryKey(as: RowID.self)
+          .fetchOne(db)
+
+        guard let rowID else {
+          var images = ImagesRecord(id: id, currentItem: item)
+          try images.insert(db)
+
+          return
+        }
+
+        let images = ImagesRecord(rowID: rowID, id: nil, currentItem: item)
+        try images.update(db, columns: [ImagesRecord.Columns.currentItem])
+      }
+    } catch {
+      // TODO: Elaborate.
+      Logger.model.error("\(error)")
+
+      return
+    }
   }
+
+  // MARK: - Old
 
   private func loadRunGroups() async throws {
     var resampler = resampler.stream.makeAsyncIterator()
@@ -1456,46 +2603,8 @@ final class ImagesModel {
   }
 
   @MainActor
-  private func loadTrackers() async throws {
-    let source = try await source()
-
-    // TODO: Decouple properties from items.
-    //
-    // We currently need to process items first so the UI can be ready to receive the incoming item ID. This should be
-    // split so it's sent when both data sources are ready.
-    var properties = source.dataStack.trackImagesProperties(images: source.id.images.rowID!).makeAsyncIterator()
-
-    guard try await performFetch(from: &properties) else {
-      return
-    }
-
-    async let propertiesTracker: () = track(from: &properties)
-    _ = try await [propertiesTracker]
-  }
-
-  @MainActor
   func load() async throws {
-    async let runGroups: () = loadRunGroups()
-    async let trackers: () = loadTrackers()
-    _ = try await [runGroups, trackers]
-  }
-
-  @MainActor
-  func submit(currentItem item: ImagesItemModel?) async throws {
-    let source = try await source()
-
-    guard let item = item?.info else {
-      return
-    }
-
-    try await Self.submitCurrentItem(source.dataStack, images: source.id.images.rowID!, currentItem: item.item.rowID)
-  }
-
-  @MainActor
-  func submitItemBookmark(item: ImagesItemModel, isBookmarked: Bool) async throws {
-    let source = try await source()
-
-    try await Self.submitItemBookmark(source.dataStack, item: item.info.item.rowID!, isBookmarked: isBookmarked)
+    try await loadRunGroups()
   }
 }
 
@@ -1507,7 +2616,7 @@ extension ImagesModel: @MainActor Equatable {
 
 extension ImagesModel: @MainActor Hashable {
   func hash(into hasher: inout Hasher) {
-    hasher.combine(id)
+    hasher.combine(self.id)
   }
 }
 
@@ -1521,6 +2630,6 @@ extension ImagesModel: @MainActor Codable {
 
   func encode(to encoder: any Encoder) throws {
     var container = encoder.singleValueContainer()
-    try container.encode(id)
+    try container.encode(self.id)
   }
 }

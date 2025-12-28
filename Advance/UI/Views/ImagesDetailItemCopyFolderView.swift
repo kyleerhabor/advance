@@ -1,25 +1,24 @@
 //
-//  ImagesSidebarItemCopyFolderView.swift
+//  ImagesDetailItemCopyFolderView.swift
 //  Advance
 //
-//  Created by Kyle Erhabor on 11/29/25.
+//  Created by Kyle Erhabor on 12/16/25.
 //
 
-import OSLog
 import SwiftUI
 
-struct ImagesSidebarItemCopyFolderView: View {
-  @Environment(FoldersSettingsModel.self) private var folders
-  @Environment(ImagesModel.self) private var images
+struct ImagesDetailItemCopyFolderView: View {
   @Environment(\.locale) private var locale
+  @Environment(ImagesModel.self) private var images
+  @Environment(FoldersSettingsModel.self) private var folders
   @AppStorage(StorageKeys.resolveConflicts) private var resolveConflicts
   @AppStorage(StorageKeys.foldersPathSeparator) private var foldersPathSeparator
   @AppStorage(StorageKeys.foldersPathDirection) private var foldersPathDirection
-  @Binding var selection: Set<ImagesItemModel2.ID>
+  @Binding var selection: ImagesItemModel2.ID?
   @Binding var isFileImporterPresented: Bool
   @Binding var error: ImagesModelCopyFolderError?
   @Binding var isErrorPresented: Bool
-  let items: Set<ImagesItemModel2.ID>
+  let item: ImagesItemModel2.ID
 
   var body: some View {
     Menu("Images.Item.Folder.Item.Copy") {
@@ -29,7 +28,7 @@ struct ImagesSidebarItemCopyFolderView: View {
             Task {
               do {
                 try await images.copyFolder(
-                  items: images.items.ids.filter(in: items),
+                  item: self.item,
                   to: item,
                   locale: locale,
                   resolveConflicts: resolveConflicts,
@@ -47,7 +46,7 @@ struct ImagesSidebarItemCopyFolderView: View {
         }
       }
     } primaryAction: {
-      selection = items
+      selection = item
       isFileImporterPresented = true
     }
   }

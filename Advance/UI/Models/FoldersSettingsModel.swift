@@ -6,7 +6,6 @@
 //
 
 import AdvanceCore
-import AdvanceData
 import Algorithms
 import AppKit
 import Foundation
@@ -81,24 +80,24 @@ final class FoldersSettingsItemModel {
 
 extension FoldersSettingsItemModel: Identifiable {}
 
-struct FoldersSettingsModelStoreItem {
+struct FoldersSettingsModelStoreBookmarksStateItem {
   let bookmark: Bookmark
   let pathComponents: [String]
 }
 
-struct FoldersSettingsModelLoadState1Item {
+struct FoldersSettingsModelLoadBookmarksStateItem {
   let folder: FoldersSettingsModelLoadFolderInfo
   let bookmark: AssignedBookmark?
 }
 
-struct FoldersSettingsModelLoadState2Item {
+struct FoldersSettingsModelLoadItemComponentsStateItem {
   let id: RowID
   let isResolved: Bool
   let icon: NSImage
   let pathComponents: [String]
 }
 
-struct FoldersSettingsModelLoadState3Item {
+struct FoldersSettingsModelLoadItemsStateItem {
   let id: RowID
   let isResolved: Bool
   let icon: NSImage
@@ -106,19 +105,19 @@ struct FoldersSettingsModelLoadState3Item {
   let helpPath: AttributedString
 }
 
-struct FoldersSettingsModelShowFinderState1 {
+struct FoldersSettingsModelShowFinderLoadState {
   let folders: [RowID: FoldersSettingsModelShowFinderFolderInfo]
 }
 
-struct FoldersSettingsModelShowFinderState2 {
+struct FoldersSettingsModelShowFinderBookmarksState {
   var bookmarks: [RowID: AssignedBookmark]
 }
 
-struct FoldersSettingsModelOpenFinderState1 {
+struct FoldersSettingsModelOpenFinderLoadState {
   let folders: [RowID: FoldersSettingsModelOpenFinderFolderInfo]
 }
 
-struct FoldersSettingsModelOpenFinderState2 {
+struct FoldersSettingsModelOpenFinderBookmarksState {
   var bookmarks: [RowID: AssignedBookmark]
 }
 
@@ -163,8 +162,8 @@ final class FoldersSettingsModel {
     await _showFinder(items: items)
   }
 
-  func openFinder(item: FoldersSettingsItemModel) async {
-    await _openFinder(item: item.id)
+  func openFinder(item: FoldersSettingsItemModel.ID) async {
+    await _openFinder(item: item)
   }
 
   func openFinder(items: Set<FoldersSettingsItemModel.ID>) async {
@@ -205,24 +204,30 @@ final class FoldersSettingsModel {
         bookmark = nil
       }
 
-      return FoldersSettingsModelLoadState1Item(folder: folder, bookmark: bookmark)
+      return FoldersSettingsModelLoadBookmarksStateItem(folder: folder, bookmark: bookmark)
     }
 
+    // If the bookmark could not be resolved, we really need to reload to account for other loaders. However, our
+    // current design would lead to an infinite loop. I'm thinking this load method could set a flag indicating whether
+    // or not a load is the result of a reload, but because bookmarks are concurrent, it's possible that using the flag
+    // to skip this check could be unsafe. I have a feeling that it should be safe if we use it just for the case that
+    // the bookmark could not be resolved, but I don't want to test that hypothesis right now.
     guard items.compactMap(\.bookmark).allSatisfy(\.resolved.isStale.inverted) else {
       do {
         try await connection.write { db in
           try items.forEach { item in
-            guard let bookmark = item.bookmark else {
+            guard let bookmark = item.bookmark,
+                  bookmark.resolved.isStale else {
               return
             }
 
-            var bookmark2 = BookmarkRecord(
+            let bookmark2 = BookmarkRecord(
               rowID: item.folder.fileBookmark.bookmark.bookmark.rowID,
               data: bookmark.data,
-              options: item.folder.fileBookmark.bookmark.bookmark.options,
+              options: nil,
             )
 
-            try bookmark2.upsert(db)
+            try bookmark2.update(db)
           }
         }
       } catch {
@@ -250,7 +255,7 @@ final class FoldersSettingsModel {
         let defaultPathComponents = item.folder.pathComponents.map(\.pathComponent.component!)
 
         guard let bookmark = item.bookmark else {
-          return FoldersSettingsModelLoadState2Item(
+          return FoldersSettingsModelLoadItemComponentsStateItem(
             id: item.folder.folder.rowID!,
             isResolved: false,
             icon: NSImage(),
@@ -264,7 +269,7 @@ final class FoldersSettingsModel {
         )
 
         let item = source.accessingSecurityScopedResource {
-          FoldersSettingsModelLoadState2Item(
+          FoldersSettingsModelLoadItemComponentsStateItem(
             id: item.folder.folder.rowID!,
             isResolved: true,
             icon: NSWorkspace.shared.icon(forFileAt: bookmark.resolved.url),
@@ -281,7 +286,7 @@ final class FoldersSettingsModel {
         let path = self.path(components: pathComponents, separator: separator)
         let helpPath = self.path(components: pathComponents, separator: helpSeparator)
 
-        return FoldersSettingsModelLoadState3Item(
+        return FoldersSettingsModelLoadItemsStateItem(
           id: item.id,
           isResolved: item.isResolved,
           icon: item.icon,
@@ -367,7 +372,7 @@ final class FoldersSettingsModel {
   }
 
   nonisolated private func _store(urls: [URL]) async {
-    let items = urls.compactMap { url -> FoldersSettingsModelStoreItem? in
+    let items = urls.compactMap { url -> FoldersSettingsModelStoreBookmarksStateItem? in
       let source = URLSource(url: url, options: [.withSecurityScope, .withoutImplicitSecurityScope])
       let bookmark: Bookmark
 
@@ -387,7 +392,7 @@ final class FoldersSettingsModel {
         return nil
       }
 
-      return FoldersSettingsModelStoreItem(bookmark: bookmark, pathComponents: pathComponents)
+      return FoldersSettingsModelStoreBookmarksStateItem(bookmark: bookmark, pathComponents: pathComponents)
     }
 
     let connection: DatabasePool
@@ -476,7 +481,7 @@ final class FoldersSettingsModel {
       return
     }
 
-    let state1: FoldersSettingsModelShowFinderState1
+    let state1: FoldersSettingsModelShowFinderLoadState
 
     do {
       state1 = try await connection.read { db in
@@ -496,7 +501,7 @@ final class FoldersSettingsModel {
           .asRequest(of: FoldersSettingsModelShowFinderFolderInfo.self)
           .fetchCursor(db)
 
-        let state = FoldersSettingsModelShowFinderState1(
+        let state = FoldersSettingsModelShowFinderLoadState(
           folders: try Dictionary(uniqueKeysWithValues: folders.map { ($0.folder.rowID!, $0) }),
         )
 
@@ -510,7 +515,7 @@ final class FoldersSettingsModel {
     }
 
     let state2 = items.reduce(
-      into: FoldersSettingsModelShowFinderState2(bookmarks: Dictionary(minimumCapacity: state1.folders.count)),
+      into: FoldersSettingsModelShowFinderBookmarksState(bookmarks: Dictionary(minimumCapacity: state1.folders.count)),
     ) { state, item in
       let folder = state1.folders[item]!
       let bookmark: AssignedBookmark
@@ -663,7 +668,7 @@ final class FoldersSettingsModel {
       return
     }
 
-    let state1: FoldersSettingsModelOpenFinderState1
+    let state1: FoldersSettingsModelOpenFinderLoadState
 
     do {
       state1 = try await connection.read { db in
@@ -683,7 +688,7 @@ final class FoldersSettingsModel {
           .asRequest(of: FoldersSettingsModelOpenFinderFolderInfo.self)
           .fetchCursor(db)
 
-        let state = FoldersSettingsModelOpenFinderState1(
+        let state = FoldersSettingsModelOpenFinderLoadState(
           folders: try Dictionary(uniqueKeysWithValues: folders.map { ($0.folder.rowID!, $0) }),
         )
 
@@ -697,7 +702,7 @@ final class FoldersSettingsModel {
     }
 
     let state2 = items.reduce(
-      into: FoldersSettingsModelOpenFinderState2(bookmarks: Dictionary(minimumCapacity: state1.folders.count)),
+      into: FoldersSettingsModelOpenFinderBookmarksState(bookmarks: Dictionary(minimumCapacity: state1.folders.count)),
     ) { state, item in
       let folder = state1.folders[item]!
       let bookmark: AssignedBookmark

@@ -8,17 +8,19 @@
 @preconcurrency import BigInt
 
 extension BInt {
-  // https://stackoverflow.com/a/63538016/14695788
-  public var size: BInt {
+  public func digitCount(base: Self) -> Int {
     var n = self
-    var count = BInt.ZERO
+    var count = 1
 
-    while n > 1 {
-      if n % 10 != 0 {
+    // n = 100, base = 10
+    //
+    //
+    while n >= base {
+      guard n % base == BInt.ZERO else { // Ambiguous use of 'ZERO'
         break
       }
 
-      n /= 10
+      n /= base
       count += 1
     }
 
@@ -26,6 +28,8 @@ extension BInt {
   }
 }
 
+// This re-defines BFraction to not simplify.
+//
 // https://github.com/leif-ibsen/BigInt/blob/8c6f93aa37504b7b1ba3954335b5548a19fbbd82/Sources/BigInt/BigFrac.swift
 public struct BigFraction {
   public static let zero = Self(BInt.ZERO, BInt.ONE)
@@ -40,21 +44,6 @@ public struct BigFraction {
 
   public var isZero: Bool {
     return self.numerator.isZero
-  }
-
-  public var simplified: Self {
-    let g = self.numerator.gcd(self.denominator)
-    var f = Self(
-      self.numerator.quotientExact(dividingBy: g),
-      self.denominator.quotientExact(dividingBy: g),
-    )
-
-    if f.denominator.isNegative {
-      f.denominator.negate()
-      f.numerator.negate()
-    }
-
-    return f
   }
 
   public init(_ n: BInt, _ d: BInt) {
@@ -98,21 +87,6 @@ public struct BigFraction {
     return Self.displayString(self.isNegative ? -x : x, exp, exponential)
   }
 
-  public func asDouble() -> Double {
-    var (q, r) = self.numerator.quotientAndRemainder(dividingBy: self.denominator)
-    var d = q.asDouble()
-    if !d.isInfinite {
-      var pow10 = 1.0
-      for _ in 0 ..< 18 {
-        r *= 10
-        pow10 *= 10.0
-        (q, r) = r.quotientAndRemainder(dividingBy: self.denominator)
-        d += q.asDouble() / pow10
-      }
-    }
-    return d
-  }
-
   public static func +(x: Self, y: Self) -> Self {
     if x.denominator == y.denominator {
       return Self(x.numerator + y.numerator, x.denominator)
@@ -121,16 +95,22 @@ public struct BigFraction {
     }
   }
 
+  /// Subtraction
+  ///
+  /// - Parameters:
+  ///   - x: Minuend
+  ///   - y: Subtrahend
+  /// - Returns: `x - y`
+  public static func -(x: Self, y: Self) -> Self {
+    if x.denominator == y.denominator {
+      return Self(x.numerator - y.numerator, x.denominator)
+    } else {
+      return Self(x.numerator * y.denominator - y.numerator * x.denominator, x.denominator * y.denominator)
+    }
+  }
+
   public static func ==(x: Self, y: Self) -> Bool {
     return x.numerator == y.numerator && x.denominator == y.denominator
-  }
-
-  public static func ==(x: Self, y: BInt) -> Bool {
-    return x.numerator == y && x.denominator.isOne
-  }
-
-  public static func ==(x: Self, y: Int) -> Bool {
-    return x.numerator == y && x.denominator.isOne
   }
 
   static func parseString(_ s: String) -> (mantissa: BInt, exponent: Int)? {

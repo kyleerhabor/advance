@@ -13,8 +13,6 @@
 		001CB5202A718D4200DBB6FA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 001CB51F2A718D4200DBB6FA /* Assets.xcassets */; };
 		001D8D0E2A74AC5400B58790 /* Model.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001D8D0D2A74AC5400B58790 /* Model.swift */; };
 		001E7B652AD8394C001EAF72 /* SettingsGeneralView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001E7B642AD8394C001EAF72 /* SettingsGeneralView.swift */; };
-		0021270E2C19517F0000D996 /* AdvanceData in Frameworks */ = {isa = PBXBuildFile; productRef = 0021270D2C19517F0000D996 /* AdvanceData */; };
-		0021272B2C1A26180000D996 /* Dependencies in Frameworks */ = {isa = PBXBuildFile; productRef = 0021272A2C1A26180000D996 /* Dependencies */; };
 		002379092B3DFC9F00097BF0 /* Scened.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002379082B3DFC9F00097BF0 /* Scened.swift */; };
 		002629D22AD59DC700ABFEB6 /* DisplayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002629D12AD59DC700ABFEB6 /* DisplayView.swift */; };
 		0029E59D2C79A115000BFBA8 /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = 0029E59C2C79A115000BFBA8 /* Defaults */; };
@@ -29,12 +27,11 @@
 		0042B5DB2AB8C450009F251B /* ImageCollectionCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0042B5DA2AB8C450009F251B /* ImageCollectionCommands.swift */; };
 		0043C6052B40E78E0092AB71 /* SettingsExtraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0043C6042B40E78E0092AB71 /* SettingsExtraView.swift */; };
 		004D8FC02A76C1C900C0303E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 004D8FBF2A76C1C900C0303E /* SettingsView.swift */; };
-		005608332B6F24510063DCE2 /* ImageCollectionExternalCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005608322B6F24510063DCE2 /* ImageCollectionExternalCommands.swift */; };
 		005608352B6F24680063DCE2 /* ImageCollectionEditCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005608342B6F24680063DCE2 /* ImageCollectionEditCommands.swift */; };
-		005608372B6F24810063DCE2 /* ImageCollectionImageCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005608362B6F24810063DCE2 /* ImageCollectionImageCommands.swift */; };
 		005608392B6F24970063DCE2 /* ImageCollectionWindowCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005608382B6F24970063DCE2 /* ImageCollectionWindowCommands.swift */; };
 		0077AF922ABB8650002E3FF4 /* Image.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0077AF912ABB8650002E3FF4 /* Image.swift */; };
 		008815F62B07DC8A00D8F3D8 /* Algorithms in Frameworks */ = {isa = PBXBuildFile; productRef = 008815F52B07DC8A00D8F3D8 /* Algorithms */; };
+		0094EBA32EF10DF40030E0C7 /* AsyncAlgorithms in Frameworks */ = {isa = PBXBuildFile; productRef = 0094EBA22EF10DF40030E0C7 /* AsyncAlgorithms */; };
 		0099BE812E84C95F007B04D8 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = 0099BE802E84C95F007B04D8 /* GRDB */; };
 		00A983A62B47B1F700A8E61C /* View+Key.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00A983A52B47B1F600A8E61C /* View+Key.swift */; };
 		00B0B27E2C55EA2300542E0D /* DequeModule in Frameworks */ = {isa = PBXBuildFile; productRef = 00B0B27D2C55EA2300542E0D /* DequeModule */; };
@@ -53,7 +50,6 @@
 		00E0ECC02A76A8000030A0DC /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E0ECBF2A76A8000030A0DC /* AppDelegate.swift */; };
 		00E42E992B33A39400BC05A7 /* BookmarkStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E42E982B33A39400BC05A7 /* BookmarkStore.swift */; };
 		00E42E9B2B33EB8000BC05A7 /* ImageCollectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E42E9A2B33EB8000BC05A7 /* ImageCollectionManager.swift */; };
-		00FD27A12B715111000F38CE /* ImageCollectionQuickLookView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00FD27A02B715111000F38CE /* ImageCollectionQuickLookView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -77,9 +73,7 @@
 		004379D32A77734200246057 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		0043C6042B40E78E0092AB71 /* SettingsExtraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsExtraView.swift; sourceTree = "<group>"; };
 		004D8FBF2A76C1C900C0303E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
-		005608322B6F24510063DCE2 /* ImageCollectionExternalCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionExternalCommands.swift; sourceTree = "<group>"; };
 		005608342B6F24680063DCE2 /* ImageCollectionEditCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionEditCommands.swift; sourceTree = "<group>"; };
-		005608362B6F24810063DCE2 /* ImageCollectionImageCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionImageCommands.swift; sourceTree = "<group>"; };
 		005608382B6F24970063DCE2 /* ImageCollectionWindowCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionWindowCommands.swift; sourceTree = "<group>"; };
 		0077AF912ABB8650002E3FF4 /* Image.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Image.swift; sourceTree = "<group>"; };
 		00A983A52B47B1F600A8E61C /* View+Key.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "View+Key.swift"; sourceTree = "<group>"; };
@@ -100,7 +94,6 @@
 		00E0ECBF2A76A8000030A0DC /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		00E42E982B33A39400BC05A7 /* BookmarkStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkStore.swift; sourceTree = "<group>"; };
 		00E42E9A2B33EB8000BC05A7 /* ImageCollectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionManager.swift; sourceTree = "<group>"; };
-		00FD27A02B715111000F38CE /* ImageCollectionQuickLookView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionQuickLookView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -132,9 +125,8 @@
 				0029E59D2C79A115000BFBA8 /* Defaults in Frameworks */,
 				0029E5A02C79A9F3000BFBA8 /* Defaults in Frameworks */,
 				008815F62B07DC8A00D8F3D8 /* Algorithms in Frameworks */,
-				0021272B2C1A26180000D996 /* Dependencies in Frameworks */,
 				00B0B27E2C55EA2300542E0D /* DequeModule in Frameworks */,
-				0021270E2C19517F0000D996 /* AdvanceData in Frameworks */,
+				0094EBA32EF10DF40030E0C7 /* AsyncAlgorithms in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -227,10 +219,8 @@
 		0056082F2B6F241E0063DCE2 /* Commands */ = {
 			isa = PBXGroup;
 			children = (
-				005608322B6F24510063DCE2 /* ImageCollectionExternalCommands.swift */,
 				005608342B6F24680063DCE2 /* ImageCollectionEditCommands.swift */,
 				00D0E1C02B9E68F400624018 /* ImageCollectionNavigatorCommands.swift */,
-				005608362B6F24810063DCE2 /* ImageCollectionImageCommands.swift */,
 				005608382B6F24970063DCE2 /* ImageCollectionWindowCommands.swift */,
 			);
 			path = Commands;
@@ -258,7 +248,6 @@
 			children = (
 				003375192B34EBC800423A58 /* ImageCollectionItemView.swift */,
 				002FB7742B0BE0F900E930AF /* ImageCollectionBookmarkView.swift */,
-				00FD27A02B715111000F38CE /* ImageCollectionQuickLookView.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -361,8 +350,6 @@
 			packageProductDependencies = (
 				008815F52B07DC8A00D8F3D8 /* Algorithms */,
 				00B6E0D82C18103300544C8B /* AdvanceCore */,
-				0021270D2C19517F0000D996 /* AdvanceData */,
-				0021272A2C1A26180000D996 /* Dependencies */,
 				0013F6072C2208720038BB2A /* IdentifiedCollections */,
 				00B0B27D2C55EA2300542E0D /* DequeModule */,
 				00360ECD2C59FFE900BF7D1B /* SwiftUIIntrospect */,
@@ -370,6 +357,7 @@
 				0029E59F2C79A9F3000BFBA8 /* Defaults */,
 				0099BE802E84C95F007B04D8 /* GRDB */,
 				004015DE2ED422B8001DB655 /* BigInt */,
+				0094EBA22EF10DF40030E0C7 /* AsyncAlgorithms */,
 			);
 			productName = Sequential;
 			productReference = 001CB5182A718D3C00DBB6FA /* Advance.app */;
@@ -402,13 +390,13 @@
 			mainGroup = 001CB50F2A718D3C00DBB6FA;
 			packageReferences = (
 				008815F42B07DC8A00D8F3D8 /* XCRemoteSwiftPackageReference "swift-algorithms" */,
-				002127292C1A26180000D996 /* XCRemoteSwiftPackageReference "swift-dependencies" */,
 				0013F6062C2208720038BB2A /* XCRemoteSwiftPackageReference "swift-identified-collections" */,
 				00B0B27C2C55EA2200542E0D /* XCRemoteSwiftPackageReference "swift-collections" */,
 				00360ECC2C59FFE900BF7D1B /* XCRemoteSwiftPackageReference "SwiftUI-Introspect" */,
 				0029E59E2C79A9F3000BFBA8 /* XCRemoteSwiftPackageReference "Defaults" */,
 				0099BE7F2E84C95F007B04D8 /* XCRemoteSwiftPackageReference "GRDB" */,
 				004015DD2ED422B7001DB655 /* XCRemoteSwiftPackageReference "BigInt" */,
+				0094EBA12EF10DF40030E0C7 /* XCRemoteSwiftPackageReference "swift-async-algorithms" */,
 			);
 			productRefGroup = 001CB5192A718D3C00DBB6FA /* Products */;
 			projectDirPath = "";
@@ -451,7 +439,6 @@
 				00CF4C8B2B28C0AD0033C95B /* Button.swift in Sources */,
 				00C127362A90CF7400B5452C /* LiveTextView.swift in Sources */,
 				00E0ECC02A76A8000030A0DC /* AppDelegate.swift in Sources */,
-				00FD27A12B715111000F38CE /* ImageCollectionQuickLookView.swift in Sources */,
 				0077AF922ABB8650002E3FF4 /* Image.swift in Sources */,
 				000855692A72FE2C00309905 /* AdvanceApp.swift in Sources */,
 				003763CC2AB40FD800D53F2E /* ImageCollectionSidebarEmptyView.swift in Sources */,
@@ -461,9 +448,7 @@
 				0042B5DB2AB8C450009F251B /* ImageCollectionCommands.swift in Sources */,
 				00D38C312AD73672005505F5 /* ImageCollectionSidebarContentView.swift in Sources */,
 				003B1EFA2B6804AA0046594E /* Collection.swift in Sources */,
-				005608372B6F24810063DCE2 /* ImageCollectionImageCommands.swift in Sources */,
 				005608352B6F24680063DCE2 /* ImageCollectionEditCommands.swift in Sources */,
-				005608332B6F24510063DCE2 /* ImageCollectionExternalCommands.swift in Sources */,
 				0043C6052B40E78E0092AB71 /* SettingsExtraView.swift in Sources */,
 				00CBAB572AB23E1F0045FF83 /* ImageCollectionView.swift in Sources */,
 				001E7B652AD8394C001EAF72 /* SettingsGeneralView.swift in Sources */,
@@ -737,14 +722,6 @@
 				revision = d533cd18b0b456b106694a9899f917ee595f2666;
 			};
 		};
-		002127292C1A26180000D996 /* XCRemoteSwiftPackageReference "swift-dependencies" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/pointfreeco/swift-dependencies";
-			requirement = {
-				kind = revision;
-				revision = 4c90d6b2b9bf0911af87b103bb40f41771891596;
-			};
-		};
 		0029E59E2C79A9F3000BFBA8 /* XCRemoteSwiftPackageReference "Defaults" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/sindresorhus/Defaults";
@@ -777,6 +754,14 @@
 				version = 1.2.0;
 			};
 		};
+		0094EBA12EF10DF40030E0C7 /* XCRemoteSwiftPackageReference "swift-async-algorithms" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-async-algorithms.git";
+			requirement = {
+				kind = revision;
+				revision = 6c050d5ef8e1aa6342528460db614e9770d7f804;
+			};
+		};
 		0099BE7F2E84C95F007B04D8 /* XCRemoteSwiftPackageReference "GRDB" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/groue/GRDB.swift";
@@ -801,15 +786,6 @@
 			package = 0013F6062C2208720038BB2A /* XCRemoteSwiftPackageReference "swift-identified-collections" */;
 			productName = IdentifiedCollections;
 		};
-		0021270D2C19517F0000D996 /* AdvanceData */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = AdvanceData;
-		};
-		0021272A2C1A26180000D996 /* Dependencies */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 002127292C1A26180000D996 /* XCRemoteSwiftPackageReference "swift-dependencies" */;
-			productName = Dependencies;
-		};
 		0029E59C2C79A115000BFBA8 /* Defaults */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = Defaults;
@@ -833,6 +809,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 008815F42B07DC8A00D8F3D8 /* XCRemoteSwiftPackageReference "swift-algorithms" */;
 			productName = Algorithms;
+		};
+		0094EBA22EF10DF40030E0C7 /* AsyncAlgorithms */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0094EBA12EF10DF40030E0C7 /* XCRemoteSwiftPackageReference "swift-async-algorithms" */;
+			productName = AsyncAlgorithms;
 		};
 		0099BE802E84C95F007B04D8 /* GRDB */ = {
 			isa = XCSwiftPackageProductDependency;

@@ -63,6 +63,10 @@ extension Sequence {
     self.reduce(.zero, +)
   }
 
+  public func filter(in set: some SetAlgebra<Element>) -> [Element] {
+    self.filter { set.contains($0) }
+  }
+
   public func filter<T>(in set: some SetAlgebra<T>, by transform: (Element) -> T) -> [Element] {
     self.filter { set.contains(transform($0)) }
   }
@@ -135,10 +139,38 @@ extension Collection where Index: FixedWidthInteger {
   }
 }
 
+public struct BidirectionalCollectionItem<C> where C: BidirectionalCollection {
+  public let element: C.Element
+  public let index: C.Index
+}
+
 extension BidirectionalCollection {
-  // The index is valid for any non-empty collection.
-  public var lastIndex: Index {
-    self.index(before: self.endIndex)
+  func item(at index: Index) -> BidirectionalCollectionItem<Self> {
+    BidirectionalCollectionItem(element: self[index], index: index)
+  }
+
+  func indexBefore(_ index: Index) -> Index? {
+    guard index > self.startIndex else {
+      return nil
+    }
+
+    return self.index(before: index)
+  }
+
+  func indexAfter(_ index: Index) -> Index? {
+    guard index < self.endIndex else {
+      return nil
+    }
+
+    return self.index(after: index)
+  }
+
+  public func before(index: Index) -> BidirectionalCollectionItem<Self>? {
+    indexBefore(index).map { item(at: $0) }
+  }
+
+  public func after(index: Index) -> BidirectionalCollectionItem<Self>? {
+    indexAfter(index).map { item(at: $0) }
   }
 }
 
@@ -146,6 +178,12 @@ extension RangeReplaceableCollection {
   public init(reservingCapacity capacity: Int) {
     self.init()
     self.reserveCapacity(capacity)
+  }
+}
+
+extension SetAlgebra {
+  public func isNonEmptySubset(of other: Self) -> Bool {
+    !self.isEmpty && self.isSubset(of: other)
   }
 }
 
@@ -370,11 +408,62 @@ extension Clock {
   }
 }
 
-extension CGImagePropertyOrientation {
-  public var isReflected: Bool {
-    switch self {
-      case .leftMirrored, .right, .rightMirrored, .left: true
-      default: false
+extension CGSize {
+  public var length: Double {
+    max(self.width, self.height)
+  }
+
+  public var reflected: Self {
+    Self(width: self.height, height: self.width)
+  }
+}
+
+public struct Run<T, E> where E: Error {
+  let continuation: CheckedContinuation<T, E>
+  let body: @Sendable () async throws(E) -> T
+
+  public init(continuation: CheckedContinuation<T, E>, _ body: @Sendable @escaping () async throws(E) -> T) {
+    self.continuation = continuation
+    self.body = body
+  }
+
+  func run() async {
+    let value: T
+
+    do {
+      value = try await body()
+    } catch {
+      continuation.resume(throwing: error)
+
+      return
+    }
+
+    continuation.resume(returning: value)
+  }
+}
+
+extension Run: Sendable {}
+
+public func run<T, E, Base>(base: Base, count: Int) async throws where Base: AsyncSequence,
+                                                                       Base.Element == Run<T, E>,
+                                                                       E: Error {
+  try await withThrowingTaskGroup { group in
+    for try await element in base.prefix(count) {
+      group.addTask {
+        await element.run()
+      }
+    }
+
+    var iterator = base.makeAsyncIterator()
+
+    for try await _ in group {
+      guard let element = try await iterator.next() else {
+        return
+      }
+
+      group.addTask {
+        await element.run()
+      }
     }
   }
 }

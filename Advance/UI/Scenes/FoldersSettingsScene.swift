@@ -14,7 +14,7 @@ struct FoldersSettingsScene: Scene {
   static let id = "folders"
 
   var body: some Scene {
-    Window("Settings.Accessory.Folders.Window.Title", id: Self.id) {
+    SwiftUI.Window("Settings.Accessory.Folders.Window.Title", id: Self.id) {
       FoldersSettingsView()
         .frame(width: 600, height: 300)
     }

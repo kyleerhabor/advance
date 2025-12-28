@@ -11,7 +11,7 @@ struct AppScene: Scene {
   var body: some Scene {
     ImagesScene()
     SettingsScene()
-    SearchSettingsScene()
     FoldersSettingsScene()
+    SearchSettingsScene()
   }
 }

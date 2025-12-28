@@ -164,9 +164,6 @@ struct ImagesSidebarContentItemView: View {
     }
     // TODO: Document behavior.
     .id(item.id)
-//    .draggable(item) {
-//      ImagesItemContentView(item: item)
-//    }
   }
 }
 
@@ -174,135 +171,16 @@ struct ImagesSidebarContentView: View {
   static let defaultScrollAnchor = UnitPoint.center
 
   @Environment(ImagesModel.self) private var images
-  @Environment(\.imagesDetailJump) private var jumpDetail
-  @AppStorage(StorageKeys.restoreLastImage) private var restoreLastImage
-  @SceneStorage(StorageKeys.columnVisibility) private var columnVisibility
-  @FocusState private var isFocused: Bool
   @State private var selection = Set<ImagesItemModel.ID>()
-  // TODO: Replace.
-  private var selected: Binding<Set<ImagesItemModel.ID>> {
-    Binding {
-      selection
-    } set: { selection in
-      defer {
-        self.selection = selection
-      }
-
-      guard let jump = jumpDetail else {
-        return
-      }
-
-      let difference = selection.subtracting(self.selection)
-
-      // TODO: Document.
-      guard let item = images.items.last(where: { difference.contains($0.id) }) else {
-        return
-      }
-
-      jump.action(item)
-    }
-  }
-  private var incomingItemID: some Publisher<ImagesItemModel.ID, Never> {
-    images.incomingItemID
-  }
 
   var body: some View {
     ScrollViewReader { proxy in
-      List(images.items, selection: selected) { item in
+      List(images.items2, selection: $selection) { item in
         ImagesSidebarContentItemView(item: item)
           .visible(images.isReady)
       }
-      .focused($isFocused)
-      .contextMenu { ids in
-        var isBookmarked: Binding<Bool> {
-          Binding {
-            !ids.isEmpty && ids.isSubset(of: images.bookmarkedItems)
-          } set: { isBookmarked in
-            ids
-              .compactMap { images.items[id: $0] }
-              .forEach { item in
-                item.isBookmarked = isBookmarked
-              }
-
-            // TODO: Implement persistence.
-          }
-        }
-
-        Section {
-          Button("Finder.Item.Show") {
-            showFinder(forSelection: ids)
-          }
-        }
-
-        Section {
-          Button("Copy") {
-            // TODO: Use source to produce pasteboard item.
-            //
-            // The URL is not required to reference an existing item.
-            let urls = images.items
-              .filter(in: ids, by: \.id)
-              .compactMap(\.source.url)
-
-            let pasteboard = NSPasteboard.general
-            pasteboard.prepareForNewContents()
-
-            if !pasteboard.writeObjects(urls as [NSURL]) {
-              let s = urls
-                .map(\.pathString)
-                .joined(separator: "\n")
-
-              Logger.ui.error("Could not write the following URLs to the general pasteboard:\n\(s)")
-            }
-          }
-        }
-
-        Section {
-          ImagesBookmarkView(isBookmarked: isBookmarked)
-        }
-      }
       .fileDialogCustomizationID(FoldersSettingsScene.id)
       .fileDialogConfirmationLabel(Text("Copy"))
-      .focusedSceneValue(\.imagesSidebarJump, ImagesNavigationJumpAction(identity: ImagesNavigationJumpIdentity(id: images.id, isReady: images.isReady)) { item in
-        showSidebar(proxy, at: item)
-      })
-      .focusedSceneValue(\.imagesSidebarShow, AppMenuActionItem(identity: images.id, enabled: images.item != nil) {
-        guard let item = images.item else {
-          return
-        }
-
-        showSidebar(proxy, at: item)
-      })
-      .onReceive(incomingItemID) { id in
-        guard restoreLastImage else {
-          return
-        }
-
-        proxy.scrollTo(id, anchor: Self.defaultScrollAnchor)
-      }
-    }
-  }
-
-  private func showFinder(forSelection selection: Set<ImagesItemModel.ID>) {
-    let urls = images.items
-      .filter(in: selection, by: \.id)
-      .compactMap(\.source.url)
-
-    NSWorkspace.shared.activateFileViewerSelecting(urls)
-  }
-
-  private func showSidebar(_ proxy: ScrollViewProxy, at item: ImagesItemModel) {
-    proxy.scrollTo(item.id, anchor: Self.defaultScrollAnchor)
-
-    selection = [item.id]
-
-    // TODO: Document async behavior.
-    Task {
-      withAnimation {
-        // FIXME: Column visibility does not always animate.
-        columnVisibility = StorageColumnVisibility(.automatic)
-      } completion: {
-        isFocused = true
-      }
     }
   }
 }
@@ -310,7 +188,7 @@ struct ImagesSidebarContentView: View {
 struct ImagesSidebarView: View {
   @Environment(ImagesModel.self) private var images
   var isEmpty: Bool {
-    images.isReady && images.items.isEmpty
+    images.isReady && images.items2.isEmpty
   }
 
   var body: some View {

@@ -12,7 +12,6 @@ struct ImageCollectionCommands: Commands {
     ToolbarCommands()
     SidebarCommands()
 
-    ImageCollectionExternalCommands()
     ImageCollectionEditCommands()
     ImageCollectionNavigatorCommands()
 
@@ -21,7 +20,6 @@ struct ImageCollectionCommands: Commands {
       Divider()
     }
 
-    ImageCollectionImageCommands()
     ImageCollectionWindowCommands()
   }
 

@@ -20,12 +20,6 @@ extension Logger {
   static let ui = Self(subsystem: Bundle.appID, category: "UI")
 }
 
-extension CGSize {
-  var length: Double {
-    max(self.width, self.height)
-  }
-}
-
 extension NSWorkspace {
   func icon(forFileAt url: URL) -> NSImage {
     self.icon(forFile: url.pathString)
@@ -183,193 +177,10 @@ struct VisiblePreferenceKey<Item>: PreferenceKey {
   }
 }
 
-// MARK: - Environment
-
-struct TrackingMenuEnvironmentKey: EnvironmentKey {
-  static let defaultValue = false
-}
-
-struct WindowFullScreenEnvironmentKey: EnvironmentKey {
-  static let defaultValue = false
-}
-
-struct WindowLiveResizeEnvironmentKey: EnvironmentKey {
-  static let defaultValue = false
-}
-
-struct ImagesSidebarJumpEnvironmentKey: EnvironmentKey {
-  static var defaultValue: ImagesNavigationJumpAction? { nil }
-}
-
-struct ImagesDetailJumpEnvironmentKey: EnvironmentKey {
-  static var defaultValue: ImagesNavigationJumpAction? { nil }
-}
-
-// MARK: Focus
-
-struct ImagesNavigationJumpIdentity {
-  let id: ImagesModel.ID
-  let isReady: Bool
-}
-
-extension ImagesNavigationJumpIdentity: Equatable {}
-
-typealias ImagesNavigationJumpAction = AppMenuItemAction<ImagesNavigationJumpIdentity, (ImagesItemModel) -> Void>
-
-// MARK: - Views
-
-class WindowCaptureView: NSView {
-  var windowed: Windowed
-
-  init(windowed: Windowed) {
-    self.windowed = windowed
-
-    super.init(frame: .zero)
-  }
-
-  required init?(coder: NSCoder) {
-    fatalError("init(coder:) has not been implemented")
-  }
-
-  override func viewWillMove(toWindow window: NSWindow?) {
-    super.viewWillMove(toWindow: window)
-
-    windowed.window = window
-  }
-}
-
-struct WindowCapturingView: NSViewRepresentable {
-  typealias NSViewType = WindowCaptureView
-
-  let windowed: Windowed
-
-  func makeNSView(context: Context) -> NSViewType {
-    WindowCaptureView(windowed: windowed)
-  }
-
-  func updateNSView(_ captureView: NSViewType, context: Context) {
-    captureView.windowed = windowed
-  }
-}
-
 // MARK: - View modifiers
 
-struct TrackingMenuViewModifier: ViewModifier {
-  @State private var isTrackingMenu = TrackingMenuEnvironmentKey.defaultValue
-
-  func body(content: Content) -> some View {
-    content
-      .environment(\.isTrackingMenu, isTrackingMenu)
-      .onReceive(NotificationCenter.default.publisher(for: NSMenu.didBeginTrackingNotification)) { _ in
-        isTrackingMenu = true
-      }
-      .onReceive(NotificationCenter.default.publisher(for: NSMenu.didEndTrackingNotification)) { _ in
-        isTrackingMenu = false
-      }
-  }
-}
-
-struct WindowViewModifier: ViewModifier {
-  @State private var windowed = Windowed()
-
-  func body(content: Content) -> some View {
-    content
-      .environment(windowed)
-      .background {
-        WindowCapturingView(windowed: windowed)
-      }
-  }
-}
-
-struct WindowFullScreenViewModifier: ViewModifier {
-  @Environment(Windowed.self) private var windowed
-  @State private var isWindowFullScreen = WindowFullScreenEnvironmentKey.defaultValue
-
-  func body(content: Content) -> some View {
-    content
-      .environment(\.isWindowFullScreen, isWindowFullScreen)
-      .onReceive(NotificationCenter.default.publisher(for: NSWindow.willEnterFullScreenNotification)) { notification in
-        let window = notification.object as! NSWindow
-
-        guard windowed.window == window else {
-          return
-        }
-
-        isWindowFullScreen = true
-      }
-      .onReceive(NotificationCenter.default.publisher(for: NSWindow.willExitFullScreenNotification)) { notification in
-        let window = notification.object as! NSWindow
-
-        guard windowed.window == window else {
-          return
-        }
-
-        isWindowFullScreen = false
-      }
-  }
-}
-
-struct WindowLiveResizeViewModifier: ViewModifier {
-  @Environment(Windowed.self) private var windowed
-  @State private var isWindowLiveResizeActive = WindowLiveResizeEnvironmentKey.defaultValue
-
-  func body(content: Content) -> some View {
-    content
-      .environment(\.isWindowLiveResizeActive, isWindowLiveResizeActive)
-      .onReceive(NotificationCenter.default.publisher(for: NSWindow.willStartLiveResizeNotification)) { notification in
-        let window = notification.object as! NSWindow
-
-        guard window == windowed.window else {
-          return
-        }
-
-        isWindowLiveResizeActive = true
-      }
-      .onReceive(NotificationCenter.default.publisher(for: NSWindow.didEndLiveResizeNotification)) { notification in
-        let window = notification.object as! NSWindow
-
-        guard window == windowed.window else {
-          return
-        }
-
-        isWindowLiveResizeActive = false
-      }
-  }
-}
-
-struct WindowFullScreenToggleViewModifier: ViewModifier {
-  @Environment(Windowed.self) private var windowed
-
-  func body(content: Content) -> some View {
-    // This is a workaround for an odd behavior in SwiftUI where the "Enter/Exit Full Screen" menu item disappears.
-    // It's not a solution (it relies on the deprecated EventModifiers.function modifier and overrides the default menu
-    // item's key equivalent in the responder chain), but it is *something*.
-    content
-      .background {
-        Group {
-          Button(action: toggleFullScreen) {
-            // Empty
-          }
-          .keyboardShortcut(.fullScreen)
-
-          // FIXME: Pressing "f" without Fn triggers the action.
-          Button(action: toggleFullScreen) {
-            // Empty
-          }
-          .keyboardShortcut(.systemFullScreen)
-        }
-        .focusable(false)
-        .visible(false)
-      }
-  }
-
-  func toggleFullScreen() {
-    windowed.window?.toggleFullScreen(nil)
-  }
-}
-
 struct ToolbarVisibleViewModifier: ViewModifier {
-  @Environment(Windowed.self) private var windowed
+  @Environment(Window.self) private var windowed
   @Environment(\.isWindowFullScreen) private var isWindowFullScreen
 
   let isVisible: Bool
@@ -392,37 +203,6 @@ struct ToolbarVisibleViewModifier: ViewModifier {
   }
 }
 
-struct CursorVisibleViewModifier: ViewModifier {
-  let isVisible: Bool
-
-  func body(content: Content) -> some View {
-    content
-      .onAppear {
-        guard !isVisible else {
-          return
-        }
-
-        NSCursor.hide()
-      }
-      .onChange(of: isVisible) {
-        if isVisible {
-          NSCursor.unhide()
-
-          return
-        }
-
-        NSCursor.hide()
-      }
-      .onDisappear {
-        guard !isVisible else {
-          return
-        }
-
-        NSCursor.unhide()
-      }
-  }
-}
-
 struct LocalizeAction {
   let locale: Locale
 
@@ -432,34 +212,6 @@ struct LocalizeAction {
 
   func callAsFunction(_ key: String.LocalizationValue) -> AttributedString {
     AttributedString(localized: key, locale: locale)
-  }
-}
-
-struct LocalizedViewModifier: ViewModifier {
-  @Environment(\.locale) private var locale
-
-  func body(content: Content) -> some View {
-    content.environment(\.localize, LocalizeAction(locale: locale))
-  }
-}
-
-struct WindowedViewModifier: ViewModifier {
-  func body(content: Content) -> some View {
-    content
-      .modifier(WindowFullScreenViewModifier())
-      .modifier(WindowLiveResizeViewModifier())
-      .modifier(WindowFullScreenToggleViewModifier())
-      .modifier(WindowViewModifier())
-      .modifier(TrackingMenuViewModifier())
-  }
-}
-
-struct VisibleViewModifier: ViewModifier {
-  let isVisible: Bool
-
-
-  func body(content: Content) -> some View {
-    content.opacity(isVisible ? OPACITY_OPAQUE : OPACITY_TRANSPARENT)
   }
 }
 
@@ -503,7 +255,182 @@ where Source: PreferenceKey,
   }
 }
 
-// MARK: - Extensions
+// MARK: - Swift
+
+extension Duration {
+  // TODO: Rename.
+  static let imagesElapse = Self.seconds(1)
+
+  // Instruments
+
+  static let microhang = Self.milliseconds(250)
+}
+
+// MARK: - SwiftUI
+
+struct TrackingMenuViewModifier: ViewModifier {
+  @State private var isTrackingMenu = TrackingMenuEnvironmentKey.defaultValue
+
+  func body(content: Content) -> some View {
+    content
+      .environment(\.isTrackingMenu, isTrackingMenu)
+      .onReceive(NotificationCenter.default.publisher(for: NSMenu.didBeginTrackingNotification)) { _ in
+        isTrackingMenu = true
+      }
+      .onReceive(NotificationCenter.default.publisher(for: NSMenu.didEndTrackingNotification)) { _ in
+        isTrackingMenu = false
+      }
+  }
+}
+
+class WindowCaptureView: NSView {
+  var model: Window
+
+  init(window: Window) {
+    self.model = window
+
+    super.init(frame: .zero)
+  }
+
+  required init?(coder: NSCoder) {
+    fatalError("init(coder:) has not been implemented")
+  }
+
+  override func viewWillMove(toWindow window: NSWindow?) {
+    super.viewWillMove(toWindow: window)
+
+    model.window = window
+  }
+}
+
+struct WindowCapturingView: NSViewRepresentable {
+  let window: Window
+
+  func makeNSView(context: Context) -> WindowCaptureView {
+    WindowCaptureView(window: window)
+  }
+
+  func updateNSView(_ captureView: WindowCaptureView, context: Context) {
+    captureView.model = window
+  }
+}
+
+struct WindowViewModifier: ViewModifier {
+  @State private var window = Window()
+
+  func body(content: Content) -> some View {
+    content
+      .environment(window)
+      .background {
+        WindowCapturingView(window: window)
+      }
+  }
+}
+
+struct WindowFullScreenViewModifier: ViewModifier {
+  @Environment(Window.self) private var window
+  @State private var isWindowFullScreen = WindowFullScreenEnvironmentKey.defaultValue
+
+  func body(content: Content) -> some View {
+    content
+      .environment(\.isWindowFullScreen, isWindowFullScreen)
+      .onReceive(NotificationCenter.default.publisher(for: NSWindow.willEnterFullScreenNotification)) { notification in
+        let window = notification.object as! NSWindow
+
+        guard self.window.window == window else {
+          return
+        }
+
+        isWindowFullScreen = true
+      }
+      .onReceive(NotificationCenter.default.publisher(for: NSWindow.willExitFullScreenNotification)) { notification in
+        let window = notification.object as! NSWindow
+
+        guard self.window.window == window else {
+          return
+        }
+
+        isWindowFullScreen = false
+      }
+  }
+}
+
+struct WindowLiveResizeViewModifier: ViewModifier {
+  @Environment(Window.self) private var window
+  @State private var isWindowLiveResizeActive = WindowLiveResizeEnvironmentKey.defaultValue
+
+  func body(content: Content) -> some View {
+    content
+      .environment(\.isWindowLiveResizeActive, isWindowLiveResizeActive)
+      .onReceive(NotificationCenter.default.publisher(for: NSWindow.willStartLiveResizeNotification)) { notification in
+        let window = notification.object as! NSWindow
+
+        guard self.window.window == window else {
+          return
+        }
+
+        isWindowLiveResizeActive = true
+      }
+      .onReceive(NotificationCenter.default.publisher(for: NSWindow.didEndLiveResizeNotification)) { notification in
+        let window = notification.object as! NSWindow
+
+        guard self.window.window == window else {
+          return
+        }
+
+        isWindowLiveResizeActive = false
+      }
+  }
+}
+
+struct WindowedViewModifier: ViewModifier {
+  func body(content: Content) -> some View {
+    content
+      .modifier(WindowFullScreenViewModifier())
+      .modifier(WindowLiveResizeViewModifier())
+      .modifier(WindowViewModifier())
+      .modifier(TrackingMenuViewModifier())
+  }
+}
+
+struct VisibleViewModifier: ViewModifier {
+  static let transparent = 0.0
+  static let opaque = 1.0
+
+  let isVisible: Bool
+
+  func body(content: Content) -> some View {
+    content
+      .opacity(isVisible ? Self.opaque : Self.transparent)
+  }
+}
+
+struct CursorVisibleViewModifier: ViewModifier {
+  let isVisible: Bool
+
+  func body(content: Content) -> some View {
+    content
+      .onChange(of: isVisible, initial: true) { old, new in
+        switch (old, new) {
+          case (false, false):
+            NSCursor.hide()
+          case (false, true):
+            NSCursor.unhide()
+          case (true, false):
+            NSCursor.hide()
+          case (true, true):
+            break
+        }
+      }
+      .onDisappear {
+        guard !isVisible else {
+          return
+        }
+
+        NSCursor.unhide()
+      }
+  }
+}
 
 extension View {
   func transform(@ViewBuilder _ content: (Self) -> some View) -> some View {
@@ -516,16 +443,16 @@ extension View {
     self.modifier(WindowedViewModifier())
   }
 
-  func localized() -> some View {
-    self.modifier(LocalizedViewModifier())
-  }
-
-  func toolbarVisible(_ isVisible: Bool) -> some View {
-    self.modifier(ToolbarVisibleViewModifier(isVisible: isVisible))
+  func visible(_ isVisible: Bool) -> some View {
+    self.modifier(VisibleViewModifier(isVisible: isVisible))
   }
 
   func cursorVisible(_ isVisible: Bool) -> some View {
     self.modifier(CursorVisibleViewModifier(isVisible: isVisible))
+  }
+
+  func toolbarVisible(_ isVisible: Bool) -> some View {
+    self.modifier(ToolbarVisibleViewModifier(isVisible: isVisible))
   }
 
   func navigationSplitViewColumnWidth(min: CGFloat, max: CGFloat) -> some View {
@@ -570,12 +497,6 @@ extension View {
   }
 }
 
-extension View {
-  func visible(_ flag: Bool) -> some View {
-    self.opacity(flag ? OPACITY_OPAQUE : OPACITY_TRANSPARENT)
-  }
-}
-
 extension ShapeStyle {
   func visible(_ flag: Bool) -> some ShapeStyle {
     self.opacity(flag ? OPACITY_OPAQUE : OPACITY_TRANSPARENT)
@@ -590,6 +511,24 @@ extension Text {
   init() {
     self.init(verbatim: "")
   }
+}
+
+extension EdgeInsets {
+  // SwiftUI reserves margins for horizontal scroll indicators, which I haven't found a way to disable. This simply
+  // pushes content into that space, which I'm not sure is safe from other devices and settings.
+  static let listRow = Self(top: 0, leading: -8, bottom: 0, trailing: -9)
+}
+
+struct TrackingMenuEnvironmentKey: EnvironmentKey {
+  static let defaultValue = false
+}
+
+struct WindowFullScreenEnvironmentKey: EnvironmentKey {
+  static let defaultValue = false
+}
+
+struct WindowLiveResizeEnvironmentKey: EnvironmentKey {
+  static let defaultValue = false
 }
 
 extension EnvironmentValues {
@@ -608,17 +547,6 @@ extension EnvironmentValues {
     set { self[WindowLiveResizeEnvironmentKey.self] = newValue }
   }
 
-  var imagesSidebarJump: ImagesSidebarJumpEnvironmentKey.Value {
-    get { self[ImagesSidebarJumpEnvironmentKey.self] }
-    set { self[ImagesSidebarJumpEnvironmentKey.self] = newValue }
-  }
-
-  var imagesDetailJump: ImagesDetailJumpEnvironmentKey.Value {
-    get { self[ImagesDetailJumpEnvironmentKey.self] }
-    set { self[ImagesDetailJumpEnvironmentKey.self] = newValue }
-  }
-
-  @Entry var localize = LocalizeAction(locale: .current)
   @Entry var isImageAnalysisEnabled = true
   @Entry var isImageAnalysisSupplementaryInterfaceHidden = false
 
@@ -631,28 +559,24 @@ extension FocusedValues {
   @Entry var commandScene: AppModelCommandScene?
 
   // MARK: - Old
-  @Entry var imagesSidebarJump: ImagesNavigationJumpAction?
-  @Entry var imagesSidebarShow: AppMenuActionItem<ImagesModel.ID?>?
-  @Entry var imagesDetailJump: ImagesNavigationJumpAction?
   @Entry var imagesLiveTextIcon: AppMenuToggleItem<ImagesModel.ID?>?
   @Entry var imagesLiveTextHighlight: AppMenuToggleItem<Set<ImagesItemModel.ID>>?
-  @Entry var imagesQuickLook: AppMenuToggleItem<Set<ImageCollectionItemImage.ID>>?
 }
 
 extension KeyboardShortcut {
   static let open = Self("o", modifiers: .command)
   static let showFinder = Self("r", modifiers: .command)
   static let openFinder = Self("r", modifiers: [.command, .shift])
+  static let showSidebar = Self("l", modifiers: .command)
+  // Preview > Tools > Add Bookmark
+  static let bookmark = Self("d", modifiers: .command)
   // Terminal > Window > Return to Default Size
   static let resetWindowSize = Self("m", modifiers: [.command, .control])
-  static let foldersSettings = Self("3", modifiers: .command)
+  static let foldersSettings = Self("2", modifiers: .command)
+  static let searchSettings = Self("3", modifiers: .command)
 
   static let back = Self("[", modifiers: .command)
   static let forward = Self("]", modifiers: .command)
-  static let sidebarShowItem = Self("l", modifiers: .command)
-  static let fullScreen = Self("f", modifiers: [.command, .control])
-  static let systemFullScreen = Self("f", modifiers: .function) // See WindowFullScreenToggleViewModifier
   static let liveTextIcon = Self("t", modifiers: .command)
   static let liveTextHighlight = Self("t", modifiers: [.command, .shift])
-  static let searchSettings = Self("2", modifiers: .command)
 }

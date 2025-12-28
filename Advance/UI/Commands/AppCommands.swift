@@ -90,6 +90,35 @@ struct AppCommands: Commands {
       }
     }
 
+    CommandGroup(before: .sidebar) {
+      Section {
+        Button("Sidebar.Item.Show", systemImage: "sidebar.squares.leading") {
+          guard let scene else {
+            return
+          }
+
+          app.commandsSubject.send(AppModelCommand(action: .showSidebar, sceneID: scene.id))
+        }
+        .keyboardShortcut(.showSidebar)
+        .disabled(app.isShowSidebarDisabled(for: scene))
+      }
+    }
+
+    CommandMenu("Commands.Image") {
+      Section {
+        // TODO: Support conditional names.
+        Button("Commands.Image.Bookmark") {
+          guard let scene else {
+            return
+          }
+
+          app.commandsSubject.send(AppModelCommand(action: .bookmark, sceneID: scene.id))
+        }
+        .keyboardShortcut(.bookmark)
+        .disabled(app.isBookmarkDisabled(for: scene))
+      }
+    }
+
     CommandGroup(after: .windowSize) {
       Section {
         Button("Commands.Window.Size.Reset") {
