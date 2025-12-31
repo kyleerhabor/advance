@@ -50,7 +50,7 @@ struct SettingsLabeledContentStyle: LabeledContentStyle {
 
   func makeBody(configuration: Configuration) -> some View {
     GridRow(alignment: .firstTextBaseline) {
-      BlankView()
+      Color.clear
         .frame(maxWidth: .infinity, maxHeight: 0)
 
       configuration.label
@@ -63,7 +63,7 @@ struct SettingsLabeledContentStyle: LabeledContentStyle {
       }
       .frame(width: width * 0.65, alignment: .leading)
 
-      BlankView()
+      Color.clear
         .frame(maxWidth: .infinity, maxHeight: 0)
     }
   }

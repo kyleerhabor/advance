@@ -111,24 +111,10 @@ struct ImagesDetailListView: View {
           let items = items.filter { local.intersects(proxy[$0.anchor]) }
           let visible = items.reduce(into: ImagesDetailVisible(
             items: Array(reservingCapacity: items.count),
-            identity: Set(minimumCapacity: items.count),
             highlights: Array(reservingCapacity: items.count)
           )) { partialResult, item in
             partialResult.items.append(item.item.item)
-            partialResult.identity.insert(item.item.item.id)
             partialResult.highlights.append(item.item.highlight)
-
-            guard let isHighlighted = partialResult.isHighlighted else {
-              partialResult.isHighlighted = item.item.isHighlighted
-
-              return
-            }
-
-            guard isHighlighted else {
-              return
-            }
-
-            partialResult.isHighlighted = item.item.isHighlighted
           }
 
           Color.clear.preference(key: ImagesDetailVisiblePreferenceKey.self, value: visible)

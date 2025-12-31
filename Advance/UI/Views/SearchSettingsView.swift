@@ -25,7 +25,7 @@ struct SearchSettingsLocationView: View {
   @Bindable var item: SearchSettingsItemModel
 
   var body: some View {
-    TokenTextFieldView(
+    TokenFieldView(
       tokens: $item.location,
       prompt: String(localized: "Settings.Accessory.Search.Location.Prompt", locale: locale),
       tokenizer: { SearchSettingsItemModel.tokenize($0) },

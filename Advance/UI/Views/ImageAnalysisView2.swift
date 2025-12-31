@@ -20,6 +20,13 @@ class ImageAnalysisViewDelegate: ImageAnalysisOverlayViewDelegate {
 
   func overlayView(
     _ overlayView: ImageAnalysisOverlayView,
+    highlightSelectedItemsDidChange highlightSelectedItems: Bool,
+  ) {
+    representable.selectableItemsHighlighted = highlightSelectedItems
+  }
+
+  func overlayView(
+    _ overlayView: ImageAnalysisOverlayView,
     updatedMenuFor menu: NSMenu,
     for event: NSEvent,
     at point: CGPoint,
@@ -35,7 +42,7 @@ class ImageAnalysisViewDelegate: ImageAnalysisOverlayViewDelegate {
       at: menu.indexOfItem(withTag: ImageAnalysisOverlayView.MenuTag.recommendedAppItems),
     )
 
-    return self.representable.transform(self, menu, overlayView)
+    return self.representable.transformMenu.action(self, menu, overlayView)
   }
 
   @objc func action(_ sender: NSMenuItem) {
@@ -47,11 +54,34 @@ struct ImageAnalysisViewCoordinator {
   let delegate: ImageAnalysisViewDelegate
 }
 
+class ImageAnalysisViewTransformMenuAction {
+  let action: (ImageAnalysisViewDelegate, NSMenu, ImageAnalysisOverlayView) -> NSMenu
+
+  init(action: @escaping (ImageAnalysisViewDelegate, NSMenu, ImageAnalysisOverlayView) -> NSMenu) {
+    self.action = action
+  }
+}
+
 struct ImageAnalysisView2: NSViewRepresentable {
+  @Binding var selectableItemsHighlighted: Bool
   let analysis: ImageAnalysis?
   let preferredInteractionTypes: ImageAnalysisOverlayView.InteractionTypes
-  let transform: (ImageAnalysisViewDelegate, NSMenu, ImageAnalysisOverlayView) -> NSMenu
-//  let isSupplementaryInterfaceHidden: Bool
+  let isSupplementaryInterfaceHidden: Bool
+  let transformMenu: ImageAnalysisViewTransformMenuAction
+
+  init(
+    selectableItemsHighlighted: Binding<Bool>,
+    analysis: ImageAnalysis?,
+    preferredInteractionTypes: ImageAnalysisOverlayView.InteractionTypes,
+    isSupplementaryInterfaceHidden: Bool,
+    transformMenu: @escaping (ImageAnalysisViewDelegate, NSMenu, ImageAnalysisOverlayView) -> NSMenu,
+  ) {
+    self.analysis = analysis
+    self.preferredInteractionTypes = preferredInteractionTypes
+    self.isSupplementaryInterfaceHidden = isSupplementaryInterfaceHidden
+    self._selectableItemsHighlighted = selectableItemsHighlighted
+    self.transformMenu = ImageAnalysisViewTransformMenuAction(action: transformMenu)
+  }
 
   func makeNSView(context: Context) -> ImageAnalysisOverlayView {
     context.coordinator.delegate.representable = self
@@ -60,7 +90,8 @@ struct ImageAnalysisView2: NSViewRepresentable {
     overlayView.delegate = context.coordinator.delegate
     overlayView.analysis = analysis
     overlayView.preferredInteractionTypes = preferredInteractionTypes
-//    overlayView.isSupplementaryInterfaceHidden = isSupplementaryInterfaceHidden
+    overlayView.isSupplementaryInterfaceHidden = isSupplementaryInterfaceHidden
+    overlayView.selectableItemsHighlighted = selectableItemsHighlighted
 
     return overlayView
   }
@@ -70,7 +101,8 @@ struct ImageAnalysisView2: NSViewRepresentable {
     overlayView.delegate = context.coordinator.delegate
     overlayView.analysis = analysis
     overlayView.preferredInteractionTypes = preferredInteractionTypes
-//    overlayView.isSupplementaryInterfaceHidden = isSupplementaryInterfaceHidden
+    overlayView.isSupplementaryInterfaceHidden = isSupplementaryInterfaceHidden
+    overlayView.selectableItemsHighlighted = selectableItemsHighlighted
   }
 
   func makeCoordinator() -> ImageAnalysisViewCoordinator {

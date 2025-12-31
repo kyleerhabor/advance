@@ -395,26 +395,24 @@ public struct ClockMeasurement<T, D> where D: DurationProtocol {
 }
 
 extension Clock {
-  // This should only be used for very basic diagnostics since Instruments is more informative.
-  public func time<T>(
-    _ body: @isolated(any) () async throws -> T
-  ) async rethrows -> ClockMeasurement<T, Duration> where T: Sendable {
+  public func measure<T>(
+//    isolation: isolated (any Actor)? = #isolation,
+    _ body: () async throws -> T,
+  ) async rethrows -> ClockMeasurement<T, Duration> {
     var value: T!
     let duration = try await self.measure {
       value = try await body()
     }
 
-    return ClockMeasurement(value: value, duration: duration)
+    let measurement = ClockMeasurement(value: value!, duration: duration)
+
+    return measurement
   }
 }
 
 extension CGSize {
   public var length: Double {
     max(self.width, self.height)
-  }
-
-  public var reflected: Self {
-    Self(width: self.height, height: self.width)
   }
 }
 

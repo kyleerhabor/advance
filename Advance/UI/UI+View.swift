@@ -26,17 +26,8 @@ extension NSWorkspace {
   }
 }
 
-extension NSMenu {
-  static let itemIndexWithTagNotFoundStatus = -1
-}
-
 extension NSMenuItem {
-  static let unknownTag = 0
-
-  var isStandard: Bool {
-    // This is not safe from evolution.
-    !(self.isSectionHeader || self.isSeparatorItem)
-  }
+  static let searchAction = Selector(("_searchWithGoogleFromMenu:"))
 }
 
 extension NSWindow {
@@ -394,9 +385,8 @@ struct WindowedViewModifier: ViewModifier {
 }
 
 struct VisibleViewModifier: ViewModifier {
-  static let transparent = 0.0
-  static let opaque = 1.0
-
+  private static let transparent = 0.0
+  private static let opaque = 1.0
   let isVisible: Bool
 
   func body(content: Content) -> some View {
@@ -410,7 +400,7 @@ struct CursorVisibleViewModifier: ViewModifier {
 
   func body(content: Content) -> some View {
     content
-      .onChange(of: isVisible, initial: true) { old, new in
+      .onChange(of: self.isVisible, initial: true) { old, new in
         switch (old, new) {
           case (false, false):
             NSCursor.hide()
@@ -423,7 +413,7 @@ struct CursorVisibleViewModifier: ViewModifier {
         }
       }
       .onDisappear {
-        guard !isVisible else {
+        guard !self.isVisible else {
           return
         }
 
@@ -432,10 +422,22 @@ struct CursorVisibleViewModifier: ViewModifier {
   }
 }
 
+struct TransformViewModifier<Result>: ViewModifier where Result: View {
+  let content: (Content) -> Result
+
+  func body(content: Content) -> some View {
+    self.content(content)
+  }
+}
+
 extension View {
   func transform(@ViewBuilder _ content: (Self) -> some View) -> some View {
     content(self)
   }
+  
+//  func transform<Content>(@ViewBuilder body: @escaping (TransformViewModifier<Content>.Content) -> Content) -> some View {
+//    self.modifier(TransformViewModifier(content: body))
+//  }
 
   func windowed() -> some View {
     // We're extracting the view modifiers into one so SwiftUI persists just the 'windowed' view modifier. This will
@@ -547,11 +549,8 @@ extension EnvironmentValues {
     set { self[WindowLiveResizeEnvironmentKey.self] = newValue }
   }
 
-  @Entry var isImageAnalysisEnabled = true
-  @Entry var isImageAnalysisSupplementaryInterfaceHidden = false
-
   // MARK: - Old
-  // Is using Binding in Environment a good idea?
+  @Entry var isImageAnalysisSupplementaryInterfaceHidden = false
   @Entry var imagesID = UUID()
 }
 
@@ -560,7 +559,6 @@ extension FocusedValues {
 
   // MARK: - Old
   @Entry var imagesLiveTextIcon: AppMenuToggleItem<ImagesModel.ID?>?
-  @Entry var imagesLiveTextHighlight: AppMenuToggleItem<Set<ImagesItemModel.ID>>?
 }
 
 extension KeyboardShortcut {
@@ -570,6 +568,8 @@ extension KeyboardShortcut {
   static let showSidebar = Self("l", modifiers: .command)
   // Preview > Tools > Add Bookmark
   static let bookmark = Self("d", modifiers: .command)
+  static let toggleLiveTextIcon = Self("t", modifiers: .command)
+  static let toggleLiveTextHighlight = Self("t", modifiers: [.command, .shift])
   // Terminal > Window > Return to Default Size
   static let resetWindowSize = Self("m", modifiers: [.command, .control])
   static let foldersSettings = Self("2", modifiers: .command)
@@ -577,6 +577,4 @@ extension KeyboardShortcut {
 
   static let back = Self("[", modifiers: .command)
   static let forward = Self("]", modifiers: .command)
-  static let liveTextIcon = Self("t", modifiers: .command)
-  static let liveTextHighlight = Self("t", modifiers: [.command, .shift])
 }

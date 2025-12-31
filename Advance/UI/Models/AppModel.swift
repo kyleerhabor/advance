@@ -10,23 +10,36 @@ import Combine
 import Observation
 
 enum AppModelCommandAction {
-  case open, showFinder, openFinder, showSidebar, bookmark, resetWindowSize
+  case open, showFinder, openFinder, showSidebar, bookmark, toggleLiveTextIcon, toggleLiveTextHighlight, resetWindowSize
 }
 
 enum AppModelCommandSceneID {
-  case images(ImagesModel.ID), folders
+  case images(ImagesModel.ID),
+       imagesSidebar(ImagesModel.ID),
+       folders
 }
 
 extension AppModelCommandSceneID: Equatable {}
 
+struct AppModelToggleCommand {
+  let isDisabled: Bool
+  let isOn: Bool
+}
+
+extension AppModelToggleCommand: Equatable {}
+
 struct AppModelCommandScene {
   let id: AppModelCommandSceneID
-  let disablesShowFinder: Bool
-  let disablesOpenFinder: Bool
-  let disablesShowSidebar: Bool
-  let disablesBookmark: Bool
-  let disablesResetWindowSize: Bool
+  let isShowFinderDisabled: Bool
+  let isOpenFinderDisabled: Bool
+  let isShowSidebarDisabled: Bool
+  let bookmark: AppModelToggleCommand
+  let liveTextIcon: AppModelToggleCommand
+  let liveTextHighlight: AppModelToggleCommand
+  let isResetWindowSizeDisabled: Bool
 }
+
+extension AppModelCommandScene: Equatable {}
 
 struct AppModelCommand {
   let action: AppModelCommandAction
@@ -36,37 +49,57 @@ struct AppModelCommand {
 @Observable
 @MainActor
 final class AppModel {
-  // Swift Async Algorithms has AsyncSequence.share(bufferingPolicy:) for consuming from many tasks, but because it uses
+  // Swift Async Algorithms has AsyncSequence/share(bufferingPolicy:) for consuming from many tasks, but because it uses
   // AsyncSequence's Failure generic, it requires at least macOS 15.
   //
   //   'Failure' is only available in macOS 15.0 or newer
   let commandsSubject: any Subject<AppModelCommand, Never>
   let commandsPublisher: AnyPublisher<AppModelCommand, Never>
   var isImagesFileImporterPresented: Bool
+  var isBookmarked: Bool
+  var isBookmarkedSet: Bool
+  var isSupplementaryInterfaceVisible: Bool
+  var isSupplementaryInterfaceVisibleSet: Bool
+  var isSelectableItemsHighlighted: Bool
+  var isSelectableItemsHighlightedSet: Bool
 
   init() {
     self.commandsSubject = PassthroughSubject()
     self.commandsPublisher = commandsSubject.eraseToAnyPublisher()
     self.isImagesFileImporterPresented = false
+    self.isBookmarked = false
+    self.isBookmarkedSet = false
+    self.isSupplementaryInterfaceVisible = false
+    self.isSupplementaryInterfaceVisibleSet = false
+    self.isSelectableItemsHighlighted = false
+    self.isSelectableItemsHighlightedSet = false
   }
 
   func isShowFinderDisabled(for scene: AppModelCommandScene?) -> Bool {
-    scene?.disablesShowFinder ?? true
+    scene?.isShowFinderDisabled ?? true
   }
 
   func isOpenFinderDisabled(for scene: AppModelCommandScene?) -> Bool {
-    scene?.disablesOpenFinder ?? true
+    scene?.isOpenFinderDisabled ?? true
   }
 
   func isShowSidebarDisabled(for scene: AppModelCommandScene?) -> Bool {
-    scene?.disablesShowSidebar ?? true
+    scene?.isShowSidebarDisabled ?? true
   }
 
   func isBookmarkDisabled(for scene: AppModelCommandScene?) -> Bool {
-    scene?.disablesBookmark ?? true
+    scene?.bookmark.isDisabled ?? true
+  }
+
+  func isLiveTextIconDisabled(for scene: AppModelCommandScene?) -> Bool {
+    scene?.liveTextIcon.isDisabled ?? true
+  }
+
+  func isLiveTextHighlightDisabled(for scene: AppModelCommandScene?) -> Bool {
+    scene?.liveTextHighlight.isDisabled ?? true
   }
 
   func isResetWindowSizeDisabled(for scene: AppModelCommandScene?) -> Bool {
-    scene?.disablesResetWindowSize ?? true
+    scene?.isResetWindowSizeDisabled ?? true
   }
 }

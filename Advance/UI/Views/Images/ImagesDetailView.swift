@@ -11,14 +11,12 @@ import SwiftUI
 
 struct ImagesDetailVisible {
   var items: [ImagesItemModel]
-  var identity: Set<ImagesItemModel.ID>
-  var isHighlighted: Bool?
   var highlights: [ImagesDetailListVisibleItem.HighlightAction]
 }
 
 struct ImagesDetailVisiblePreferenceKey: PreferenceKey {
   static var defaultValue: ImagesDetailVisible {
-    ImagesDetailVisible(items: [], identity: [], highlights: [])
+    ImagesDetailVisible(items: [], highlights: [])
   }
 
   static func reduce(value: inout ImagesDetailVisible, nextValue: () -> ImagesDetailVisible) {
@@ -27,20 +25,7 @@ struct ImagesDetailVisiblePreferenceKey: PreferenceKey {
 }
 
 struct ImagesDetailView: View {
-  @Environment(ImagesModel.self) private var images
-  @Environment(\.isImageAnalysisEnabled) private var isImageAnalysisEnabled
-
   var body: some View {
     ImagesDetailListView()
-      .backgroundPreferenceValue(ImagesDetailVisiblePreferenceKey.self) { visible in
-        Color.clear
-          .focusedSceneValue(\.imagesLiveTextHighlight, AppMenuToggleItem(
-            identity: visible.identity,
-            enabled: isImageAnalysisEnabled && visible.isHighlighted != nil,
-            state: visible.isHighlighted ?? false
-          ) { isOn in
-            visible.highlights.forEach(applying(isOn))
-          })
-      }
   }
 }

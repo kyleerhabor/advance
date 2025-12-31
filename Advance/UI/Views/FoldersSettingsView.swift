@@ -42,11 +42,13 @@ struct FoldersSettingsView: View {
     .listStyle(.inset)
     .focusedSceneValue(\.commandScene, AppModelCommandScene(
       id: .folders,
-      disablesShowFinder: isFinderDisabled,
-      disablesOpenFinder: isFinderDisabled,
-      disablesShowSidebar: true,
-      disablesBookmark: true,
-      disablesResetWindowSize: true,
+      isShowFinderDisabled: isFinderDisabled,
+      isOpenFinderDisabled: isFinderDisabled,
+      isShowSidebarDisabled: true,
+      bookmark: AppModelToggleCommand(isDisabled: true, isOn: false),
+      liveTextIcon: AppModelToggleCommand(isDisabled: true, isOn: false),
+      liveTextHighlight: AppModelToggleCommand(isDisabled: true, isOn: false),
+      isResetWindowSizeDisabled: true,
     ))
     .toolbar {
       Button("Settings.Accessory.Folders.Item.Add", systemImage: "plus") {
@@ -88,13 +90,11 @@ struct FoldersSettingsView: View {
       }
     }
     .onReceive(app.commandsPublisher) { command in
-      Task {
-        await onCommand(command)
-      }
+      onCommand(command)
     }
   }
 
-  func onCommand(_ command: AppModelCommand) async {
+  func onCommand(_ command: AppModelCommand) {
     guard command.sceneID == .folders else {
       return
     }
@@ -103,14 +103,14 @@ struct FoldersSettingsView: View {
       case .open:
         isFileImporterPresented = true
       case .showFinder:
-        await folders.showFinder(items: selection)
+        Task {
+          await folders.showFinder(items: selection)
+        }
       case .openFinder:
-        await folders.openFinder(items: selection)
-      case .showSidebar:
-        unreachable()
-      case .bookmark:
-        unreachable()
-      case .resetWindowSize:
+        Task {
+          await folders.openFinder(items: selection)
+        }
+      case .showSidebar, .bookmark, .toggleLiveTextIcon, .toggleLiveTextHighlight, .resetWindowSize:
         unreachable()
     }
   }

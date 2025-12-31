@@ -19,7 +19,7 @@ struct SizeView<Sub, Pub>: View where Sub: Subject<CGSize, Never>,
 
   var body: some View {
     GeometryReader { proxy in
-      BlankView()
+      Color.clear
         .onChange(of: proxy.size) {
           subject.send(proxy.size)
         }

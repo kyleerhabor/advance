@@ -41,7 +41,8 @@ struct ImageCollectionSidebarEmptyView: View {
           .resizable()
           .scaledToFit()
           .frame(width: 24)
-      }.labelStyle(ImageCollectionEmptySidebarLabelStyle())
+      }
+      .labelStyle(ImageCollectionEmptySidebarLabelStyle())
     }
     .buttonStyle(.plain)
     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -75,36 +76,6 @@ struct ImageCollectionSidebarEmptyView: View {
 
             return true
           }
-      }
-    }
-    .fileImporter(isPresented: $isFileImporterPresented, allowedContentTypes: imagesContentTypes, allowsMultipleSelection: true) { result in
-      switch result {
-        case .success(let urls):
-          Task {
-            let state = await resolve(urls: urls, in: collection.store)
-            let items = state.value
-
-            collection.store = state.store
-
-            items.forEach { item in
-              collection.items[item.root.bookmark] = item
-            }
-
-            let ids = items.map(\.root.bookmark)
-
-            collection.order.appended(ids)
-            collection.update()
-
-            Task(priority: .medium) {
-              do {
-                try await collection.persist(id: id)
-              } catch {
-                Logger.model.error("Could not persist image collection \"\(id)\" (via sidebar button): \(error)")
-              }
-            }
-          }
-        case .failure(let err):
-          Logger.ui.error("Could not import files from sidebar button: \(err)")
       }
     }
     .disabled(!visible)

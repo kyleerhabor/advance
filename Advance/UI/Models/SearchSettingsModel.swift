@@ -11,6 +11,11 @@ import GRDB
 import IdentifiedCollections
 import Observation
 import OSLog
+import UniformTypeIdentifiers
+
+extension UTType {
+  static let settingsAccessorySearchItem = Self(exportedAs: "com.kyleerhabor.AdvanceSettingsAccessorySearchItem")
+}
 
 struct SearchSettingsItemModelID {
   let id: UUID
@@ -20,7 +25,7 @@ extension SearchSettingsItemModelID: Codable {}
 
 extension SearchSettingsItemModelID: Transferable {
   static var transferRepresentation: some TransferRepresentation {
-    CodableRepresentation(contentType: .item)
+    CodableRepresentation(contentType: .settingsAccessorySearchItem)
   }
 }
 
@@ -33,9 +38,6 @@ final class SearchSettingsItemModel {
   var rowID: RowID?
   var name: String
   var location: [String]
-  var locationString: String {
-    Self.detokenize(location)
-  }
 
   init(id: UUID, rowID: RowID?, name: String, location: [String]) {
     self.id = id
@@ -133,42 +135,6 @@ struct SearchSettingsModelMoveStoreState {
   let upper: BigFraction
 }
 
-struct SearchSettingsModelEngineURLInvalidLocationError {
-  let name: String
-  let query: String
-}
-
-enum SearchSettingsModelEngineURLErrorType {
-  case invalidLocation(SearchSettingsModelEngineURLInvalidLocationError)
-}
-
-struct SearchSettingsModelEngineURLError {
-  let locale: Locale
-  let type: SearchSettingsModelEngineURLErrorType
-}
-
-extension SearchSettingsModelEngineURLError: LocalizedError {
-  var errorDescription: String? {
-    switch type {
-      case let .invalidLocation(error):
-        String(
-          localized: "Images.Item.SearchEngine.Item.URL.Error.InvalidLocation.Name.\(error.name).Query.\(error.query)",
-          locale: locale,
-        )
-    }
-  }
-
-  var recoverySuggestion: String? {
-    switch type {
-      case .invalidLocation:
-        String(
-          localized: "Images.Item.SearchEngine.Item.URL.Error.InvalidLocation.Name.Query.RecoverySuggestion",
-          locale: locale,
-        )
-    }
-  }
-}
-
 @Observable
 @MainActor
 final class SearchSettingsModel {
@@ -240,14 +206,6 @@ final class SearchSettingsModel {
 
   func storeSelection() async {
     await store(selection: selection)
-  }
-
-  func url(
-    of engine: SearchSettingsEngineModel.ID,
-    query: String,
-    locale: Locale,
-  ) async throws(SearchSettingsModelEngineURLError) -> URL? {
-    try await _url(of: engine, query: query, locale: locale)
   }
 
   private func load(state: SearchSettingsModelLoadState) {
@@ -552,63 +510,5 @@ final class SearchSettingsModel {
 
       return
     }
-  }
-
-  nonisolated private func _url(
-    of engine: RowID,
-    query: String,
-    locale: Locale,
-  ) async throws(SearchSettingsModelEngineURLError) -> URL? {
-    let connection: DatabasePool
-
-    do {
-      connection = try await databaseConnection()
-    } catch {
-      Logger.model.error("Could not create database connection for search engine URL: \(error)")
-
-      return nil
-    }
-
-    let searchEngine: SearchSettingsModelEngineURLSearchEngineInfo?
-
-    do {
-      searchEngine = try await connection.read { db in
-        try SearchEngineRecord
-          .select(.rowID, SearchEngineRecord.Columns.name, SearchEngineRecord.Columns.location)
-          .filter(key: engine)
-          .asRequest(of: SearchSettingsModelEngineURLSearchEngineInfo.self)
-          .fetchOne(db)
-      }
-    } catch {
-      Logger.model.error("Could not read database for search engine URL: \(error)")
-
-      return nil
-    }
-
-    guard let searchEngine else {
-      Logger.model.error("Could not find search engine '\(engine)'")
-
-      return nil
-    }
-
-    let tokens = SearchSettingsItemModel
-      .tokenize(searchEngine.searchEngine.location!)
-      .map { token in
-        switch token {
-          case SearchSettingsItemModel.queryToken: query
-          default: token
-        }
-      }
-
-    guard let url = URL(string: SearchSettingsItemModel.detokenize(tokens)) else {
-      throw SearchSettingsModelEngineURLError(
-        locale: locale,
-        type: .invalidLocation(
-          SearchSettingsModelEngineURLInvalidLocationError(name: searchEngine.searchEngine.name!, query: query),
-        ),
-      )
-    }
-
-    return url
   }
 }

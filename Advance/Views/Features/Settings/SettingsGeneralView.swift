@@ -13,7 +13,6 @@ struct SettingsGeneralView: View {
 
   @Default(.margins) private var margins
   @Default(.collapseMargins) private var collapseMargins
-  @Default(.displayTitleBarImage) private var displayTitleBarImage
   private let range = 0.0...4.0
 
   var body: some View {
@@ -48,10 +47,6 @@ struct SettingsGeneralView: View {
 
         Text("Images with adjacent borders will have their margins flattened into a single value.")
       }.disabled(margins.wrappedValue == 0)
-    }
-
-    LabeledContent("Main Canvas:") {
-      Toggle("Display current image in the title", isOn: $displayTitleBarImage)
     }
   }
 }

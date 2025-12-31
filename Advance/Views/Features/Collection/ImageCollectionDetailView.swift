@@ -53,190 +53,8 @@ struct ImageCollectionDetailItemBookmarkView: View {
   }
 }
 
-struct ImageCollectionDetailItemSidebarView: View {
-  @Environment(ImageCollectionSidebar.self) private var sidebar
-//  @Environment(\.sidebarScroller) private var sidebarScroller
-
-  let id: ImageCollectionItemImage.ID
-
-  var body: some View {
-    Button("Sidebar.Item.Show") {
-//      sidebarScroller.scroll(.init(id: id) {
-//        Task {
-//          sidebar.selection = [id]
-//        }
-//      })
-    }
-  }
-}
-
-struct ImageCollectionDetailItemInteractionView: View {
-  @Default(.liveTextDownsample) private var liveTextDownsample
-  @State private var analysis: ImageCollectionItemImageAnalysis?
-  private let invalid = 0
-
-  @Bindable var image: ImageCollectionItemImage
-  let resample: ImageResample?
-
-  private var interactions: ImageAnalysisOverlayView.InteractionTypes {
-    var interactions = ImageAnalysisOverlayView.InteractionTypes()
-
-    guard resample != nil else {
-      return interactions
-    }
-
-    interactions.insert([.textSelection, .dataDetectors])
-
-    return interactions
-  }
-
-  private var length: Int {
-    guard let size = resample?.size else {
-      return invalid
-    }
-
-    return .init(size.length.rounded(.up))
-  }
-
-  private var input: ImageCollectionItemImageAnalysisInput {
-    .init(
-      url: image.url,
-      interactions: interactions,
-      downsample: liveTextDownsample && length != invalid,
-      isSuccessPhase: resample != nil
-    )
-  }
-
-  var body: some View {
-    BlankView()
-    .task(id: input) {
-      let input = input
-
-      guard analysis?.input != input && input.isSuccessPhase else {
-        return
-      }
-
-      let analysis = await image.accessingSecurityScopedResource {
-        await Self.analyze(
-          url: input.url,
-          orientation: image.properties.orientation,
-          interactions: input.interactions,
-          resample: input.downsample,
-          resampleSize: min(length, ImageAnalyzer.maxSize)
-        )
-      }
-
-      guard let analysis else {
-        return
-      }
-
-      self.analysis = .init(analysis, input: input)
-    }.onChange(of: analysis?.analysis.hasOutput) {
-      image.hasAnalysisResults = analysis?.analysis.hasOutput ?? false
-    }
-  }
-
-  nonisolated static func analyze(
-    url: URL,
-    orientation: CGImagePropertyOrientation,
-    interactions: ImageAnalysisOverlayView.InteractionTypes,
-    resample: Bool,
-    resampleSize: Int
-  ) async -> ImageAnalysis? {
-    let analyzer = ImageAnalyzer()
-    let maxSize = ImageAnalyzer.maxSize
-    let configuration = ImageAnalyzer.Configuration(.init(interactions))
-
-    do {
-      return try await Self.analyze(analyzer: analyzer, imageAt: url, orientation: orientation, configuration: configuration)
-    } catch let err as NSError where err.domain == ImageAnalyzer.errorDomain && err.code == ImageAnalyzer.errorMaxSizeCode {
-      guard resample else {
-        Logger.ui.error("Could not analyze image at URL \"\(url.pathString)\" as its size is too large: \(err)")
-
-        return nil
-      }
-
-      let size = min(resampleSize, maxSize.decremented())
-
-      guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
-            let type = CGImageSourceGetType(source),
-            let image = source.resample(to: size) else {
-        return nil
-      }
-
-      let directory = URL.temporaryDirectory
-      let url = directory.appending(component: UUID().uuidString)
-      let count = 1
-      let destination: CGImageDestination
-
-      do {
-        let manager = FileManager.default
-        let dest: CGImageDestination? = try manager.creatingDirectories(at: directory, code: .fileNoSuchFile) {
-          guard let destination = CGImageDestinationCreateWithURL(url as CFURL, type, count, nil) else {
-            if manager.fileExists(atPath: url.pathString) {
-              return nil
-            }
-
-            throw CocoaError(.fileNoSuchFile)
-          }
-
-          return destination
-        }
-
-        guard let dest else {
-          return nil
-        }
-
-        destination = dest
-      } catch {
-        Logger.ui.error("Could not create destination for image analyzer replacement image: \(error)")
-
-        return nil
-      }
-
-      CGImageDestinationAddImage(destination, image, nil)
-
-      guard CGImageDestinationFinalize(destination) else {
-        Logger.ui.error("Could not finalize destination for image analyzer replacement image")
-
-        return nil
-      }
-
-      do {
-        return try await Self.analyze(analyzer: analyzer, imageAt: url, orientation: orientation, configuration: configuration)
-      } catch {
-        Logger.ui.error("Could not analyze image at URL \"\(url.pathString)\": \(error)")
-
-        return nil
-      }
-    } catch {
-      Logger.ui.error("Could not analyze image at URL \"\(url.pathString)\": \(error)")
-
-      return nil
-    }
-  }
-
-  // For reference, I know VisionKit logs the analysis time in Console; this is just useful for always displaying the
-  // time in *our own logs*.
-  nonisolated static func analyze(
-    analyzer: ImageAnalyzer,
-    imageAt url: URL,
-    orientation: CGImagePropertyOrientation,
-    configuration: ImageAnalyzer.Configuration
-  ) async throws -> ImageAnalysis {
-    let exec = try await ContinuousClock.continuous.time {
-      try await analyzer.analyze(imageAt: url, orientation: orientation, configuration: configuration)
-    }
-
-    Logger.ui.info("Took \(exec.duration) to analyze image at URL \"\(url.pathString)\"")
-
-    return exec.value
-  }
-}
-
 struct ImageCollectionDetailItemPhaseView: View {
   @State private var phase = ImageResamplePhase.empty
-
   let image: ImageCollectionItemImage
 
   var body: some View {
@@ -244,9 +62,6 @@ struct ImageCollectionDetailItemPhaseView: View {
 
     ImageCollectionItemView(image: image, phase: $phase) {
       ImageCollectionItemPhaseView(phase: phase)
-        .overlay {
-          ImageCollectionDetailItemInteractionView(image: image, resample: phase.success)
-        }
     }
     .aspectRatio(size.width / size.height, contentMode: .fit)
   }
@@ -266,10 +81,6 @@ struct ImageCollectionDetailItemView: View {
       @Bindable var image = image
 
       Section {
-        ImageCollectionDetailItemSidebarView(id: image.id)
-      }
-
-      Section {
         ImageCollectionDetailItemBookmarkView(bookmarked: $image.bookmarked)
       }
     }
@@ -281,7 +92,6 @@ struct ImageCollectionDetailVisibleView: View {
   @Environment(ImageCollection.self) private var collection
   @Environment(ImageCollectionSidebar.self) private var sidebar
   @Environment(\.imagesID) private var id
-  @Default(.displayTitleBarImage) private var displayTitleBarImage
 
   let images: [ImageCollectionItemImage]
 
@@ -319,13 +129,11 @@ struct ImageCollectionDetailVisibleView: View {
       }
 
     if let primary {
-      if displayTitleBarImage {
-        let url = primary.url
-
-        Color.clear
-          .navigationTitle(Text(url.lastPath))
-          .navigationDocument(url)
-      }
+      let url = primary.url
+      
+      Color.clear
+        .navigationTitle(Text(url.lastPath))
+        .navigationDocument(url)
     }
   }
 }
@@ -400,21 +208,5 @@ struct ImageCollectionDetailView: View {
     .backgroundPreferenceValue(ImageCollectionVisiblePreferenceKey.self) { images in
       ImageCollectionDetailVisibleView(images: images)
     }
-//    .toolbar(id: "Canvas") {
-//      ToolbarItem(id: "Live Text Icon") {
-//        let icons = Binding {
-//          showLiveTextIcon
-//        } set: {
-//          liveTextIcon = $0
-//        }
-//
-//        Toggle("Images.Toolbar.LiveTextIcon", systemImage: "text.viewfinder", isOn: icons)
-//          .help(showLiveTextIcon ? "Images.Toolbar.LiveTextIcon.Hide" : "Images.Toolbar.LiveTextIcon.Show")
-//      }
-//    }
-//    .environment(\.supplementaryInterfaceHidden, showLiveTextIcon)
-//    .focusedSceneValue(\.liveTextIcon, .init(identity: id, enabled: true, state: showLiveTextIcon) { icon in
-//      liveTextIcon = icon
-//    })
   }
 }

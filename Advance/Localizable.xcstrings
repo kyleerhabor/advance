@@ -26,12 +26,62 @@
         }
       }
     },
-    "Commands.Image.Bookmark" : {
+    "Commands.Image.Bookmark.Add" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bookmark"
+          }
+        }
+      }
+    },
+    "Commands.Image.Bookmark.Remove" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unbookmark"
+          }
+        }
+      }
+    },
+    "Commands.Image.LiveTextHighlight.Hide" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide Live Text Highlight"
+          }
+        }
+      }
+    },
+    "Commands.Image.LiveTextHighlight.Show" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Live Text Highlight"
+          }
+        }
+      }
+    },
+    "Commands.Image.LiveTextIcon.Hide" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide Live Text Icon"
+          }
+        }
+      }
+    },
+    "Commands.Image.LiveTextIcon.Show" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Live Text Icon"
           }
         }
       }
@@ -57,9 +107,6 @@
       }
     },
     "Copy" : {
-
-    },
-    "Display current image in the title" : {
 
     },
     "Extra" : {
@@ -142,6 +189,7 @@
       }
     },
     "Images.Commands.Image.LiveText.Highlight.Hide" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -152,6 +200,7 @@
       }
     },
     "Images.Commands.Image.LiveText.Highlight.Show" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -377,7 +426,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Make sure that location is a URL like “https://website.com” and not a domain like “website.com.”"
+            "value" : "Make sure that location is a URL like “https://example.com” and not a domain like “example.com.”"
           }
         }
       }
@@ -411,9 +460,6 @@
           }
         }
       }
-    },
-    "Main Canvas:" : {
-
     },
     "Margins:" : {
 

@@ -11,12 +11,13 @@ import SwiftUI
 struct AppCommands: Commands {
   @Environment(AppModel.self) private var app
   @Environment(\.openWindow) private var openWindow
-  @FocusedValue(\.commandScene) private var scene
   @AppStorage(StorageKeys.importHiddenFiles) private var importHiddenFiles
   @AppStorage(StorageKeys.importSubdirectories) private var importSubdirectories
+  @FocusedValue(\.commandScene) private var scene
 
   var body: some Commands {
     SidebarCommands()
+    ToolbarCommands()
 
     CommandGroup(after: .newItem) {
       @Bindable var app = app
@@ -106,16 +107,36 @@ struct AppCommands: Commands {
 
     CommandMenu("Commands.Image") {
       Section {
-        // TODO: Support conditional names.
-        Button("Commands.Image.Bookmark") {
-          guard let scene else {
-            return
-          }
+        @Bindable var app = self.app
 
-          app.commandsSubject.send(AppModelCommand(action: .bookmark, sceneID: scene.id))
-        }
+        Toggle(
+          app.isBookmarked ? "Commands.Image.Bookmark.Remove" : "Commands.Image.Bookmark.Add",
+          systemImage: "bookmark",
+          isOn: $app.isBookmarked,
+        )
         .keyboardShortcut(.bookmark)
         .disabled(app.isBookmarkDisabled(for: scene))
+      }
+
+      Section {
+        @Bindable var app = self.app
+
+        Toggle(
+          app.isSupplementaryInterfaceVisible ? "Commands.Image.LiveTextIcon.Hide" : "Commands.Image.LiveTextIcon.Show",
+          systemImage: "text.viewfinder",
+          isOn: $app.isSupplementaryInterfaceVisible,
+        )
+        .keyboardShortcut(.toggleLiveTextIcon)
+        .disabled(app.isLiveTextIconDisabled(for: scene))
+
+        Toggle(
+          app.isSelectableItemsHighlighted
+            ? "Commands.Image.LiveTextHighlight.Hide"
+            : "Commands.Image.LiveTextHighlight.Show",
+          isOn: $app.isSelectableItemsHighlighted,
+        )
+        .keyboardShortcut(.toggleLiveTextHighlight)
+        .disabled(app.isLiveTextHighlightDisabled(for: scene))
       }
     }
 

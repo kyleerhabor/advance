@@ -13,24 +13,16 @@ typealias MapCF = [CFString : Any]
 
 extension CGImageSource {
   func properties(options: CFDictionary? = nil) -> CFDictionary? {
-    properties(at: CGImageSourceGetPrimaryImageIndex(self), options: options)
-  }
-
-  func properties(at index: Int, options: CFDictionary? = nil) -> CFDictionary? {
-    CGImageSourceCopyPropertiesAtIndex(self, index, options)
+    CGImageSourceCopyPropertiesAtIndex(self, CGImageSourceGetPrimaryImageIndex(self), options)
   }
 
   func resample(to size: some Numeric) -> CGImage? {
-    resample(to: size, index: CGImageSourceGetPrimaryImageIndex(self))
-  }
-
-  func resample(to size: some Numeric, index: Int) -> CGImage? {
     let options: [CFString: Any] = [
       kCGImageSourceThumbnailMaxPixelSize: size,
       kCGImageSourceCreateThumbnailFromImageAlways: true,
       kCGImageSourceCreateThumbnailWithTransform: true
     ]
 
-    return CGImageSourceCreateThumbnailAtIndex(self, index, options as CFDictionary)
+    return CGImageSourceCreateThumbnailAtIndex(self, CGImageSourceGetPrimaryImageIndex(self), options as CFDictionary)
   }
 }

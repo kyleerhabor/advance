@@ -5,20 +5,13 @@
 //  Created by Kyle Erhabor on 7/27/24.
 //
 
-import DequeModule
 import SwiftUI
 import VisionKit
 
 struct ImageAnalysisView: NSViewRepresentable {
-  typealias BindMenuItemAction = () -> Void
-  typealias BindMenuItem = (NSMenuItem, @escaping BindMenuItemAction) -> Void
-  typealias TransformMenu = (NSMenu, BindMenuItem) -> NSMenu
-
-  @Binding var selectedText: String
   @Binding var isHighlighted: Bool
   let analysis: ImageAnalysis?
   let interactionTypes: ImageAnalysisOverlayView.InteractionTypes
-  let transformMenu: TransformMenu
 
   func makeNSView(context: Context) -> ImageAnalysisOverlayView {
     let overlayView = ImageAnalysisOverlayView()
@@ -85,30 +78,8 @@ struct ImageAnalysisView: NSViewRepresentable {
   class Delegate: ImageAnalysisOverlayViewDelegate {
     var representable: ImageAnalysisView
 
-    var actions: [NSMenuItem: BindMenuItemAction]
-
     init(representable: ImageAnalysisView) {
       self.representable = representable
-      self.actions = [:]
-    }
-
-    func merge(_ overlayView: ImageAnalysisOverlayView, menu: NSMenu) -> NSMenu {
-      guard let vmenu = sequence(first: overlayView, next: \.superview).firstNonNil(\.menu) else {
-        return menu
-      }
-
-      let items = vmenu.items
-      vmenu.removeAllItems()
-
-      let iitem = menu.indexOfItem(withTag: ImageAnalysisOverlayView.MenuTag.recommendedAppItems)
-
-      guard iitem != NSMenu.itemIndexWithTagNotFoundStatus else {
-        return menu
-      }
-
-      menu.items.insert(contentsOf: items, at: iitem)
-
-      return menu
     }
 
     func overlayView(_ overlayView: ImageAnalysisOverlayView, highlightSelectedItemsDidChange highlightSelectedItems: Bool) {
@@ -119,36 +90,6 @@ struct ImageAnalysisView: NSViewRepresentable {
       }
 
       representable.isHighlighted = highlightSelectedItems
-    }
-
-    func textSelectionDidChange(_ overlayView: ImageAnalysisOverlayView) {
-      // The representable seems to receive the value after the menu has been presented. This means the view menu can't
-      // depend on selectedText's value in the UI, but can in other areas, such as the action.
-      //
-      // Note that performing this update in overlayView(_:updatedMenuFor:for:at:) makes no difference.
-      representable.selectedText = overlayView.selectedText
-    }
-
-    func overlayView(
-      _ overlayView: ImageAnalysisOverlayView,
-      updatedMenuFor menu: NSMenu,
-      for event: NSEvent,
-      at point: CGPoint
-    ) -> NSMenu {
-      actions = [:]
-
-      let menu = representable.transformMenu(menu) { item, action in
-        actions[item] = action
-
-        item.target = self
-        item.action = #selector(action(_:))
-      }
-
-      return merge(overlayView, menu: menu)
-    }
-
-    @objc func action(_ sender: NSMenuItem) {
-      actions[sender]?()
     }
   }
 }

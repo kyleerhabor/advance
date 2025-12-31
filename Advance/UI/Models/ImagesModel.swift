@@ -267,13 +267,19 @@ final class ImagesItemModel2 {
   var title: String
   var aspectRatio: Double
   var isBookmarked: Bool
+  var orientation: CGImagePropertyOrientation
+  // TODO: Guard against simultanous access.
+  //
+  // If one task sees that data is available, then later acts on that data when it becomes unavailable, this can lead to
+  // errors. I'm not sure if this can be resolved by checking for cancellation or requires actors to serialize execution
+  // (hopefully the former).
   var sidebarImage: NSImage
   var sidebarImagePhase: ImagesItemModelImagePhase
   var detailImage: NSImage
-  var detailImageOrientation: CGImagePropertyOrientation
   var detailImageHash: Data
   var detailImagePhase: ImagesItemModelImagePhase
   var imageAnalysis: ImageAnalysis?
+  var isHighlighted: Bool
 
   init(
     id: RowID,
@@ -281,26 +287,28 @@ final class ImagesItemModel2 {
     title: String,
     aspectRatio: Double,
     isBookmarked: Bool,
+    orientation: CGImagePropertyOrientation,
     sidebarImage: NSImage,
     sidebarImagePhase: ImagesItemModelImagePhase,
     detailImage: NSImage,
-    detailImageOrientation: CGImagePropertyOrientation,
     detailImageHash: Data,
     detailImagePhase: ImagesItemModelImagePhase,
     imageAnalysis: ImageAnalysis?,
+    isHighlighted: Bool,
   ) {
     self.id = id
     self.url = url
     self.title = title
     self.aspectRatio = aspectRatio
     self.isBookmarked = isBookmarked
+    self.orientation = orientation
     self.sidebarImage = sidebarImage
     self.sidebarImagePhase = sidebarImagePhase
     self.detailImage = detailImage
-    self.detailImageOrientation = detailImageOrientation
     self.detailImageHash = detailImageHash
     self.detailImagePhase = detailImagePhase
     self.imageAnalysis = imageAnalysis
+    self.isHighlighted = isHighlighted
   }
 }
 
@@ -406,46 +414,87 @@ struct ImagesModelLoadImage {
   let imageOrientation: ImagesModelImageOrientation
 }
 
+struct ImagesModelEngineURLInvalidLocationError {
+  let name: String
+  let query: String
+}
+
+enum ImagesModelEngineURLErrorType {
+  case invalidLocation(ImagesModelEngineURLInvalidLocationError)
+}
+
+struct ImagesModelEngineURLError {
+  let locale: Locale
+  let type: ImagesModelEngineURLErrorType
+}
+
+extension ImagesModelEngineURLError: LocalizedError {
+  var errorDescription: String? {
+    switch type {
+      case let .invalidLocation(error):
+        String(
+          localized: "Images.Item.SearchEngine.Item.URL.Error.InvalidLocation.Name.\(error.name).Query.\(error.query)",
+          locale: locale,
+        )
+    }
+  }
+
+  var recoverySuggestion: String? {
+    switch type {
+      case .invalidLocation:
+        String(
+          localized: "Images.Item.SearchEngine.Item.URL.Error.InvalidLocation.Name.Query.RecoverySuggestion",
+          locale: locale,
+        )
+    }
+  }
+}
+
 @Observable
 @MainActor
 final class ImagesModel {
   typealias ID = UUID
   typealias Resampler = AsyncStream<Runner<CGImage?, Never>>
-  typealias Analyzer = AsyncStream<Runner<ImageAnalysis, any Error>>
 
   let id: ID
   @ObservationIgnored private var hasLoaded: Bool
   var items: IdentifiedArrayOf<ImagesItemModel2>
-  var hasLoadedNoImages: Bool
-  var currentItem: ImagesItemModel2?
   var bookmarkedItems: Set<ImagesItemModel2.ID>
-  let sidebar: AsyncChannel<ImagesModelSidebarElement>
-  let detail: AsyncChannel<ImagesItemModel2.ID>
+  var currentItem: ImagesItemModel2?
+  var hasLoadedNoImages: Bool
+  @ObservationIgnored let sidebar: AsyncChannel<ImagesModelSidebarElement>
+  @ObservationIgnored let detail: AsyncChannel<ImagesItemModel2.ID>
   @ObservationIgnored private var resolvedItems: Set<ImagesItemModel2.ID>
+
+  // MARK: - UI properties
+  var visibleItems: [ImagesItemModel2]
+  var isHighlighted: Bool
+
+  // MARK: - Old properties
 
   var items2: IdentifiedArrayOf<ImagesItemModel>
   var isReady: Bool {
     performedItemsFetch && performedPropertiesFetch
   }
-  @ObservationIgnored var resampler: (stream: Resampler, continuation: Resampler.Continuation)
-  @ObservationIgnored var analyzer: (stream: Analyzer, continuation: Analyzer.Continuation)
   private var performedItemsFetch = false
   private var performedPropertiesFetch = false
+  @ObservationIgnored var resampler: (stream: Resampler, continuation: Resampler.Continuation)
 
   init(id: UUID) {
     self.id = id
     self.hasLoaded = false
     self.items = []
-    self.hasLoadedNoImages = false
     self.bookmarkedItems = []
+    self.hasLoadedNoImages = false
     self.sidebar = AsyncChannel()
     self.detail = AsyncChannel()
     self.resolvedItems = []
+    self.visibleItems = []
+    self.isHighlighted = false
 
     self.items2 = []
     // Should we set an explicit buffering policy?
     self.resampler = AsyncStream.makeStream()
-    self.analyzer = AsyncStream.makeStream()
   }
 
   func load2() async {
@@ -471,16 +520,22 @@ final class ImagesModel {
     do {
       analysis = try await withCheckedThrowingContinuation { continuation in
         Task {
+          let url = item.url
+
           await analyses.send(Run(continuation: continuation) {
             let configuration = ImageAnalyzer.Configuration(types.analyzerAnalysisTypes)
             // The analysis is performed by mediaanalysisd, so it's not like this is all that expensive.
-            let analysis = try await analyzer.analyze(
-              item.detailImage,
-              orientation: item.detailImageOrientation,
-              configuration: configuration,
-            )
+            let measured = try await ContinuousClock.continuous.measure {
+              try await analyzer.analyze(
+                item.detailImage,
+                orientation: item.orientation,
+                configuration: configuration,
+              )
+            }
 
-            return analysis
+            Logger.model.debug("Took \(measured.duration) to analyze image at file URL '\(url.pathString)'")
+
+            return measured.value
           })
         }
       }
@@ -638,6 +693,18 @@ final class ImagesModel {
     self.currentItem = item
 
     await _setCurrentItem(item: item?.id)
+  }
+
+  func url(
+    engine: SearchSettingsEngineModel.ID,
+    query: String,
+    locale: Locale,
+  ) async throws(ImagesModelEngineURLError) -> URL? {
+    try await _url(engine: engine, query: query, locale: locale)
+  }
+
+  func highlight(items: [ImagesItemModel2], isHighlighted: Bool) {
+    items.forEach(setter(on: \.isHighlighted, value: isHighlighted))
   }
 
   nonisolated private func orientationImageProperty(data: [CFString : Any]) -> CGImagePropertyOrientation? {
@@ -838,13 +905,14 @@ final class ImagesModel {
               title: item2.title,
               aspectRatio: item2.aspectRatio,
               isBookmarked: item2.item.item.isBookmarked!,
+              orientation: .identity,
               sidebarImage: NSImage(),
               sidebarImagePhase: .empty,
               detailImage: NSImage(),
-              detailImageOrientation: .identity,
               detailImageHash: Data(),
               detailImagePhase: .empty,
               imageAnalysis: nil,
+              isHighlighted: false,
             )
           }
       )
@@ -2591,15 +2659,71 @@ final class ImagesModel {
     }
   }
 
+  nonisolated private func _url(
+    engine: RowID,
+    query: String,
+    locale: Locale,
+  ) async throws(ImagesModelEngineURLError) -> URL? {
+    let connection: DatabasePool
+
+    do {
+      connection = try await databaseConnection()
+    } catch {
+      Logger.model.error("Could not create database connection for search engine URL: \(error)")
+
+      return nil
+    }
+
+    let searchEngine: ImagesModelEngineURLSearchEngineInfo?
+
+    do {
+      searchEngine = try await connection.read { db in
+        try SearchEngineRecord
+          .select(.rowID, SearchEngineRecord.Columns.name, SearchEngineRecord.Columns.location)
+          .filter(key: engine)
+          .asRequest(of: ImagesModelEngineURLSearchEngineInfo.self)
+          .fetchOne(db)
+      }
+    } catch {
+      Logger.model.error("Could not read database for search engine URL: \(error)")
+
+      return nil
+    }
+
+    guard let searchEngine else {
+      Logger.model.error("Could not find search engine '\(engine)'")
+
+      return nil
+    }
+
+    let tokens = SearchSettingsItemModel
+      .tokenize(searchEngine.searchEngine.location!)
+      .map { token in
+        switch token {
+          case SearchSettingsItemModel.queryToken: query
+          default: token
+        }
+      }
+
+    guard let url = URL(string: SearchSettingsItemModel.detokenize(tokens)) else {
+      throw ImagesModelEngineURLError(
+        locale: locale,
+        type: .invalidLocation(
+          ImagesModelEngineURLInvalidLocationError(name: searchEngine.searchEngine.name!, query: query),
+        ),
+      )
+    }
+
+    return url
+  }
+
   // MARK: - Old
 
   private func loadRunGroups() async throws {
     var resampler = resampler.stream.makeAsyncIterator()
-    var analyzer = analyzer.stream.makeAsyncIterator()
 
     async let resamplerRunGroup: () = run(limit: 8, iterator: &resampler)
-    async let analyzerRunGroup: () = run(limit: 10, iterator: &analyzer)
-    _ = try await [resamplerRunGroup, analyzerRunGroup]
+    _ = try await [resamplerRunGroup]
   }
 
   @MainActor

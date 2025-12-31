@@ -1,5 +1,5 @@
 //
-//  TokenTextFieldView.swift
+//  TokenFieldView.swift
 //  Advance
 //
 //  Created by Kyle Erhabor on 12/26/25.
@@ -7,10 +7,10 @@
 
 import SwiftUI
 
-class TokenTextFieldDelegate: NSObject, NSTokenFieldDelegate {
-  let representable: TokenTextFieldView
+class TokenFieldDelegate: NSObject, NSTokenFieldDelegate {
+  var representable: TokenFieldView
 
-  init(representable: TokenTextFieldView) {
+  init(representable: TokenFieldView) {
     self.representable = representable
   }
 
@@ -66,11 +66,11 @@ class TokenTextFieldDelegate: NSObject, NSTokenFieldDelegate {
   }
 }
 
-struct TokenTextFieldCoordinator {
-  let delegate: TokenTextFieldDelegate
+struct TokenFieldCoordinator {
+  let delegate: TokenFieldDelegate
 }
 
-struct TokenTextFieldView: NSViewRepresentable {
+struct TokenFieldView: NSViewRepresentable {
   @Binding var tokens: [String]
   let prompt: String
   let tokenizer: (String) -> [String]
@@ -79,6 +79,8 @@ struct TokenTextFieldView: NSViewRepresentable {
   let tokenStyle: (String) -> NSTokenField.TokenStyle
 
   func makeNSView(context: Context) -> NSTokenField {
+    context.coordinator.delegate.representable = self
+
     // TODO: Figure out how to configure NSResponder/validateProposedFirstResponder(_:for:) for the enclosing NSTableView.
     let tokenField = NSTokenField()
     tokenField.tokenizingCharacterSet = CharacterSet()
@@ -95,12 +97,13 @@ struct TokenTextFieldView: NSViewRepresentable {
   }
 
   func updateNSView(_ tokenField: NSTokenField, context: Context) {
+    context.coordinator.delegate.representable = self
     tokenField.drawsBackground = context.environment.isFocused
     tokenField.placeholderString = prompt
     tokenField.objectValue = tokens
   }
 
-  func makeCoordinator() -> TokenTextFieldCoordinator {
-    TokenTextFieldCoordinator(delegate: TokenTextFieldDelegate(representable: self))
+  func makeCoordinator() -> TokenFieldCoordinator {
+    TokenFieldCoordinator(delegate: TokenFieldDelegate(representable: self))
   }
 }

@@ -65,10 +65,4 @@ extension Defaults.Keys {
 
   // Live Text
   static let liveTextDownsample = Key("liveTextDownsample", default: false)
-
-  // Visibility
-  static let displayTitleBarImage = Key("displayTitleBarImage", default: true)
-
-  // Importing
-  static let importSubdirectories = Key("importSubdirectories", default: true)
 }

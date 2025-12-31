@@ -60,120 +60,42 @@ enum DefaultColorScheme: Int {
 
 extension DefaultColorScheme: Defaults.Serializable {}
 
-struct DefaultSearchEngine {
-  typealias ID = UUID
-
-  let id: UUID
-  let name: String
-  let string: String
-}
-
-extension DefaultSearchEngine: Codable, Defaults.Serializable {}
-
 extension Defaults.Keys {
   static let colorScheme = Key("color-scheme", default: DefaultColorScheme.system)
-
-  static let searchEngine = Key("search-engine", default: nil as DefaultSearchEngine.ID?)
-  static let searchEngines = Key("search-engines", default: [DefaultSearchEngine]())
 }
 
 // MARK: - Storage
 
-extension Visibility {
-  init(_ value: Bool) {
-    switch value {
-      case true: self = .visible
-      case false: self = .hidden
-    }
-  }
+enum StorageVisibility: Int {
+  case automatic, visible, hidden
 }
 
-struct StorageVisibility {
-  let visibility: Visibility
-}
+enum StorageColumnVisibility: Int {
+  case automatic, all, doubleColumn, detailOnly
 
-extension StorageVisibility {
-  init(_ visibility: Visibility) {
-    self.init(visibility: visibility)
-  }
-}
-
-extension StorageVisibility: RawRepresentable {
-  private static let automatic = 0
-  private static let visible = 1
-  private static let hidden = 2
-
-  var rawValue: Int {
-    switch visibility {
-      case .automatic: Self.automatic
-      case .visible: Self.visible
-      case .hidden: Self.hidden
-    }
-  }
-
-  init(rawValue: Int) {
-    let visibility: Visibility = switch rawValue {
-      case Self.automatic: .automatic
-      case Self.visible: .visible
-      case Self.hidden: .hidden
-      default: fatalError()
-    }
-
-    self.init(visibility: visibility)
-  }
-}
-
-struct StorageColumnVisibility {
-  var columnVisibility: NavigationSplitViewVisibility
-}
-
-extension StorageColumnVisibility {
-  init(_ columnVisibility: NavigationSplitViewVisibility) {
-    self.init(columnVisibility: columnVisibility)
-  }
-}
-
-extension StorageColumnVisibility: RawRepresentable {
-  private static let unknown = -1
-  private static let automatic = 0
-  private static let all = 1
-  private static let detailOnly = 2
-  private static let doubleColumn = 3
-
-  var rawValue: Int {
+  init?(_ columnVisibility: NavigationSplitViewVisibility) {
     switch columnVisibility {
-      case .automatic: Self.automatic
-      case .all: Self.all
-      case .detailOnly: Self.detailOnly
-      case .doubleColumn: Self.doubleColumn
-      default: Self.unknown
-    }
-  }
-
-  init?(rawValue: Int) {
-    let columnVisibility: NavigationSplitViewVisibility
-
-    switch rawValue {
-      case Self.unknown:
-        return nil
-      case Self.automatic:
-        columnVisibility = .automatic
-      case Self.all:
-        columnVisibility = .all
-      case Self.detailOnly:
-        columnVisibility = .detailOnly
-      case Self.doubleColumn:
-        columnVisibility = .doubleColumn
+      case .automatic:
+        self = .automatic
+      case .all:
+        self = .all
+      case .doubleColumn:
+        self = .doubleColumn
+      case .detailOnly:
+        self = .detailOnly
       default:
-        unreachable()
+        return nil
     }
-
-    self.init(columnVisibility: columnVisibility)
   }
-}
 
-enum StorageDirection: Int {
-  case leftToRight, rightToLeft
+  var columnVisibility: NavigationSplitViewVisibility {
+    switch self {
+      case .automatic: .automatic
+      case .all: .all
+      case .doubleColumn: .doubleColumn
+      case .detailOnly: .detailOnly
+    }
+  }
 }
 
 extension SetAlgebra {
@@ -207,43 +129,6 @@ struct StorageHiddenLayout: OptionSet {
   }
 }
 
-struct StorageFoldersSeparatorItem {
-  let forward: Character
-  let back: Character
-
-  func separator(direction: StorageDirection) -> Character {
-    switch direction {
-      case .leftToRight: forward
-      case .rightToLeft: back
-    }
-  }
-}
-
-enum StorageFoldersSeparator: Int {
-  case inequalitySign,
-       singlePointingAngleQuotationMark,
-       blackPointingTriangle,
-       blackPointingSmallTriangle
-
-  var separator: StorageFoldersSeparatorItem {
-    switch self {
-      case .inequalitySign: StorageFoldersSeparatorItem(forward: ">", back: "<")
-      case .singlePointingAngleQuotationMark: StorageFoldersSeparatorItem(
-        forward: "\u{203A}", // ›
-        back: "\u{2039}" // ‹
-      )
-      case .blackPointingTriangle: StorageFoldersSeparatorItem(
-        forward: "\u{25B6}", // ▶
-        back: "\u{25C0}" // ◀
-      )
-      case .blackPointingSmallTriangle: StorageFoldersSeparatorItem(
-        forward: "\u{25B8}", // ▸
-        back: "\u{25C2}" // ◂
-      )
-    }
-  }
-}
-
 enum StorageFoldersPathSeparator: Int {
   case inequalitySign, singlePointingAngleQuotationMark, blackPointingTriangle, blackPointingSmallTriangle
 }
@@ -268,7 +153,7 @@ extension StorageKey: Sendable where Value: Sendable {}
 enum StorageKeys {
   static let columnVisibility = StorageKey(
     "\(Bundle.appID).column-visibility",
-    defaultValue: StorageColumnVisibility(.automatic),
+    defaultValue: StorageColumnVisibility.automatic,
   )
 
   static let importHiddenFiles = StorageKey("\(Bundle.appID).import-hidden-files", defaultValue: false)
@@ -281,15 +166,19 @@ enum StorageKeys {
   static let isLiveTextEnabled = StorageKey("\(Bundle.appID).live-text-is-enabled", defaultValue: true)
   static let isLiveTextIconEnabled = StorageKey("\(Bundle.appID).live-text-icon-is-enabled", defaultValue: false)
   static let isLiveTextSubjectEnabled = StorageKey("\(Bundle.appID).live-text-subject-is-enabled", defaultValue: false)
-  static let resolveConflicts = StorageKey("\(Bundle.appID).resolve-conflicts", defaultValue: false)
-  static let foldersPathSeparator = StorageKey(
-    "\(Bundle.appID).folders-path-separator",
-    defaultValue: StorageFoldersPathSeparator.singlePointingAngleQuotationMark
+  static let liveTextSupplementaryInterfaceVisibility = StorageKey(
+    "\(Bundle.appID).live-text-supplementary-interface-visibility",
+    defaultValue: StorageVisibility.automatic,
   )
-
+  
+  static let resolveConflicts = StorageKey("\(Bundle.appID).resolve-conflicts", defaultValue: false)
   static let foldersPathDirection = StorageKey(
     "\(Bundle.appID).folders-path-direction",
     defaultValue: StorageFoldersPathDirection.trailing,
+  )
+  static let foldersPathSeparator = StorageKey(
+    "\(Bundle.appID).folders-path-separator",
+    defaultValue: StorageFoldersPathSeparator.singlePointingAngleQuotationMark
   )
 
   static let isSystemSearchEnabled = StorageKey(
@@ -317,7 +206,6 @@ enum StorageKeys {
   // MARK: - Old
 
   static let restoreLastImage = StorageKey("restore-last-image", defaultValue: true)
-  static let liveTextIconVisibility = StorageKey("live-text-icon-visibility", defaultValue: StorageVisibility(.automatic))
 }
 
 extension AppStorage {

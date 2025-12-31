@@ -16,26 +16,13 @@ struct ImagesSceneView: View {
   @Environment(Window.self) private var windowed
   @Environment(\.isWindowFullScreen) private var isWindowFullScreen
   @Environment(\.openWindow) private var openWindow
-  @AppStorage(StorageKeys.isLiveTextEnabled) private var isLiveTextEnabled
   @AppStorage(StorageKeys.isLiveTextIconEnabled) private var isLiveTextIconEnabled
   @AppStorage(StorageKeys.importHiddenFiles) private var importHiddenFiles
   @AppStorage(StorageKeys.importSubdirectories) private var importSubdirectories
-  @SceneStorage(StorageKeys.liveTextIconVisibility) private var liveTextIconVisibility
   @State private var openURL: URL?
 
   var body: some View {
-//    let isSupplementaryInterfaceHidden = switch liveTextIconVisibility.visibility {
-//      case .automatic: !liveTextIcon
-//      case .visible: false
-//      case .hidden: true
-//    }
-
     ImagesView()
-      .environment(\.isImageAnalysisEnabled, images.isReady && isLiveTextEnabled)
-//      .environment(\.isImageAnalysisSupplementaryInterfaceHidden, isSupplementaryInterfaceHidden)
-//      .focusedSceneValue(\.imagesWindowResetSize, AppMenuActionItem(identity: images.id, enabled: !isWindowFullScreen) {
-//        windowed.window?.setContentSize(ImagesScene.defaultSize)
-//      })
       .onOpenURL { url in
         openURL = url
       }
