@@ -9,17 +9,8 @@ import SwiftUI
 
 struct ImageCollectionCommands: Commands {
   var body: some Commands {
-    ToolbarCommands()
-    SidebarCommands()
-
     ImageCollectionEditCommands()
     ImageCollectionNavigatorCommands()
-
-    CommandGroup(after: .sidebar) {
-      // The "Enter/Exit Full Screen" item is usually in its own space.
-      Divider()
-    }
-
     ImageCollectionWindowCommands()
   }
 

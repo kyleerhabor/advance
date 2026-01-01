@@ -60,9 +60,6 @@ enum ResultPhaseItem {
 extension ResultPhaseItem: Equatable {}
 
 extension Defaults.Keys {
-  static let margins = Key("margins", default: 1)
-  static let collapseMargins = Key("collapseMargins", default: true)
-
   // Live Text
   static let liveTextDownsample = Key("liveTextDownsample", default: false)
 }

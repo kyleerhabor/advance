@@ -4,16 +4,7 @@
     "" : {
 
     },
-    "A lot" : {
-
-    },
-    "Bookmark" : {
-
-    },
     "Clear" : {
-
-    },
-    "Collapse margins" : {
 
     },
     "Commands.Image" : {
@@ -142,12 +133,6 @@
         }
       }
     },
-    "General" : {
-
-    },
-    "Images with adjacent borders will have their margins flattened into a single value." : {
-
-    },
     "Images.Bookmarks.Hide" : {
       "localizations" : {
         "en" : {
@@ -168,68 +153,6 @@
         }
       }
     },
-    "Images.Commands.Image" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Image"
-          }
-        }
-      }
-    },
-    "Images.Commands.Image.LiveText" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Live Text"
-          }
-        }
-      }
-    },
-    "Images.Commands.Image.LiveText.Highlight.Hide" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Clear Highlights"
-          }
-        }
-      }
-    },
-    "Images.Commands.Image.LiveText.Highlight.Show" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Highlight Items"
-          }
-        }
-      }
-    },
-    "Images.Commands.Image.LiveText.Icon.Hide" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hide Icon"
-          }
-        }
-      }
-    },
-    "Images.Commands.Image.LiveText.Icon.Show" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show Icon"
-          }
-        }
-      }
-    },
     "Images.Commands.Navigator.Bookmarks" : {
       "localizations" : {
         "en" : {
@@ -246,17 +169,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Images"
-          }
-        }
-      }
-    },
-    "Images.Detail.Search.%@" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Search With %@"
           }
         }
       }
@@ -457,34 +369,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Show Live Text Icon"
-          }
-        }
-      }
-    },
-    "Margins:" : {
-
-    },
-    "None" : {
-
-    },
-    "QuickLook.Hide" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Close Quick Look"
-          }
-        }
-      }
-    },
-    "QuickLook.Show" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quick Look"
           }
         }
       }
@@ -1124,6 +1008,66 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Objects in the foreground of images will be outlined to copy and share."
+          }
+        }
+      }
+    },
+    "Settings.General.Margins" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Margins:"
+          }
+        }
+      }
+    },
+    "Settings.General.Margins.Collapse" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collapse margins"
+          }
+        }
+      }
+    },
+    "Settings.General.Margins.Collapse.Note" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Images with adjacent borders will have their margins flattened into a single value."
+          }
+        }
+      }
+    },
+    "Settings.General.Margins.Label" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Margin:"
+          }
+        }
+      }
+    },
+    "Settings.General.Margins.Maximum" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A lot"
+          }
+        }
+      }
+    },
+    "Settings.General.Margins.Minimum" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "None"
           }
         }
       }

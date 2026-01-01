@@ -14,11 +14,10 @@ struct FoldersSettingsView: View {
   @Environment(FoldersSettingsModel.self) private var folders
   @State private var selection = Set<FoldersSettingsItemModel.ID>()
   @State private var isFileImporterPresented = false
-  private var isFinderDisabled: Bool {
-    folders.isInvalidSelection(of: selection)
-  }
 
   var body: some View {
+    let isInvalidSelection = self.folders.isInvalidSelection(of: self.selection)
+
     // TODO: Figure out how to get animations working.
     List(selection: $selection) {
       ForEach(folders.items) { item in
@@ -42,13 +41,13 @@ struct FoldersSettingsView: View {
     .listStyle(.inset)
     .focusedSceneValue(\.commandScene, AppModelCommandScene(
       id: .folders,
-      isShowFinderDisabled: isFinderDisabled,
-      isOpenFinderDisabled: isFinderDisabled,
-      isShowSidebarDisabled: true,
+      showFinder: AppModelActionCommand(isDisabled: isInvalidSelection),
+      openFinder: AppModelActionCommand(isDisabled: isInvalidSelection),
+      showSidebar: AppModelActionCommand(isDisabled: true),
       bookmark: AppModelToggleCommand(isDisabled: true, isOn: false),
       liveTextIcon: AppModelToggleCommand(isDisabled: true, isOn: false),
       liveTextHighlight: AppModelToggleCommand(isDisabled: true, isOn: false),
-      isResetWindowSizeDisabled: true,
+      resetWindowSize: AppModelActionCommand(isDisabled: true),
     ))
     .toolbar {
       Button("Settings.Accessory.Folders.Item.Add", systemImage: "plus") {

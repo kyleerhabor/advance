@@ -251,7 +251,7 @@ struct ItemImagesRecord {
 extension ItemImagesRecord: Encodable {
   enum CodingKeys: String, CodingKey {
     case rowID = "rowid",
-         images = "image_collection",
+         images = "collection",
          item
   }
 

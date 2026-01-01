@@ -93,9 +93,9 @@ struct ImagesBackgroundView: View {
     Color.clear
       .focusedSceneValue(\.commandScene, AppModelCommandScene(
         id: .images(self.images.id),
-        isShowFinderDisabled: self.images.currentItem == nil,
-        isOpenFinderDisabled: true,
-        isShowSidebarDisabled: self.images.currentItem == nil,
+        showFinder: AppModelActionCommand(isDisabled: self.images.currentItem == nil),
+        openFinder: AppModelActionCommand(isDisabled: true),
+        showSidebar: AppModelActionCommand(isDisabled: self.images.currentItem == nil),
         bookmark: AppModelToggleCommand(
           isDisabled: self.images.currentItem == nil,
           isOn: self.images.currentItem?.isBookmarked ?? false,
@@ -105,7 +105,7 @@ struct ImagesBackgroundView: View {
           isDisabled: !self.isLiveTextEnabled || self.images.visibleItems.isEmpty,
           isOn: self.images.isHighlighted,
         ),
-        isResetWindowSizeDisabled: false,
+        resetWindowSize: AppModelActionCommand(isDisabled: false),
       ))
       .transform { content in
         if let item = self.images.currentItem {
@@ -198,8 +198,8 @@ struct ImagesView2: View {
       .toolbar(id: "\(Bundle.appID).Images") {
         ToolbarItem(id: "\(Bundle.appID).Images.LiveTextIcon") {
           let key: LocalizedStringKey = self.isSupplementaryInterfaceVisible
-            ? "Images.Toolbar.LiveTextIcon.Hide"
-            : "Images.Toolbar.LiveTextIcon.Show"
+          ? "Images.Toolbar.LiveTextIcon.Hide"
+          : "Images.Toolbar.LiveTextIcon.Show"
 
           Toggle(key, systemImage: "text.viewfinder", isOn: $isSupplementaryInterfaceVisible)
             .help(key)
@@ -327,7 +327,7 @@ struct ImagesView2: View {
         }
 
         Task {
-          await self.images.bookmark(item: item.id, isBookmarked: !item.isBookmarked)
+          await self.images.bookmark(item: item, isBookmarked: !item.isBookmarked)
         }
       case .toggleLiveTextIcon:
         self.isSupplementaryInterfaceVisible.toggle()

@@ -11,11 +11,8 @@ import OSLog
 import SwiftUI
 import VisionKit
 
-struct ImagesDetailItemView2: View {
-  @Environment(ImagesModel.self) private var images
-  @Environment(\.pixelLength) private var pixelLength
+struct ImagesDetailItemImageView2: View {
   @State private var hasElapsed = false
-  @State private var channel = AsyncChannel<Double>()
   let item: ImagesItemModel2
 
   var body: some View {
@@ -80,34 +77,24 @@ struct ImagesDetailResample {
 extension ImagesDetailResample: Equatable {}
 
 struct ImagesDetailViewLiveTextID {
-  let hash: Data
+  let id: UUID
   let phase: ImagesItemModelImagePhase
 }
 
 extension ImagesDetailViewLiveTextID: Equatable {}
 
-struct ImagesDetailView2: View {
-  @Environment(AppModel.self) private var app
+struct ImageDetailItemImageAnalysisView: View {
   @Environment(ImagesModel.self) private var images
   @Environment(SearchSettingsModel.self) private var search
   @Environment(\.locale) private var locale
-  @Environment(\.pixelLength) private var pixelLength
   @Environment(\.openURL) private var openURL
-  @AppStorage(StorageKeys.foldersPathSeparator) private var foldersPathSeparator
-  @AppStorage(StorageKeys.foldersPathDirection) private var foldersPathDirection
   @AppStorage(StorageKeys.isLiveTextEnabled) private var isLiveTextEnabled
   @AppStorage(StorageKeys.isLiveTextSubjectEnabled) private var isLiveTextSubjectEnabled
   @AppStorage(StorageKeys.isSystemSearchEnabled) private var isSystemSearchEnabled
-  @AppStorage(StorageKeys.resolveConflicts) private var resolveConflicts
-  @AppStorage(StorageKeys.restoreLastImage) private var restoreLastImage
-  @Binding var copyFolderError: ImagesModelCopyFolderError?
-  @Binding var isCopyFolderErrorPresented: Bool
-  @State private var itemsChannel = AsyncChannel<[ImagesItemModel2]>()
-  @State private var resamples = AsyncChannel<ImagesDetailResample>()
-  @State private var copyFolderSelection: ImagesItemModel2.ID?
-  @State private var isCopyFolderFileImporterPresented = false
-  @State private var searchError: ImagesModelEngineURLError?
-  @State private var isSearchErrorPresented = false
+  @Binding var searchError: ImagesModelEngineURLError?
+  @Binding var isSearchErrorPresented: Bool
+  let item: ImagesItemModel2
+  let isSupplementaryInterfaceVisible: Bool
   private var preferredInteractionTypes: ImageAnalysisOverlayView.InteractionTypes {
     var interactionTypes = ImageAnalysisOverlayView.InteractionTypes()
 
@@ -124,78 +111,171 @@ struct ImagesDetailView2: View {
     return interactionTypes
   }
 
+  var body: some View {
+    @Bindable var item = self.item
+
+    ImageAnalysisView2(
+      selectableItemsHighlighted: $item.isHighlighted,
+      analysis: item.imageAnalysis,
+      preferredInteractionTypes: preferredInteractionTypes,
+      isSupplementaryInterfaceHidden: !isSupplementaryInterfaceVisible,
+    ) { delegate, menu, overlayView in
+      let copyImage = menu.indexOfItem(withTag: ImageAnalysisOverlayView.MenuTag.copyImage)
+
+      if copyImage != -1 {
+        menu.removeItem(at: copyImage)
+      }
+
+      let shareImage = menu.indexOfItem(withTag: ImageAnalysisOverlayView.MenuTag.shareImage)
+
+      if shareImage != -1 {
+        menu.removeItem(at: copyImage)
+      }
+
+      if !isSystemSearchEnabled {
+        let index = menu.items.firstIndex { $0.action == NSMenuItem.searchAction }
+
+        if let index {
+          if let engine = search.engine {
+            let item = NSMenuItem()
+            item.title = String(localized: "Images.Item.LiveText.Search.\(engine.name)", locale: locale)
+            item.target = delegate
+            item.action = #selector(delegate.action(_:))
+            delegate.actions[item] = {
+              Task {
+                let url: URL?
+
+                do {
+                  url = try await images.url(
+                    engine: engine.id,
+                    query: overlayView.selectedText,
+                    locale: locale,
+                  )
+                } catch let error as ImagesModelEngineURLError {
+                  self.searchError = error
+                  self.isSearchErrorPresented = true
+
+                  return
+                }
+
+                guard let url else {
+                  return
+                }
+
+                openURL(url)
+              }
+            }
+
+            menu.items[index] = item
+          } else {
+            menu.removeItem(at: index)
+          }
+        }
+      }
+
+      return menu
+    }
+  }
+}
+
+struct ImagesDetailItemBookmarkView: View {
+  @Environment(ImagesModel.self) private var images
+  let item: ImagesItemModel2
+
+  var body: some View {
+    Button(
+      item.isBookmarked ? "Images.Item.Bookmark.Remove" : "Images.Item.Bookmark.Add",
+      systemImage: "bookmark"
+    ) {
+      Task {
+        await images.bookmark(item: item, isBookmarked: !item.isBookmarked)
+      }
+    }
+  }
+}
+
+struct ImagesDetailItemBackgroundView: View {
+  @Environment(ImagesModel.self) private var images
+  @AppStorage(StorageKeys.isLiveTextEnabled) private var isLiveTextEnabled
+  @AppStorage(StorageKeys.isLiveTextSubjectEnabled) private var isLiveTextSubjectEnabled
+  let item: ImagesItemModel2
+
+  var body: some View {
+    Color.clear
+      .task(id: ImagesDetailViewLiveTextID(id: item.detailImageID, phase: item.detailImagePhase)) {
+        var types = ImageAnalysisTypes()
+
+        if isLiveTextEnabled {
+          types.insert(.text)
+
+          if isLiveTextSubjectEnabled {
+            types.insert(.visualLookUp)
+          }
+        }
+
+        await images.loadImageAnalysis(for: item, types: types)
+      }
+  }
+}
+
+struct ImagesDetailView2: View {
+  @Environment(ImagesModel.self) private var images
+  @Environment(\.locale) private var locale
+  @Environment(\.pixelLength) private var pixelLength
+  @AppStorage(StorageKeys.collapseMargins) private var collapseMargins
+  @AppStorage(StorageKeys.foldersPathSeparator) private var foldersPathSeparator
+  @AppStorage(StorageKeys.foldersPathDirection) private var foldersPathDirection
+  @AppStorage(StorageKeys.isLiveTextEnabled) private var isLiveTextEnabled
+  @AppStorage(StorageKeys.isLiveTextSubjectEnabled) private var isLiveTextSubjectEnabled
+  @AppStorage(StorageKeys.margins) private var margins
+  @AppStorage(StorageKeys.resolveConflicts) private var resolveConflicts
+  @AppStorage(StorageKeys.restoreLastImage) private var restoreLastImage
+  @Binding var copyFolderError: ImagesModelCopyFolderError?
+  @Binding var isCopyFolderErrorPresented: Bool
+  @State private var itemsChannel = AsyncChannel<[ImagesItemModel2]>()
+  @State private var resamples = AsyncChannel<ImagesDetailResample>()
+  @State private var copyFolderSelection: ImagesItemModel2.ID?
+  @State private var isCopyFolderFileImporterPresented = false
+  @State private var searchError: ImagesModelEngineURLError?
+  @State private var isSearchErrorPresented = false
   let columnVisibility: NavigationSplitViewVisibility
   let isSupplementaryInterfaceVisible: Bool
+  private var half: CGFloat { self.margins * 3 }
+  private var full: CGFloat { self.half * 2 }
+  private var all: EdgeInsets { EdgeInsets(full) }
+  private var top: EdgeInsets { EdgeInsets(horizontal: full, top: full, bottom: half) }
+  private var between: EdgeInsets { EdgeInsets(horizontal: full, top: half, bottom: half) }
+  private var bottom: EdgeInsets { EdgeInsets(horizontal: full, top: half, bottom: full) }
 
   var body: some View {
     ScrollViewReader { proxy in
       List(images.items) { item in
+        let insets = switch item.edge {
+          case .all:
+            self.all
+          case .top:
+            self.collapseMargins ? self.top : self.all
+          case .bottom:
+            self.collapseMargins ? self.bottom : self.all
+          default:
+            self.collapseMargins ? self.between : self.all
+        }
+
         // TODO: Figure out how to remove the border when the context menu is open.
-        ImagesDetailItemView2(item: item)
+        //
+        // For some reason, we need to extract accesses to item's properties into dedicated views to prevent slow view
+        // updates when switching windows.
+        ImagesDetailItemImageView2(item: item)
           .overlay {
-            @Bindable var item = item
-
-            ImageAnalysisView2(
-              selectableItemsHighlighted: $item.isHighlighted,
-              analysis: item.imageAnalysis,
-              preferredInteractionTypes: preferredInteractionTypes,
-              isSupplementaryInterfaceHidden: !isSupplementaryInterfaceVisible,
-            ) { delegate, menu, overlayView in
-              let copyImage = menu.indexOfItem(withTag: ImageAnalysisOverlayView.MenuTag.copyImage)
-
-              if copyImage != -1 {
-                menu.removeItem(at: copyImage)
-              }
-
-              let shareImage = menu.indexOfItem(withTag: ImageAnalysisOverlayView.MenuTag.shareImage)
-
-              if shareImage != -1 {
-                menu.removeItem(at: copyImage)
-              }
-
-              if !isSystemSearchEnabled {
-                let index = menu.items.firstIndex { $0.action == NSMenuItem.searchAction }
-
-                if let index {
-                  menu.removeItem(at: index)
-
-                  if let engine = search.engine {
-                    let item = NSMenuItem()
-                    item.title = String(localized: "Images.Item.LiveText.Search.\(engine.name)", locale: locale)
-                    item.target = delegate
-                    item.action = #selector(delegate.action(_:))
-                    delegate.actions[item] = {
-                      Task {
-                        let url: URL?
-
-                        do {
-                          url = try await images.url(
-                            engine: engine.id,
-                            query: overlayView.selectedText,
-                            locale: locale,
-                          )
-                        } catch let error as ImagesModelEngineURLError {
-                          self.searchError = error
-                          self.isSearchErrorPresented = true
-
-                          return
-                        }
-
-                        guard let url else {
-                          return
-                        }
-
-                        openURL(url)
-                      }
-                    }
-
-                    menu.insertItem(item, at: index)
-                  }
-                }
-              }
-
-              return menu
-            }
+            ImageDetailItemImageAnalysisView(
+              searchError: $searchError,
+              isSearchErrorPresented: $isSearchErrorPresented,
+              item: item,
+              isSupplementaryInterfaceVisible: isSupplementaryInterfaceVisible,
+            )
+          }
+          .background {
+            ImagesDetailItemBackgroundView(item: item)
           }
           .anchorPreference(key: ImagesDetailItemsPreferenceKey.self, value: .bounds) { anchor in
             [ImagesDetailItem(item: item, anchor: anchor)]
@@ -232,31 +312,12 @@ struct ImagesDetailView2: View {
             }
 
             Section {
-              Button(
-                item.isBookmarked ? "Images.Item.Bookmark.Remove" : "Images.Item.Bookmark.Add",
-                systemImage: item.isBookmarked ? "bookmark.fill" : "bookmark"
-              ) {
-                Task {
-                  await images.bookmark(item: item.id, isBookmarked: !item.isBookmarked)
-                }
-              }
+              ImagesDetailItemBookmarkView(item: item)
             }
           }
-          .listRowInsets(.listRow)
+          .shadow(radius: self.margins / 2)
+          .listRowInsets(.listRow + insets)
           .listRowSeparator(.hidden)
-          .task(id: ImagesDetailViewLiveTextID(hash: item.detailImageHash, phase: item.detailImagePhase)) {
-            var types = ImageAnalysisTypes()
-
-            if isLiveTextEnabled {
-              types.insert(.text)
-
-              if isLiveTextSubjectEnabled {
-                types.insert(.visualLookUp)
-              }
-            }
-
-            await images.loadImageAnalysis(for: item, types: types)
-          }
       }
       .listStyle(.plain)
       .alert(isPresented: $isSearchErrorPresented, error: searchError) { error in
@@ -296,33 +357,45 @@ struct ImagesDetailView2: View {
         }
 
         for await resample in resamples.removeDuplicates() {
-          var items = [ImagesItemModel2.ID](reservingCapacity: resample.items.count + 4)
+          var items = [ImagesItemModel2](reservingCapacity: resample.items.count + 4)
 
           if let item = resample.items.first,
              let index = images.items.index(id: item.id) {
             let item1 = images.items.before(index: index)
             let item2 = item1.flatMap { images.items.before(index: $0.index) }
-            //            let item3 = item2.flatMap { images.items.before(index: $0.index) }
-            //
-            //            item3.map { items.append($0.element.id) }
-            item2.map { items.append($0.element.id) }
-            item1.map { items.append($0.element.id) }
+            
+            item2.map { items.append($0.element) }
+            item1.map { items.append($0.element) }
           }
 
-          items.append(contentsOf: resample.items.map(\.id))
+          items.append(contentsOf: resample.items)
 
           if let item = resample.items.last,
              let index = images.items.index(id: item.id) {
             let item1 = images.items.after(index: index)
             let item2 = item1.flatMap { images.items.after(index: $0.index) }
-            //            let item3 = item2.flatMap { images.items.after(index: $0.index) }
-            //
-            //            item3.map { items.append($0.element.id) }
-            item2.map { items.append($0.element.id) }
-            item1.map { items.append($0.element.id) }
+
+            item2.map { items.append($0.element) }
+            item1.map { items.append($0.element) }
           }
 
-          await images.loadImages(items: items, width: resample.width, pixelLength: pixelLength)
+          await images.loadImages(
+            items: items.filter { $0.detailImagePhase != .success },
+            width: resample.width,
+            pixelLength: pixelLength,
+          )
+
+          self.images.items.forEach { item in
+            // On average, average contains 6 elements, so I think this should be faster than using a set (but someone
+            // could test it).
+            guard !items.contains(item) else {
+              return
+            }
+
+            item.detailImage = NSImage()
+            item.detailImageID = UUID()
+            item.detailImagePhase = .empty
+          }
         }
       }
       .task(id: self.images) {

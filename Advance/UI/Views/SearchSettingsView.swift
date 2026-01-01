@@ -99,6 +99,11 @@ struct SearchSettingsView: View {
         }
       }
     }
+    .onDeleteCommand {
+      Task {
+        await search.remove(items: selection)
+      }
+    }
     .onChange(of: focus) { value, _ in
       guard let value else {
         return

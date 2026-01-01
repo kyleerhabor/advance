@@ -6,7 +6,6 @@
 //
 
 import Defaults
-import QuickLook
 import OSLog
 import SwiftUI
 
@@ -120,69 +119,23 @@ struct ImageCollectionSidebarFilterView: View {
   }
 }
 
-struct ImageCollectionSidebarItemView: View {
-  @Bindable var image: ImageCollectionItemImage
-
-  var body: some View {
-    VStack {
-      let size = image.properties.orientedSize
-
-      ImageCollectionItemImageView(image: image)
-        .aspectRatio(size.width / size.height, contentMode: .fit)
-
-      // Interestingly, this can be slightly expensive.
-      let path = image.url.lastPathComponent
-
-      Text(path)
-        .font(.subheadline)
-        .padding(EdgeInsets(vertical: 4, horizontal: 8))
-        .background(.fill.tertiary, in: .rect(cornerRadius: 4))
-        // TODO: Replace this for an expansion tooltip (like how NSTableView has it)
-        //
-        // I tried this before, but couldn't get sizing or the trailing ellipsis to work properly.
-        .help(path)
-    }
-    // This is not an image editor, but I don't mind some functionality that's associated with image editors. Being
-    // able to drag images out of the app and drop them elsewhere just feels natural.
-    .draggable(image.url) {
-      ImageCollectionItemImageView(image: image)
-    }
-  }
-}
-
 struct ImageCollectionSidebarContentView: View {
   typealias VisibleImageIDsPreferenceKey = VisiblePreferenceKey<ImageCollectionItemImage.ID>
 
   @Environment(ImageCollection.self) private var collection
   @Environment(ImageCollectionSidebar.self) private var sidebar
   @Environment(\.imagesID) private var id
-//  @Environment(\.detailScroller) private var detailScroller
-  
-  @State private var quicklookItem: URL?
-  @State private var quicklookItems = [URL]()
-  @State private var quicklookSelection = Set<ImageCollectionItemImage.ID>()
-  @State private var quicklookScopes = [ImageCollectionItemImage: ImageCollectionItemImage.SecurityScope]()
-  private var selection: ImageCollectionSidebar.Selection { sidebar.selection }
-  private var selected: Binding<ImageCollectionSidebar.Selection> {
-    .init {
-      selection
-    } set: { selection in
-//      let difference = selection.subtracting(self.selection)
-//      let id = sidebar.images.last { difference.contains($0.id) }?.id
-//
-//      if let id {
-//        detailScroller.scroll(id)
-//      }
-
-      sidebar.selection = selection
-    }
-  }
 
   var body: some View {
     ScrollViewReader { proxy in
-      List(selection: selected) {
+      @Bindable var sidebar = self.sidebar
+
+      List(selection: $sidebar.selection) {
         ForEach(sidebar.images) { image in
-          ImageCollectionSidebarItemView(image: image)
+          let size = image.properties.orientedSize
+
+          ImageCollectionItemImageView(image: image)
+            .aspectRatio(size.width / size.height, contentMode: .fit)
             .anchorPreference(key: VisibleImageIDsPreferenceKey.self, value: .bounds) {
               [VisibleItem(item: image.id, anchor: $0)]
             }
@@ -256,73 +209,7 @@ struct ImageCollectionSidebarContentView: View {
 //          .padding(8)
 //      }
 //    }
-//    // TODO: Figure out how to extract this.
-//    //
-//    // I tried moving this into a ViewModifier and View, but the passed binding for the selected item wouldn't always
-//    // be reflected (or sometimes just crash).
-//    .quickLookPreview($quicklookItem, in: quicklookItems)
-//    .contextMenu { ids in
-//      let bookmarked = Binding {
-//        !ids.isEmpty && isBookmarked(selection: ids)
-//      } set: { isOn in
-//        self.bookmark(images: images(from: ids), value: isOn)
-//      }
-//
-//      Section {
-//        let quicklook = Binding<Bool> {
-//          quicklookItem != nil && ids.isSubset(of: quicklookSelection)
-//        } set: { isOn in
-//          quicklookSelection = isOn ? ids : []
-//
-//          updateQuicklook()
-//        }
-//
-//        ImageCollectionQuickLookView(isOn: quicklook)
-//      }
-//
-//      Section {
-//        Button("Copy") {
-//          let urls = urls(from: ids)
-//
-//          if !NSPasteboard.general.write(items: urls as [NSURL]) {
-//            Logger.ui.error("Failed to write URLs \"\(urls.map(\.string))\" to pasteboard")
-//          }
-//        }
-//      }
-//
-//      Section {
-//        ImageCollectionBookmarkView(isOn: bookmarked)
-//      }
-//    }
 //    .fileDialogCopy()
-//    .focusedValue(\.imagesQuickLook, .init(
-//      identity: quicklookSelection,
-//      enabled: quicklookItem != nil || !selection.isEmpty,
-//      state: quicklookItem != nil
-//    ) { quicklook in
-//      quicklookSelection = quicklook ? selection : []
-//
-//      updateQuicklook()
-//    })
-//    .focusedValue(\.bookmark, .init(
-//      identity: selection,
-//      enabled: !selection.isEmpty,
-//      state: !selection.isEmpty && isBookmarked(selection: selection)
-//    ) { isOn in
-//      self.bookmark(images: images(from: selection), value: isOn)
-//    })
-//    .onDisappear {
-//      quicklookSelection.removeAll()
-//
-//      updateQuicklook()
-//    }
-//    .onKeyPress(.space, phases: .down) { _ in
-//      quicklookSelection = selection
-//
-//      updateQuicklook()
-//
-//      return .handled
-//    }
   }
 
   func images(from selection: ImageCollectionSidebar.Selection) -> [ImageCollectionItemImage] {
@@ -331,50 +218,5 @@ struct ImageCollectionSidebarContentView: View {
 
   func urls(from selection: ImageCollectionSidebar.Selection) -> [URL] {
     images(from: selection).map(\.url)
-  }
-
-  func updateQuicklook() {
-    quicklookScopes.forEach { (image, scope) in
-      if quicklookSelection.contains(image.id) {
-        return
-      }
-
-      image.endSecurityScope(scope)
-
-      quicklookScopes[image] = nil
-    }
-
-    let images = images(from: quicklookSelection)
-
-    images
-      .filter { quicklookScopes[$0] == nil }
-      .forEach { image in
-        quicklookScopes[image] = image.startSecurityScope()
-      }
-
-    quicklookItems = images.map(\.url)
-    quicklookItem = if let url = quicklookItem, quicklookItems.contains(where: { $0 == url }) {
-      quicklookItem
-    } else {
-      quicklookItems.first
-    }
-  }
-
-  func isBookmarked(selection: Set<ImageCollectionItemImage.ID>) -> Bool {
-    return selection.isSubset(of: collection.bookmarks)
-  }
-
-  func bookmark(images: some Sequence<ImageCollectionItemImage>, value: Bool) {
-    images.forEach(setter(on: \.bookmarked, value: value))
-    
-    collection.updateBookmarks()
-
-    Task(priority: .medium) {
-      do {
-        try await collection.persist(id: id)
-      } catch {
-        Logger.model.error("Could not persist image collection \"\(id)\" from sidebar bookmark: \(error)")
-      }
-    }
   }
 }

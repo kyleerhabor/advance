@@ -8,7 +8,6 @@
 import AdvanceCore
 import AppKit
 import Defaults
-import OSLog
 
 @MainActor
 class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {

@@ -170,9 +170,13 @@ struct ImagesItemAssignment {
 
     taskGroup.addTask {
       let item = relative.relative
-      let bookmark = try AssignedBookmark(data: item.data!, options: item.options!, relativeTo: nil)
+      let bookmark = try await withTranslatingCheckedContinuation {
+        try AssignedBookmark(data: item.data!, options: item.options!, relativeTo: nil)
+      }
 
-      return ImagesItemAssignmentTaskResult(item: item, bookmark: bookmark)
+      let result = ImagesItemAssignmentTaskResult(item: item, bookmark: bookmark)
+
+      return result
     }
   }
 
@@ -198,17 +202,21 @@ struct ImagesItemAssignment {
       }
 
       let item = item.fileBookmark.bookmark.bookmark
-      let bookmark = try relative.accessingSecurityScopedResource {
-        try AssignedBookmark(data: item.data!, options: item.options!, relativeTo: relative?.url)
+      let bookmark = try await relative.accessingSecurityScopedResource {
+        try await withTranslatingCheckedContinuation {
+          try AssignedBookmark(data: item.data!, options: item.options!, relativeTo: relative?.url)
+        }
       }
 
-      return ImagesItemAssignmentTaskResult(item: item, bookmark: bookmark)
+      let result = ImagesItemAssignmentTaskResult(item: item, bookmark: bookmark)
+
+      return result
     }
   }
 
   mutating func assign(items: [ImagesItemInfo]) async {
     await withThrowingTaskGroup { group in
-      let count = ProcessInfo.processInfo.activeProcessorCount / 2
+      let count = ProcessInfo.processInfo.activeProcessorCount
       var relatives = items
         .compactMap(\.fileBookmark.relative)
         .uniqued(on: \.relative.rowID)

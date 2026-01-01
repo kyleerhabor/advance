@@ -21,17 +21,16 @@ struct ImagesSidebarBackgroundView: View {
     Color.clear
       .focusedSceneValue(\.commandScene, AppModelCommandScene(
         id: .imagesSidebar(self.images.id),
-        isShowFinderDisabled: isInvalidSelection,
-        // If there are many items, supporting this would be a disaster.
-        isOpenFinderDisabled: true,
-        isShowSidebarDisabled: self.images.currentItem == nil,
+        showFinder: AppModelActionCommand(isDisabled: isInvalidSelection),
+        openFinder: AppModelActionCommand(isDisabled: true),
+        showSidebar: AppModelActionCommand(isDisabled: self.images.currentItem == nil),
         bookmark: AppModelToggleCommand(isDisabled: isInvalidSelection, isOn: self.images.isBookmarked(items: selection)),
         liveTextIcon: AppModelToggleCommand(isDisabled: !self.isLiveTextEnabled, isOn: self.isSupplementaryInterfaceVisible),
         liveTextHighlight: AppModelToggleCommand(
           isDisabled: !self.isLiveTextEnabled || self.images.visibleItems.isEmpty,
           isOn: self.images.isHighlighted,
         ),
-        isResetWindowSizeDisabled: false,
+        resetWindowSize: AppModelActionCommand(isDisabled: false),
       ))
   }
 }
@@ -158,6 +157,18 @@ struct ImagesSidebarView2: View {
           .visible(images.hasLoadedNoImages)
         }
       }
+      .overlay {
+        if images.hasLoadedNoImages {
+          Color.clear
+            .dropDestination(for: ImagesItemTransfer.self) { items, _ in
+              Task {
+                await images.store(items: items, enumerationOptions: directoryEnumerationOptions)
+              }
+
+              return true
+            }
+        }
+      }
       .onChange(
         of: ImagesSidebarSelectionID(
           images: images,
@@ -212,13 +223,6 @@ struct ImagesSidebarView2: View {
             proxy.scrollTo(element.item, anchor: .center)
           }
         }
-      }
-      .dropDestination(for: ImagesItemTransfer.self) { items, _ in
-        Task {
-          await images.store(items: items, enumerationOptions: directoryEnumerationOptions)
-        }
-
-        return true
       }
     }
     .background {

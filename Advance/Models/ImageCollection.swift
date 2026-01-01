@@ -94,8 +94,7 @@ class ImageCollectionItemImage {
 
   var properties: SizeOrientation
   var bookmarked: Bool
-
-  var hasAnalysisResults = false
+  
   var isAnalysisHighlighted = false
 
   init(bookmark: BookmarkStoreItem.ID, source: URLSource, relative: URLSource?, properties: SizeOrientation, bookmarked: Bool) {
@@ -220,7 +219,6 @@ struct ImageCollectionSidebars {
 
 struct ImageCollectionDetailItem {
   let image: ImageCollectionItemImage
-  let edge: VerticalEdge?
 }
 
 extension ImageCollectionDetailItem: Identifiable {
@@ -250,8 +248,6 @@ class ImageCollection: Codable {
   var sidebarPage = \ImageCollectionSidebars.images
   var sidebarSearch = ""
   var bookmarks = Set<ImageCollectionItemRoot.ID>()
-  @ObservationIgnored var current: ImageCollectionItemImage.ID?
-  @ObservationIgnored var currentSuper: ImageCollectionItemImage.ID?
   @ObservationIgnored var sidebars = ImageCollectionSidebars()
 
   init() {
@@ -523,14 +519,8 @@ class ImageCollection: Codable {
 
   func update() {
     images = order.compactMap { items[$0]?.image }
-    detail = images.enumerated().map { (offset, image) in
-      let edge: VerticalEdge? = switch offset {
-        case images.startIndex: .top
-        case images.endIndex - 1: .bottom
-        default: nil
-      }
-
-      return .init(image: image, edge: edge)
+    detail = images.map { image in
+      ImageCollectionDetailItem(image: image)
     }
 
     updateBookmarks()
@@ -566,7 +556,10 @@ class ImageCollection: Codable {
     let encoder = PropertyListEncoder()
     let encoded = try encoder.encode(self)
 
-    try FileManager.default.creatingDirectories(at: url.deletingLastPathComponent(), code: .fileNoSuchFile) {
+    do {
+      try encoded.write(to: url)
+    } catch let err as CocoaError where err.code == .fileNoSuchFile {
+      try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
       try encoded.write(to: url)
     }
   }
@@ -580,9 +573,6 @@ class ImageCollection: Codable {
     self.store = try container.decode(BookmarkStore.self, forKey: .store)
     self.items = .init(uniqueKeysWithValues: roots.map { ($0.root.bookmark, $0) })
     self.order = try container.decode(Order.self, forKey: .order)
-
-    self.current = nil
-    self.currentSuper = try container.decode(ImageCollectionItemImage.ID?.self, forKey: .current)
   }
 
   func encode(to encoder: any Encoder) throws {
@@ -590,8 +580,6 @@ class ImageCollection: Codable {
     try container.encode(store, forKey: .store)
     try container.encode(Array(items.values), forKey: .items)
     try container.encode(order, forKey: .order)
-    
-    try container.encode(current, forKey: .current)
   }
 
   enum CodingKeys: CodingKey {
@@ -617,7 +605,13 @@ extension ImageCollection {
         source: source,
         files: url.accessingSecurityScopedResource {
           FileManager.default
-            .contents(at: url, options: .init(includingHiddenFiles: importHidden, includingSubdirectories: importSubdirectories))
+            .contents(
+              at: url,
+              options: FileManager.DirectoryEnumerationOptions(
+                includingHiddenFiles: importHidden,
+                includingSubdirectories: importSubdirectories,
+              ),
+            )
             .finderSort(by: \.pathComponents)
             .map { .init(url: $0, options: .withoutImplicitSecurityScope) }
         }

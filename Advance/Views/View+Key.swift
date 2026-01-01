@@ -17,10 +17,6 @@ struct SidebarSearchFocusedValueKey: FocusedValueKey {
   typealias Value = AppMenuActionItem<UUID?>
 }
 
-struct LiveTextHighlightFocusedValueKey: FocusedValueKey {
-  typealias Value = AppMenuToggleItem<[ImageCollectionItemImage.ID]>
-}
-
 extension FocusedValues {
   var navigator: NavigatorFocusedValueKey.Value? {
     get { self[NavigatorFocusedValueKey.self] }
@@ -30,11 +26,6 @@ extension FocusedValues {
   var sidebarSearch: SidebarSearchFocusedValueKey.Value? {
     get { self[SidebarSearchFocusedValueKey.self] }
     set { self[SidebarSearchFocusedValueKey.self] = newValue }
-  }
-
-  var liveTextHighlight: LiveTextHighlightFocusedValueKey.Value? {
-    get { self[LiveTextHighlightFocusedValueKey.self] }
-    set { self[LiveTextHighlightFocusedValueKey.self] = newValue }
   }
 }
 

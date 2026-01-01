@@ -21,6 +21,12 @@ enum AppModelCommandSceneID {
 
 extension AppModelCommandSceneID: Equatable {}
 
+struct AppModelActionCommand {
+  let isDisabled: Bool
+}
+
+extension AppModelActionCommand: Equatable {}
+
 struct AppModelToggleCommand {
   let isDisabled: Bool
   let isOn: Bool
@@ -30,13 +36,13 @@ extension AppModelToggleCommand: Equatable {}
 
 struct AppModelCommandScene {
   let id: AppModelCommandSceneID
-  let isShowFinderDisabled: Bool
-  let isOpenFinderDisabled: Bool
-  let isShowSidebarDisabled: Bool
+  let showFinder: AppModelActionCommand
+  let openFinder: AppModelActionCommand
+  let showSidebar: AppModelActionCommand
   let bookmark: AppModelToggleCommand
   let liveTextIcon: AppModelToggleCommand
   let liveTextHighlight: AppModelToggleCommand
-  let isResetWindowSizeDisabled: Bool
+  let resetWindowSize: AppModelActionCommand
 }
 
 extension AppModelCommandScene: Equatable {}
@@ -76,15 +82,15 @@ final class AppModel {
   }
 
   func isShowFinderDisabled(for scene: AppModelCommandScene?) -> Bool {
-    scene?.isShowFinderDisabled ?? true
+    scene?.showFinder.isDisabled ?? true
   }
 
   func isOpenFinderDisabled(for scene: AppModelCommandScene?) -> Bool {
-    scene?.isOpenFinderDisabled ?? true
+    scene?.openFinder.isDisabled ?? true
   }
 
   func isShowSidebarDisabled(for scene: AppModelCommandScene?) -> Bool {
-    scene?.isShowSidebarDisabled ?? true
+    scene?.showSidebar.isDisabled ?? true
   }
 
   func isBookmarkDisabled(for scene: AppModelCommandScene?) -> Bool {
@@ -100,6 +106,6 @@ final class AppModel {
   }
 
   func isResetWindowSizeDisabled(for scene: AppModelCommandScene?) -> Bool {
-    scene?.isResetWindowSizeDisabled ?? true
+    scene?.resetWindowSize.isDisabled ?? true
   }
 }

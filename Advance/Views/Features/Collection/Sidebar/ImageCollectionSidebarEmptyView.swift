@@ -46,67 +46,7 @@ struct ImageCollectionSidebarEmptyView: View {
     }
     .buttonStyle(.plain)
     .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .overlay {
-      if visible {
-        Color.clear
-          .dropDestination(for: ImageTransferable.self) { items, _ in
-            Task {
-              let state = await resolve(items: items, in: collection.store)
-              let items = state.value
-
-              collection.store = state.store
-
-              items.forEach { item in
-                collection.items[item.root.bookmark] = item
-              }
-
-              let ids = items.map(\.root.bookmark)
-
-              collection.order.append(contentsOf: ids)
-              collection.update()
-
-              Task(priority: .medium) {
-                do {
-                  try await collection.persist(id: id)
-                } catch {
-                  Logger.model.error("Could not persist image collection \"\(id)\" (via sidebar drop): \(error)")
-                }
-              }
-            }
-
-            return true
-          }
-      }
-    }
     .disabled(!visible)
-  }
-
-  nonisolated static func prepare(
-    item: ImageTransferable,
-    includingHiddenFiles importHidden: Bool,
-    includingSubdirectories importSubdirectories: Bool
-  ) -> ImageCollection.Kind {
-    let url = item.url
-    let source = URLSource(
-      url: url,
-      options: item.original
-        ? [.withSecurityScope, .securityScopeAllowOnlyReadAccess, .withoutImplicitSecurityScope]
-        : [],
-    )
-
-    if item.type == .folder {
-      return .document(.init(
-        source: source,
-        files: url.accessingSecurityScopedResource {
-          FileManager.default
-            .contents(at: url, options: .init(includingHiddenFiles: importHidden, includingSubdirectories: importSubdirectories))
-            .finderSort(by: \.pathComponents)
-            .map { .init(url: $0, options: []) }
-        }
-      ))
-    }
-
-    return .file(source)
   }
 
   nonisolated static func resolve(
@@ -154,29 +94,10 @@ struct ImageCollectionSidebarEmptyView: View {
     return await Self.resolve(kinds: kinds, in: store)
   }
 
-  nonisolated static func resolve(
-    items: [ImageTransferable],
-    in store: BookmarkStore,
-    includingHiddenFiles importHidden: Bool,
-    includingSubdirectories importSubdirectories: Bool
-  ) async -> BookmarkStoreState<[ImageCollectionItem]> {
-    // TODO: Extract this.
-    let kinds = items.map { Self.prepare(item: $0, includingHiddenFiles: importHidden, includingSubdirectories: importSubdirectories) }
-
-    return await Self.resolve(kinds: kinds, in: store)
-  }
-
   func resolve(
     urls: [URL],
     in store: BookmarkStore
   ) async -> BookmarkStoreState<[ImageCollectionItem]> {
     await Self.resolve(urls: urls, in: store, includingHiddenFiles: false, includingSubdirectories: true)
-  }
-
-  func resolve(
-    items: [ImageTransferable],
-    in store: BookmarkStore
-  ) async -> BookmarkStoreState<[ImageCollectionItem]> {
-    await Self.resolve(items: items, in: store, includingHiddenFiles: false, includingSubdirectories: true)
   }
 }

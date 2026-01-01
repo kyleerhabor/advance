@@ -93,38 +93,9 @@ extension AppMenuItem {
 
 extension AppMenuItem: Equatable {}
 
-struct AppMenuToggleItem<I> where I: Equatable {
-  typealias Action = (Bool) -> Void
-  typealias Item = AppMenuItem<I, Action>
-
-  let state: Bool
-  let item: Item
-
-  func callAsFunction(state: Bool) {
-    item.action.action(state)
-  }
-}
-
-extension AppMenuToggleItem {
-  init(identity: I, enabled: Bool, state: Bool, action: @escaping Action) {
-    self.init(
-      state: state,
-      item: AppMenuItem(identity: identity, enabled: enabled, action: action)
-    )
-  }
-}
-
-extension AppMenuToggleItem: Equatable {}
-
 typealias AppMenuItemDefaultAction = () -> Void
 
 extension AppMenuItem where A == AppMenuItemDefaultAction {
-  init(toggle: AppMenuToggleItem<I>) {
-    self.init(identity: toggle.item.action.identity, enabled: toggle.item.enabled) {
-      toggle(state: !toggle.state)
-    }
-  }
-
   func callAsFunction() {
     action.action()
   }
@@ -257,7 +228,39 @@ extension Duration {
   static let microhang = Self.milliseconds(250)
 }
 
+// MARK: - Foundation
+
+extension UserDefaults {
+  static var `default`: Self {
+    let suiteName: String?
+
+    #if DEBUG
+    suiteName = "\(Bundle.appID).Debug"
+
+    #else
+    suiteName = nil
+
+    #endif
+
+    return Self(suiteName: suiteName)!
+  }
+}
+
 // MARK: - SwiftUI
+
+extension EdgeInsets {
+  init(_ insets: CGFloat) {
+    self.init(top: insets, leading: insets, bottom: insets, trailing: insets)
+  }
+
+  init(vertical: Double, horizontal: Double) {
+    self.init(top: vertical, leading: horizontal, bottom: vertical, trailing: horizontal)
+  }
+
+  init(horizontal: Double, top: Double, bottom: Double) {
+    self.init(top: top, leading: horizontal, bottom: bottom, trailing: horizontal)
+  }
+}
 
 struct TrackingMenuViewModifier: ViewModifier {
   @State private var isTrackingMenu = TrackingMenuEnvironmentKey.defaultValue
@@ -556,9 +559,6 @@ extension EnvironmentValues {
 
 extension FocusedValues {
   @Entry var commandScene: AppModelCommandScene?
-
-  // MARK: - Old
-  @Entry var imagesLiveTextIcon: AppMenuToggleItem<ImagesModel.ID?>?
 }
 
 extension KeyboardShortcut {
@@ -575,6 +575,7 @@ extension KeyboardShortcut {
   static let foldersSettings = Self("2", modifiers: .command)
   static let searchSettings = Self("3", modifiers: .command)
 
+  // MARK: - Old
   static let back = Self("[", modifiers: .command)
   static let forward = Self("]", modifiers: .command)
 }

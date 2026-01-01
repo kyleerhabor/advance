@@ -25,34 +25,6 @@ struct ImageCollectionVisiblePreferenceKey: PreferenceKey {
   }
 }
 
-struct ImageCollectionDetailItemBookmarkView: View {
-  @Environment(ImageCollection.self) private var collection
-  @Environment(\.imagesID) private var id
-
-  @Binding var bookmarked: Bool
-  var bookmark: Binding<Bool> {
-    .init {
-      bookmarked
-    } set: { bookmarked in
-      self.bookmarked = bookmarked
-
-      collection.updateBookmarks()
-
-      Task(priority: .medium) {
-        do {
-          try await collection.persist(id: id)
-        } catch {
-          Logger.model.error("Could not persist image collection \"\(id)\" (via detail bookmark): \(error)")
-        }
-      }
-    }
-  }
-
-  var body: some View {
-    ImageCollectionBookmarkView(isOn: bookmark)
-  }
-}
-
 struct ImageCollectionDetailItemPhaseView: View {
   @State private var phase = ImageResamplePhase.empty
   let image: ImageCollectionItemImage
@@ -77,57 +49,15 @@ struct ImageCollectionDetailItemView: View {
       // view and its memory.
       ImageCollectionDetailItemPhaseView(image: image)
     }
-    .contextMenu {
-      @Bindable var image = image
-
-      Section {
-        ImageCollectionDetailItemBookmarkView(bookmarked: $image.bookmarked)
-      }
-    }
     .fileDialogCopy()
   }
 }
 
 struct ImageCollectionDetailVisibleView: View {
-  @Environment(ImageCollection.self) private var collection
-  @Environment(ImageCollectionSidebar.self) private var sidebar
-  @Environment(\.imagesID) private var id
-
   let images: [ImageCollectionItemImage]
-
   private var primary: ImageCollectionItemImage? { images.first }
 
   var body: some View {
-    let analysis = images.filter(\.hasAnalysisResults)
-    let hasAnalysis = !analysis.isEmpty
-    let isHighlighted = analysis.allSatisfy(\.isAnalysisHighlighted)
-
-    let primaryID: Set<ImageCollectionItemImage.ID> = if let primary {
-      [primary.id]
-    } else {
-      []
-    }
-
-    Color.clear
-      .focusedSceneValue(\.liveTextHighlight, .init(
-        identity: analysis.map(\.id),
-        enabled: hasAnalysis,
-        state: hasAnalysis && isHighlighted
-      ) { highlight in
-        analysis.forEach(setter(on: \.isAnalysisHighlighted, value: highlight))
-      })
-      .onChange(of: primary) {
-        collection.current = primary?.id
-
-        Task {
-          do {
-            try await collection.persist(id: id)
-          } catch {
-            Logger.model.error("Could not persist image collection \"\(id)\" via current: \(error)")
-          }
-        }
-      }
-
     if let primary {
       let url = primary.url
       
@@ -146,15 +76,6 @@ struct ImageCollectionDetailView: View {
   private let publisher: AnyPublisher<VisibleImagesPreferenceKey.Value, Never>
 
   @Environment(\.imagesID) private var id
-  @Default(.margins) private var margins
-  @Default(.collapseMargins) private var collapseMargins
-  private var margin: Double { Double(margins) }
-  private var half: Double { margin * 3 }
-  private var full: Double { half * 2 }
-  private var all: EdgeInsets { EdgeInsets(full) }
-  private var top: EdgeInsets { EdgeInsets(horizontal: full, top: full, bottom: half) }
-  private var middle: EdgeInsets { EdgeInsets(horizontal: full, top: half, bottom: half) }
-  private var bottom: EdgeInsets { EdgeInsets(horizontal: full, top: half, bottom: full) }
 
   init(items: [ImageCollectionDetailItem]) {
     self.items = items
@@ -166,20 +87,15 @@ struct ImageCollectionDetailView: View {
   var body: some View {
     List(items) { item in
       let image = item.image
-      let insets: EdgeInsets = if let edge = item.edge {
-        switch edge {
-          case .top: top
-          case .bottom: bottom
-        }
-      } else {
-        middle
-      }
 
-      ImageCollectionDetailItemView(image: image)
-        .listRowInsets(.listRow + (collapseMargins ? insets : all))
-        .listRowSeparator(.hidden)
-        .shadow(radius: margin / 2)
-        .anchorPreference(key: VisiblePreferenceKey.self, value: .bounds) { [VisibleItem(item: image, anchor: $0)] }
+      // For some reason, ImageCollectionItemView needs to be wrapped in a VStack for animations to apply.
+      VStack {
+        // For some reason, we need to isolate the phase state to its own view for SwiftUI to automatically discard the
+        // view and its memory.
+        ImageCollectionDetailItemPhaseView(image: image)
+      }
+      .fileDialogCopy()
+      .anchorPreference(key: VisiblePreferenceKey.self, value: .bounds) { [VisibleItem(item: image, anchor: $0)] }
     }
     .listStyle(.plain)
     .preferencePublisher(VisibleImagesPreferenceKey.self, subject: subject, publisher: publisher)

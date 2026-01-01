@@ -95,12 +95,12 @@ extension FormStyle {
 
 struct SettingsView2: View {
   static let contentWidth: CGFloat = 500
-  static let pickerWidth: CGFloat = 128
-  static let textFieldWidth: CGFloat = 192
+  static let pickerWidth: CGFloat = 150
+  static let sliderWidth: CGFloat = 200
 
   var body: some View {
     TabView {
-      SettingsGeneralView2()
+      SettingsGeneralView()
         .tabItem {
           Label("Settings.Tab.General", systemImage: "gearshape")
         }

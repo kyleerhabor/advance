@@ -108,37 +108,6 @@ extension Sequence {
   }
 }
 
-extension Collection {
-  public subscript(safe index: Index) -> Element? {
-    // I believe, internally, Swift represents indicies as a Range collection with two elements (the start index and
-    // end index). Consequently, this should not be slow.
-    guard self.indices.contains(index) else {
-      return nil
-    }
-
-    return self[index]
-  }
-}
-
-extension Collection where Index: FixedWidthInteger {
-  var middleIndex: Index {
-    let start = self.startIndex
-    let end = self.endIndex
-    let distance = end - start // No one mandated indexes start at zero!
-    let middle = start + (distance / 2)
-
-    return middle
-  }
-
-  var middle: Element? {
-    if self.isEmpty {
-      return nil
-    }
-
-    return self[middleIndex]
-  }
-}
-
 public struct BidirectionalCollectionItem<C> where C: BidirectionalCollection {
   public let element: C.Element
   public let index: C.Index
@@ -420,23 +389,17 @@ public struct Run<T, E> where E: Error {
   let continuation: CheckedContinuation<T, E>
   let body: @Sendable () async throws(E) -> T
 
-  public init(continuation: CheckedContinuation<T, E>, _ body: @Sendable @escaping () async throws(E) -> T) {
+  public init(continuation: CheckedContinuation<T, E>, _ body: @escaping @Sendable () async throws(E) -> T) {
     self.continuation = continuation
     self.body = body
   }
 
   func run() async {
-    let value: T
-
     do {
-      value = try await body()
+      continuation.resume(returning: try await body())
     } catch {
       continuation.resume(throwing: error)
-
-      return
     }
-
-    continuation.resume(returning: value)
   }
 }
 

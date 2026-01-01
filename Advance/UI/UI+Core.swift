@@ -150,6 +150,32 @@ extension StorageKey {
 
 extension StorageKey: Sendable where Value: Sendable {}
 
+extension AppStorage {
+  init(_ key: StorageKey<Value>) where Value == Bool {
+    self.init(wrappedValue: key.defaultValue, key.name)
+  }
+
+  init(_ key: StorageKey<Value>) where Value == Double {
+    self.init(wrappedValue: key.defaultValue, key.name)
+  }
+
+  init(_ key: StorageKey<Value>) where Value == String {
+    self.init(wrappedValue: key.defaultValue, key.name)
+  }
+
+  init(_ key: StorageKey<Value>) where Value: RawRepresentable,
+                                       Value.RawValue == Int {
+    self.init(wrappedValue: key.defaultValue, key.name)
+  }
+}
+
+extension SceneStorage {
+  init(_ key: StorageKey<Value>) where Value: RawRepresentable,
+                                       Value.RawValue == Int {
+    self.init(wrappedValue: key.defaultValue, key.name)
+  }
+}
+
 enum StorageKeys {
   static let columnVisibility = StorageKey(
     "\(Bundle.appID).column-visibility",
@@ -163,6 +189,8 @@ enum StorageKeys {
     defaultValue: StorageHiddenLayout.cursor,
   )
 
+  static let margins = StorageKey("\(Bundle.appID).margins", defaultValue: 1.0)
+  static let collapseMargins = StorageKey("\(Bundle.appID).collapse-margins", defaultValue: true)
   static let isLiveTextEnabled = StorageKey("\(Bundle.appID).live-text-is-enabled", defaultValue: true)
   static let isLiveTextIconEnabled = StorageKey("\(Bundle.appID).live-text-icon-is-enabled", defaultValue: false)
   static let isLiveTextSubjectEnabled = StorageKey("\(Bundle.appID).live-text-subject-is-enabled", defaultValue: false)
@@ -170,7 +198,7 @@ enum StorageKeys {
     "\(Bundle.appID).live-text-supplementary-interface-visibility",
     defaultValue: StorageVisibility.automatic,
   )
-  
+
   static let resolveConflicts = StorageKey("\(Bundle.appID).resolve-conflicts", defaultValue: false)
   static let foldersPathDirection = StorageKey(
     "\(Bundle.appID).folders-path-direction",
@@ -206,26 +234,4 @@ enum StorageKeys {
   // MARK: - Old
 
   static let restoreLastImage = StorageKey("restore-last-image", defaultValue: true)
-}
-
-extension AppStorage {
-  init(_ key: StorageKey<Value>) where Value == Bool {
-    self.init(wrappedValue: key.defaultValue, key.name)
-  }
-
-  init(_ key: StorageKey<Value>) where Value == String {
-    self.init(wrappedValue: key.defaultValue, key.name)
-  }
-
-  init(_ key: StorageKey<Value>) where Value: RawRepresentable,
-                                       Value.RawValue == Int {
-    self.init(wrappedValue: key.defaultValue, key.name)
-  }
-}
-
-extension SceneStorage {
-  init(_ key: StorageKey<Value>) where Value: RawRepresentable,
-                                       Value.RawValue == Int {
-    self.init(wrappedValue: key.defaultValue, key.name)
-  }
 }

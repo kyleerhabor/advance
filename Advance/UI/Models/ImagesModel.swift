@@ -175,67 +175,6 @@ enum Item<File>: Sendable where File: Sendable {
   case file(File), directory(ItemDirectory<File>)
 }
 
-struct ImagesModelLoadImagesItemFileBookmarkBookmarkInfo {
-  let bookmark: BookmarkRecord
-}
-
-extension ImagesModelLoadImagesItemFileBookmarkBookmarkInfo: Sendable, Equatable, Decodable, FetchableRecord {}
-
-struct ImagesModelLoadImagesItemFileBookmarkRelativeInfo {
-  let relative: BookmarkRecord
-}
-
-extension ImagesModelLoadImagesItemFileBookmarkRelativeInfo: Sendable, Equatable, Decodable, FetchableRecord {}
-
-struct ImagesModelLoadImagesItemFileBookmarkInfo {
-  let fileBookmark: FileBookmarkRecord
-  let bookmark: ImagesModelLoadImagesItemFileBookmarkBookmarkInfo
-  let relative: ImagesModelLoadImagesItemFileBookmarkRelativeInfo?
-}
-
-extension ImagesModelLoadImagesItemFileBookmarkInfo: Decodable {
-  enum CodingKeys: String, CodingKey {
-    case fileBookmark,
-         bookmark = "_bookmark",
-         relative = "_relative"
-  }
-}
-
-extension ImagesModelLoadImagesItemFileBookmarkInfo: Sendable, Equatable, FetchableRecord {}
-
-struct ImagesModelLoadImagesItemInfo {
-  let item: ImagesItemRecord
-  let fileBookmark: ImagesModelLoadImagesItemFileBookmarkInfo
-}
-
-extension ImagesModelLoadImagesItemInfo: Decodable {
-  enum CodingKeys: CodingKey {
-    case item, fileBookmark
-  }
-}
-
-extension ImagesModelLoadImagesItemInfo: Sendable, Equatable, FetchableRecord {}
-
-struct ImagesModelLoadImagesCurrentItemInfo {
-  let item: ImagesItemRecord
-}
-
-extension ImagesModelLoadImagesCurrentItemInfo: Sendable, Equatable, Decodable, FetchableRecord {}
-
-struct ImagesModelLoadImagesInfo {
-  let images: ImagesRecord
-  let currentItem: ImagesModelLoadImagesCurrentItemInfo?
-  let items: [ImagesModelLoadImagesItemInfo]
-}
-
-extension ImagesModelLoadImagesInfo: Decodable {
-  enum CodingKeys: CodingKey {
-    case images, currentItem, items
-  }
-}
-
-extension ImagesModelLoadImagesInfo: Sendable, Equatable, FetchableRecord {}
-
 struct ImagesModelStoreImagesItemsImagesItemInfo {
   let item: ImagesItemRecord
 }
@@ -266,8 +205,16 @@ final class ImagesItemModel2 {
   var url: URL
   var title: String
   var aspectRatio: Double
-  var isBookmarked: Bool
   var orientation: CGImagePropertyOrientation
+  var isBookmarked: Bool
+  // TODO: Don't annotate this @ObservationIgnored
+  //
+  // It's used in the UI, but causes performance to degrade from being high in the view hierarchy. We're able to get
+  // away with this because the edge changing means the items array has changed, too, which relates to how we're using it.
+  @ObservationIgnored var edge: VerticalEdge.Set
+
+  // MARK: - UI properties
+
   // TODO: Guard against simultanous access.
   //
   // If one task sees that data is available, then later acts on that data when it becomes unavailable, this can lead to
@@ -276,7 +223,7 @@ final class ImagesItemModel2 {
   var sidebarImage: NSImage
   var sidebarImagePhase: ImagesItemModelImagePhase
   var detailImage: NSImage
-  var detailImageHash: Data
+  @ObservationIgnored var detailImageID: UUID
   var detailImagePhase: ImagesItemModelImagePhase
   var imageAnalysis: ImageAnalysis?
   var isHighlighted: Bool
@@ -286,12 +233,13 @@ final class ImagesItemModel2 {
     url: URL,
     title: String,
     aspectRatio: Double,
-    isBookmarked: Bool,
     orientation: CGImagePropertyOrientation,
+    isBookmarked: Bool,
+    edge: VerticalEdge.Set,
     sidebarImage: NSImage,
     sidebarImagePhase: ImagesItemModelImagePhase,
     detailImage: NSImage,
-    detailImageHash: Data,
+    detailImageID: UUID,
     detailImagePhase: ImagesItemModelImagePhase,
     imageAnalysis: ImageAnalysis?,
     isHighlighted: Bool,
@@ -300,12 +248,13 @@ final class ImagesItemModel2 {
     self.url = url
     self.title = title
     self.aspectRatio = aspectRatio
-    self.isBookmarked = isBookmarked
     self.orientation = orientation
+    self.isBookmarked = isBookmarked
+    self.edge = edge
     self.sidebarImage = sidebarImage
     self.sidebarImagePhase = sidebarImagePhase
     self.detailImage = detailImage
-    self.detailImageHash = detailImageHash
+    self.detailImageID = detailImageID
     self.detailImagePhase = detailImagePhase
     self.imageAnalysis = imageAnalysis
     self.isHighlighted = isHighlighted
@@ -409,11 +358,6 @@ struct ImagesModelImageOrientation {
   let orientation: CGImagePropertyOrientation
 }
 
-struct ImagesModelLoadImage {
-  let hash: Data
-  let imageOrientation: ImagesModelImageOrientation
-}
-
 struct ImagesModelEngineURLInvalidLocationError {
   let name: String
   let query: String
@@ -505,8 +449,8 @@ final class ImagesModel {
     await _loadImage(item: item, length: length)
   }
 
-  func loadImages(items: [ImagesItemModel2.ID], width: Double, pixelLength: Double) async {
-    await _loadImages(items: items, width: width, pixelLength: pixelLength)
+  func loadImages(items: [ImagesItemModel2], width: Double, pixelLength: Double) async {
+    await _loadImages(items: items.map(\.id), width: width, pixelLength: pixelLength)
   }
 
   func loadImageAnalysis(for item: ImagesItemModel2, types: ImageAnalysisTypes) async {
@@ -524,7 +468,7 @@ final class ImagesModel {
 
           await analyses.send(Run(continuation: continuation) {
             let configuration = ImageAnalyzer.Configuration(types.analyzerAnalysisTypes)
-            // The analysis is performed by mediaanalysisd, so it's not like this is all that expensive.
+            // The analysis is performed by mediaanalysisd so this call isn't holding up the main actor.
             let measured = try await ContinuousClock.continuous.measure {
               try await analyzer.analyze(
                 item.detailImage,
@@ -663,16 +607,16 @@ final class ImagesModel {
     items.isNonEmptySubset(of: bookmarkedItems)
   }
 
-  func bookmark(item: ImagesItemModel2.ID, isBookmarked: Bool) async {
+  func bookmark(item: ImagesItemModel2, isBookmarked: Bool) async {
+    item.isBookmarked = isBookmarked
+
     if isBookmarked {
-      bookmarkedItems.insert(item)
+      bookmarkedItems.insert(item.id)
     } else {
-      bookmarkedItems.remove(item)
+      bookmarkedItems.remove(item.id)
     }
 
-    self.items[id: item]!.isBookmarked = isBookmarked
-
-    await _bookmark(item: item, isBookmarked: isBookmarked)
+    await _bookmark(item: item.id, isBookmarked: isBookmarked)
   }
 
   func bookmark(items: Set<ImagesItemModel2.ID>, isBookmarked: Bool) async {
@@ -871,6 +815,7 @@ final class ImagesModel {
       }
     }
 
+    // TODO: Convert to isolated method.
     Task { @MainActor in
       self.items = IdentifiedArray(
         uniqueElements: images.items
@@ -904,18 +849,22 @@ final class ImagesModel {
               url: bookmark.resolved.url,
               title: item2.title,
               aspectRatio: item2.aspectRatio,
-              isBookmarked: item2.item.item.isBookmarked!,
               orientation: .identity,
+              isBookmarked: item2.item.item.isBookmarked!,
+              edge: [],
               sidebarImage: NSImage(),
               sidebarImagePhase: .empty,
               detailImage: NSImage(),
-              detailImageHash: Data(),
+              detailImageID: UUID(),
               detailImagePhase: .empty,
               imageAnalysis: nil,
               isHighlighted: false,
             )
           }
       )
+
+      self.items.first?.edge.insert(.top)
+      self.items.last?.edge.insert(.bottom)
 
       if !self.hasLoaded {
         self.currentItem = images.currentItem.flatMap { self.items[id: $0.item.rowID!] }
@@ -963,22 +912,7 @@ final class ImagesModel {
           .asRequest(of: ImagesModelLoadImagesInfo.self)
           .fetchOne(db)
       }
-      .removeDuplicates { a, b in
-        switch (a, b) {
-          case (nil, nil):
-            true
-          case (nil, .some):
-            false
-          case (.some, nil):
-            false
-          case (.some(let a), .some(let b)):
-            // currentItem is loaded once and set by setCurrentItem(item:), so we don't need to load images again if it
-            // changes. If we wanted to get rid of removeDuplicates(by:), we could cache items so bookmarks and images
-            // aren't re-computed. I'd prefer that be the implementation, but diagnosing the performance in this async
-            // code is not easy.
-            a.images == b.images && a.items == b.items && a.currentItem != b.currentItem
-        }
-      }
+      .removeDuplicates()
 
     let connection: DatabasePool
 
@@ -1025,7 +959,7 @@ final class ImagesModel {
     return NSImage(cgImage: thumbnail, size: .zero)
   }
 
-  nonisolated private func loadImage(at url: URL, width: Double, pixelLength: Double) -> ImagesModelImageOrientation? {
+  nonisolated private func loadImage(at url: URL, width: Double, pixelLength: Double) -> NSImage? {
     guard let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil) else {
       Logger.model.error("Could not create image source for file URL '\(url.pathString)'")
 
@@ -1072,10 +1006,7 @@ final class ImagesModel {
       return nil
     }
 
-    return ImagesModelImageOrientation(
-      image: NSImage(cgImage: thumbnail, size: .zero),
-      orientation: sizeOrientation.orientation,
-    )
+    return NSImage(cgImage: thumbnail, size: .zero)
   }
 
   nonisolated private func _loadImage(item: ImagesItemModel2.ID, length: Double) async -> NSImage? {
@@ -1165,7 +1096,7 @@ final class ImagesModel {
     item: ImagesItemInfo,
     width: Double,
     pixelLength: Double,
-  ) -> ImagesModelLoadImage? {
+  ) -> NSImage? {
     let relative: URLSource?
 
     do {
@@ -1188,48 +1119,11 @@ final class ImagesModel {
       relative: relative,
     )
 
-    return document.accessingSecurityScopedResource {
-      guard let stream = InputStream(url: document.source.url) else {
-        Logger.model.error("Could not create input stream at file URL '\(document.source.url.pathString)'")
-
-        return nil
-      }
-
-      stream.open()
-
-      defer {
-        stream.close()
-      }
-
-      let capacity = 65536 // 2^16
-      let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: capacity)
-
-      defer {
-        buffer.deallocate()
-      }
-
-      var hasher = SHA256()
-
-      while stream.hasBytesAvailable {
-        let result = stream.read(buffer, maxLength: capacity)
-
-        guard result != -1 else {
-          Logger.model.error("Could not read input stream at file URL '\(document.source.url.pathString)': \(stream.streamError)")
-
-          return nil
-        }
-
-        hasher.update(bufferPointer: UnsafeRawBufferPointer(start: buffer, count: result))
-      }
-
-      let hash = Data(hasher.finalize())
-
-      guard let imageOrientation = self.loadImage(at: document.source.url, width: width, pixelLength: pixelLength) else {
-        return nil
-      }
-
-      return ImagesModelLoadImage(hash: hash, imageOrientation: imageOrientation)
+    let image = document.accessingSecurityScopedResource {
+      self.loadImage(at: document.source.url, width: width, pixelLength: pixelLength)
     }
+
+    return image
   }
 
   nonisolated private func _loadImages(items: [ImagesItemModel2.ID], width: Double, pixelLength: Double) async {
@@ -1316,36 +1210,20 @@ final class ImagesModel {
     }
 
     for item in items2 {
-      let result = loadImage(state: state2, item: item, width: width, pixelLength: pixelLength)
+      let image = loadImage(state: state2, item: item, width: width, pixelLength: pixelLength)
 
       await MainActor.run {
         let imagesItem = self.items[id: item.item.rowID!]!
 
-        guard let result else {
-          imagesItem.detailImage = imagesItem.detailImage
-          imagesItem.detailImageHash = imagesItem.detailImageHash
+        guard let image else {
           imagesItem.detailImagePhase = .failure
 
           return
         }
 
-        imagesItem.detailImage = result.imageOrientation.image
-        imagesItem.detailImageHash = result.hash
+        imagesItem.detailImage = image
+        imagesItem.detailImageID = UUID()
         imagesItem.detailImagePhase = .success
-      }
-    }
-
-    let items = Set(items)
-
-    Task { @MainActor in
-      self.items.forEach { item in
-        guard !items.contains(item.id) else {
-          return
-        }
-
-        item.detailImage = NSImage()
-        item.detailImageHash = Data()
-        item.detailImagePhase = .empty
       }
     }
   }
@@ -1410,7 +1288,7 @@ final class ImagesModel {
     taskGroup.addTask {
       switch item {
         case let .file(source):
-          let bookmark = try source.accessingSecurityScopedResource {
+          let bookmark = try await source.accessingSecurityScopedResource {
             try URLBookmark(url: source.url, options: source.options, relativeTo: nil)
           }
 
@@ -1419,14 +1297,9 @@ final class ImagesModel {
           return try await directory.item.accessingSecurityScopedResource {
             let bookmark = try URLBookmark(url: directory.item.url, options: directory.item.options, relativeTo: nil)
             let files = await withThrowingTaskGroup { group in
-              var iterator = directory.files.makeIterator()
               var items = [URLBookmark](reservingCapacity: directory.files.count)
-
-              // For some reason, adding more than 12 concurrent tasks on my 2019 MacBook Pro causes the task group
-              // to hang. I presume this is internal to sub-task groups that execute certain code because it doesn't
-              // occur in the parent nor when the code is simple (e.g., sleeping for a second before returning a
-              // constant value).
-              (ProcessInfo.processInfo.activeProcessorCount / 2).times {
+              var iterator = directory.files.makeIterator()
+              ProcessInfo.processInfo.activeProcessorCount.times {
                 self.addTask(to: &group, from: &iterator, bookmarkRelativeTo: bookmark.url)
               }
 
@@ -1456,7 +1329,7 @@ final class ImagesModel {
       var state = ImagesModelStoreState(bookmarks: [:])
       var iterator = items.makeIterator()
 
-      (ProcessInfo.processInfo.activeProcessorCount / 2).times {
+      ProcessInfo.processInfo.activeProcessorCount.times {
         addTask(to: &group, from: &iterator)
       }
 

@@ -8,19 +8,11 @@
 import SwiftUI
 
 struct SettingsView: View {
-  @State private var tab = Tab.general
+  @State private var tab = Tab.extra
 
   var body: some View {
     // TODO: Figure out how to animate tab changes.
     TabView(selection: $tab) {
-      Form {
-        SettingsGeneralView()
-      }
-      .tag(Tab.general)
-      .tabItem {
-        Label("General", systemImage: "gearshape")
-      }
-
       Form {
         SettingsExtraView()
       }
@@ -29,13 +21,12 @@ struct SettingsView: View {
         Label("Extra", systemImage: "wand.and.stars")
       }
     }
-//    .formStyle(SettingsFormStyle())
     .frame(width: 384) // 256 - 512
     .scenePadding()
     .frame(width: 576) // 512 - 640
   }
 
   enum Tab {
-    case general, files, extra
+    case extra
   }
 }
