@@ -64,12 +64,6 @@ struct ImagesSidebarView2: View {
   @State private var isCopyFolderFileImporterPresented = false
   @State private var isSidebarShowSelectActive = false
   @FocusState private var isFocused
-  private var directoryEnumerationOptions: FileManager.DirectoryEnumerationOptions {
-    StorageKeys.directoryEnumerationOptions(
-      importHiddenFiles: importHiddenFiles,
-      importSubdirectories: importSubdirectories,
-    )
-  }
 
   private var sceneID: AppModelCommandSceneID {
     .imagesSidebar(self.images.id)
@@ -162,7 +156,13 @@ struct ImagesSidebarView2: View {
           Color.clear
             .dropDestination(for: ImagesItemTransfer.self) { items, _ in
               Task {
-                await images.store(items: items, enumerationOptions: directoryEnumerationOptions)
+                await images.store(
+                  items: items,
+                  enumerationOptions: StorageKeys.directoryEnumerationOptions(
+                    importHiddenFiles: self.importHiddenFiles,
+                    importSubdirectories: self.importSubdirectories,
+                  ),
+                )
               }
 
               return true

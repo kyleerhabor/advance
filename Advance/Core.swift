@@ -28,49 +28,6 @@ func setter<Object: AnyObject, Value>(
   }
 }
 
-extension OperationQueue {
-  static let translate: OperationQueue = {
-    let queue = OperationQueue()
-    queue.maxConcurrentOperationCount = ProcessInfo.processInfo.activeProcessorCount
-
-    return queue
-  }()
-}
-
-// In some settings, calling a synchronous function from an asynchronous one can block the underlying cooperative thread,
-// deadlocking the system when all cooperative threads are blocked (e.g., calling URL/bookmarkData(options:includingResourceValuesForKeys:relativeTo:)
-// from a task group). I presume this is caused by a function:
-//
-//   1. Not being preconcurrency
-//   2. Being I/O bound
-//   3. Blocking a cooperative thread
-//
-// The solution, then, is to not block cooperative threads. We use dispatch queues here, but it results in thread
-// explosion. To resolve this, we need a scheduler that limits the number of threads, such as an operation queue.
-//
-// See https://forums.swift.org/t/cooperative-pool-deadlock-when-calling-into-an-opaque-subsystem/70685
-func withTranslatingCheckedContinuation<T>(
-  on queue: DispatchQueue = .global(),
-  _ body: @escaping @Sendable () throws -> T,
-) async throws -> T {
-  try await withCheckedThrowingContinuation { continuation in
-//    OperationQueue.translate.addOperation {
-//      do {
-//        continuation.resume(returning: try body())
-//      } catch {
-//        continuation.resume(throwing: error)
-//      }
-//    }
-    queue.async {
-      do {
-        continuation.resume(returning: try body())
-      } catch {
-        continuation.resume(throwing: error)
-      }
-    }
-  }
-}
-
 // MARK: - Foundation
 
 extension URL {

@@ -127,6 +127,7 @@ extension URL.BookmarkResolutionOptions {
 }
 
 extension AssignedBookmark {
+  @available(*, noasync)
   init(data: Data, options: URL.BookmarkCreationOptions, relativeTo relative: URL?) throws {
     try self.init(
       data: data,
@@ -136,11 +137,26 @@ extension AssignedBookmark {
       //
       // Note there is also a withoutUI option, but I haven't checked whether or not it performs the same action.
       options: URL.BookmarkResolutionOptions(options).union(.withoutMounting),
-      relativeTo: nil,
+      relativeTo: relative,
     ) { url in
       let source = URLSource(url: url, options: options)
       let bookmark = try source.accessingSecurityScopedResource {
-        try source.url.bookmarkData(options: source.options)
+        try source.url.bookmark(options: source.options, relativeTo: relative)
+      }
+
+      return bookmark
+    }
+  }
+
+  init(data: Data, options: URL.BookmarkCreationOptions, relativeTo relative: URL?) async throws {
+    try await self.init(
+      data: data,
+      options: URL.BookmarkResolutionOptions(options).union(.withoutMounting),
+      relativeTo: relative,
+    ) { url in
+      let source = URLSource(url: url, options: options)
+      let bookmark = try await source.accessingSecurityScopedResource {
+        try await source.url.bookmark(options: source.options, relativeTo: relative)
       }
 
       return bookmark
@@ -160,70 +176,55 @@ enum ImagesItemAssignmentError: Error {
 struct ImagesItemAssignment {
   var bookmarks: [RowID: AssignedBookmark]
 
-  func addTask(
-    to taskGroup: inout ThrowingTaskGroup<ImagesItemAssignmentTaskResult, any Error>,
-    from relatives: inout some IteratorProtocol<ImagesItemFileBookmarkRelativeInfo>,
-  ) {
-    guard let relative = relatives.next() else {
-      return
-    }
-
-    taskGroup.addTask {
-      let item = relative.relative
-      let bookmark = try await withTranslatingCheckedContinuation {
-        try AssignedBookmark(data: item.data!, options: item.options!, relativeTo: nil)
-      }
-
-      let result = ImagesItemAssignmentTaskResult(item: item, bookmark: bookmark)
-
-      return result
-    }
-  }
-
-  func addTask(
-    to taskGroup: inout ThrowingTaskGroup<ImagesItemAssignmentTaskResult, any Error>,
-    from items: inout some IteratorProtocol<ImagesItemInfo>,
-  ) {
-    guard let item = items.next() else {
-      return
-    }
-
-    taskGroup.addTask {
-      let relative: URLSource?
-
-      if let r = item.fileBookmark.relative {
-        guard let bookmark = bookmarks[r.relative.rowID!] else {
-          throw ImagesItemAssignmentError.relativeUnresolved
-        }
-
-        relative = URLSource(url: bookmark.resolved.url, options: r.relative.options!)
-      } else {
-        relative = nil
-      }
-
-      let item = item.fileBookmark.bookmark.bookmark
-      let bookmark = try await relative.accessingSecurityScopedResource {
-        try await withTranslatingCheckedContinuation {
-          try AssignedBookmark(data: item.data!, options: item.options!, relativeTo: relative?.url)
-        }
-      }
-
-      let result = ImagesItemAssignmentTaskResult(item: item, bookmark: bookmark)
-
-      return result
-    }
-  }
-
   mutating func assign(items: [ImagesItemInfo]) async {
     await withThrowingTaskGroup { group in
-      let count = ProcessInfo.processInfo.activeProcessorCount
-      var relatives = items
+      items
         .compactMap(\.fileBookmark.relative)
         .uniqued(on: \.relative.rowID)
-        .makeIterator()
+        .forEach { relative in
+          group.addTask {
+            let item = relative.relative
+            let bookmark = try await AssignedBookmark(data: item.data!, options: item.options!, relativeTo: nil)
 
-      count.times {
-        addTask(to: &group, from: &relatives)
+            let result = ImagesItemAssignmentTaskResult(item: item, bookmark: bookmark)
+
+            return result
+          }
+        }
+
+      while let result = await group.nextResult() {
+        switch result {
+          case let .success(child):
+            self.bookmarks[child.item.rowID!] = child.bookmark
+          case let .failure(error):
+            // TODO: Elaborate.
+            Logger.model.error("\(error)")
+        }
+      }
+
+      items.forEach { item in
+        group.addTask { [bookmarks = self.bookmarks] in
+          let relative: URLSource?
+
+          if let r = item.fileBookmark.relative {
+            guard let bookmark = bookmarks[r.relative.rowID!] else {
+              throw ImagesItemAssignmentError.relativeUnresolved
+            }
+
+            relative = URLSource(url: bookmark.resolved.url, options: r.relative.options!)
+          } else {
+            relative = nil
+          }
+
+          let item = item.fileBookmark.bookmark.bookmark
+          let bookmark = try await relative.accessingSecurityScopedResource {
+            try await AssignedBookmark(data: item.data!, options: item.options!, relativeTo: relative?.url)
+          }
+
+          let result = ImagesItemAssignmentTaskResult(item: item, bookmark: bookmark)
+
+          return result
+        }
       }
 
       while let result = await group.nextResult() {
@@ -234,25 +235,6 @@ struct ImagesItemAssignment {
             // TODO: Elaborate.
             Logger.model.error("\(error)")
         }
-
-        addTask(to: &group, from: &relatives)
-      }
-
-      var items = items.makeIterator()
-      count.times {
-        addTask(to: &group, from: &items)
-      }
-
-      while let result = await group.nextResult() {
-        switch result {
-          case let .success(child):
-            bookmarks[child.item.rowID!] = child.bookmark
-          case let .failure(error):
-            // TODO: Elaborate.
-            Logger.model.error("\(error)")
-        }
-
-        addTask(to: &group, from: &items)
       }
     }
   }

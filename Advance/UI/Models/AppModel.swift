@@ -7,6 +7,7 @@
 
 import AdvanceCore
 import Combine
+import Foundation
 import Observation
 
 enum AppModelCommandAction {

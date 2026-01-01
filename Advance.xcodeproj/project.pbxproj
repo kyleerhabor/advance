@@ -25,7 +25,6 @@
 		0043C6052B40E78E0092AB71 /* SettingsExtraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0043C6042B40E78E0092AB71 /* SettingsExtraView.swift */; };
 		004D8FC02A76C1C900C0303E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 004D8FBF2A76C1C900C0303E /* SettingsView.swift */; };
 		005608352B6F24680063DCE2 /* ImageCollectionEditCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005608342B6F24680063DCE2 /* ImageCollectionEditCommands.swift */; };
-		005608392B6F24970063DCE2 /* ImageCollectionWindowCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005608382B6F24970063DCE2 /* ImageCollectionWindowCommands.swift */; };
 		006437592F05D9D30058CA61 /* Core.swift in Sources */ = {isa = PBXBuildFile; fileRef = 006437582F05D9D30058CA61 /* Core.swift */; };
 		0077AF922ABB8650002E3FF4 /* Image.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0077AF912ABB8650002E3FF4 /* Image.swift */; };
 		008815F62B07DC8A00D8F3D8 /* Algorithms in Frameworks */ = {isa = PBXBuildFile; productRef = 008815F52B07DC8A00D8F3D8 /* Algorithms */; };
@@ -44,7 +43,6 @@
 		00CF4C8B2B28C0AD0033C95B /* Button.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00CF4C8A2B28C0AD0033C95B /* Button.swift */; };
 		00D0E1C12B9E68F500624018 /* ImageCollectionNavigatorCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00D0E1C02B9E68F400624018 /* ImageCollectionNavigatorCommands.swift */; };
 		00D38C312AD73672005505F5 /* ImageCollectionSidebarContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00D38C302AD73671005505F5 /* ImageCollectionSidebarContentView.swift */; };
-		00E0ECC02A76A8000030A0DC /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E0ECBF2A76A8000030A0DC /* AppDelegate.swift */; };
 		00E42E992B33A39400BC05A7 /* BookmarkStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E42E982B33A39400BC05A7 /* BookmarkStore.swift */; };
 		00E42E9B2B33EB8000BC05A7 /* ImageCollectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E42E9A2B33EB8000BC05A7 /* ImageCollectionManager.swift */; };
 /* End PBXBuildFile section */
@@ -68,7 +66,6 @@
 		0043C6042B40E78E0092AB71 /* SettingsExtraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsExtraView.swift; sourceTree = "<group>"; };
 		004D8FBF2A76C1C900C0303E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		005608342B6F24680063DCE2 /* ImageCollectionEditCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionEditCommands.swift; sourceTree = "<group>"; };
-		005608382B6F24970063DCE2 /* ImageCollectionWindowCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionWindowCommands.swift; sourceTree = "<group>"; };
 		006437582F05D9D30058CA61 /* Core.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core.swift; sourceTree = "<group>"; };
 		0077AF912ABB8650002E3FF4 /* Image.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Image.swift; sourceTree = "<group>"; };
 		00A983A52B47B1F600A8E61C /* View+Key.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "View+Key.swift"; sourceTree = "<group>"; };
@@ -85,7 +82,6 @@
 		00D0E1C02B9E68F400624018 /* ImageCollectionNavigatorCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionNavigatorCommands.swift; sourceTree = "<group>"; };
 		00D38C302AD73671005505F5 /* ImageCollectionSidebarContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionSidebarContentView.swift; sourceTree = "<group>"; };
 		00DC498E2A75B92000161495 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
-		00E0ECBF2A76A8000030A0DC /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		00E42E982B33A39400BC05A7 /* BookmarkStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkStore.swift; sourceTree = "<group>"; };
 		00E42E9A2B33EB8000BC05A7 /* ImageCollectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -216,7 +212,6 @@
 			children = (
 				005608342B6F24680063DCE2 /* ImageCollectionEditCommands.swift */,
 				00D0E1C02B9E68F400624018 /* ImageCollectionNavigatorCommands.swift */,
-				005608382B6F24970063DCE2 /* ImageCollectionWindowCommands.swift */,
 			);
 			path = Commands;
 			sourceTree = "<group>";
@@ -295,7 +290,6 @@
 			isa = PBXGroup;
 			children = (
 				002379082B3DFC9F00097BF0 /* Scened.swift */,
-				00E0ECBF2A76A8000030A0DC /* AppDelegate.swift */,
 				00CBAB592AB23E9C0045FF83 /* ImageCollectionScene.swift */,
 				0056082E2B6F15C20063DCE2 /* Collection */,
 			);
@@ -427,14 +421,12 @@
 				0008556E2A7306CB00309905 /* Standard.swift in Sources */,
 				0033751A2B34EBC800423A58 /* ImageCollectionItemView.swift in Sources */,
 				00CF4C8B2B28C0AD0033C95B /* Button.swift in Sources */,
-				00E0ECC02A76A8000030A0DC /* AppDelegate.swift in Sources */,
 				0077AF922ABB8650002E3FF4 /* Image.swift in Sources */,
 				000855692A72FE2C00309905 /* AdvanceApp.swift in Sources */,
 				003763CC2AB40FD800D53F2E /* ImageCollectionSidebarEmptyView.swift in Sources */,
 				00D0E1C12B9E68F500624018 /* ImageCollectionNavigatorCommands.swift in Sources */,
 				00CBAB5C2AB2470C0045FF83 /* ImageCollectionDetailView.swift in Sources */,
 				006437592F05D9D30058CA61 /* Core.swift in Sources */,
-				005608392B6F24970063DCE2 /* ImageCollectionWindowCommands.swift in Sources */,
 				0042B5DB2AB8C450009F251B /* ImageCollectionCommands.swift in Sources */,
 				00D38C312AD73672005505F5 /* ImageCollectionSidebarContentView.swift in Sources */,
 				005608352B6F24680063DCE2 /* ImageCollectionEditCommands.swift in Sources */,

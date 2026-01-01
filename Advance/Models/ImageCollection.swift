@@ -275,7 +275,7 @@ class ImageCollection: Codable {
           switch kind {
             case .document(let document):
               return try await document.source.accessingSecurityScopedResource {
-                let item = try URLBookmark(
+                let item = try await URLBookmark(
                   url: document.source.url,
                   options: document.source.options,
                   relativeTo: nil
@@ -286,8 +286,8 @@ class ImageCollection: Codable {
 
                   files.forEach { source in
                     group.addTask {
-                      try source.accessingSecurityScopedResource {
-                        try .init(
+                      try await source.accessingSecurityScopedResource {
+                        try await URLBookmark(
                           url: source.url,
                           options: source.options,
                           relativeTo: document.source.url
@@ -313,8 +313,8 @@ class ImageCollection: Codable {
                 return .document(.init(source: item, files: urbs))
               }
             case .file(let source):
-              let item = try source.accessingSecurityScopedResource {
-                try URLBookmark(url: source.url, options: source.options, relativeTo: nil)
+              let item = try await source.accessingSecurityScopedResource {
+                try await URLBookmark(url: source.url, options: source.options, relativeTo: nil)
               }
 
               return .file(item)

@@ -13,20 +13,21 @@ import SwiftUI
 
 @main
 struct AdvanceApp: App {
-  @NSApplicationDelegateAdaptor private var delegate: AppDelegate2
+  @NSApplicationDelegateAdaptor private var delegate: AppDelegate
   @State private var app = AppModel()
   @State private var folders = FoldersSettingsModel()
   @State private var search = SearchSettingsModel()
 
   var body: some Scene {
     AppScene()
+      .handlesExternalEvents(matching: [])
       .commands {
         AppCommands()
       }
       .environment(app)
+      .environment(delegate)
       .environment(folders)
       .environment(search)
-      .environmentObject(delegate)
       .defaultAppStorage(.default)
   }
 

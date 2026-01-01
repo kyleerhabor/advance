@@ -118,7 +118,7 @@ extension BidirectionalCollection {
     BidirectionalCollectionItem(element: self[index], index: index)
   }
 
-  func indexBefore(_ index: Index) -> Index? {
+  func subscriptIndex(before index: Index) -> Index? {
     guard index > self.startIndex else {
       return nil
     }
@@ -126,20 +126,26 @@ extension BidirectionalCollection {
     return self.index(before: index)
   }
 
-  func indexAfter(_ index: Index) -> Index? {
+  func subscriptIndex(after index: Index) -> Index? {
     guard index < self.endIndex else {
       return nil
     }
 
-    return self.index(after: index)
+    let index = self.index(after: index)
+
+    guard index != self.endIndex else {
+      return nil
+    }
+
+    return index
   }
 
   public func before(index: Index) -> BidirectionalCollectionItem<Self>? {
-    indexBefore(index).map { item(at: $0) }
+    subscriptIndex(before: index).map { item(at: $0) }
   }
 
   public func after(index: Index) -> BidirectionalCollectionItem<Self>? {
-    indexAfter(index).map { item(at: $0) }
+    subscriptIndex(after: index).map { item(at: $0) }
   }
 }
 
@@ -427,4 +433,38 @@ public func run<T, E, Base>(base: Base, count: Int) async throws where Base: Asy
       }
     }
   }
+}
+
+// MARK: - Swift
+
+// In some settings, calling a synchronous function from an asynchronous one can block the underlying cooperative thread,
+// deadlocking the system when all cooperative threads are blocked (e.g., calling URL/bookmarkData(options:includingResourceValuesForKeys:relativeTo:)
+// from a task group). I presume this is caused by a function:
+//
+//   1. Not being preconcurrency
+//   2. Being I/O bound
+//   3. Blocking a cooperative thread
+//
+// The solution, then, is to not block cooperative threads. We use operation queues here to prevent thread explosion.
+//
+// See https://forums.swift.org/t/cooperative-pool-deadlock-when-calling-into-an-opaque-subsystem/70685
+public func withTranslatingCheckedContinuation<T>(
+  on queue: OperationQueue = .global,
+  _ body: @escaping @Sendable () throws -> T,
+) async throws -> T {
+  try await withCheckedThrowingContinuation { continuation in
+    queue.addOperation {
+      do {
+        continuation.resume(returning: try body())
+      } catch {
+        continuation.resume(throwing: error)
+      }
+    }
+  }
+}
+
+// MARK: - Foundation
+
+extension OperationQueue {
+  public static let global = OperationQueue()
 }

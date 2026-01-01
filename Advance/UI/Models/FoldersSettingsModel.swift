@@ -621,7 +621,7 @@ final class FoldersSettingsModel {
     let bookmark: AssignedBookmark?
 
     do {
-      bookmark = try AssignedBookmark(
+      bookmark = try await AssignedBookmark(
         data: folder.fileBookmark.bookmark.bookmark.data!,
         options: folder.fileBookmark.bookmark.bookmark.options!,
         relativeTo: nil,

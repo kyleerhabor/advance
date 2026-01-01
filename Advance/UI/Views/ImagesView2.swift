@@ -153,20 +153,12 @@ struct ImagesView2: View {
   @State private var copyFolderSelection = Set<ImagesItemModel2.ID>()
   @State private var copyFolderError: ImagesModelCopyFolderError?
   @State private var isCopyFolderErrorPresented = false
-  private var directoryEnumerationOptions: FileManager.DirectoryEnumerationOptions {
-    StorageKeys.directoryEnumerationOptions(
-      importHiddenFiles: self.importHiddenFiles,
-      importSubdirectories: self.importSubdirectories,
-    )
-  }
-
   private var sceneID: AppModelCommandSceneID {
     .images(self.images.id)
   }
 
   var body: some View {
-    let isVisible = !self.hiddenLayout.scroll
-    || self.isTrackingMenu
+    let isVisible = self.isTrackingMenu
     || !self.appearsActive
     || !self.isWindowFullScreen
     || self.columnVisibility != .detailOnly
@@ -211,8 +203,8 @@ struct ImagesView2: View {
       ImagesBackgroundView(isSupplementaryInterfaceVisible: isSupplementaryInterfaceVisible)
     }
     .toolbar(self.isWindowFullScreen ? .hidden : .automatic)
-    .cursorVisible(isVisible)
-    .scrollIndicators(isVisible ? .automatic : .hidden)
+    .cursorVisible(!self.hiddenLayout.cursor || isVisible)
+    .scrollIndicators(!self.hiddenLayout.scroll || isVisible ? .automatic : .hidden)
     .alert(isPresented: $isCopyFolderErrorPresented, error: copyFolderError) {}
     .fileImporter(
       isPresented: $isFileImporterPresented,
@@ -232,7 +224,13 @@ struct ImagesView2: View {
       }
 
       Task {
-        await images.store(urls: urls, directoryEnumerationOptions: directoryEnumerationOptions)
+        await images.store(
+          urls: urls,
+          directoryEnumerationOptions: StorageKeys.directoryEnumerationOptions(
+            importHiddenFiles: self.importHiddenFiles,
+            importSubdirectories: self.importSubdirectories,
+          ),
+        )
       }
     }
     .fileDialogCustomizationID(ImagesScene.id)

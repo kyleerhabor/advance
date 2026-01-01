@@ -12,7 +12,6 @@ import AsyncAlgorithms
 import BigInt
 import Combine
 import CoreGraphics
-import CryptoKit
 import Foundation
 import GRDB
 import IdentifiedCollections
@@ -688,11 +687,79 @@ final class ImagesModel {
     )
   }
 
+  private func loadResults() {
+    hasLoadedNoImages = true
+  }
+
+  private func loadResults(
+    images: ImagesModelLoadImagesInfo,
+    assigned: ImagesItemAssignment,
+    details: ImagesModelLoadDetailsState,
+  ) {
+    self.items = IdentifiedArray(
+      uniqueElements: images.items
+        .compactMap { imagesItem in
+          let id = imagesItem.item.rowID!
+
+          if let item = self.items[id: id] {
+            item.edge = []
+
+            guard let item2 = details.items[id] else {
+              // TODO: Log.
+              return item
+            }
+
+            let bookmark = assigned.bookmarks[imagesItem.fileBookmark.bookmark.bookmark.rowID!]!
+            item.url = bookmark.resolved.url
+            item.title = item2.title
+            item.aspectRatio = item2.aspectRatio
+            item.isBookmarked = item2.item.item.isBookmarked!
+
+            return item
+          }
+
+          guard let item2 = details.items[id] else {
+            // TODO: Log.
+            return nil
+          }
+
+          let bookmark = assigned.bookmarks[imagesItem.fileBookmark.bookmark.bookmark.rowID!]!
+
+          return ImagesItemModel2(
+            id: id,
+            url: bookmark.resolved.url,
+            title: item2.title,
+            aspectRatio: item2.aspectRatio,
+            orientation: .identity,
+            isBookmarked: item2.item.item.isBookmarked!,
+            edge: [],
+            sidebarImage: NSImage(),
+            sidebarImagePhase: .empty,
+            detailImage: NSImage(),
+            detailImageID: UUID(),
+            detailImagePhase: .empty,
+            imageAnalysis: nil,
+            isHighlighted: false,
+          )
+        }
+    )
+
+    self.items.first?.edge.insert(.top)
+    self.items.last?.edge.insert(.bottom)
+
+    if !self.hasLoaded {
+      self.currentItem = images.currentItem.flatMap { self.items[id: $0.item.rowID!] }
+    }
+
+    self.hasLoaded = true
+    self.hasLoadedNoImages = self.items.isEmpty
+    self.bookmarkedItems = Set(self.items.filter(\.isBookmarked).map(\.id))
+    self.resolvedItems = Set(self.items.filter { details.items[$0.id] != nil }.map(\.id))
+  }
+
   nonisolated private func load(connection: DatabasePool, images: ImagesModelLoadImagesInfo?) async {
     guard let images else {
-      Task { @MainActor in
-        hasLoadedNoImages = true
-      }
+      await loadResults()
 
       return
     }
@@ -815,66 +882,7 @@ final class ImagesModel {
       }
     }
 
-    // TODO: Convert to isolated method.
-    Task { @MainActor in
-      self.items = IdentifiedArray(
-        uniqueElements: images.items
-          .compactMap { imagesItem in
-            let id = imagesItem.item.rowID!
-
-            if let item = self.items[id: id] {
-              guard let item2 = state2.items[id] else {
-                // TODO: Log.
-                return item
-              }
-
-              let bookmark = state1.bookmarks[imagesItem.fileBookmark.bookmark.bookmark.rowID!]!
-              item.url = bookmark.resolved.url
-              item.title = item2.title
-              item.aspectRatio = item2.aspectRatio
-              item.isBookmarked = item2.item.item.isBookmarked!
-
-              return item
-            }
-
-            guard let item2 = state2.items[id] else {
-              // TODO: Log.
-              return nil
-            }
-
-            let bookmark = state1.bookmarks[imagesItem.fileBookmark.bookmark.bookmark.rowID!]!
-
-            return ImagesItemModel2(
-              id: id,
-              url: bookmark.resolved.url,
-              title: item2.title,
-              aspectRatio: item2.aspectRatio,
-              orientation: .identity,
-              isBookmarked: item2.item.item.isBookmarked!,
-              edge: [],
-              sidebarImage: NSImage(),
-              sidebarImagePhase: .empty,
-              detailImage: NSImage(),
-              detailImageID: UUID(),
-              detailImagePhase: .empty,
-              imageAnalysis: nil,
-              isHighlighted: false,
-            )
-          }
-      )
-
-      self.items.first?.edge.insert(.top)
-      self.items.last?.edge.insert(.bottom)
-
-      if !self.hasLoaded {
-        self.currentItem = images.currentItem.flatMap { self.items[id: $0.item.rowID!] }
-      }
-
-      self.hasLoaded = true
-      self.hasLoadedNoImages = self.items.isEmpty
-      self.bookmarkedItems = Set(self.items.filter(\.isBookmarked).map(\.id))
-      self.resolvedItems = Set(self.items.filter { state2.items[$0.id] != nil }.map(\.id))
-    }
+    await loadResults(images: images, assigned: state1, details: state2)
   }
 
   nonisolated private func _load() async {
@@ -1261,76 +1269,55 @@ final class ImagesModel {
     return itemImages
   }
 
-  nonisolated private func addTask(
-    to group: inout ThrowingTaskGroup<URLBookmark, any Error>,
-    from iterator: inout some IteratorProtocol<URLSource>,
-    bookmarkRelativeTo relative: URL,
-  ) {
-    guard let source = iterator.next() else {
-      return
-    }
+  nonisolated private func store(items: [Item<URLSource>]) async {
+    let state1 = await withThrowingTaskGroup(of: Item<URLBookmark>.self) { group in
+      var state = ImagesModelStoreState(bookmarks: [:])
 
-    group.addTask {
-      try source.accessingSecurityScopedResource {
-        try URLBookmark(url: source.url, options: source.options, relativeTo: relative)
-      }
-    }
-  }
-
-  nonisolated private func addTask(
-    to taskGroup: inout ThrowingTaskGroup<Item<URLBookmark>, any Error>,
-    from iterator: inout some IteratorProtocol<Item<URLSource>>,
-  ) {
-    guard let item = iterator.next() else {
-      return
-    }
-
-    taskGroup.addTask {
-      switch item {
-        case let .file(source):
-          let bookmark = try await source.accessingSecurityScopedResource {
-            try URLBookmark(url: source.url, options: source.options, relativeTo: nil)
-          }
-
-          return .file(bookmark)
-        case let .directory(directory):
-          return try await directory.item.accessingSecurityScopedResource {
-            let bookmark = try URLBookmark(url: directory.item.url, options: directory.item.options, relativeTo: nil)
-            let files = await withThrowingTaskGroup { group in
-              var items = [URLBookmark](reservingCapacity: directory.files.count)
-              var iterator = directory.files.makeIterator()
-              ProcessInfo.processInfo.activeProcessorCount.times {
-                self.addTask(to: &group, from: &iterator, bookmarkRelativeTo: bookmark.url)
+      items.forEach { item in
+        group.addTask {
+          switch item {
+            case let .file(source):
+              let bookmark = try await source.accessingSecurityScopedResource {
+                try await URLBookmark(url: source.url, options: source.options, relativeTo: nil)
               }
 
-              while let result = await group.nextResult() {
-                switch result {
-                  case let .success(child):
-                    items.append(child)
-                  case let .failure(error):
-                    // TODO: Elaborate.
-                    Logger.model.error("\(error)")
+              return .file(bookmark)
+            case let .directory(directory):
+              return try await directory.item.accessingSecurityScopedResource {
+                let bookmark = try await URLBookmark(
+                  url: directory.item.url,
+                  options: directory.item.options,
+                  relativeTo: nil,
+                )
+
+                let files = await withThrowingTaskGroup { group in
+                  var items = [URLBookmark](reservingCapacity: directory.files.count)
+
+                  directory.files.forEach { source in
+                    group.addTask {
+                      try await source.accessingSecurityScopedResource {
+                        try await URLBookmark(url: source.url, options: source.options, relativeTo: bookmark.url)
+                      }
+                    }
+                  }
+
+                  while let result = await group.nextResult() {
+                    switch result {
+                      case let .success(child):
+                        items.append(child)
+                      case let .failure(error):
+                        // TODO: Elaborate.
+                        Logger.model.error("\(error)")
+                    }
+                  }
+
+                  return items
                 }
 
-                self.addTask(to: &group, from: &iterator, bookmarkRelativeTo: bookmark.url)
+                return .directory(ItemDirectory(item: bookmark, files: files))
               }
-
-              return items
-            }
-
-            return .directory(ItemDirectory(item: bookmark, files: files))
           }
-      }
-    }
-  }
-
-  nonisolated private func store(items: [Item<URLSource>]) async {
-    let state1 = await withThrowingTaskGroup { group in
-      var state = ImagesModelStoreState(bookmarks: [:])
-      var iterator = items.makeIterator()
-
-      ProcessInfo.processInfo.activeProcessorCount.times {
-        addTask(to: &group, from: &iterator)
+        }
       }
 
       while let result = await group.nextResult() {
@@ -1352,8 +1339,6 @@ final class ImagesModel {
             // TODO: Elaborate.
             Logger.model.error("\(error)")
         }
-
-        addTask(to: &group, from: &iterator)
       }
 
       return state
@@ -1986,7 +1971,7 @@ final class ImagesModel {
     let assignedFolder: AssignedBookmark?
 
     do {
-      assignedFolder = try AssignedBookmark(
+      assignedFolder = try await AssignedBookmark(
         data: folder.fileBookmark.bookmark.bookmark.data!,
         options: options,
         relativeTo: nil,
@@ -2225,7 +2210,7 @@ final class ImagesModel {
     let bookmark: AssignedBookmark?
 
     do {
-      bookmark = try AssignedBookmark(
+      bookmark = try await AssignedBookmark(
         data: folder.fileBookmark.bookmark.bookmark.data!,
         options: options,
         relativeTo: nil,

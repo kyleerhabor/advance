@@ -48,17 +48,6 @@ extension NSWindow {
   }
 }
 
-extension NSLineBreakMode {
-  init?(_ mode: Text.TruncationMode) {
-    switch mode {
-      case .head: self = .byTruncatingHead
-      case .middle: self = .byTruncatingMiddle
-      case .tail: self = .byTruncatingTail
-      @unknown default: return nil
-    }
-  }
-}
-
 struct VisibleItem<Item> {
   let item: Item
   let anchor: Anchor<CGRect>
@@ -162,18 +151,6 @@ struct ToolbarVisibleViewModifier: ViewModifier {
 
   private func setToolbarVisibility(_ flag: Bool) {
     windowed.window?.setToolbarVisibility(flag)
-  }
-}
-
-struct LocalizeAction {
-  let locale: Locale
-
-  func callAsFunction(_ key: String.LocalizationValue) -> String {
-    String(localized: key, locale: locale)
-  }
-
-  func callAsFunction(_ key: String.LocalizationValue) -> AttributedString {
-    AttributedString(localized: key, locale: locale)
   }
 }
 

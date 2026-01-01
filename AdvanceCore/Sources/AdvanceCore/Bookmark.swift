@@ -26,6 +26,17 @@ extension URL {
 
     Logger.sandbox.debug("Ended security scope for file URL '\(self.pathString)'")
   }
+
+  @available(*, noasync)
+  public func bookmark(options: BookmarkCreationOptions, relativeTo relative: URL?) throws -> Data {
+    try self.bookmarkData(options: options, relativeTo: relative)
+  }
+
+  public func bookmark(options: BookmarkCreationOptions, relativeTo relative: URL?) async throws -> Data {
+    try await withTranslatingCheckedContinuation {
+      try self.bookmark(options: options, relativeTo: relative)
+    }
+  }
 }
 
 public protocol SecurityScopedResource {
@@ -189,9 +200,21 @@ public struct Bookmark {
     self.options = options
   }
 
+  @available(*, noasync)
   public init(url: URL, options: URL.BookmarkCreationOptions, relativeTo relative: URL?) throws {
     self.init(
-      data: try url.bookmarkData(options: options, relativeTo: relative),
+      data: try url.bookmark(options: options, relativeTo: relative),
+      options: options
+    )
+  }
+
+  public init(
+    url: URL,
+    options: URL.BookmarkCreationOptions,
+    relativeTo relative: URL?,
+  ) async throws {
+    self.init(
+      data: try await url.bookmark(options: options, relativeTo: relative),
       options: options
     )
   }
@@ -228,13 +251,23 @@ public struct URLBookmark {
     self.url = url
     self.bookmark = bookmark
   }
-}
 
-extension URLBookmark {
+  @available(*, noasync)
   public init(url: URL, options: URL.BookmarkCreationOptions, relativeTo relative: URL?) throws {
     self.init(
       url: url,
       bookmark: try Bookmark(url: url, options: options, relativeTo: relative),
+    )
+  }
+
+  public init(
+    url: URL,
+    options: URL.BookmarkCreationOptions,
+    relativeTo relative: URL?,
+  ) async throws {
+    self.init(
+      url: url,
+      bookmark: try await Bookmark(url: url, options: options, relativeTo: relative),
     )
   }
 }
@@ -283,6 +316,24 @@ public struct AssignedBookmark {
       Logger.sandbox.log("Bookmark for file URL '\(resolved.url.pathString)' is stale: re-creating...")
 
       data = try create(resolved.url)
+    }
+
+    self.init(resolved: resolved, data: data)
+  }
+
+  public init(
+    data: Data,
+    options: URL.BookmarkResolutionOptions,
+    relativeTo relative: URL?,
+    create: (URL) async throws -> Data,
+  ) async throws {
+    var data = data
+    let resolved = try ResolvedBookmark(data: data, options: options, relativeTo: relative)
+
+    if resolved.isStale {
+      Logger.sandbox.log("Bookmark for file URL '\(resolved.url.pathString)' is stale: re-creating...")
+
+      data = try await create(resolved.url)
     }
 
     self.init(resolved: resolved, data: data)

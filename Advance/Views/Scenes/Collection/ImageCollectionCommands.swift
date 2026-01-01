@@ -11,7 +11,6 @@ struct ImageCollectionCommands: Commands {
   var body: some Commands {
     ImageCollectionEditCommands()
     ImageCollectionNavigatorCommands()
-    ImageCollectionWindowCommands()
   }
 
   static func resolve(kinds: [ImageCollection.Kind], in store: BookmarkStore) async -> ImageCollection {

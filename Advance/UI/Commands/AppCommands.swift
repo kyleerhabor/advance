@@ -10,10 +10,17 @@ import SwiftUI
 
 struct AppCommands: Commands {
   @Environment(AppModel.self) private var app
+  @Environment(AppDelegate.self) private var delegate
   @Environment(\.openWindow) private var openWindow
   @AppStorage(StorageKeys.importHiddenFiles) private var importHiddenFiles
   @AppStorage(StorageKeys.importSubdirectories) private var importSubdirectories
   @FocusedValue(\.commandScene) private var scene
+  private var directoryEnumerationOptions: FileManager.DirectoryEnumerationOptions {
+    StorageKeys.directoryEnumerationOptions(
+      importHiddenFiles: self.importHiddenFiles,
+      importSubdirectories: self.importSubdirectories,
+    )
+  }
 
   var body: some Commands {
     SidebarCommands()
@@ -53,18 +60,18 @@ struct AppCommands: Commands {
 
         Task {
           let images = ImagesModel(id: UUID())
-          await images.store(
-            urls: urls,
-            directoryEnumerationOptions: StorageKeys.directoryEnumerationOptions(
-              importHiddenFiles: importHiddenFiles,
-              importSubdirectories: importSubdirectories,
-            ),
-          )
-
+          await images.store(urls: urls, directoryEnumerationOptions: directoryEnumerationOptions)
           openWindow(value: images)
         }
       }
       .fileDialogCustomizationID(ImagesScene.id)
+      .task {
+        for await urls in delegate.openChannel {
+          let images = ImagesModel(id: UUID())
+          await images.store(urls: urls, directoryEnumerationOptions: directoryEnumerationOptions)
+          openWindow(value: images)
+        }
+      }
     }
 
     CommandGroup(after: .saveItem) {
