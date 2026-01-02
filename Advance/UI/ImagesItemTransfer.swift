@@ -20,7 +20,7 @@ extension ImagesItemTransfer: Transferable {
     let source = URLSource(
       url: received.file,
       options: received.isOriginalFile
-        ? [.withSecurityScope, .securityScopeAllowOnlyReadAccess, .withoutImplicitSecurityScope]
+        ? [.withSecurityScope, .securityScopeAllowOnlyReadAccess]
         : [],
     )
 

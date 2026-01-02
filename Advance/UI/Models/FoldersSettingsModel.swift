@@ -373,7 +373,7 @@ final class FoldersSettingsModel {
 
   nonisolated private func _store(urls: [URL]) async {
     let items = urls.compactMap { url -> FoldersSettingsModelStoreBookmarksStateItem? in
-      let source = URLSource(url: url, options: [.withSecurityScope, .withoutImplicitSecurityScope])
+      let source = URLSource(url: url, options: [.withSecurityScope])
       let bookmark: Bookmark
 
       do {

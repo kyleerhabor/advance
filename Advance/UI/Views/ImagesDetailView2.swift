@@ -213,7 +213,7 @@ struct ImagesDetailItemBackgroundView: View {
           }
         }
 
-        await images.loadImageAnalysis(for: item, types: types)
+        await images.loadImageAnalysis(item: item, types: types)
       }
   }
 }

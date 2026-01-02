@@ -303,6 +303,8 @@ public struct AssignedBookmark {
     self.data = data
   }
 
+  // There's really only one reason you'd want to call this from a synchronous function.
+  @available(*, noasync)
   public init(
     data: Data,
     options: URL.BookmarkResolutionOptions,

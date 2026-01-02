@@ -134,7 +134,7 @@ struct ImageCollectionSidebarContentView: View {
         ForEach(sidebar.images) { image in
           let size = image.properties.orientedSize
 
-          ImageCollectionItemImageView(image: image)
+          ImageCollectionItemImageView()
             .aspectRatio(size.width / size.height, contentMode: .fit)
             .anchorPreference(key: VisibleImageIDsPreferenceKey.self, value: .bounds) {
               [VisibleItem(item: image.id, anchor: $0)]

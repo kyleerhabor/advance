@@ -32,7 +32,7 @@ struct ImageCollectionDetailItemPhaseView: View {
   var body: some View {
     let size = image.properties.orientedSize
 
-    ImageCollectionItemView(image: image, phase: $phase) {
+    ImageCollectionItemView(phase: $phase) {
       ImageCollectionItemPhaseView(phase: phase)
     }
     .aspectRatio(size.width / size.height, contentMode: .fit)

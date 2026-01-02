@@ -452,11 +452,13 @@ final class ImagesModel {
     await _loadImages(items: items.map(\.id), width: width, pixelLength: pixelLength)
   }
 
-  func loadImageAnalysis(for item: ImagesItemModel2, types: ImageAnalysisTypes) async {
+  func loadImageAnalysis(item: ImagesItemModel2, types: ImageAnalysisTypes) async {
     guard item.detailImagePhase == .success else {
       return
     }
 
+    let image = item.detailImage
+    let orientation = item.orientation
     let analyzer = ImageAnalyzer()
     let analysis: ImageAnalysis?
 
@@ -467,13 +469,9 @@ final class ImagesModel {
 
           await analyses.send(Run(continuation: continuation) {
             let configuration = ImageAnalyzer.Configuration(types.analyzerAnalysisTypes)
-            // The analysis is performed by mediaanalysisd so this call isn't holding up the main actor.
+            // The analysis is performed by mediaanalysisd, so this call isn't holding up the main actor.
             let measured = try await ContinuousClock.continuous.measure {
-              try await analyzer.analyze(
-                item.detailImage,
-                orientation: item.orientation,
-                configuration: configuration,
-              )
+              try await analyzer.analyze(image, orientation: orientation, configuration: configuration)
             }
 
             Logger.model.debug("Took \(measured.duration) to analyze image at file URL '\(url.pathString)'")
@@ -1430,17 +1428,14 @@ final class ImagesModel {
     directoryEnumerationOptions: FileManager.DirectoryEnumerationOptions,
   ) async {
     let items = urls.compactMap { url -> Item<URLSource>? in
-      let source = URLSource(
-        url: url,
-        options: [.withSecurityScope, .securityScopeAllowOnlyReadAccess, .withoutImplicitSecurityScope],
-      )
+      let source = URLSource(url: url, options: [.withSecurityScope, .securityScopeAllowOnlyReadAccess])
 
       do {
         let files = try source.accessingSecurityScopedResource {
           try FileManager.default
             .enumerate(at: source.url, options: directoryEnumerationOptions)
             .finderSort(by: \.pathComponents)
-            .map { URLSource(url: $0, options: []) }
+            .map { URLSource(url: $0, options: .withoutImplicitSecurityScope) }
         }
 
         return .directory(ItemDirectory(item: source, files: files))
@@ -1475,7 +1470,7 @@ final class ImagesModel {
                 .enumerate(at: item.source.url, options: enumerationOptions)
                 // TODO: Sort using componentsToDisplay(forPath:)
                 .finderSort(by: \.pathComponents)
-                .map { URLSource(url: $0, options: []) }
+                .map { URLSource(url: $0, options: .withoutImplicitSecurityScope) }
             }
           } catch {
             // TODO: Elaborate.
