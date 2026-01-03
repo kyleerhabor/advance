@@ -141,26 +141,7 @@ struct ImagesSidebarContentItemView: View {
 
   var body: some View {
     VStack {
-      ImagesItemContentView(item: item)
-        .overlay(alignment: .topTrailing) {
-          Image(systemName: "bookmark.fill")
-            .font(.title)
-            .imageScale(.small)
-            .symbolRenderingMode(.multicolor)
-            .opacity(0.85)
-            .shadow(radius: 0.5)
-            .padding(4)
-            .visible(item.isBookmarked)
-        }
-
-//      ImagesSidebarContentItemTitleView(label: item.url?.lastPathComponent ?? "")
-      let title = item.source.url?.lastPathComponent ?? ""
-
-      Text(title)
-        .font(.subheadline)
-        .padding(EdgeInsets(vertical: 4, horizontal: 8))
-        .background(.fill.tertiary, in: .rect(cornerRadius: 4))
-        .help(title)
+      ImagesItemContentView()
     }
     // TODO: Document behavior.
     .id(item.id)

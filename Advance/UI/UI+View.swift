@@ -27,7 +27,8 @@ extension NSWorkspace {
 }
 
 extension NSMenuItem {
-  static let searchAction = Selector(("_searchWithGoogleFromMenu:"))
+  // "Search With [...]" (e.g., Google).
+  static let search = NSUserInterfaceItemIdentifier(rawValue: "_searchWithGoogleFromMenu:")
 }
 
 extension NSWindow {
@@ -131,26 +132,21 @@ struct VisiblePreferenceKey<Item>: PreferenceKey {
 // MARK: - View modifiers
 
 struct ToolbarVisibleViewModifier: ViewModifier {
-  @Environment(Window.self) private var windowed
-  @Environment(\.isWindowFullScreen) private var isWindowFullScreen
-
+  @Environment(Window.self) private var window
   let isVisible: Bool
 
   func body(content: Content) -> some View {
     content
       .onChange(of: isVisible, initial: true) {
-        setToolbarVisibility(isVisible)
-      }
-      .onChange(of: isWindowFullScreen) {
-        setToolbarVisibility(isVisible)
+        self.setToolbarVisibility(isVisible)
       }
       .onDisappear {
-        setToolbarVisibility(true)
+        self.setToolbarVisibility(true)
       }
   }
 
   private func setToolbarVisibility(_ flag: Bool) {
-    windowed.window?.setToolbarVisibility(flag)
+    self.window.window?.setToolbarVisibility(flag)
   }
 }
 
@@ -199,6 +195,7 @@ where Source: PreferenceKey,
 extension Duration {
   // TODO: Rename.
   static let imagesElapse = Self.seconds(1)
+  static let imagesHoverElapse = Self.seconds(3)
 
   // Instruments
 

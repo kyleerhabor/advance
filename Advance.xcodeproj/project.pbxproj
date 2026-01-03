@@ -17,7 +17,6 @@
 		0029E59D2C79A115000BFBA8 /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = 0029E59C2C79A115000BFBA8 /* Defaults */; };
 		0029E5A02C79A9F3000BFBA8 /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = 0029E59F2C79A9F3000BFBA8 /* Defaults */; };
 		0033751A2B34EBC800423A58 /* ImageCollectionItemView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003375192B34EBC800423A58 /* ImageCollectionItemView.swift */; };
-		00360ECE2C59FFEA00BF7D1B /* SwiftUIIntrospect in Frameworks */ = {isa = PBXBuildFile; productRef = 00360ECD2C59FFE900BF7D1B /* SwiftUIIntrospect */; };
 		003763C92AB4068700D53F2E /* ImageCollectionSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003763C82AB4068700D53F2E /* ImageCollectionSidebarView.swift */; };
 		003763CC2AB40FD800D53F2E /* ImageCollectionSidebarEmptyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003763CB2AB40FD800D53F2E /* ImageCollectionSidebarEmptyView.swift */; };
 		004015DF2ED422B8001DB655 /* BigInt in Frameworks */ = {isa = PBXBuildFile; productRef = 004015DE2ED422B8001DB655 /* BigInt */; };
@@ -105,7 +104,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				00360ECE2C59FFEA00BF7D1B /* SwiftUIIntrospect in Frameworks */,
 				0099BE812E84C95F007B04D8 /* GRDB in Frameworks */,
 				004015DF2ED422B8001DB655 /* BigInt in Frameworks */,
 				0013F6082C2208720038BB2A /* IdentifiedCollections in Frameworks */,
@@ -326,7 +324,6 @@
 				00B6E0D82C18103300544C8B /* AdvanceCore */,
 				0013F6072C2208720038BB2A /* IdentifiedCollections */,
 				00B0B27D2C55EA2300542E0D /* DequeModule */,
-				00360ECD2C59FFE900BF7D1B /* SwiftUIIntrospect */,
 				0029E59C2C79A115000BFBA8 /* Defaults */,
 				0029E59F2C79A9F3000BFBA8 /* Defaults */,
 				0099BE802E84C95F007B04D8 /* GRDB */,
@@ -366,7 +363,6 @@
 				008815F42B07DC8A00D8F3D8 /* XCRemoteSwiftPackageReference "swift-algorithms" */,
 				0013F6062C2208720038BB2A /* XCRemoteSwiftPackageReference "swift-identified-collections" */,
 				00B0B27C2C55EA2200542E0D /* XCRemoteSwiftPackageReference "swift-collections" */,
-				00360ECC2C59FFE900BF7D1B /* XCRemoteSwiftPackageReference "SwiftUI-Introspect" */,
 				0029E59E2C79A9F3000BFBA8 /* XCRemoteSwiftPackageReference "Defaults" */,
 				0099BE7F2E84C95F007B04D8 /* XCRemoteSwiftPackageReference "GRDB" */,
 				004015DD2ED422B7001DB655 /* XCRemoteSwiftPackageReference "BigInt" */,
@@ -698,14 +694,6 @@
 				revision = cc938ecf0bed848dc80a9726ac5455104e3f9dae;
 			};
 		};
-		00360ECC2C59FFE900BF7D1B /* XCRemoteSwiftPackageReference "SwiftUI-Introspect" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/siteline/SwiftUI-Introspect";
-			requirement = {
-				kind = revision;
-				revision = 807f73ce09a9b9723f12385e592b4e0aaebd3336;
-			};
-		};
 		004015DD2ED422B7001DB655 /* XCRemoteSwiftPackageReference "BigInt" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/leif-ibsen/BigInt.git";
@@ -762,11 +750,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 0029E59E2C79A9F3000BFBA8 /* XCRemoteSwiftPackageReference "Defaults" */;
 			productName = Defaults;
-		};
-		00360ECD2C59FFE900BF7D1B /* SwiftUIIntrospect */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 00360ECC2C59FFE900BF7D1B /* XCRemoteSwiftPackageReference "SwiftUI-Introspect" */;
-			productName = SwiftUIIntrospect;
 		};
 		004015DE2ED422B8001DB655 /* BigInt */ = {
 			isa = XCSwiftPackageProductDependency;

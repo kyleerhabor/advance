@@ -25,128 +25,14 @@ extension URL {
   static let imagesDirectory = Self.dataDirectory.appending(component: "Images", directoryHint: .isDirectory)
 }
 
-protocol ImagesItemModelSource: CustomStringConvertible {
-  var url: URL? { get }
-
-  func resampleImage(length: Int) async -> CGImage?
-}
-
-struct AnyImagesItemModelSource {
-  let source: any ImagesItemModelSource & Sendable
-}
-
-extension AnyImagesItemModelSource: Sendable {}
-
-extension AnyImagesItemModelSource: ImagesItemModelSource {
-  var description: String {
-    source.description
-  }
-
-  var url: URL? {
-    source.url
-  }
-
-  func resampleImage(length: Int) async -> CGImage? {
-    await source.resampleImage(length: length)
-  }
-}
-
-extension ImagesItemModelSource {
-  // MARK: - Convenience
-
-  static func resampleImage(source imageSource: CGImageSource, length: Int) -> CGImage? {
-    let iimage = CGImageSourceGetPrimaryImageIndex(imageSource)
-    let options: [CFString: Any] = [
-      kCGImageSourceCreateThumbnailFromImageAlways: true,
-      // TODO: Document.
-      kCGImageSourceCreateThumbnailWithTransform: true,
-      kCGImageSourceShouldCacheImmediately: true,
-      kCGImageSourceThumbnailMaxPixelSize: length
-    ]
-
-    guard let image = CGImageSourceCreateThumbnailAtIndex(imageSource, iimage, options as CFDictionary) else {
-      return nil
-    }
-
-    return image
-  }
-}
-
-struct ImagesItemModelDataSource {}
-
-extension ImagesItemModelDataSource: ImagesItemModelSource {
-  var description: String {
-    // Not implemented.
-    ""
-  }
-
-  var url: URL? {
-    // Not implemented.
-    nil
-  }
-
-  func resampleImage(length: Int) async -> CGImage? {
-    // Not implemented.
-    nil
-  }
-}
-
-struct ImagesItemModelFileSource {
-  let document: URLSourceDocument
-}
-
-extension ImagesItemModelFileSource: ImagesItemModelSource {
-  var description: String {
-    document.source.url.pathString
-  }
-
-  var url: URL? {
-    document.source.url
-  }
-
-  func resampleImage(length: Int) async -> CGImage? {
-    let url = document.source.url
-    let thumbnail = document.accessingSecurityScopedResource { () -> CGImage? in
-      guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
-        return nil
-      }
-
-      return Self.resampleImage(source: source, length: length)
-    }
-
-    guard let thumbnail else {
-      return nil
-    }
-
-    Logger.model.info("Created a resampled image for image at URL \"\(url.pathString)\" with dimensions \(thumbnail.width) x \(thumbnail.height) for length \(length)")
-
-    return thumbnail
-  }
-}
-
-struct ImagesItemModelProperties {
-  let aspectRatio: Double
-}
-
-extension ImagesItemModelProperties: Sendable {}
-
 @Observable
 final class ImagesItemModel {
   let id: RowID
   // A generic parameter would be nice, but heavily infects views as a consequence.
-  var source: AnyImagesItemModelSource
-  var properties: ImagesItemModelProperties
   var isBookmarked: Bool
 
-  init(
-    id: RowID,
-    source: AnyImagesItemModelSource,
-    properties: ImagesItemModelProperties,
-    isBookmarked: Bool
-  ) {
+  init(id: RowID, isBookmarked: Bool) {
     self.id = id
-    self.source = source
-    self.properties = properties
     self.isBookmarked = isBookmarked
   }
 }
@@ -221,11 +107,15 @@ final class ImagesItemModel2 {
   // (hopefully the former).
   var sidebarImage: NSImage
   var sidebarImagePhase: ImagesItemModelImagePhase
+  @ObservationIgnored var sidebarImageWidth: CGFloat
+  @ObservationIgnored var sidebarImagePixelLength: CGFloat
   var detailImage: NSImage
   @ObservationIgnored var detailImageID: UUID
   var detailImagePhase: ImagesItemModelImagePhase
+  @ObservationIgnored var detailImageWidth: CGFloat
+  @ObservationIgnored var detailImagePixelLength: CGFloat
   var imageAnalysis: ImageAnalysis?
-  var isHighlighted: Bool
+  var isSelectableItemsHighlighted: Bool
 
   init(
     id: RowID,
@@ -237,11 +127,15 @@ final class ImagesItemModel2 {
     edge: VerticalEdge.Set,
     sidebarImage: NSImage,
     sidebarImagePhase: ImagesItemModelImagePhase,
+    sidebarImageWidth: CGFloat,
+    sidebarImagePixelLength: CGFloat,
     detailImage: NSImage,
     detailImageID: UUID,
     detailImagePhase: ImagesItemModelImagePhase,
+    detailImageWidth: CGFloat,
+    detailImagePixelLength: CGFloat,
     imageAnalysis: ImageAnalysis?,
-    isHighlighted: Bool,
+    isSelectableItemsHighlighted: Bool,
   ) {
     self.id = id
     self.url = url
@@ -252,11 +146,15 @@ final class ImagesItemModel2 {
     self.edge = edge
     self.sidebarImage = sidebarImage
     self.sidebarImagePhase = sidebarImagePhase
+    self.sidebarImageWidth = sidebarImageWidth
+    self.sidebarImagePixelLength = sidebarImagePixelLength
     self.detailImage = detailImage
     self.detailImageID = detailImageID
     self.detailImagePhase = detailImagePhase
+    self.detailImageWidth = detailImageWidth
+    self.detailImagePixelLength = detailImagePixelLength
     self.imageAnalysis = imageAnalysis
-    self.isHighlighted = isHighlighted
+    self.isSelectableItemsHighlighted = isSelectableItemsHighlighted
   }
 }
 
@@ -393,11 +291,27 @@ extension ImagesModelEngineURLError: LocalizedError {
   }
 }
 
+struct ImagesItemModelResample {
+  let item: ImagesItemModel2
+  let frame: CGRect
+}
+
+@MainActor
+struct ImagesModelResample {
+  let width: Double
+  let items: [ImagesItemModel2]
+}
+
+extension ImagesModelResample: @MainActor Equatable {}
+
+enum ImagesModelLoadImagesColumn {
+  case sidebar, detail
+}
+
 @Observable
 @MainActor
 final class ImagesModel {
   typealias ID = UUID
-  typealias Resampler = AsyncStream<Runner<CGImage?, Never>>
 
   let id: ID
   @ObservationIgnored private var hasLoaded: Bool
@@ -405,8 +319,11 @@ final class ImagesModel {
   var bookmarkedItems: Set<ImagesItemModel2.ID>
   var currentItem: ImagesItemModel2?
   var hasLoadedNoImages: Bool
+  @ObservationIgnored let hoverChannel: AsyncChannel<Bool>
   @ObservationIgnored let sidebar: AsyncChannel<ImagesModelSidebarElement>
   @ObservationIgnored let detail: AsyncChannel<ImagesItemModel2.ID>
+  @ObservationIgnored let detailResample: AsyncChannel<ImagesModelResample>
+  @ObservationIgnored let sidebarResample: AsyncChannel<ImagesModelResample>
   @ObservationIgnored private var resolvedItems: Set<ImagesItemModel2.ID>
 
   // MARK: - UI properties
@@ -414,14 +331,13 @@ final class ImagesModel {
   var isHighlighted: Bool
 
   // MARK: - Old properties
-
   var items2: IdentifiedArrayOf<ImagesItemModel>
   var isReady: Bool {
     performedItemsFetch && performedPropertiesFetch
   }
+
   private var performedItemsFetch = false
   private var performedPropertiesFetch = false
-  @ObservationIgnored var resampler: (stream: Resampler, continuation: Resampler.Continuation)
 
   init(id: UUID) {
     self.id = id
@@ -429,18 +345,19 @@ final class ImagesModel {
     self.items = []
     self.bookmarkedItems = []
     self.hasLoadedNoImages = false
+    self.hoverChannel = AsyncChannel()
     self.sidebar = AsyncChannel()
     self.detail = AsyncChannel()
+    self.detailResample = AsyncChannel()
+    self.sidebarResample = AsyncChannel()
     self.resolvedItems = []
     self.visibleItems = []
     self.isHighlighted = false
 
     self.items2 = []
-    // Should we set an explicit buffering policy?
-    self.resampler = AsyncStream.makeStream()
   }
 
-  func load2() async {
+  func load() async {
     await _load()
   }
 
@@ -448,8 +365,49 @@ final class ImagesModel {
     await _loadImage(item: item, length: length)
   }
 
-  func loadImages(items: [ImagesItemModel2], width: Double, pixelLength: Double) async {
-    await _loadImages(items: items.map(\.id), width: width, pixelLength: pixelLength)
+  func loadImages(
+    in column: ImagesModelLoadImagesColumn,
+    items: [ImagesItemModel2],
+    width: Double,
+    pixelLength: Double,
+  ) async {
+    await self._loadImages(
+      items: items
+        .filter { item in
+          switch column {
+            case .sidebar:
+              item.sidebarImagePhase != .success
+              || item.sidebarImageWidth != width
+              || item.sidebarImagePixelLength != pixelLength
+            case .detail:
+              item.detailImagePhase != .success
+              || item.detailImageWidth != width
+              || item.detailImagePixelLength != pixelLength
+          }
+        }
+        .map(\.id),
+      width: width,
+      column: column,
+      pixelLength: pixelLength,
+    )
+
+    self.items.forEach { item in
+      guard !items.contains(item) else {
+        return
+      }
+
+      switch column {
+        case .sidebar:
+          item.sidebarImage = NSImage()
+          item.sidebarImagePhase = .empty
+        case .detail:
+          item.detailImage = NSImage()
+          item.detailImageID = UUID()
+          item.detailImagePhase = .empty
+          item.imageAnalysis = nil
+          item.isSelectableItemsHighlighted = false
+      }
+    }
   }
 
   func loadImageAnalysis(item: ImagesItemModel2, types: ImageAnalysisTypes) async {
@@ -645,7 +603,7 @@ final class ImagesModel {
   }
 
   func highlight(items: [ImagesItemModel2], isHighlighted: Bool) {
-    items.forEach(setter(on: \.isHighlighted, value: isHighlighted))
+    items.forEach(setter(on: \.isSelectableItemsHighlighted, value: isHighlighted))
   }
 
   nonisolated private func orientationImageProperty(data: [CFString : Any]) -> CGImagePropertyOrientation? {
@@ -733,11 +691,15 @@ final class ImagesModel {
             edge: [],
             sidebarImage: NSImage(),
             sidebarImagePhase: .empty,
+            sidebarImageWidth: .nan,
+            sidebarImagePixelLength: .nan,
             detailImage: NSImage(),
             detailImageID: UUID(),
             detailImagePhase: .empty,
+            detailImageWidth: .nan,
+            detailImagePixelLength: .nan,
             imageAnalysis: nil,
-            isHighlighted: false,
+            isSelectableItemsHighlighted: false,
           )
         }
     )
@@ -925,8 +887,7 @@ final class ImagesModel {
     do {
       connection = try await databaseConnection()
     } catch {
-      // TODO: Elaborate.
-      Logger.model.error("\(error)")
+      Logger.model.error("Could not create database connection for image collection '\(self.id)': \(error)")
 
       return
     }
@@ -936,8 +897,7 @@ final class ImagesModel {
         await load(connection: connection, images: images)
       }
     } catch {
-      // TODO: Elaborate.
-      Logger.model.error("\(error)")
+      Logger.model.error("Could not observe values for image collection '\(self.id)': \(error)")
 
       return
     }
@@ -1001,16 +961,23 @@ final class ImagesModel {
       kCGImageSourceCreateThumbnailWithTransform: true,
     ] as [CFString : Any]
 
-    // This is memory-intensive, so it shouldn't be called from a task group with a variable number of child tasks.
+    // This is CPU and memory-intensive, so it shouldn't be called from a task group with a variable number of child tasks.
     guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(
             imageSource,
             index,
             thumbnailCreationOptions as CFDictionary,
           ) else {
-      Logger.model.error("Could not create thumbnail at pixel size '\(length)' for image source at file URL '\(url.pathString)'")
+      Logger.model.error("Could not create thumbnail at pixel size \(length) for image source at file URL '\(url.pathString)'")
 
       return nil
     }
+
+    Logger.model.debug(
+      """
+      Created thumbnail at dimensions \(thumbnail.width) x \(thumbnail.height) from pixel size \(length) for image \
+      source at file URL '\(url.pathString)'
+      """,
+    )
 
     return NSImage(cgImage: thumbnail, size: .zero)
   }
@@ -1132,7 +1099,12 @@ final class ImagesModel {
     return image
   }
 
-  nonisolated private func _loadImages(items: [ImagesItemModel2.ID], width: Double, pixelLength: Double) async {
+  nonisolated private func _loadImages(
+    items: [RowID],
+    width: Double,
+    column: ImagesModelLoadImagesColumn,
+    pixelLength: Double,
+  ) async {
     let connection: DatabasePool
 
     do {
@@ -1222,14 +1194,29 @@ final class ImagesModel {
         let imagesItem = self.items[id: item.item.rowID!]!
 
         guard let image else {
-          imagesItem.detailImagePhase = .failure
+          switch column {
+            case .sidebar:
+              imagesItem.sidebarImagePhase = .failure
+            case .detail:
+              imagesItem.detailImagePhase = .failure
+          }
 
           return
         }
 
-        imagesItem.detailImage = image
-        imagesItem.detailImageID = UUID()
-        imagesItem.detailImagePhase = .success
+        switch column {
+          case .sidebar:
+            imagesItem.sidebarImage = image
+            imagesItem.sidebarImagePhase = .success
+            imagesItem.sidebarImageWidth = width
+            imagesItem.sidebarImagePixelLength = pixelLength
+          case .detail:
+            imagesItem.detailImage = image
+            imagesItem.detailImageID = UUID()
+            imagesItem.detailImagePhase = .success
+            imagesItem.detailImageWidth = width
+            imagesItem.detailImagePixelLength = pixelLength
+        }
       }
     }
   }
@@ -2568,20 +2555,6 @@ final class ImagesModel {
     }
 
     return url
-  }
-
-  // MARK: - Old
-
-  private func loadRunGroups() async throws {
-    var resampler = resampler.stream.makeAsyncIterator()
-
-    async let resamplerRunGroup: () = run(limit: 8, iterator: &resampler)
-    _ = try await [resamplerRunGroup]
-  }
-
-  @MainActor
-  func load() async throws {
-    try await loadRunGroups()
   }
 }
 

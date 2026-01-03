@@ -23,26 +23,22 @@ struct ImagesDetailItemContentAnalysisView: View {
 }
 
 struct ImagesDetailItemContentView: View {
-  let item: ImagesItemModel
-
   @State private var phase = ImagesItemPhase.empty
   @State private var isHighlighted = false
+  let item: ImagesItemModel
 
   var body: some View {
-    ImagesItemView(item: item, phase: $phase) {
-      ImagesItemPhaseView(phase: phase)
-        .aspectRatio(item.properties.aspectRatio, contentMode: .fit)
-        .overlay {
-          ImagesDetailItemContentAnalysisView(isHighlighted: $isHighlighted)
+    ImagesItemPhaseView(phase: phase)
+      .overlay {
+        ImagesDetailItemContentAnalysisView(isHighlighted: $isHighlighted)
+      }
+      .anchorPreference(key: VisiblePreferenceKey<ImagesDetailListVisibleItem>.self, value: .bounds) { anchor in
+        let item = ImagesDetailListVisibleItem(item: item, isHighlighted: isHighlighted) { isOn in
+          isHighlighted = isOn
         }
-        .anchorPreference(key: VisiblePreferenceKey<ImagesDetailListVisibleItem>.self, value: .bounds) { anchor in
-          let item = ImagesDetailListVisibleItem(item: item, isHighlighted: isHighlighted) { isOn in
-            isHighlighted = isOn
-          }
 
-          return [VisibleItem(item: item, anchor: anchor)]
-        }
-    }
+        return [VisibleItem(item: item, anchor: anchor)]
+      }
   }
 }
 

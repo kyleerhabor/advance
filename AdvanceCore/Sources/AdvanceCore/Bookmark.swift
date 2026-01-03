@@ -33,7 +33,7 @@ extension URL {
   }
 
   public func bookmark(options: BookmarkCreationOptions, relativeTo relative: URL?) async throws -> Data {
-    try await withTranslatingCheckedContinuation {
+    try await schedule {
       try self.bookmark(options: options, relativeTo: relative)
     }
   }

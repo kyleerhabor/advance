@@ -44,11 +44,20 @@ struct ImagesSidebarSelectionID {
 
 extension ImagesSidebarSelectionID: @MainActor Equatable {}
 
+struct ImagesSidebarItemView2: View {
+  let item: ImagesItemModel2
+
+  var body: some View {
+    ImagesItemImageView(item: item, image: item.sidebarImage, phase: item.sidebarImagePhase)
+  }
+}
+
 struct ImagesSidebarView2: View {
   @Environment(AppModel.self) private var app
   @Environment(Window.self) private var window
   @Environment(ImagesModel.self) private var images
   @Environment(\.locale) private var locale
+  @Environment(\.pixelLength) private var pixelLength
   @AppStorage(StorageKeys.foldersPathDirection) private var foldersPathDirection
   @AppStorage(StorageKeys.foldersPathSeparator) private var foldersPathSeparator
   @AppStorage(StorageKeys.importHiddenFiles) private var importHiddenFiles
@@ -64,7 +73,6 @@ struct ImagesSidebarView2: View {
   @State private var isCopyFolderFileImporterPresented = false
   @State private var isSidebarShowSelectActive = false
   @FocusState private var isFocused
-
   private var sceneID: AppModelCommandSceneID {
     .imagesSidebar(self.images.id)
   }
@@ -73,7 +81,10 @@ struct ImagesSidebarView2: View {
     ScrollViewReader { proxy in
       List(images.items, selection: $selection) { item in
         VStack {
-          ImagesItemView2(item: item)
+          ImagesSidebarItemView2(item: item)
+            .anchorPreference(key: ImagesItemsPreferenceKey.self, value: .bounds) { anchor in
+              [ImagesItemPreferenceValue(item: item, anchor: anchor)]
+            }
             .overlay(alignment: .topTrailing) {
               // TODO: Figure out how to draw a white outline.
               //
@@ -96,6 +107,105 @@ struct ImagesSidebarView2: View {
         }
       }
       .focused($isFocused)
+      .overlay {
+        ContentUnavailableView {
+          Button {
+            isFileImporterPresented = true
+          } label: {
+            Label("Images.Sidebar.Import", systemImage: "square.and.arrow.down")
+              .labelStyle(ImagesSidebarImportLabelStyle())
+          }
+          .buttonStyle(.plain)
+          .disabled(!images.hasLoadedNoImages)
+          .visible(images.hasLoadedNoImages)
+        }
+      }
+      .overlay {
+        if images.hasLoadedNoImages {
+          Color.clear
+            .dropDestination(for: ImagesItemTransfer.self) { items, _ in
+              Task {
+                await images.store(
+                  items: items,
+                  enumerationOptions: StorageKeys.directoryEnumerationOptions(
+                    importHiddenFiles: self.importHiddenFiles,
+                    importSubdirectories: self.importSubdirectories,
+                  ),
+                )
+              }
+
+              return true
+            }
+        }
+      }
+      .backgroundPreferenceValue(ImagesItemsPreferenceKey.self) { value in
+        GeometryReader { proxy in
+          Color.clear
+            .task(id: value) {
+              let frame = proxy.frame(in: .local)
+              let items = value
+                .map { ImagesItemModelResample(item: $0.item, frame: proxy[$0.anchor]) }
+                .filter { frame.intersects($0.frame) }
+
+              guard let item = items.first else {
+                return
+              }
+
+              let width = item.frame.width
+
+              guard width != 0 else {
+                return
+              }
+
+              await self.images.sidebarResample.send(ImagesModelResample(width: width, items: items.map(\.item)))
+            }
+        }
+      }
+      .task(id: self.images) {
+        for await resample in self.images.sidebarResample.removeDuplicates() {
+          var items = [ImagesItemModel2](reservingCapacity: resample.items.count + 8)
+
+          // TODO: Reimplement to prioritize images.
+          //
+          // In general:
+          //
+          //   [A, B, C, D, E, F, G]
+          //
+          // Could be processed as:
+          //
+          //   [D, C, E, B, F, A, G]
+          //
+          // To see if the user finds it more responsive.
+
+          if let index = self.images.items.index(id: resample.items.first!.id) {
+            let item1 = self.images.items.before(index: index)
+            let item2 = item1.flatMap { self.images.items.before(index: $0.index) }
+            let item3 = item2.flatMap { self.images.items.before(index: $0.index) }
+            let item4 = item3.flatMap { self.images.items.before(index: $0.index) }
+
+            item4.map { items.append($0.element) }
+            item3.map { items.append($0.element) }
+            item2.map { items.append($0.element) }
+            item1.map { items.append($0.element) }
+          }
+
+          items.append(contentsOf: resample.items)
+
+          if let index = self.images.items.index(id: resample.items.last!.id) {
+            let item1 = self.images.items.after(index: index)
+            let item2 = item1.flatMap { self.images.items.after(index: $0.index) }
+            let item3 = item2.flatMap { self.images.items.after(index: $0.index) }
+            let item4 = item3.flatMap { self.images.items.after(index: $0.index) }
+
+            item1.map { items.append($0.element) }
+            item2.map { items.append($0.element) }
+            item3.map { items.append($0.element) }
+            item4.map { items.append($0.element) }
+          }
+
+          await self.images.loadImages(in: .sidebar, items: items, width: resample.width, pixelLength: pixelLength)
+        }
+      }
       .contextMenu { ids in
         Group {
           Section {
@@ -138,37 +248,6 @@ struct ImagesSidebarView2: View {
         .disabled(images.isInvalidSelection(of: ids))
       }
       .copyable(images.urls(ofItems: selection))
-      .overlay {
-        ContentUnavailableView {
-          Button {
-            isFileImporterPresented = true
-          } label: {
-            Label("Images.Sidebar.Import", systemImage: "square.and.arrow.down")
-              .labelStyle(ImagesSidebarImportLabelStyle())
-          }
-          .buttonStyle(.plain)
-          .disabled(!images.hasLoadedNoImages)
-          .visible(images.hasLoadedNoImages)
-        }
-      }
-      .overlay {
-        if images.hasLoadedNoImages {
-          Color.clear
-            .dropDestination(for: ImagesItemTransfer.self) { items, _ in
-              Task {
-                await images.store(
-                  items: items,
-                  enumerationOptions: StorageKeys.directoryEnumerationOptions(
-                    importHiddenFiles: self.importHiddenFiles,
-                    importSubdirectories: self.importSubdirectories,
-                  ),
-                )
-              }
-
-              return true
-            }
-        }
-      }
       .onChange(
         of: ImagesSidebarSelectionID(
           images: images,

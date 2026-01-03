@@ -24,6 +24,17 @@ public func constantly<Value, each Argument>(_ value: Value) -> (repeat each Arg
   return result
 }
 
+public func constantly<Value, each Argument>(
+  _ value: Value
+) -> @Sendable (repeat each Argument) async -> Value where Value: Sendable,
+                                                           repeat each Argument: Sendable {
+  @Sendable func result<each Arg>(_ args: repeat each Arg) -> Value {
+    value
+  }
+
+  return result
+}
+
 public func applying<Value, each Argument>(_ args: repeat each Argument) -> ((repeat each Argument) -> Value) -> Value {
   { f in
     f(repeat each args)
@@ -301,69 +312,6 @@ public actor Once<Value, each Argument> where Value: Sendable,
   }
 }
 
-public struct Runner<T, E>: Sendable where E: Error {
-  public typealias Run = @Sendable () async throws(E) -> T
-
-  public let run: Run
-  public let continuation: CheckedContinuation<T, E>
-
-  public func execute() async {
-    do {
-      continuation.resume(returning: try await run())
-    } catch {
-      continuation.resume(throwing: error)
-    }
-  }
-}
-
-extension Runner {
-  public init(continuation: CheckedContinuation<T, E>, _ run: @escaping Run) {
-    self.init(run: run, continuation: continuation)
-  }
-}
-
-public func run<L, T, E, S>(limit: L, iterator: inout S) async throws where L: AdditiveArithmetic & Strideable,
-                                                                            S: AsyncIteratorProtocol,
-                                                                            S.Element == Runner<T, E>,
-                                                                            E: Error {
-  try await withThrowingTaskGroup(of: Void.self) { group in
-    for _ in stride(from: L.zero, to: limit, by: 1) {
-      guard let runner = try await iterator.next() else {
-        return
-      }
-
-      group.addTask {
-        await runner.execute()
-      }
-    }
-
-    while try await group.next() != nil,
-          let runner = try await iterator.next() {
-      group.addTask {
-        await runner.execute()
-      }
-    }
-  }
-}
-
-public func run<T>(
-  in runGroup: AsyncStream<Runner<T, Never>>.Continuation,
-  _ body: @escaping Runner<T, Never>.Run
-) async -> T {
-  await withCheckedContinuation { continuation in
-    runGroup.yield(Runner(continuation: continuation, body))
-  }
-}
-
-public func run<T>(
-  in runGroup: AsyncStream<Runner<T, any Error>>.Continuation,
-  _ body: @escaping Runner<T, any Error>.Run
-) async throws -> T {
-  try await withCheckedThrowingContinuation { continuation in
-    runGroup.yield(Runner(continuation: continuation, body))
-  }
-}
-
 public struct ClockMeasurement<T, D> where D: DurationProtocol {
   public let value: T
   public let duration: D
@@ -448,7 +396,7 @@ public func run<T, E, Base>(base: Base, count: Int) async throws where Base: Asy
 // The solution, then, is to not block cooperative threads. We use operation queues here to prevent thread explosion.
 //
 // See https://forums.swift.org/t/cooperative-pool-deadlock-when-calling-into-an-opaque-subsystem/70685
-public func withTranslatingCheckedContinuation<T>(
+public func schedule<T>(
   on queue: OperationQueue = .global,
   _ body: @escaping @Sendable () throws -> T,
 ) async throws -> T {

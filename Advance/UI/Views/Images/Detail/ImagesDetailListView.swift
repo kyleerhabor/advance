@@ -86,8 +86,6 @@ struct ImagesDetailListView: View {
     ScrollViewReader { proxy in
       List(images.isReady ? images.items2 : []) { item in
         ImagesDetailItemView(item: item)
-          .listRowInsets(.listRow)
-          .listRowSeparator(.hidden)
           .anchorPreference(key: ScrollOffsetPreferenceKey.self, value: .origin, transform: identity)
       }
       .listStyle(.plain)
@@ -106,39 +104,12 @@ struct ImagesDetailListView: View {
       }
       .preferencePublisher(VisiblePreferenceKey.self, subject: model.visiblesSubject, publisher: model.visiblesPublisher)
       .overlayPreferenceValue(VisiblePreferenceKey<ImagesDetailListVisibleItem>.self) { items in
-        GeometryReader { proxy in
-          let local = proxy.frame(in: .local)
-          let items = items.filter { local.intersects(proxy[$0.anchor]) }
-          let visible = items.reduce(into: ImagesDetailVisible(
-            items: Array(reservingCapacity: items.count),
-            highlights: Array(reservingCapacity: items.count)
-          )) { partialResult, item in
-            partialResult.items.append(item.item.item)
-            partialResult.highlights.append(item.item.highlight)
-          }
-
-          Color.clear.preference(key: ImagesDetailVisiblePreferenceKey.self, value: visible)
+        GeometryReader { _ in
+          Color.clear
         }
       }
-      .toolbarVisible(
-        !hiddenLayout.toolbar
-        || isWindowFullScreen
-        || columnVisibility.columnVisibility != .detailOnly
-        || !model.isActive
-//        || !(model.isHovering && model.isActive)
-      )
-      .cursorVisible(
-        !hiddenLayout.cursor
-        || columnVisibility.columnVisibility != .detailOnly
-        || !model.isActive
-//        || !(model.isHovering && model.isActive)
-      )
       // TODO: Document rationale for not hiding on scroll.
-      .scrollIndicators(
-        hiddenLayout.scroll && columnVisibility.columnVisibility == .detailOnly
-          ? .hidden
-          : .automatic,
-      )
+      .scrollIndicators(hiddenLayout.scroll && columnVisibility.columnVisibility == .detailOnly ? .hidden : .automatic)
       .onContinuousHover { phase in
         switch phase {
           case .active:

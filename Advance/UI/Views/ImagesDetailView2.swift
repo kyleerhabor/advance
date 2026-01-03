@@ -11,71 +11,6 @@ import OSLog
 import SwiftUI
 import VisionKit
 
-struct ImagesDetailItemImageView2: View {
-  @State private var hasElapsed = false
-  let item: ImagesItemModel2
-
-  var body: some View {
-    let isSuccess = item.detailImagePhase == .success
-
-    Image(nsImage: item.detailImage)
-      .resizable()
-      .background(.fill.quaternary.visible(!isSuccess), in: .rect)
-      .animation(.default, value: isSuccess)
-      .overlay {
-        let isVisible = item.detailImagePhase == .empty && hasElapsed
-
-        ProgressView()
-          .visible(isVisible)
-          .animation(.default, value: isVisible)
-      }
-      .overlay {
-        let isVisible = item.detailImagePhase == .failure
-
-        Image(systemName: "exclamationmark.triangle.fill")
-          .symbolRenderingMode(.multicolor)
-          .imageScale(.large)
-          .visible(isVisible)
-          .animation(.default, value: isVisible)
-      }
-      .aspectRatio(item.aspectRatio, contentMode: .fit)
-      .task {
-        do {
-          try await Task.sleep(for: .imagesElapse)
-        } catch is CancellationError {
-          return
-        } catch {
-          unreachable()
-        }
-
-        hasElapsed = true
-      }
-  }
-}
-
-@MainActor
-struct ImagesDetailItem {
-  let item: ImagesItemModel2
-  let anchor: Anchor<CGRect>
-}
-
-extension ImagesDetailItem: @MainActor Equatable {}
-
-struct ImagesDetailItemsPreferenceKey: PreferenceKey {
-  static let defaultValue = [ImagesDetailItem]()
-
-  static func reduce(value: inout [ImagesDetailItem], nextValue: () -> [ImagesDetailItem]) {
-    value.append(contentsOf: nextValue())
-  }
-}
-
-struct ImagesDetailResample {
-  let width: Double
-  let items: [ImagesItemModel2]
-}
-
-extension ImagesDetailResample: Equatable {}
-
 struct ImagesDetailViewLiveTextID {
   let id: UUID
   let phase: ImagesItemModelImagePhase
@@ -115,7 +50,7 @@ struct ImageDetailItemImageAnalysisView: View {
     @Bindable var item = self.item
 
     ImageAnalysisView2(
-      selectableItemsHighlighted: $item.isHighlighted,
+      selectableItemsHighlighted: $item.isSelectableItemsHighlighted,
       analysis: item.imageAnalysis,
       preferredInteractionTypes: preferredInteractionTypes,
       isSupplementaryInterfaceHidden: !isSupplementaryInterfaceVisible,
@@ -133,7 +68,7 @@ struct ImageDetailItemImageAnalysisView: View {
       }
 
       if !isSystemSearchEnabled {
-        let index = menu.items.firstIndex { $0.action == NSMenuItem.searchAction }
+        let index = menu.items.firstIndex { $0.identifier == NSMenuItem.search }
 
         if let index {
           if let engine = search.engine {
@@ -218,6 +153,14 @@ struct ImagesDetailItemBackgroundView: View {
   }
 }
 
+struct ImagesDetailItemView2: View {
+  let item: ImagesItemModel2
+
+  var body: some View {
+    ImagesItemImageView(item: item, image: item.detailImage, phase: item.detailImagePhase)
+  }
+}
+
 struct ImagesDetailView2: View {
   @Environment(ImagesModel.self) private var images
   @Environment(\.locale) private var locale
@@ -233,7 +176,6 @@ struct ImagesDetailView2: View {
   @Binding var copyFolderError: ImagesModelCopyFolderError?
   @Binding var isCopyFolderErrorPresented: Bool
   @State private var itemsChannel = AsyncChannel<[ImagesItemModel2]>()
-  @State private var resamples = AsyncChannel<ImagesDetailResample>()
   @State private var copyFolderSelection: ImagesItemModel2.ID?
   @State private var isCopyFolderFileImporterPresented = false
   @State private var searchError: ImagesModelEngineURLError?
@@ -265,7 +207,10 @@ struct ImagesDetailView2: View {
         //
         // For some reason, we need to extract accesses to item's properties into dedicated views to prevent slow view
         // updates when switching windows.
-        ImagesDetailItemImageView2(item: item)
+        ImagesDetailItemView2(item: item)
+          .anchorPreference(key: ImagesItemsPreferenceKey.self, value: .bounds) { anchor in
+            [ImagesItemPreferenceValue(item: item, anchor: anchor)]
+          }
           .overlay {
             ImageDetailItemImageAnalysisView(
               searchError: $searchError,
@@ -276,9 +221,6 @@ struct ImagesDetailView2: View {
           }
           .background {
             ImagesDetailItemBackgroundView(item: item)
-          }
-          .anchorPreference(key: ImagesDetailItemsPreferenceKey.self, value: .bounds) { anchor in
-            [ImagesDetailItem(item: item, anchor: anchor)]
           }
           .contextMenu {
             Section {
@@ -337,7 +279,7 @@ struct ImagesDetailView2: View {
           }
         }
       }
-      .backgroundPreferenceValue(ImagesDetailItemsPreferenceKey.self) { value in
+      .backgroundPreferenceValue(ImagesItemsPreferenceKey.self) { value in
         GeometryReader { proxy in
           Color.clear
             .task(id: value) {
@@ -346,24 +288,19 @@ struct ImagesDetailView2: View {
                 .filter { frame.intersects(proxy[$0.anchor]) }
                 .map(\.item)
 
-              await self.resamples.send(ImagesDetailResample(width: frame.width, items: items))
+              await self.images.detailResample.send(ImagesModelResample(width: frame.width, items: items))
               await self.itemsChannel.send(items)
             }
         }
       }
-      .task(id: images) {
-        guard !Task.isCancelled else {
-          return
-        }
-
-        for await resample in resamples.removeDuplicates() {
+      .task(id: self.images) {
+        for await resample in self.images.detailResample.removeDuplicates() {
           var items = [ImagesItemModel2](reservingCapacity: resample.items.count + 4)
 
           if let item = resample.items.first,
-             let index = images.items.index(id: item.id) {
-            let item1 = images.items.before(index: index)
-            let item2 = item1.flatMap { images.items.before(index: $0.index) }
-            
+             let index = self.images.items.index(id: item.id) {
+            let item1 = self.images.items.before(index: index)
+            let item2 = item1.flatMap { self.images.items.before(index: $0.index) }
             item2.map { items.append($0.element) }
             item1.map { items.append($0.element) }
           }
@@ -371,31 +308,14 @@ struct ImagesDetailView2: View {
           items.append(contentsOf: resample.items)
 
           if let item = resample.items.last,
-             let index = images.items.index(id: item.id) {
-            let item1 = images.items.after(index: index)
-            let item2 = item1.flatMap { images.items.after(index: $0.index) }
-
-            item2.map { items.append($0.element) }
+             let index = self.images.items.index(id: item.id) {
+            let item1 = self.images.items.after(index: index)
+            let item2 = item1.flatMap { self.images.items.after(index: $0.index) }
             item1.map { items.append($0.element) }
+            item2.map { items.append($0.element) }
           }
 
-          await images.loadImages(
-            items: items.filter { $0.detailImagePhase != .success },
-            width: resample.width,
-            pixelLength: pixelLength,
-          )
-
-          self.images.items.forEach { item in
-            // On average, average contains 6 elements, so I think this should be faster than using a set (but someone
-            // could test it).
-            guard !items.contains(item) else {
-              return
-            }
-
-            item.detailImage = NSImage()
-            item.detailImageID = UUID()
-            item.detailImagePhase = .empty
-          }
+          await self.images.loadImages(in: .detail, items: items, width: resample.width, pixelLength: pixelLength)
         }
       }
       .task(id: self.images) {
@@ -427,14 +347,14 @@ struct ImagesDetailView2: View {
             _ = await iterator.next()
           } else {
             self.images.visibleItems = items
-            self.images.isHighlighted = !self.images.visibleItems.isEmpty && self.images.visibleItems.allSatisfy(\.isHighlighted)
+            self.images.isHighlighted = !self.images.visibleItems.isEmpty && self.images.visibleItems.allSatisfy(\.isSelectableItemsHighlighted)
             await images.setCurrentItem(item: items.first)
           }
         }
 
         while let items = await iterator.next() {
           self.images.visibleItems = items
-          self.images.isHighlighted = !self.images.visibleItems.isEmpty && self.images.visibleItems.allSatisfy(\.isHighlighted)
+          self.images.isHighlighted = !self.images.visibleItems.isEmpty && self.images.visibleItems.allSatisfy(\.isSelectableItemsHighlighted)
           await images.setCurrentItem(item: items.first)
         }
       }

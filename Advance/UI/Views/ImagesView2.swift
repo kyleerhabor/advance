@@ -11,76 +11,19 @@ import OSLog
 import SwiftUI
 import VisionKit
 
-enum ImagesItemLoadImagePhase {
-  case empty, success, failure
+@MainActor
+struct ImagesItemPreferenceValue {
+  let item: ImagesItemModel2
+  let anchor: Anchor<CGRect>
 }
 
-struct ImagesItemView2: View {
-  @Environment(ImagesModel.self) private var images
-  @Environment(\.pixelLength) private var pixelLength
-  @State private var image = NSImage()
-  @State private var phase = ImagesItemLoadImagePhase.empty
-  @State private var hasElapsed = false
-  @State private var channel = AsyncChannel<Double>()
-  let item: ImagesItemModel2
+extension ImagesItemPreferenceValue: @MainActor Equatable {}
 
-  var body: some View {
-    Image(nsImage: image)
-      .resizable()
-      .background(.fill.quaternary.visible(phase != .success), in: .rect)
-      .animation(.default, value: phase == .success)
-      .overlay {
-        let isVisible = phase == .empty && hasElapsed
+struct ImagesItemsPreferenceKey: PreferenceKey {
+  static let defaultValue = [ImagesItemPreferenceValue]()
 
-        ProgressView()
-          .visible(isVisible)
-          .animation(.default, value: isVisible)
-      }
-      .overlay {
-        let isVisible = phase == .failure
-
-        Image(systemName: "exclamationmark.triangle.fill")
-          .symbolRenderingMode(.multicolor)
-          .imageScale(.large)
-          .visible(isVisible)
-          .animation(.default, value: isVisible)
-      }
-      .aspectRatio(item.aspectRatio, contentMode: .fit)
-      .task {
-        do {
-          try await Task.sleep(for: .imagesElapse)
-        } catch is CancellationError {
-          return
-        } catch {
-          unreachable()
-        }
-
-        hasElapsed = true
-      }
-      .task {
-        let lengths = chain(
-          channel.prefix(1),
-          channel.dropFirst().debounce(for: .microhang),
-        )
-
-        for await length in lengths {
-          let image = await images.loadImage(item: item.id, length: length / pixelLength)
-
-          guard !Task.isCancelled else {
-            return
-          }
-
-          self.image = image ?? NSImage()
-          self.phase = image == nil ? .failure : .success
-        }
-      }
-      .onGeometryChange(for: Double.self) { geometry in
-        geometry.size.length
-      } action: { length in
-        Task {
-          await channel.send(length)
-        }
-      }
+  static func reduce(value: inout [ImagesItemPreferenceValue], nextValue: () -> [ImagesItemPreferenceValue]) {
+    value.append(contentsOf: nextValue())
   }
 }
 
@@ -148,6 +91,7 @@ struct ImagesView2: View {
   @State private var isColumnVisibilitySet = false
   @State private var isSupplementaryInterfaceVisible = false
   @State private var isSupplementaryInterfaceVisibleSet = false
+  @State private var isActive = true
   @State private var selection = Set<ImagesItemModel2.ID>()
   @State private var isFileImporterPresented = false
   @State private var copyFolderSelection = Set<ImagesItemModel2.ID>()
@@ -160,8 +104,8 @@ struct ImagesView2: View {
   var body: some View {
     let isVisible = self.isTrackingMenu
     || !self.appearsActive
-    || !self.isWindowFullScreen
     || self.columnVisibility != .detailOnly
+    || self.isActive
 
     NavigationSplitView(columnVisibility: $columnVisibility) {
       ImagesSidebarView2(
@@ -203,6 +147,7 @@ struct ImagesView2: View {
       ImagesBackgroundView(isSupplementaryInterfaceVisible: isSupplementaryInterfaceVisible)
     }
     .toolbar(self.isWindowFullScreen ? .hidden : .automatic)
+    .toolbarVisible(!self.hiddenLayout.toolbar || isVisible || self.isWindowFullScreen)
     .cursorVisible(!self.hiddenLayout.cursor || isVisible)
     .scrollIndicators(!self.hiddenLayout.scroll || isVisible ? .automatic : .hidden)
     .alert(isPresented: $isCopyFolderErrorPresented, error: copyFolderError) {}
@@ -234,12 +179,43 @@ struct ImagesView2: View {
       }
     }
     .fileDialogCustomizationID(ImagesScene.id)
-    .task(id: self.images) {
-      guard !Task.isCancelled else {
-        return
+    .onContinuousHover { phase in
+      Task {
+        switch phase {
+          case .active:
+            await self.images.hoverChannel.send(true)
+          case .ended:
+            await self.images.hoverChannel.send(false)
+        }
       }
+    }
+    .task(id: self.images) {
+      await self.images.load()
+    }
+    .task(id: self.images) {
+      var task: Task<Void, Never>?
 
-      await images.load2()
+      for await isHovering in self.images.hoverChannel {
+        task?.cancel()
+
+        self.isActive = true
+
+        guard isHovering else {
+          continue
+        }
+
+        task = Task {
+          do {
+            try await Task.sleep(for: .imagesHoverElapse)
+          } catch is CancellationError {
+            return
+          } catch {
+            unreachable()
+          }
+
+          self.isActive = false
+        }
+      }
     }
     .onChange(of: self.images) {
       self.columnVisibility = self.columnVisibilityStorage.columnVisibility
