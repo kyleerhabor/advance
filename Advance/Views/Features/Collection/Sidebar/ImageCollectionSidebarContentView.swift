@@ -87,7 +87,6 @@ struct ImageCollectionSidebarFilterView: View {
         showingBookmarks
       } set: { show in
         collection.sidebarPage = show ? \.bookmarks : \.images
-
         collection.updateBookmarks()
       }
 
@@ -166,9 +165,9 @@ struct ImageCollectionSidebarContentView: View {
 //          }
 //        }
       }
-      .onChange(of: collection.sidebarPage) {
-
-      }
+//      .onChange(of: collection.sidebarPage) {
+//
+//      }
 //      .backgroundPreferenceValue(VisibleImageIDsPreferenceKey.self) { items in
 //        GeometryReader { proxy in
 //          let local = proxy.frame(in: .local)
@@ -210,13 +209,5 @@ struct ImageCollectionSidebarContentView: View {
 //      }
 //    }
 //    .fileDialogCopy()
-  }
-
-  func images(from selection: ImageCollectionSidebar.Selection) -> [ImageCollectionItemImage] {
-    collection.images.filter(in: selection, by: \.id)
-  }
-
-  func urls(from selection: ImageCollectionSidebar.Selection) -> [URL] {
-    images(from: selection).map(\.url)
   }
 }

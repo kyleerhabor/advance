@@ -6,6 +6,7 @@
 //
 
 import CoreTransferable
+import UniformTypeIdentifiers
 
 enum FoldersSettingsItemTransferableError: Error {
   case notOriginal

@@ -12,20 +12,42 @@ import SwiftUI
 import VisionKit
 
 @MainActor
-struct ImagesItemPreferenceValue {
+struct ImagesResolvedVisibleItem {
+  let item: ImagesItemModel2
+  let frame: CGRect
+}
+
+@MainActor
+struct ImagesVisibleItem {
   let item: ImagesItemModel2
   let anchor: Anchor<CGRect>
 }
 
-extension ImagesItemPreferenceValue: @MainActor Equatable {}
+extension ImagesVisibleItem: @MainActor Equatable {}
 
-struct ImagesItemsPreferenceKey: PreferenceKey {
-  static let defaultValue = [ImagesItemPreferenceValue]()
+struct ImagesVisibleItemsPreferenceKey: PreferenceKey {
+  static let defaultValue = [ImagesVisibleItem]()
 
-  static func reduce(value: inout [ImagesItemPreferenceValue], nextValue: () -> [ImagesItemPreferenceValue]) {
+  static func reduce(value: inout [ImagesVisibleItem], nextValue: () -> [ImagesVisibleItem]) {
     value.append(contentsOf: nextValue())
   }
 }
+
+@MainActor
+struct ImagesViewResampleID {
+  let images: ImagesModel
+  let pixelLength: CGFloat
+}
+
+extension ImagesViewResampleID: @MainActor Equatable {}
+
+@MainActor
+struct ImagesViewItemsID {
+  let images: ImagesModel
+  let items: [ImagesVisibleItem]
+}
+
+extension ImagesViewItemsID: @MainActor Equatable {}
 
 struct ImagesBackgroundView: View {
   @Environment(ImagesModel.self) private var images
@@ -94,7 +116,6 @@ struct ImagesView2: View {
   @State private var isActive = true
   @State private var selection = Set<ImagesItemModel2.ID>()
   @State private var isFileImporterPresented = false
-  @State private var copyFolderSelection = Set<ImagesItemModel2.ID>()
   @State private var copyFolderError: ImagesModelCopyFolderError?
   @State private var isCopyFolderErrorPresented = false
   private var sceneID: AppModelCommandSceneID {
@@ -113,7 +134,6 @@ struct ImagesView2: View {
         isSupplementaryInterfaceVisible: $isSupplementaryInterfaceVisible,
         selection: $selection,
         isFileImporterPresented: $isFileImporterPresented,
-        copyFolderSelection: $copyFolderSelection,
         copyFolderError: $copyFolderError,
         isCopyFolderErrorPresented: $isCopyFolderErrorPresented,
       )

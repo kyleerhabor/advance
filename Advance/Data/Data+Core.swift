@@ -16,8 +16,8 @@ extension Logger {
 
 extension URL {
   static let databaseFile = Self.dataDirectory
-    .appending(component: "Data", directoryHint: .notDirectory)
-    .appendingPathExtension("sqlite")
+    .appending(components: "Database", "Data", directoryHint: .notDirectory)
+    .appendingPathExtension("sqlite3")
 }
 
 func createSchema(connection: some DatabaseWriter) async throws {

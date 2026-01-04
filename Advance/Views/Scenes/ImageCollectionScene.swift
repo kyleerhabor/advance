@@ -5,6 +5,7 @@
 //  Created by Kyle Erhabor on 9/13/23.
 //
 
+import AdvanceCore
 import Algorithms
 import OSLog
 import SwiftUI

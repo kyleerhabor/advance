@@ -10,21 +10,6 @@ import Combine
 import OSLog
 import SwiftUI
 
-struct ImagesSidebarImportLabelStyle: LabelStyle {
-  func makeBody(configuration: Configuration) -> some View {
-    VStack(spacing: 4) {
-      configuration.icon
-        .font(.title)
-        .imageScale(.large)
-        .symbolRenderingMode(.hierarchical)
-
-      configuration.title
-        .font(.callout)
-    }
-    .fontWeight(.medium)
-  }
-}
-
 //struct ImagesItemEphemeralTransfer {
 //  let source: URL
 //  let destination: URL
@@ -73,26 +58,6 @@ struct ImagesSidebarImportLabelStyle: LabelStyle {
 //    self = .ephemeral(ImagesItemEphemeralTransfer(source: url, destination: destination))
 //  }
 //}
-
-struct ImagesSidebarImportView: View {
-  @Environment(ImagesModel.self) private var images
-  @AppStorage(StorageKeys.importHiddenFiles) private var importHiddenFiles
-  @AppStorage(StorageKeys.importSubdirectories) private var importSubdirectories
-  @State private var isFileImporterPresented = false
-
-  var body: some View {
-    ContentUnavailableView {
-      Button {
-        isFileImporterPresented = true
-      } label: {
-        Label("Images.Sidebar.Import", systemImage: "square.and.arrow.down")
-          .labelStyle(ImagesSidebarImportLabelStyle())
-      }
-      .buttonStyle(.plain)
-//      .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-  }
-}
 
 struct ImagesSidebarContentItemTitleView: NSViewControllerRepresentable {
   let label: String
@@ -174,13 +139,13 @@ struct ImagesSidebarView: View {
 
   var body: some View {
     ImagesSidebarContentView()
-      .overlay {
-        let isEmpty = isEmpty
-
-        ImagesSidebarImportView()
-          .visible(isEmpty)
-          .animation(.default, value: isEmpty)
-          .transaction(value: isEmpty, setter(on: \.disablesAnimations, value: !isEmpty))
-      }
+//      .overlay {
+//        let isEmpty = isEmpty
+//
+//        ImagesSidebarImportView()
+//          .visible(isEmpty)
+//          .animation(.default, value: isEmpty)
+//          .transaction(value: isEmpty, setter(on: \.disablesAnimations, value: !isEmpty))
+//      }
   }
 }

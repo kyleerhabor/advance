@@ -6,6 +6,7 @@
 //
 
 import AdvanceCore
+import BigInt
 import CoreTransferable
 import GRDB
 import IdentifiedCollections

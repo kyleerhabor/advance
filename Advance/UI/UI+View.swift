@@ -241,12 +241,16 @@ struct TrackingMenuViewModifier: ViewModifier {
 
   func body(content: Content) -> some View {
     content
-      .environment(\.isTrackingMenu, isTrackingMenu)
-      .onReceive(NotificationCenter.default.publisher(for: NSMenu.didBeginTrackingNotification)) { _ in
-        isTrackingMenu = true
+      .environment(\.isTrackingMenu, self.isTrackingMenu)
+      .task {
+        for await _ in NotificationCenter.default.notifications(named: NSMenu.didBeginTrackingNotification) {
+          self.isTrackingMenu = true
+        }
       }
-      .onReceive(NotificationCenter.default.publisher(for: NSMenu.didEndTrackingNotification)) { _ in
-        isTrackingMenu = false
+      .task {
+        for await _ in NotificationCenter.default.notifications(named: NSMenu.didEndTrackingNotification) {
+          self.isTrackingMenu = false
+        }
       }
   }
 }
@@ -301,24 +305,28 @@ struct WindowFullScreenViewModifier: ViewModifier {
 
   func body(content: Content) -> some View {
     content
-      .environment(\.isWindowFullScreen, isWindowFullScreen)
-      .onReceive(NotificationCenter.default.publisher(for: NSWindow.willEnterFullScreenNotification)) { notification in
-        let window = notification.object as! NSWindow
+      .environment(\.isWindowFullScreen, self.isWindowFullScreen)
+      .task {
+        for await notification in NotificationCenter.default.notifications(named: NSWindow.willEnterFullScreenNotification) {
+          let window = notification.object as! NSWindow
 
-        guard self.window.window == window else {
-          return
+          guard self.window.window == window else {
+            continue
+          }
+
+          self.isWindowFullScreen = true
         }
-
-        isWindowFullScreen = true
       }
-      .onReceive(NotificationCenter.default.publisher(for: NSWindow.willExitFullScreenNotification)) { notification in
-        let window = notification.object as! NSWindow
+      .task {
+        for await notification in NotificationCenter.default.notifications(named: NSWindow.willExitFullScreenNotification) {
+          let window = notification.object as! NSWindow
 
-        guard self.window.window == window else {
-          return
+          guard self.window.window == window else {
+            continue
+          }
+
+          self.isWindowFullScreen = false
         }
-
-        isWindowFullScreen = false
       }
   }
 }

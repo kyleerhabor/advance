@@ -8,6 +8,7 @@
 import AdvanceCore
 import Foundation
 import GRDB
+import BigInt
 
 typealias RowID = Int64
 

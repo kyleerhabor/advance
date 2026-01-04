@@ -187,7 +187,7 @@ extension UTType {
 
 extension URL {
   // $ getconf DARWIN_USER_TEMP_DIR
-  public static let localTemporaryDirectory = Self(filePath: "/var/folders/", directoryHint: .isDirectory)
+  public static let localTemporaryDirectory = Self(filePath: "/var/folders", directoryHint: .isDirectory)
 
   public var pathString: String {
     self.path(percentEncoded: false)

@@ -19,6 +19,7 @@ import ImageIO
 import Observation
 import OSLog
 import SwiftUI
+import UniformTypeIdentifiers
 import VisionKit
 
 extension URL {
@@ -205,7 +206,7 @@ extension ImagesModelCopyFolderError: LocalizedError {
 }
 
 struct ImagesModelLoadImagesLoadState {
-  let items: [RowID: ImagesModelLoadImageImagesItemInfo]
+  let items: [RowID: ImagesModelLoadImagesImagesItemInfo]
 }
 
 struct ImagesModelLoadImagesResampleState {
@@ -291,11 +292,6 @@ extension ImagesModelEngineURLError: LocalizedError {
   }
 }
 
-struct ImagesItemModelResample {
-  let item: ImagesItemModel2
-  let frame: CGRect
-}
-
 @MainActor
 struct ImagesModelResample {
   let width: Double
@@ -359,10 +355,6 @@ final class ImagesModel {
 
   func load() async {
     await _load()
-  }
-
-  func loadImage(item: ImagesItemModel2.ID, length: Double) async -> NSImage? {
-    await _loadImage(item: item, length: length)
   }
 
   func loadImages(
@@ -982,88 +974,6 @@ final class ImagesModel {
     return NSImage(cgImage: thumbnail, size: .zero)
   }
 
-  nonisolated private func _loadImage(item: ImagesItemModel2.ID, length: Double) async -> NSImage? {
-    let connection: DatabasePool
-
-    do {
-      connection = try await databaseConnection()
-    } catch {
-      // TODO: Elaborate.
-      Logger.model.error("\(error)")
-
-      return nil
-    }
-
-    let imagesItem: ImagesModelLoadImageImagesItemInfo?
-
-    do {
-      imagesItem = try await connection.read { db in
-        try ImagesItemRecord
-          .select(.rowID)
-          .filter(key: item)
-          .including(
-            required: ImagesItemRecord.fileBookmark
-              .forKey(ImagesModelLoadImageImagesItemInfo.CodingKeys.fileBookmark)
-              .select(.rowID)
-              .including(
-                required: FileBookmarkRecord.bookmark
-                  .forKey(ImagesModelLoadImageImagesItemFileBookmarkInfo.CodingKeys.bookmark)
-                  .select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options),
-              )
-              .including(
-                optional: FileBookmarkRecord.relative
-                  .forKey(ImagesModelLoadImageImagesItemFileBookmarkInfo.CodingKeys.relative)
-                  .select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options),
-              ),
-          )
-          .asRequest(of: ImagesModelLoadImageImagesItemInfo.self)
-          .fetchOne(db)
-      }
-    } catch {
-      // TODO: Elaborate.
-      Logger.model.error("\(error)")
-
-      return nil
-    }
-
-    guard let item = imagesItem else {
-      return nil
-    }
-
-    let assigned = assign(bookmark: item.fileBookmark.bookmark.bookmark, relative: item.fileBookmark.relative?.relative)
-
-    do {
-      try await connection.write { db in
-        if let rel = item.fileBookmark.relative {
-          try write(db, bookmark: rel.relative, assigned: assigned?.relative)
-        }
-
-        try write(db, bookmark: item.fileBookmark.bookmark.bookmark, assigned: assigned?.bookmark)
-      }
-    } catch {
-      // TODO: Elaborate.
-      Logger.model.error("\(error)")
-
-      return nil
-    }
-
-    guard let assigned else {
-      return nil
-    }
-
-    let source = source(
-      assigned: assigned,
-      bookmark: item.fileBookmark.bookmark.bookmark,
-      relative: item.fileBookmark.relative?.relative,
-    )
-
-    let image = source.accessingSecurityScopedResource {
-      loadImage(url: source.source.url, length: length)
-    }
-
-    return image
-  }
-
   nonisolated private func loadImage(
     state: ImagesItemAssignment,
     item: ImagesItemInfo,
@@ -1125,20 +1035,20 @@ final class ImagesModel {
           .filter(keys: items)
           .including(
             required: ImagesItemRecord.fileBookmark
-              .forKey(ImagesModelLoadImageImagesItemInfo.CodingKeys.fileBookmark)
+              .forKey(ImagesModelLoadImagesImagesItemInfo.CodingKeys.fileBookmark)
               .select(.rowID)
               .including(
                 required: FileBookmarkRecord.bookmark
-                  .forKey(ImagesModelLoadImageImagesItemFileBookmarkInfo.CodingKeys.bookmark)
+                  .forKey(ImagesModelLoadImagesImagesItemFileBookmarkInfo.CodingKeys.bookmark)
                   .select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options),
               )
               .including(
                 optional: FileBookmarkRecord.relative
-                  .forKey(ImagesModelLoadImageImagesItemFileBookmarkInfo.CodingKeys.relative)
+                  .forKey(ImagesModelLoadImagesImagesItemFileBookmarkInfo.CodingKeys.relative)
                   .select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options),
               ),
           )
-          .asRequest(of: ImagesModelLoadImageImagesItemInfo.self)
+          .asRequest(of: ImagesModelLoadImagesImagesItemInfo.self)
           .fetchCursor(db)
 
         let state = ImagesModelLoadImagesLoadState(

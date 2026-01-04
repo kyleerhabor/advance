@@ -6,6 +6,7 @@
 //
 
 import AdvanceCore
+import Algorithms
 import AsyncAlgorithms
 @preconcurrency import BigInt
 import Foundation
@@ -139,6 +140,8 @@ extension AssignedBookmark {
       options: URL.BookmarkResolutionOptions(options).union(.withoutMounting),
       relativeTo: relative,
     ) { url in
+      Logger.model.log("Bookmark for file URL '\(url.pathString)' is stale: re-creating...")
+
       let source = URLSource(url: url, options: options)
       let bookmark = try source.accessingSecurityScopedResource {
         try source.url.bookmark(options: source.options, relativeTo: relative)
@@ -154,6 +157,8 @@ extension AssignedBookmark {
       options: URL.BookmarkResolutionOptions(options).union(.withoutMounting),
       relativeTo: relative,
     ) { url in
+      Logger.model.log("Bookmark for file URL '\(url.pathString)' is stale: re-creating...")
+
       let source = URLSource(url: url, options: options)
       let bookmark = try await source.accessingSecurityScopedResource {
         try await source.url.bookmark(options: source.options, relativeTo: relative)

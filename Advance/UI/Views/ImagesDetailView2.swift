@@ -7,6 +7,7 @@
 
 import AdvanceCore
 import AsyncAlgorithms
+import IdentifiedCollections
 import OSLog
 import SwiftUI
 import VisionKit
@@ -208,8 +209,8 @@ struct ImagesDetailView2: View {
         // For some reason, we need to extract accesses to item's properties into dedicated views to prevent slow view
         // updates when switching windows.
         ImagesDetailItemView2(item: item)
-          .anchorPreference(key: ImagesItemsPreferenceKey.self, value: .bounds) { anchor in
-            [ImagesItemPreferenceValue(item: item, anchor: anchor)]
+          .anchorPreference(key: ImagesVisibleItemsPreferenceKey.self, value: .bounds) { anchor in
+            [ImagesVisibleItem(item: item, anchor: anchor)]
           }
           .overlay {
             ImageDetailItemImageAnalysisView(
@@ -279,43 +280,61 @@ struct ImagesDetailView2: View {
           }
         }
       }
-      .backgroundPreferenceValue(ImagesItemsPreferenceKey.self) { value in
+      .backgroundPreferenceValue(ImagesVisibleItemsPreferenceKey.self) { value in
         GeometryReader { proxy in
           Color.clear
-            .task(id: value) {
+            .task(id: ImagesViewItemsID(images: self.images, items: value)) {
               let frame = proxy.frame(in: .local)
-              let items = value
-                .filter { frame.intersects(proxy[$0.anchor]) }
-                .map(\.item)
+              let resolved = value
+                .map { ImagesResolvedVisibleItem(item: $0.item, frame: proxy[$0.anchor]) }
+                .filter { frame.intersects($0.frame) }
 
-              await self.images.detailResample.send(ImagesModelResample(width: frame.width, items: items))
+              let items = resolved.map(\.item)
               await self.itemsChannel.send(items)
+
+              guard let item = resolved.first else {
+                return
+              }
+
+              await self.images.detailResample.send(ImagesModelResample(width: item.frame.width, items: items))
             }
         }
       }
-      .task(id: self.images) {
-        for await resample in self.images.detailResample.removeDuplicates() {
+      .task(id: ImagesViewResampleID(images: self.images, pixelLength: self.pixelLength)) {
+        for await resample in self.images.detailResample.removeDuplicates().debounce(for: .microhang) {
           var items = [ImagesItemModel2](reservingCapacity: resample.items.count + 4)
+          items.append(contentsOf: resample.items)
+
+          let before1: BidirectionalCollectionItem<IdentifiedArrayOf<ImagesItemModel2>>?
+          let before2: BidirectionalCollectionItem<IdentifiedArrayOf<ImagesItemModel2>>?
 
           if let item = resample.items.first,
              let index = self.images.items.index(id: item.id) {
-            let item1 = self.images.items.before(index: index)
-            let item2 = item1.flatMap { self.images.items.before(index: $0.index) }
-            item2.map { items.append($0.element) }
-            item1.map { items.append($0.element) }
+            before1 = self.images.items.before(index: index)
+            before2 = before1.flatMap { self.images.items.before(index: $0.index) }
+          } else {
+            before1 = nil
+            before2 = nil
           }
 
-          items.append(contentsOf: resample.items)
+          let after1: BidirectionalCollectionItem<IdentifiedArrayOf<ImagesItemModel2>>?
+          let after2: BidirectionalCollectionItem<IdentifiedArrayOf<ImagesItemModel2>>?
 
           if let item = resample.items.last,
              let index = self.images.items.index(id: item.id) {
-            let item1 = self.images.items.after(index: index)
-            let item2 = item1.flatMap { self.images.items.after(index: $0.index) }
-            item1.map { items.append($0.element) }
-            item2.map { items.append($0.element) }
+            after1 = self.images.items.after(index: index)
+            after2 = after1.flatMap { self.images.items.after(index: $0.index) }
+          } else {
+            after1 = nil
+            after2 = nil
           }
 
-          await self.images.loadImages(in: .detail, items: items, width: resample.width, pixelLength: pixelLength)
+          before1.map { items.append($0.element) }
+          after1.map { items.append($0.element) }
+          before2.map { items.append($0.element) }
+          after2.map { items.append($0.element) }
+          
+          await self.images.loadImages(in: .detail, items: items, width: resample.width, pixelLength: self.pixelLength)
         }
       }
       .task(id: self.images) {

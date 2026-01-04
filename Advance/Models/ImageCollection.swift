@@ -14,12 +14,6 @@ import VisionKit
 
 extension URL {
   static let collectionDirectory = dataDirectory.appending(component: "Collections")
-
-  static func collectionFile(for id: UUID) -> URL {
-    .collectionDirectory
-    .appending(component: id.uuidString)
-    .appendingPathExtension(for: .binaryPropertyList)
-  }
 }
 
 struct URLSecurityScope {
@@ -318,12 +312,6 @@ class ImageCollection: Codable {
   enum CodingKeys: CodingKey {
     case store, items, order
     case current
-  }
-}
-
-extension ImageCollection {
-  func persist(id: UUID) async throws {
-    try self.persist(to: URL.collectionFile(for: id))
   }
 }
 

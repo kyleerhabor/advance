@@ -315,8 +315,6 @@ public struct AssignedBookmark {
     let resolved = try ResolvedBookmark(data: data, options: options, relativeTo: relative)
 
     if resolved.isStale {
-      Logger.sandbox.log("Bookmark for file URL '\(resolved.url.pathString)' is stale: re-creating...")
-
       data = try create(resolved.url)
     }
 
@@ -333,8 +331,6 @@ public struct AssignedBookmark {
     let resolved = try ResolvedBookmark(data: data, options: options, relativeTo: relative)
 
     if resolved.isStale {
-      Logger.sandbox.log("Bookmark for file URL '\(resolved.url.pathString)' is stale: re-creating...")
-
       data = try await create(resolved.url)
     }
 
