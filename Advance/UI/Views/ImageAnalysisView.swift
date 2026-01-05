@@ -1,5 +1,5 @@
 //
-//  ImageAnalysisView2.swift
+//  ImageAnalysisView.swift
 //  Advance
 //
 //  Created by Kyle Erhabor on 12/20/25.
@@ -10,10 +10,10 @@ import SwiftUI
 import VisionKit
 
 class ImageAnalysisViewDelegate: ImageAnalysisOverlayViewDelegate {
-  var representable: ImageAnalysisView2
+  var representable: ImageAnalysisView
   var actions: [NSMenuItem : () -> Void]
 
-  init(representable: ImageAnalysisView2) {
+  init(representable: ImageAnalysisView) {
     self.representable = representable
     self.actions = [:]
   }
@@ -54,7 +54,7 @@ struct ImageAnalysisViewCoordinator {
   let delegate: ImageAnalysisViewDelegate
 }
 
-struct ImageAnalysisView2: NSViewRepresentable {
+struct ImageAnalysisView: NSViewRepresentable {
   @Binding var selectableItemsHighlighted: Bool
   let analysis: ImageAnalysis?
   let preferredInteractionTypes: ImageAnalysisOverlayView.InteractionTypes
@@ -80,23 +80,40 @@ struct ImageAnalysisView2: NSViewRepresentable {
 
     let overlayView = ImageAnalysisOverlayView()
     overlayView.delegate = context.coordinator.delegate
-    overlayView.analysis = self.analysis
     overlayView.preferredInteractionTypes = self.preferredInteractionTypes
-    overlayView.isSupplementaryInterfaceHidden = self.isSupplementaryInterfaceHidden
-    overlayView.selectableItemsHighlighted = self.selectableItemsHighlighted
+    self.setVisibility(overlayView, selectableItemsHighlighted: false, isAnimated: false)
+    
+    overlayView.analysis = self.analysis
 
     return overlayView
   }
 
   func updateNSView(_ overlayView: ImageAnalysisOverlayView, context: Context) {
     context.coordinator.delegate.representable = self
+
+    if overlayView.preferredInteractionTypes == self.preferredInteractionTypes {
+      self.setVisibility(overlayView, selectableItemsHighlighted: self.selectableItemsHighlighted, isAnimated: true)
+    } else {
+      overlayView.preferredInteractionTypes = self.preferredInteractionTypes
+    }
+
     overlayView.analysis = self.analysis
-    overlayView.preferredInteractionTypes = self.preferredInteractionTypes
-    overlayView.isSupplementaryInterfaceHidden = self.isSupplementaryInterfaceHidden
-    overlayView.selectableItemsHighlighted = self.selectableItemsHighlighted
   }
 
   func makeCoordinator() -> ImageAnalysisViewCoordinator {
     ImageAnalysisViewCoordinator(delegate: ImageAnalysisViewDelegate(representable: self))
+  }
+
+  private func setVisibility(
+    _ overlayView: ImageAnalysisOverlayView,
+    selectableItemsHighlighted: Bool,
+    isAnimated animate: Bool,
+  ) {
+    overlayView.setSupplementaryInterfaceHidden(
+      !selectableItemsHighlighted && self.isSupplementaryInterfaceHidden,
+      animated: animate,
+    )
+
+    overlayView.selectableItemsHighlighted = selectableItemsHighlighted
   }
 }

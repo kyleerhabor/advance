@@ -60,7 +60,7 @@ func createSchema(connection: some DatabaseWriter) async throws {
 
       // TODO: Enforce uniqueness via trigger.
       table
-        .column(ImagesItemRecord.Columns.position.name, .blob)
+        .column(ImagesItemRecord.Columns.position.name, .text)
         .notNull()
 
       table

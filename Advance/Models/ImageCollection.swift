@@ -10,7 +10,6 @@ import Foundation
 import OrderedCollections
 import OSLog
 import SwiftUI
-import VisionKit
 
 extension URL {
   static let collectionDirectory = dataDirectory.appending(component: "Collections")
@@ -45,9 +44,9 @@ enum ImageCollectionSourceKind<T> {
 }
 
 struct ImageCollectionItemRoot {
-  typealias ID = BookmarkStoreItem.ID
+  typealias ID = UUID
 
-  let bookmark: BookmarkStoreItem.ID
+  let bookmark: UUID
   let bookmarked: Bool
 }
 
@@ -59,48 +58,26 @@ extension ImageCollectionItemRoot: Equatable {
 
 extension ImageCollectionItemRoot: Codable {}
 
-struct ImageCollectionItemImageAnalysisInput {
-  let url: URL
-  let interactions: ImageAnalysisOverlayView.InteractionTypes
-  let downsample: Bool
-  let isSuccessPhase: Bool
-}
-
-extension ImageCollectionItemImageAnalysisInput: Equatable {}
-
-struct ImageCollectionItemImageAnalysis {
-  let input: ImageCollectionItemImageAnalysisInput
-  let analysis: ImageAnalysis
-}
-
-extension ImageCollectionItemImageAnalysis {
-  init(_ analysis: ImageAnalysis, input: ImageCollectionItemImageAnalysisInput) {
-    self.init(input: input, analysis: analysis)
-  }
-}
-
 @Observable
 class ImageCollectionItemImage {
-  let bookmark: BookmarkStoreItem.ID
+  let bookmark: UUID
 
   let source: URLSource
   let relative: URLSource?
 
-  var properties: SizeOrientation
   var bookmarked: Bool
 
-  init(bookmark: BookmarkStoreItem.ID, source: URLSource, relative: URLSource?, properties: SizeOrientation, bookmarked: Bool) {
+  init(bookmark: UUID, source: URLSource, relative: URLSource?, bookmarked: Bool) {
     self.bookmark = bookmark
     self.source = source
     self.relative = relative
-    self.properties = properties
     self.bookmarked = bookmarked
   }
 }
 
 extension ImageCollectionItemImage: Identifiable {
-  var id: BookmarkStoreItem.ID {
-    bookmark
+  var id: UUID {
+    self.bookmark
   }
 }
 
@@ -217,7 +194,6 @@ class ImageCollection: Codable {
   // The source of truth for the collection.
   //
   // TODO: Remove unused bookmarks in store via items or order
-  @ObservationIgnored var store: BookmarkStore
   @ObservationIgnored var items: Items
   @ObservationIgnored var order: Order
 
@@ -233,13 +209,11 @@ class ImageCollection: Codable {
   @ObservationIgnored var sidebars = ImageCollectionSidebars()
 
   init() {
-    self.store = .init()
     self.items = .init()
     self.order = .init()
   }
 
-  init(store: BookmarkStore, items: Items, order: Order) {
-    self.store = store
+  init(items: Items, order: Order) {
     self.items = items
     self.order = order
   }
@@ -297,21 +271,18 @@ class ImageCollection: Codable {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     let roots = try container.decode([ImageCollectionItem].self, forKey: .items)
 
-    self.store = try container.decode(BookmarkStore.self, forKey: .store)
     self.items = .init(uniqueKeysWithValues: roots.map { ($0.root.bookmark, $0) })
     self.order = try container.decode(Order.self, forKey: .order)
   }
 
   func encode(to encoder: any Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(store, forKey: .store)
     try container.encode(Array(items.values), forKey: .items)
     try container.encode(order, forKey: .order)
   }
 
   enum CodingKeys: CodingKey {
-    case store, items, order
-    case current
+    case items, order, current
   }
 }
 

@@ -17,6 +17,11 @@ import VisionKit
 
 let analyses = AsyncChannel<Run<ImageAnalysis, any Error>>()
 
+extension ImageAnalyzer {
+  // The max supported dimension is 8192, exclusive.
+  static let maxLength: CGFloat = 8191
+}
+
 func delta(lowerBound: BigFraction, upperBound: BigFraction, base: BInt) -> BigFraction {
   let denominator = lowerBound.denominator * upperBound.denominator
   let d = BigFraction(.ONE, denominator)
@@ -188,10 +193,13 @@ struct ImagesItemAssignment {
         .uniqued(on: \.relative.rowID)
         .forEach { relative in
           group.addTask {
-            let item = relative.relative
-            let bookmark = try await AssignedBookmark(data: item.data!, options: item.options!, relativeTo: nil)
+            let bookmark = try await AssignedBookmark(
+              data: relative.relative.data!,
+              options: relative.relative.options!,
+              relativeTo: nil,
+            )
 
-            let result = ImagesItemAssignmentTaskResult(item: item, bookmark: bookmark)
+            let result = ImagesItemAssignmentTaskResult(item: relative.relative, bookmark: bookmark)
 
             return result
           }
@@ -221,12 +229,15 @@ struct ImagesItemAssignment {
             relative = nil
           }
 
-          let item = item.fileBookmark.bookmark.bookmark
           let bookmark = try await relative.accessingSecurityScopedResource {
-            try await AssignedBookmark(data: item.data!, options: item.options!, relativeTo: relative?.url)
+            try await AssignedBookmark(
+              data: item.fileBookmark.bookmark.bookmark.data!,
+              options: item.fileBookmark.bookmark.bookmark.options!,
+              relativeTo: relative?.url,
+            )
           }
 
-          let result = ImagesItemAssignmentTaskResult(item: item, bookmark: bookmark)
+          let result = ImagesItemAssignmentTaskResult(item: item.fileBookmark.bookmark.bookmark, bookmark: bookmark)
 
           return result
         }
@@ -293,6 +304,21 @@ struct ImagesItemAssignment {
     }
 
     return URLSource(url: bookmark.resolved.url, options: relative.relative.options!)
+  }
+
+  func document(fileBookmark: ImagesItemFileBookmarkInfo) throws(ImagesItemAssignmentError) -> URLSourceDocument? {
+    let relative = try self.relative(fileBookmark.relative)
+
+    guard let bookmark = self.bookmarks[fileBookmark.bookmark.bookmark.rowID!] else {
+      return nil
+    }
+
+    let document = URLSourceDocument(
+      source: URLSource(url: bookmark.resolved.url, options: fileBookmark.bookmark.bookmark.options!),
+      relative: relative,
+    )
+
+    return document
   }
 }
 

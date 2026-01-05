@@ -9,7 +9,6 @@ import AdvanceCore
 import AsyncAlgorithms
 import OSLog
 import SwiftUI
-import VisionKit
 
 @MainActor
 struct ImagesResolvedVisibleItem {
@@ -143,7 +142,7 @@ struct ImagesView2: View {
         copyFolderError: $copyFolderError,
         isCopyFolderErrorPresented: $isCopyFolderErrorPresented,
         columnVisibility: self.columnVisibility,
-        isSupplementaryInterfaceVisible: isSupplementaryInterfaceVisible,
+        isSupplementaryInterfaceVisible: self.isSupplementaryInterfaceVisible,
       )
       .frame(minWidth: 256)
       // For some reason, applying toolbar(id:content:) to the enclosing NavigationSplitView causes the app to crash.

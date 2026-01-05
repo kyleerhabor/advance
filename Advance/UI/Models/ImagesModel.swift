@@ -84,78 +84,75 @@ enum ImagesItemModelImagePhase {
   case empty, success, failure
 }
 
+struct ImagesItemModelImageParameters {
+  let width: CGFloat
+  let pixelLength: CGFloat
+}
+
+extension ImagesItemModelImageParameters: Equatable {}
+
+struct ImagesItemModelImageAnalysisParameters {
+  let types: ImageAnalysisTypes
+  let width: CGFloat
+  let pixelLength: CGFloat
+}
+
+extension ImagesItemModelImageAnalysisParameters: Equatable {}
+
 @Observable
 @MainActor
 final class ImagesItemModel2 {
   let id: RowID
   var url: URL
   var title: String
-  var aspectRatio: Double
-  var orientation: CGImagePropertyOrientation
   var isBookmarked: Bool
-  // TODO: Don't annotate this @ObservationIgnored
-  //
-  // It's used in the UI, but causes performance to degrade from being high in the view hierarchy. We're able to get
-  // away with this because the edge changing means the items array has changed, too, which relates to how we're using it.
-  @ObservationIgnored var edge: VerticalEdge.Set
-
-  // MARK: - UI properties
-
-  // TODO: Guard against simultanous access.
-  //
-  // If one task sees that data is available, then later acts on that data when it becomes unavailable, this can lead to
-  // errors. I'm not sure if this can be resolved by checking for cancellation or requires actors to serialize execution
-  // (hopefully the former).
+  var edge: VerticalEdge.Set
+  var sidebarAspectRatio: CGFloat
   var sidebarImage: NSImage
   var sidebarImagePhase: ImagesItemModelImagePhase
-  @ObservationIgnored var sidebarImageWidth: CGFloat
-  @ObservationIgnored var sidebarImagePixelLength: CGFloat
+  @ObservationIgnored var sidebarImageParameters: ImagesItemModelImageParameters
+  var detailAspectRatio: CGFloat
   var detailImage: NSImage
-  @ObservationIgnored var detailImageID: UUID
   var detailImagePhase: ImagesItemModelImagePhase
-  @ObservationIgnored var detailImageWidth: CGFloat
-  @ObservationIgnored var detailImagePixelLength: CGFloat
+  @ObservationIgnored var detailImageParameters: ImagesItemModelImageParameters
   var imageAnalysis: ImageAnalysis?
-  var isSelectableItemsHighlighted: Bool
+  @ObservationIgnored var imageAnalysisParameters: ImagesItemModelImageAnalysisParameters
+  var selectableItemsHighlighted: Bool
 
   init(
     id: RowID,
     url: URL,
     title: String,
-    aspectRatio: Double,
-    orientation: CGImagePropertyOrientation,
     isBookmarked: Bool,
     edge: VerticalEdge.Set,
+    sidebarAspectRatio: CGFloat,
     sidebarImage: NSImage,
     sidebarImagePhase: ImagesItemModelImagePhase,
-    sidebarImageWidth: CGFloat,
-    sidebarImagePixelLength: CGFloat,
+    sidebarImageParameters: ImagesItemModelImageParameters,
+    detailAspectRatio: CGFloat,
     detailImage: NSImage,
-    detailImageID: UUID,
     detailImagePhase: ImagesItemModelImagePhase,
-    detailImageWidth: CGFloat,
-    detailImagePixelLength: CGFloat,
+    detailImageParameters: ImagesItemModelImageParameters,
     imageAnalysis: ImageAnalysis?,
-    isSelectableItemsHighlighted: Bool,
+    imageAnalysisParameters: ImagesItemModelImageAnalysisParameters,
+    selectableItemsHighlighted: Bool,
   ) {
     self.id = id
     self.url = url
     self.title = title
-    self.aspectRatio = aspectRatio
-    self.orientation = orientation
     self.isBookmarked = isBookmarked
     self.edge = edge
+    self.sidebarAspectRatio = sidebarAspectRatio
     self.sidebarImage = sidebarImage
     self.sidebarImagePhase = sidebarImagePhase
-    self.sidebarImageWidth = sidebarImageWidth
-    self.sidebarImagePixelLength = sidebarImagePixelLength
+    self.sidebarImageParameters = sidebarImageParameters
+    self.detailAspectRatio = detailAspectRatio
     self.detailImage = detailImage
-    self.detailImageID = detailImageID
     self.detailImagePhase = detailImagePhase
-    self.detailImageWidth = detailImageWidth
-    self.detailImagePixelLength = detailImagePixelLength
+    self.detailImageParameters = detailImageParameters
     self.imageAnalysis = imageAnalysis
-    self.isSelectableItemsHighlighted = isSelectableItemsHighlighted
+    self.imageAnalysisParameters = imageAnalysisParameters
+    self.selectableItemsHighlighted = selectableItemsHighlighted
   }
 }
 
@@ -235,7 +232,7 @@ struct ImagesModelCopyFolderLoadState {
 struct ImagesModelLoadDetailsStateItem {
   let item: ImagesItemInfo
   let title: String
-  let aspectRatio: Double
+  let aspectRatio: CGFloat
 }
 
 struct ImagesModelLoadDetailsState {
@@ -294,12 +291,15 @@ extension ImagesModelEngineURLError: LocalizedError {
 
 @MainActor
 struct ImagesModelResample {
-  let width: Double
+  let width: CGFloat
   let items: [ImagesItemModel2]
 }
 
 extension ImagesModelResample: @MainActor Equatable {}
 
+// TODO: Remove.
+//
+// We know the code path at program time, so this is pointless.
 enum ImagesModelLoadImagesColumn {
   case sidebar, detail
 }
@@ -318,7 +318,9 @@ final class ImagesModel {
   @ObservationIgnored let hoverChannel: AsyncChannel<Bool>
   @ObservationIgnored let sidebar: AsyncChannel<ImagesModelSidebarElement>
   @ObservationIgnored let detail: AsyncChannel<ImagesItemModel2.ID>
+  @ObservationIgnored let visibleItemsChannel: AsyncChannel<[ImagesItemModel2]>
   @ObservationIgnored let detailResample: AsyncChannel<ImagesModelResample>
+  @ObservationIgnored let detailImageAnalysis: AsyncChannel<ImagesModelResample>
   @ObservationIgnored let sidebarResample: AsyncChannel<ImagesModelResample>
   @ObservationIgnored private var resolvedItems: Set<ImagesItemModel2.ID>
 
@@ -344,7 +346,9 @@ final class ImagesModel {
     self.hoverChannel = AsyncChannel()
     self.sidebar = AsyncChannel()
     self.detail = AsyncChannel()
+    self.visibleItemsChannel = AsyncChannel()
     self.detailResample = AsyncChannel()
+    self.detailImageAnalysis = AsyncChannel()
     self.sidebarResample = AsyncChannel()
     self.resolvedItems = []
     self.visibleItems = []
@@ -360,27 +364,21 @@ final class ImagesModel {
   func loadImages(
     in column: ImagesModelLoadImagesColumn,
     items: [ImagesItemModel2],
-    width: Double,
-    pixelLength: Double,
+    parameters: ImagesItemModelImageParameters,
   ) async {
     await self._loadImages(
+      in: column,
       items: items
         .filter { item in
           switch column {
             case .sidebar:
-              item.sidebarImagePhase != .success
-              || item.sidebarImageWidth != width
-              || item.sidebarImagePixelLength != pixelLength
+              item.sidebarImagePhase != .success || item.sidebarImageParameters != parameters
             case .detail:
-              item.detailImagePhase != .success
-              || item.detailImageWidth != width
-              || item.detailImagePixelLength != pixelLength
+              item.detailImagePhase != .success || item.detailImageParameters != parameters
           }
         }
         .map(\.id),
-      width: width,
-      column: column,
-      pixelLength: pixelLength,
+      parameters: parameters,
     )
 
     self.items.forEach { item in
@@ -394,50 +392,29 @@ final class ImagesModel {
           item.sidebarImagePhase = .empty
         case .detail:
           item.detailImage = NSImage()
-          item.detailImageID = UUID()
           item.detailImagePhase = .empty
-          item.imageAnalysis = nil
-          item.isSelectableItemsHighlighted = false
       }
     }
   }
 
-  func loadImageAnalysis(item: ImagesItemModel2, types: ImageAnalysisTypes) async {
-    guard item.detailImagePhase == .success else {
-      return
-    }
+  func loadImageAnalyses(
+    for items: [ImagesItemModel2],
+    parameters: ImagesItemModelImageAnalysisParameters
+  ) async {
+    await self.loadImageAnalyses(
+      for: items
+        .filter { $0.imageAnalysis == nil || $0.imageAnalysisParameters != parameters }
+        .map(\.id),
+      parameters: parameters,
+    )
 
-    let image = item.detailImage
-    let orientation = item.orientation
-    let analyzer = ImageAnalyzer()
-    let analysis: ImageAnalysis?
-
-    do {
-      analysis = try await withCheckedThrowingContinuation { continuation in
-        Task {
-          let url = item.url
-
-          await analyses.send(Run(continuation: continuation) {
-            let configuration = ImageAnalyzer.Configuration(types.analyzerAnalysisTypes)
-            // The analysis is performed by mediaanalysisd, so this call isn't holding up the main actor.
-            let measured = try await ContinuousClock.continuous.measure {
-              try await analyzer.analyze(image, orientation: orientation, configuration: configuration)
-            }
-
-            Logger.model.debug("Took \(measured.duration) to analyze image at file URL '\(url.pathString)'")
-
-            return measured.value
-          })
-        }
+    self.items.forEach { item in
+      guard !items.contains(item) else {
+        return
       }
-    } catch {
-      // This kind of sucks since the URL may be outdated.
-      Logger.model.error("Could not analyze image at file URL '\(item.url.pathString)': \(error)")
 
-      return
+      item.imageAnalysis = nil
     }
-
-    item.imageAnalysis = analysis
   }
 
   func store(urls: [URL], directoryEnumerationOptions: FileManager.DirectoryEnumerationOptions) async {
@@ -582,7 +559,6 @@ final class ImagesModel {
 
   func setCurrentItem(item: ImagesItemModel2?) async {
     self.currentItem = item
-
     await _setCurrentItem(item: item?.id)
   }
 
@@ -595,7 +571,7 @@ final class ImagesModel {
   }
 
   func highlight(items: [ImagesItemModel2], isHighlighted: Bool) {
-    items.forEach(setter(on: \.isSelectableItemsHighlighted, value: isHighlighted))
+    items.forEach(setter(on: \.selectableItemsHighlighted, value: isHighlighted))
   }
 
   nonisolated private func orientationImageProperty(data: [CFString : Any]) -> CGImagePropertyOrientation? {
@@ -660,7 +636,6 @@ final class ImagesModel {
             let bookmark = assigned.bookmarks[imagesItem.fileBookmark.bookmark.bookmark.rowID!]!
             item.url = bookmark.resolved.url
             item.title = item2.title
-            item.aspectRatio = item2.aspectRatio
             item.isBookmarked = item2.item.item.isBookmarked!
 
             return item
@@ -677,21 +652,19 @@ final class ImagesModel {
             id: id,
             url: bookmark.resolved.url,
             title: item2.title,
-            aspectRatio: item2.aspectRatio,
-            orientation: .identity,
             isBookmarked: item2.item.item.isBookmarked!,
             edge: [],
+            sidebarAspectRatio: item2.aspectRatio,
             sidebarImage: NSImage(),
             sidebarImagePhase: .empty,
-            sidebarImageWidth: .nan,
-            sidebarImagePixelLength: .nan,
+            sidebarImageParameters: ImagesItemModelImageParameters(width: .nan, pixelLength: .nan),
+            detailAspectRatio: item2.aspectRatio,
             detailImage: NSImage(),
-            detailImageID: UUID(),
             detailImagePhase: .empty,
-            detailImageWidth: .nan,
-            detailImagePixelLength: .nan,
+            detailImageParameters: ImagesItemModelImageParameters(width: .nan, pixelLength: .nan),
             imageAnalysis: nil,
-            isSelectableItemsHighlighted: false,
+            imageAnalysisParameters: ImagesItemModelImageAnalysisParameters(types: [], width: .nan, pixelLength: .nan),
+            selectableItemsHighlighted: false,
           )
         }
     )
@@ -700,6 +673,12 @@ final class ImagesModel {
     self.items.last?.edge.insert(.bottom)
 
     if !self.hasLoaded {
+      // FIXME: ImagesRecord.currentImage should be internal.
+      //
+      // ImagesRecord.currentImage exists to support restoration, but we're using it in our UI code, causing bugs like
+      // ImagesModel.currentImage not being nil while ImagesModel.visibleItems is empty. We still want a notion of a
+      // current item in our UI (e.g., for the toolbar), but it should be distinct from the database value, which
+      // should not be synced to the UI.
       self.currentItem = images.currentItem.flatMap { self.items[id: $0.item.rowID!] }
     }
 
@@ -895,58 +874,51 @@ final class ImagesModel {
     }
   }
 
-  nonisolated private func loadImage(url: URL, length: Double) -> NSImage? {
-    guard let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil) else {
-      // TODO: Log.
-      return nil
-    }
-
-    let index = CGImageSourceGetPrimaryImageIndex(imageSource)
-    let options = [
-      kCGImageSourceCreateThumbnailFromImageAlways: true,
-      kCGImageSourceThumbnailMaxPixelSize: length,
-      // TODO: Document.
-      kCGImageSourceCreateThumbnailWithTransform: true,
-    ] as [CFString : Any]
-
-    guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(imageSource, index, options as CFDictionary) else {
-      // TODO: Log.
-      return nil
-    }
-
-    return NSImage(cgImage: thumbnail, size: .zero)
-  }
-
-  nonisolated private func loadImage(at url: URL, width: Double, pixelLength: Double) -> NSImage? {
+  nonisolated private func createImageSource(at url: URL) -> CGImageSource? {
     guard let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil) else {
       Logger.model.error("Could not create image source for file URL '\(url.pathString)'")
 
       return nil
     }
 
-    let index = CGImageSourceGetPrimaryImageIndex(imageSource)
+    return imageSource
+  }
+
+  nonisolated private func imageSizeOrientation(source: CGImageSource, at index: Int, url: URL) -> SizeOrientation? {
     let copyPropertiesOptions = [
       kCGImageSourceShouldCache: true,
       kCGImageSourceShouldCacheImmediately: true,
     ] as [CFString: Any]
 
     guard let copyProperties = CGImageSourceCopyPropertiesAtIndex(
-            imageSource,
-            index,
-            copyPropertiesOptions as CFDictionary,
-          ) else {
+      source,
+      index,
+      copyPropertiesOptions as CFDictionary,
+    ) else {
       Logger.model.error("Could not copy properties of image source at file URL '\(url.pathString)'")
 
       return nil
     }
 
-    guard let sizeOrientation = sizeOrientation(at: url, data: copyProperties as! [CFString: Any]) else {
-      return nil
-    }
+    let sizeOrientation = self.sizeOrientation(at: url, data: copyProperties as! [CFString: Any])
 
-    let sized = sizeOrientation.orientedSize
-    let height = width * (sized.height / sized.width)
+    return sizeOrientation
+  }
+
+  nonisolated private func length(size: CGSize, width: CGFloat, pixelLength: CGFloat) -> CGFloat {
+    let height = width * (size.height / size.width)
     let length = max(width, height) / pixelLength
+
+    return length
+  }
+
+  nonisolated private func createThumbnail(
+    source: CGImageSource,
+    at index: Int,
+    length: CGFloat,
+    size: CGSize,
+    url: URL,
+  ) -> NSImage? {
     let thumbnailCreationOptions = [
       kCGImageSourceCreateThumbnailFromImageAlways: true,
       kCGImageSourceThumbnailMaxPixelSize: length,
@@ -955,10 +927,10 @@ final class ImagesModel {
 
     // This is CPU and memory-intensive, so it shouldn't be called from a task group with a variable number of child tasks.
     guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(
-            imageSource,
-            index,
-            thumbnailCreationOptions as CFDictionary,
-          ) else {
+      source,
+      index,
+      thumbnailCreationOptions as CFDictionary,
+    ) else {
       Logger.model.error("Could not create thumbnail at pixel size \(length) for image source at file URL '\(url.pathString)'")
 
       return nil
@@ -966,54 +938,101 @@ final class ImagesModel {
 
     Logger.model.debug(
       """
-      Created thumbnail at dimensions \(thumbnail.width) x \(thumbnail.height) from pixel size \(length) for image \
-      source at file URL '\(url.pathString)'
-      """,
+      Created thumbnail at pixel size \(length) for image source at file URL '\(url.pathString)': \
+      \(size.width) x \(size.height) -> \(thumbnail.width) x \(thumbnail.height)
+      """
     )
 
     return NSImage(cgImage: thumbnail, size: .zero)
   }
 
+  private func loadImage(
+    item: ImagesItemInfo,
+    column: ImagesModelLoadImagesColumn,
+    parameters: ImagesItemModelImageParameters,
+    image: NSImage?,
+  ) {
+    guard let imagesItem = self.items[id: item.item.rowID!] else {
+      return
+    }
+
+    guard let image else {
+      switch column {
+        case .sidebar:
+          imagesItem.sidebarImagePhase = .failure
+        case .detail:
+          imagesItem.detailImagePhase = .failure
+      }
+
+      return
+    }
+
+    switch column {
+      case .sidebar:
+        imagesItem.sidebarAspectRatio = image.size.width / image.size.height
+        imagesItem.sidebarImage = image
+        imagesItem.sidebarImagePhase = .success
+        imagesItem.sidebarImageParameters = parameters
+      case .detail:
+        imagesItem.detailAspectRatio = image.size.width / image.size.height
+        imagesItem.detailImage = image
+        imagesItem.detailImagePhase = .success
+        imagesItem.detailImageParameters = parameters
+    }
+  }
+
   nonisolated private func loadImage(
     state: ImagesItemAssignment,
     item: ImagesItemInfo,
-    width: Double,
-    pixelLength: Double,
-  ) -> NSImage? {
-    let relative: URLSource?
+    column: ImagesModelLoadImagesColumn,
+    parameters: ImagesItemModelImageParameters,
+  ) async {
+    let document: URLSourceDocument?
 
     do {
-      relative = try state.relative(item.fileBookmark.relative)
+      document = try state.document(fileBookmark: item.fileBookmark)
     } catch {
-      // TODO: Elaborate.
-      Logger.model.error("\(error)")
+      switch error {
+        case .relativeUnresolved: break
+      }
 
-      return nil
+      return
     }
 
-    let id = item.fileBookmark.bookmark.bookmark.rowID!
-
-    guard let bookmark = state.bookmarks[id] else {
-      return nil
+    guard let document else {
+      return
     }
 
-    let document = URLSourceDocument(
-      source: URLSource(url: bookmark.resolved.url, options: item.fileBookmark.bookmark.bookmark.options!),
-      relative: relative,
-    )
+    let image = document.accessingSecurityScopedResource { () -> NSImage? in
+      guard let imageSource = self.createImageSource(at: document.source.url) else {
+        return nil
+      }
 
-    let image = document.accessingSecurityScopedResource {
-      self.loadImage(at: document.source.url, width: width, pixelLength: pixelLength)
+      let index = CGImageSourceGetPrimaryImageIndex(imageSource)
+
+      guard let sizeOrientation = self.imageSizeOrientation(source: imageSource, at: index, url: document.source.url) else {
+        return nil
+      }
+
+      let size = sizeOrientation.orientedSize
+      let image = self.createThumbnail(
+        source: imageSource,
+        at: index,
+        length: self.length(size: size, width: parameters.width, pixelLength: parameters.pixelLength),
+        size: size,
+        url: document.source.url,
+      )
+
+      return image
     }
 
-    return image
+    await self.loadImage(item: item, column: column, parameters: parameters, image: image)
   }
 
   nonisolated private func _loadImages(
+    in column: ImagesModelLoadImagesColumn,
     items: [RowID],
-    width: Double,
-    column: ImagesModelLoadImagesColumn,
-    pixelLength: Double,
+    parameters: ImagesItemModelImageParameters,
   ) async {
     let connection: DatabasePool
 
@@ -1098,36 +1117,204 @@ final class ImagesModel {
     }
 
     for item in items2 {
-      let image = loadImage(state: state2, item: item, width: width, pixelLength: pixelLength)
+      await self.loadImage(state: state2, item: item, column: column, parameters: parameters)
+    }
+  }
 
-      await MainActor.run {
-        let imagesItem = self.items[id: item.item.rowID!]!
+  private func loadImageAnalysis(
+    item: ImagesItemInfo,
+    imageOrientation: ImagesModelImageOrientation,
+    parameters: ImagesItemModelImageAnalysisParameters,
+    url: URL,
+  ) async {
+    let analysis: ImageAnalysis
 
-        guard let image else {
-          switch column {
-            case .sidebar:
-              imagesItem.sidebarImagePhase = .failure
-            case .detail:
-              imagesItem.detailImagePhase = .failure
-          }
+    do {
+      analysis = try await withCheckedThrowingContinuation { continuation in
+        Task {
+          await analyses.send(Run(continuation: continuation) {
+            let analyzer = ImageAnalyzer()
+            // The analysis is performed by mediaanalysisd, so this call isn't holding up the main actor.
+            let measured = try await ContinuousClock.continuous.measure {
+              try await analyzer.analyze(
+                imageOrientation.image,
+                orientation: imageOrientation.orientation,
+                configuration: ImageAnalyzer.Configuration(parameters.types.analyzerAnalysisTypes),
+              )
+            }
 
-          return
-        }
+            Logger.model.debug("Took \(measured.duration) to analyze image at file URL '\(url.pathString)'")
 
-        switch column {
-          case .sidebar:
-            imagesItem.sidebarImage = image
-            imagesItem.sidebarImagePhase = .success
-            imagesItem.sidebarImageWidth = width
-            imagesItem.sidebarImagePixelLength = pixelLength
-          case .detail:
-            imagesItem.detailImage = image
-            imagesItem.detailImageID = UUID()
-            imagesItem.detailImagePhase = .success
-            imagesItem.detailImageWidth = width
-            imagesItem.detailImagePixelLength = pixelLength
+            return measured.value
+          })
         }
       }
+    } catch {
+      Logger.model.error("Could not analyze image at file URL '\(url.pathString)': \(error)")
+
+      return
+    }
+
+    guard let item = self.items[id: item.item.rowID!] else {
+      return
+    }
+
+    item.imageAnalysis = analysis
+    item.imageAnalysisParameters = parameters
+  }
+
+  nonisolated private func loadImageAnalysis(
+    state: ImagesItemAssignment,
+    item: ImagesItemInfo,
+    parameters: ImagesItemModelImageAnalysisParameters,
+  ) async {
+    let document: URLSourceDocument?
+
+    do {
+      document = try state.document(fileBookmark: item.fileBookmark)
+    } catch {
+      switch error {
+        case .relativeUnresolved: break
+      }
+
+      return
+    }
+
+    guard let document else {
+      return
+    }
+
+    let imageOrientation = document.accessingSecurityScopedResource { () -> ImagesModelImageOrientation? in
+      guard let imageSource = self.createImageSource(at: document.source.url) else {
+        return nil
+      }
+
+      let index = CGImageSourceGetPrimaryImageIndex(imageSource)
+
+      guard let sizeOrientation = self.imageSizeOrientation(
+        source: imageSource,
+        at: index,
+        url: document.source.url,
+      ) else {
+        return nil
+      }
+
+      let size = sizeOrientation.orientedSize
+      let len = self.length(size: size, width: parameters.width, pixelLength: parameters.pixelLength)
+      let length = min(len, ImageAnalyzer.maxLength)
+
+      guard let image = self.createThumbnail(
+              source: imageSource,
+              at: index,
+              length: length,
+              size: size,
+              url: document.source.url,
+            ) else {
+        return nil
+      }
+
+      let imageOrientation = ImagesModelImageOrientation(image: image, orientation: sizeOrientation.orientation)
+
+      return imageOrientation
+    }
+
+    guard let imageOrientation else {
+      return
+    }
+
+    await self.loadImageAnalysis(
+      item: item,
+      imageOrientation: imageOrientation,
+      parameters: parameters,
+      url: document.source.url,
+    )
+  }
+
+  nonisolated private func loadImageAnalyses(
+    for items: [RowID],
+    parameters: ImagesItemModelImageAnalysisParameters,
+  ) async {
+    let connection: DatabasePool
+
+    do {
+      connection = try await databaseConnection()
+    } catch {
+      Logger.model.error("Could not create database connection for image analysis: \(error)")
+
+      return
+    }
+
+    let state1: ImagesModelLoadImagesLoadState
+
+    do {
+      state1 = try await connection.read { db in
+        let items = try ImagesItemRecord
+          .select(.rowID)
+          .filter(keys: items)
+          .including(
+            required: ImagesItemRecord.fileBookmark
+              .forKey(ImagesModelLoadImagesImagesItemInfo.CodingKeys.fileBookmark)
+              .select(.rowID)
+              .including(
+                required: FileBookmarkRecord.bookmark
+                  .forKey(ImagesModelLoadImagesImagesItemFileBookmarkInfo.CodingKeys.bookmark)
+                  .select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options),
+              )
+              .including(
+                optional: FileBookmarkRecord.relative
+                  .forKey(ImagesModelLoadImagesImagesItemFileBookmarkInfo.CodingKeys.relative)
+                  .select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options),
+              ),
+          )
+          .asRequest(of: ImagesModelLoadImagesImagesItemInfo.self)
+          .fetchCursor(db)
+
+        let state = ImagesModelLoadImagesLoadState(
+          items: try Dictionary(uniqueKeysWithValues: items.map { ($0.item.rowID!, $0) }),
+        )
+
+        return state
+      }
+    } catch {
+      Logger.model.error("Could not read from database for image analysis: \(error)")
+
+      return
+    }
+
+    let items2 = items.map { item in
+      let item = state1.items[item]!
+
+      return ImagesItemInfo(
+        item: item.item,
+        fileBookmark: ImagesItemFileBookmarkInfo(
+          fileBookmark: item.fileBookmark.fileBookmark,
+          bookmark: ImagesItemFileBookmarkBookmarkInfo(
+            bookmark: item.fileBookmark.bookmark.bookmark,
+          ),
+          relative: item.fileBookmark.relative.map { relative in
+            ImagesItemFileBookmarkRelativeInfo(
+              relative: relative.relative,
+            )
+          },
+        ),
+      )
+    }
+
+    var state2 = ImagesItemAssignment()
+    await state2.assign(items: items2)
+
+    do {
+      try await connection.write { [state2] db in
+        try state2.write(db, items: items2)
+      }
+    } catch {
+      Logger.model.error("Could not write to database for image analysis: \(error)")
+
+      return
+    }
+
+    for item in items2 {
+      await self.loadImageAnalysis(state: state2, item: item, parameters: parameters)
     }
   }
 

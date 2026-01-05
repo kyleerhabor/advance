@@ -8,46 +8,16 @@
 import AdvanceCore
 import SwiftUI
 import Combine
-import Defaults
 import UniformTypeIdentifiers
 import VisionKit
 
 let imagesContentTypes: [UTType] = [.image, .folder]
 let foldersContentTypes: [UTType] = [.folder]
 
-// MARK: - VisionKit
+// MARK: - Storage
 
-struct ImageAnalysisTypes {
-  let rawValue: UInt
-}
-
-extension ImageAnalysisTypes: OptionSet {
-  static let text = Self(rawValue: ImageAnalyzer.AnalysisTypes.text.rawValue)
-  static let visualLookUp = Self(rawValue: ImageAnalyzer.AnalysisTypes.visualLookUp.rawValue)
-
-  var analyzerAnalysisTypes: ImageAnalyzer.AnalysisTypes {
-    ImageAnalyzer.AnalysisTypes(rawValue: self.rawValue)
-  }
-}
-
-extension SchedulerTimeIntervalConvertible {
-  static var imagesScrollInteraction: Self {
-    .milliseconds(50)
-  }
-
-  static var imagesResizeInteraction: Self {
-    .milliseconds(200)
-  }
-
-  static var imagesHoverInteraction: Self {
-    .milliseconds(500)
-  }
-}
-
-// MARK: - Defaults
-
-enum DefaultColorScheme: Int {
-  case system, light, dark
+enum StorageAppearance: Int {
+  case automatic, light, dark
 
   var appearance: NSAppearance? {
     switch self {
@@ -57,14 +27,6 @@ enum DefaultColorScheme: Int {
     }
   }
 }
-
-extension DefaultColorScheme: Defaults.Serializable {}
-
-extension Defaults.Keys {
-  static let colorScheme = Key("color-scheme", default: DefaultColorScheme.system)
-}
-
-// MARK: - Storage
 
 enum StorageVisibility: Int {
   case automatic, visible, hidden
@@ -177,42 +139,50 @@ extension SceneStorage {
 }
 
 enum StorageKeys {
-  static let columnVisibility = StorageKey(
-    "\(Bundle.appID).column-visibility",
-    defaultValue: StorageColumnVisibility.automatic,
-  )
-
-  static let importHiddenFiles = StorageKey("\(Bundle.appID).import-hidden-files", defaultValue: false)
-  static let importSubdirectories = StorageKey("\(Bundle.appID).import-subdirectories", defaultValue: true)
+  // MARK: - App
+  static let appearance = StorageKey("\(Bundle.appID).appearance", defaultValue: StorageAppearance.automatic)
+  static let restoreLastImage = StorageKey("\(Bundle.appID).restore-last-image", defaultValue: true)
+  static let margins = StorageKey("\(Bundle.appID).margins", defaultValue: 1.0)
+  static let collapseMargins = StorageKey("\(Bundle.appID).collapse-margins", defaultValue: true)
   static let hiddenLayout = StorageKey(
     "\(Bundle.appID).hidden-layout",
     defaultValue: StorageHiddenLayout.cursor,
   )
 
-  static let margins = StorageKey("\(Bundle.appID).margins", defaultValue: 1.0)
-  static let collapseMargins = StorageKey("\(Bundle.appID).collapse-margins", defaultValue: true)
+  static let importHiddenFiles = StorageKey("\(Bundle.appID).import-hidden-files", defaultValue: false)
+  static let importSubdirectories = StorageKey("\(Bundle.appID).import-subdirectories", defaultValue: true)
   static let isLiveTextEnabled = StorageKey("\(Bundle.appID).live-text-is-enabled", defaultValue: true)
   static let isLiveTextIconEnabled = StorageKey("\(Bundle.appID).live-text-icon-is-enabled", defaultValue: false)
   static let isLiveTextSubjectEnabled = StorageKey("\(Bundle.appID).live-text-subject-is-enabled", defaultValue: false)
-  static let liveTextSupplementaryInterfaceVisibility = StorageKey(
-    "\(Bundle.appID).live-text-supplementary-interface-visibility",
-    defaultValue: StorageVisibility.automatic,
+  static let isSystemSearchEnabled = StorageKey(
+    "\(Bundle.appID).search-system-is-enabled",
+    defaultValue: false,
   )
 
   static let resolveConflicts = StorageKey("\(Bundle.appID).resolve-conflicts", defaultValue: false)
-  static let foldersPathDirection = StorageKey(
-    "\(Bundle.appID).folders-path-direction",
-    defaultValue: StorageFoldersPathDirection.trailing,
-  )
   static let foldersPathSeparator = StorageKey(
     "\(Bundle.appID).folders-path-separator",
     defaultValue: StorageFoldersPathSeparator.singlePointingAngleQuotationMark
   )
 
-  static let isSystemSearchEnabled = StorageKey(
-    "\(Bundle.appID).search-system-is-enabled",
-    defaultValue: false,
+  static let foldersPathDirection = StorageKey(
+    "\(Bundle.appID).folders-path-direction",
+    defaultValue: StorageFoldersPathDirection.trailing,
   )
+
+  // MARK: - Scene
+
+  static let columnVisibility = StorageKey(
+    "\(Bundle.appID).column-visibility",
+    defaultValue: StorageColumnVisibility.automatic,
+  )
+
+  static let liveTextSupplementaryInterfaceVisibility = StorageKey(
+    "\(Bundle.appID).live-text-supplementary-interface-visibility",
+    defaultValue: StorageVisibility.automatic,
+  )
+
+  // MARK: - Support
 
   static func directoryEnumerationOptions(
     importHiddenFiles: Bool,
@@ -230,8 +200,33 @@ enum StorageKeys {
 
     return options
   }
+}
 
-  // MARK: - Old
+// MARK: - VisionKit
 
-  static let restoreLastImage = StorageKey("restore-last-image", defaultValue: true)
+struct ImageAnalysisTypes {
+  let rawValue: UInt
+}
+
+extension ImageAnalysisTypes: OptionSet {
+  static let text = Self(rawValue: ImageAnalyzer.AnalysisTypes.text.rawValue)
+  static let visualLookUp = Self(rawValue: ImageAnalyzer.AnalysisTypes.visualLookUp.rawValue)
+
+  var analyzerAnalysisTypes: ImageAnalyzer.AnalysisTypes {
+    ImageAnalyzer.AnalysisTypes(rawValue: self.rawValue)
+  }
+}
+
+extension SchedulerTimeIntervalConvertible {
+  static var imagesScrollInteraction: Self {
+    .milliseconds(50)
+  }
+
+  static var imagesResizeInteraction: Self {
+    .milliseconds(200)
+  }
+
+  static var imagesHoverInteraction: Self {
+    .milliseconds(500)
+  }
 }

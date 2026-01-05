@@ -11,6 +11,7 @@ import SwiftUI
 struct ImagesItemImageView: View {
   @State private var hasElapsed = false
   let item: ImagesItemModel2
+  let aspectRatio: CGFloat
   let image: NSImage
   let phase: ImagesItemModelImagePhase
 
@@ -37,7 +38,7 @@ struct ImagesItemImageView: View {
           .visible(isVisible)
           .animation(.default, value: isVisible)
       }
-      .aspectRatio(item.aspectRatio, contentMode: .fit)
+      .aspectRatio(self.aspectRatio, contentMode: .fit)
       .task {
         do {
           try await Task.sleep(for: .imagesElapse)
@@ -47,7 +48,7 @@ struct ImagesItemImageView: View {
           unreachable()
         }
 
-        hasElapsed = true
+        self.hasElapsed = true
       }
   }
 }

@@ -5,11 +5,11 @@
 //  Created by Kyle Erhabor on 6/30/24.
 //
 
-import Defaults
 import SwiftUI
 import VisionKit
 
 struct SettingsGeneralView: View {
+  @AppStorage(StorageKeys.appearance) private var appearance
   @AppStorage(StorageKeys.collapseMargins) private var collapseMargins
   @AppStorage(StorageKeys.hiddenLayout) private var hiddenLayout
   @AppStorage(StorageKeys.isLiveTextEnabled) private var isLiveTextEnabled
@@ -17,28 +17,30 @@ struct SettingsGeneralView: View {
   @AppStorage(StorageKeys.isLiveTextSubjectEnabled) private var isLiveTextSubjectEnabled
   @AppStorage(StorageKeys.margins) private var margins
   @AppStorage(StorageKeys.restoreLastImage) private var restoreLastImage
-  @Default(.colorScheme) private var colorScheme
   private let isImageAnalysisSupported = ImageAnalyzer.isSupported
 
   var body: some View {
     Form {
       LabeledContent("Settings.General.Appearance") {
-        Picker("Settings.General.Appearance.Theme", selection: $colorScheme) {
+        Picker("Settings.General.Appearance.Use", selection: $appearance) {
           Section {
-            Text("Settings.General.Appearance.Theme.System")
-              .tag(DefaultColorScheme.system)
+            Text("Settings.General.Appearance.Use.System")
+              .tag(StorageAppearance.automatic)
           }
 
           Section {
-            Text("Settings.General.Appearance.Theme.Light")
-              .tag(DefaultColorScheme.light)
+            Text("Settings.General.Appearance.Use.Light")
+              .tag(StorageAppearance.light)
 
-            Text("Settings.General.Appearance.Theme.Dark")
-              .tag(DefaultColorScheme.dark)
+            Text("Settings.General.Appearance.Use.Dark")
+              .tag(StorageAppearance.dark)
           }
         }
         .labelsHidden()
         .frame(width: SettingsView2.pickerWidth)
+        .onChange(of: self.appearance) {
+          NSApp.appearance = appearance.appearance
+        }
       }
 
       LabeledContent("Settings.General.Window") {

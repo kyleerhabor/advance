@@ -78,7 +78,6 @@ struct ImagesDetailListView: View {
   @Environment(\.isTrackingMenu) private var isTrackingMenu
   @Environment(\.isWindowFullScreen) private var isWindowFullScreen
   @Environment(\.isWindowLiveResizeActive) private var isWindowLiveResizeActive
-  @AppStorage(StorageKeys.restoreLastImage) private var restoreLastImage
   @AppStorage(StorageKeys.hiddenLayout) private var hiddenLayout
   @SceneStorage(StorageKeys.columnVisibility) private var columnVisibility
   @State private var model = ImagesDetailListViewModel()

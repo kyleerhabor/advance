@@ -100,9 +100,6 @@
     "Copy" : {
 
     },
-    "Extra" : {
-
-    },
     "Finder.Item.%@.Open" : {
       "localizations" : {
         "en" : {
@@ -696,28 +693,6 @@
         }
       }
     },
-    "Settings.Accessory.Search.Delete" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Delete"
-          }
-        }
-      }
-    },
-    "Settings.Accessory.Search.Location" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Location:"
-          }
-        }
-      }
-    },
     "Settings.Accessory.Search.Location.Prompt" : {
       "localizations" : {
         "en" : {
@@ -728,34 +703,12 @@
         }
       }
     },
-    "Settings.Accessory.Search.Location.Substitute" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Add substitute"
-          }
-        }
-      }
-    },
     "Settings.Accessory.Search.Location.Token.Query" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Query"
-          }
-        }
-      }
-    },
-    "Settings.Accessory.Search.Name" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Name"
           }
         }
       }
@@ -776,17 +729,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Name…"
-          }
-        }
-      }
-    },
-    "Settings.Accessory.Search.Token.Query" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Query"
           }
         }
       }
@@ -872,17 +814,17 @@
         }
       }
     },
-    "Settings.General.Appearance.Theme" : {
+    "Settings.General.Appearance.Use" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Theme:"
+            "value" : "Appearance:"
           }
         }
       }
     },
-    "Settings.General.Appearance.Theme.Dark" : {
+    "Settings.General.Appearance.Use.Dark" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -892,7 +834,7 @@
         }
       }
     },
-    "Settings.General.Appearance.Theme.Light" : {
+    "Settings.General.Appearance.Use.Light" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -902,7 +844,7 @@
         }
       }
     },
-    "Settings.General.Appearance.Theme.System" : {
+    "Settings.General.Appearance.Use.System" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1102,42 +1044,12 @@
         }
       }
     },
-    "Settings.LiveText.Downsample.Label" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Downsample very large images"
-          }
-        }
-      }
-    },
-    "Settings.LiveText.Downsample.Note" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "If an image is too large to be analyzed, a lower-resolution representation of the image will be used instead. This involves writing the image to disk, which will be cleared the next time the app is launched."
-          }
-        }
-      }
-    },
     "Settings.LiveText.Unsupported" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "This device does not support Live Text."
-          }
-        }
-      }
-    },
-    "Settings.Section.LiveText" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Live Text:"
           }
         }
       }

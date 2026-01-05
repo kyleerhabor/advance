@@ -7,37 +7,25 @@
 
 import AppKit
 import AsyncAlgorithms
-import Combine
-import Defaults
-import Foundation
 import SwiftUI
 
 @MainActor
 @Observable
 class AppDelegate: NSObject, NSApplicationDelegate {
   @ObservationIgnored let openChannel = AsyncChannel<[URL]>()
-  @ObservationIgnored private var colorScheme: Task<Void, Never>!
 
   func applicationWillFinishLaunching(_ notification: Notification) {
     let app = notification.object as! NSApplication
-    
+
     // Set the appearance of the app before any windows appear.
-    setAppearance(for: app, colorScheme: Defaults[.colorScheme])
+    if let appearance = StorageAppearance(rawValue: UserDefaults.default.integer(forKey: StorageKeys.appearance.name)) {
+      app.appearance = appearance.appearance
+    }
 
     // I personally think the context switch one needs to perform mentally when switching tabs outweights the benefit
     // of having less windows. The lack of animation is the greatest driving force, but also, Advance optimizes for
     // standalone windows. This places tabs at odds with Advance's design goals.
     NSWindow.allowsAutomaticWindowTabbing = false
-
-    colorScheme = Task { [weak self] in
-      for await colorScheme in Defaults.updates(.colorScheme, initial: false) {
-        self?.setAppearance(for: NSApplication.shared, colorScheme: colorScheme)
-      }
-    }
-  }
-
-  func applicationWillTerminate(_ notification: Notification) {
-    colorScheme.cancel()
   }
 
   func applicationWillUpdate(_ notification: Notification) {
@@ -81,9 +69,5 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     Task {
       await self.openChannel.send(urls)
     }
-  }
-
-  func setAppearance(for app: NSApplication, colorScheme: DefaultColorScheme) {
-    app.appearance = colorScheme.appearance
   }
 }

@@ -56,7 +56,12 @@ struct ImagesSidebarItemImageView: View {
   let item: ImagesItemModel2
 
   var body: some View {
-    ImagesItemImageView(item: item, image: item.sidebarImage, phase: item.sidebarImagePhase)
+    ImagesItemImageView(
+      item: self.item,
+      aspectRatio: self.item.sidebarAspectRatio,
+      image: self.item.sidebarImage,
+      phase: self.item.sidebarImagePhase,
+    )
   }
 }
 
@@ -145,6 +150,23 @@ struct ImagesSidebarView2: View {
           .visible(images.hasLoadedNoImages)
         }
       }
+//      .overlay(alignment: .bottom) {
+//        VStack(spacing: 0) {
+//          Divider()
+//
+//          HStack {
+//            Spacer()
+//
+//            Toggle("Bookmark", systemImage: "bookmark.fill", isOn: .constant(true))
+//              .toggleStyle(.button)
+//              .buttonStyle(.plain)
+//              .labelStyle(.iconOnly)
+//              .foregroundStyle(Color(.controlAccentColor))
+//              .controlSize(.large)
+//          }
+//          .padding(10)
+//        }
+//      }
       .overlay {
         if images.hasLoadedNoImages {
           Color.clear
@@ -407,6 +429,10 @@ struct ImagesSidebarView2: View {
     before4.map { items.append($0.element) }
     after4.map { items.append($0.element) }
 
-    await self.images.loadImages(in: .sidebar, items: items, width: resample.width, pixelLength: self.pixelLength)
+    await self.images.loadImages(
+      in: .sidebar,
+      items: items,
+      parameters: ImagesItemModelImageParameters(width: resample.width, pixelLength: self.pixelLength),
+    )
   }
 }

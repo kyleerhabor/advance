@@ -1,5 +1,5 @@
 {
-  "originHash" : "983148f9141ca46a2c685ef796fa3b8df6d6156f7a88629f203d50038e0c19fd",
+  "originHash" : "0b8ab8415ce20d0f062401a4320229ddf22a1b0f634854eb5555ed6153266431",
   "pins" : [
     {
       "identity" : "bigint",
@@ -10,19 +10,11 @@
       }
     },
     {
-      "identity" : "defaults",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/sindresorhus/Defaults",
-      "state" : {
-        "revision" : "cc938ecf0bed848dc80a9726ac5455104e3f9dae"
-      }
-    },
-    {
       "identity" : "grdb.swift",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/groue/GRDB.swift",
       "state" : {
-        "revision" : "18497b68fdbb3a09528d260a0a0e1e7e61c8c53d"
+        "revision" : "aa0079aeb82a4bf00324561a40bffe68c6fe1c26"
       }
     },
     {
@@ -30,8 +22,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-algorithms.git",
       "state" : {
-        "revision" : "f6919dfc309e7f1b56224378b11e28bab5bccc42",
-        "version" : "1.2.0"
+        "revision" : "87e50f483c54e6efd60e885f7f5aa946cee68023"
       }
     },
     {
@@ -55,7 +46,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/pointfreeco/swift-identified-collections",
       "state" : {
-        "revision" : "d533cd18b0b456b106694a9899f917ee595f2666"
+        "revision" : "322d9ffeeba85c9f7c4984b39422ec7cc3c56597"
       }
     },
     {
@@ -65,15 +56,6 @@
       "state" : {
         "revision" : "0a5bc04095a675662cf24757cc0640aa2204253b",
         "version" : "1.0.2"
-      }
-    },
-    {
-      "identity" : "swift-syntax",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/swiftlang/swift-syntax",
-      "state" : {
-        "revision" : "0687f71944021d616d34d922343dcef086855920",
-        "version" : "600.0.1"
       }
     }
   ],

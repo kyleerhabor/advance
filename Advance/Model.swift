@@ -5,13 +5,7 @@
 //  Created by Kyle Erhabor on 7/28/23.
 //
 
-import Defaults
 import SwiftUI
-
-enum ImageError: Error {
-  case undecodable
-  case thumbnail
-}
 
 enum ResultPhase<Success, Failure> where Failure: Error {
   case empty
@@ -58,8 +52,3 @@ enum ResultPhaseItem {
 }
 
 extension ResultPhaseItem: Equatable {}
-
-extension Defaults.Keys {
-  // Live Text
-  static let liveTextDownsample = Key("liveTextDownsample", default: false)
-}

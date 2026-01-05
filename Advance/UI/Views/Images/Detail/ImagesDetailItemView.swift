@@ -6,21 +6,6 @@
 //
 
 import SwiftUI
-@preconcurrency import VisionKit
-
-struct ImagesDetailItemContentAnalysisView: View {
-  @Environment(ImagesModel.self) private var images
-  @Binding var isHighlighted: Bool
-
-  var body: some View {
-    // FIXME: ImageAnalysisView does not discover NSMenu for paged style.
-    ImageAnalysisView(
-      isHighlighted: $isHighlighted,
-      analysis: nil,
-      interactionTypes: .automatic,
-    )
-  }
-}
 
 struct ImagesDetailItemContentView: View {
   @State private var phase = ImagesItemPhase.empty
@@ -29,9 +14,6 @@ struct ImagesDetailItemContentView: View {
 
   var body: some View {
     ImagesItemPhaseView(phase: phase)
-      .overlay {
-        ImagesDetailItemContentAnalysisView(isHighlighted: $isHighlighted)
-      }
       .anchorPreference(key: VisiblePreferenceKey<ImagesDetailListVisibleItem>.self, value: .bounds) { anchor in
         let item = ImagesDetailListVisibleItem(item: item, isHighlighted: isHighlighted) { isOn in
           isHighlighted = isOn

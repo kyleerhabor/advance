@@ -5,7 +5,6 @@
 //  Created by Kyle Erhabor on 10/11/23.
 //
 
-import Defaults
 import OSLog
 import SwiftUI
 
@@ -131,10 +130,8 @@ struct ImageCollectionSidebarContentView: View {
 
       List(selection: $sidebar.selection) {
         ForEach(sidebar.images) { image in
-          let size = image.properties.orientedSize
-
           ImageCollectionItemImageView()
-            .aspectRatio(size.width / size.height, contentMode: .fit)
+            .scaledToFit()
             .anchorPreference(key: VisibleImageIDsPreferenceKey.self, value: .bounds) {
               [VisibleItem(item: image.id, anchor: $0)]
             }

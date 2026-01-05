@@ -12,13 +12,6 @@ import OSLog
 import SwiftUI
 import VisionKit
 
-struct ImagesDetailViewLiveTextID {
-  let id: UUID
-  let phase: ImagesItemModelImagePhase
-}
-
-extension ImagesDetailViewLiveTextID: Equatable {}
-
 struct ImageDetailItemImageAnalysisView: View {
   @Environment(ImagesModel.self) private var images
   @Environment(SearchSettingsModel.self) private var search
@@ -34,14 +27,12 @@ struct ImageDetailItemImageAnalysisView: View {
   private var preferredInteractionTypes: ImageAnalysisOverlayView.InteractionTypes {
     var interactionTypes = ImageAnalysisOverlayView.InteractionTypes()
 
-    guard self.isLiveTextEnabled else {
-      return interactionTypes
-    }
+    if self.isLiveTextEnabled && self.item.detailImagePhase == .success {
+      interactionTypes.insert(.automaticTextOnly)
 
-    interactionTypes.insert(.automaticTextOnly)
-
-    if self.isLiveTextSubjectEnabled {
-      interactionTypes.insert(.automatic)
+      if self.isLiveTextSubjectEnabled {
+        interactionTypes.insert(.automatic)
+      }
     }
 
     return interactionTypes
@@ -50,11 +41,11 @@ struct ImageDetailItemImageAnalysisView: View {
   var body: some View {
     @Bindable var item = self.item
 
-    ImageAnalysisView2(
-      selectableItemsHighlighted: $item.isSelectableItemsHighlighted,
+    ImageAnalysisView(
+      selectableItemsHighlighted: $item.selectableItemsHighlighted,
       analysis: item.imageAnalysis,
       preferredInteractionTypes: preferredInteractionTypes,
-      isSupplementaryInterfaceHidden: !isSupplementaryInterfaceVisible,
+      isSupplementaryInterfaceHidden: !self.isSupplementaryInterfaceVisible,
     ) { delegate, menu, overlayView in
       let copyImage = menu.indexOfItem(withTag: ImageAnalysisOverlayView.MenuTag.copyImage)
 
@@ -120,47 +111,40 @@ struct ImagesDetailItemBookmarkView: View {
 
   var body: some View {
     Button(
-      item.isBookmarked ? "Images.Item.Bookmark.Remove" : "Images.Item.Bookmark.Add",
+      self.item.isBookmarked ? "Images.Item.Bookmark.Remove" : "Images.Item.Bookmark.Add",
       systemImage: "bookmark"
     ) {
       Task {
-        await images.bookmark(item: item, isBookmarked: !item.isBookmarked)
+        await self.images.bookmark(item: self.item, isBookmarked: !self.item.isBookmarked)
       }
     }
   }
 }
 
-struct ImagesDetailItemBackgroundView: View {
-  @Environment(ImagesModel.self) private var images
-  @AppStorage(StorageKeys.isLiveTextEnabled) private var isLiveTextEnabled
-  @AppStorage(StorageKeys.isLiveTextSubjectEnabled) private var isLiveTextSubjectEnabled
+struct ImagesDetailItemImageView: View {
   let item: ImagesItemModel2
 
   var body: some View {
-    Color.clear
-      .task(id: ImagesDetailViewLiveTextID(id: item.detailImageID, phase: item.detailImagePhase)) {
-        var types = ImageAnalysisTypes()
-
-        if isLiveTextEnabled {
-          types.insert(.text)
-
-          if isLiveTextSubjectEnabled {
-            types.insert(.visualLookUp)
-          }
-        }
-
-        await images.loadImageAnalysis(item: item, types: types)
-      }
+    // For some reason, we need to wrap this in a VStack for animations to apply.
+    VStack {
+      ImagesItemImageView(
+        item: self.item,
+        aspectRatio: self.item.detailAspectRatio,
+        image: self.item.detailImage,
+        phase: self.item.detailImagePhase,
+      )
+    }
   }
 }
 
-struct ImagesDetailItemView2: View {
-  let item: ImagesItemModel2
-
-  var body: some View {
-    ImagesItemImageView(item: item, image: item.detailImage, phase: item.detailImagePhase)
-  }
+@MainActor
+struct ImagesDetailViewImageAnalysisID {
+  let images: ImagesModel
+  let types: ImageAnalysisTypes
+  let pixelLength: CGFloat
 }
+
+extension ImagesDetailViewImageAnalysisID: @MainActor Equatable {}
 
 struct ImagesDetailView2: View {
   @Environment(ImagesModel.self) private var images
@@ -176,7 +160,6 @@ struct ImagesDetailView2: View {
   @AppStorage(StorageKeys.restoreLastImage) private var restoreLastImage
   @Binding var copyFolderError: ImagesModelCopyFolderError?
   @Binding var isCopyFolderErrorPresented: Bool
-  @State private var itemsChannel = AsyncChannel<[ImagesItemModel2]>()
   @State private var copyFolderSelection: ImagesItemModel2.ID?
   @State private var isCopyFolderFileImporterPresented = false
   @State private var searchError: ImagesModelEngineURLError?
@@ -189,6 +172,19 @@ struct ImagesDetailView2: View {
   private var top: EdgeInsets { EdgeInsets(horizontal: full, top: full, bottom: half) }
   private var between: EdgeInsets { EdgeInsets(horizontal: full, top: half, bottom: half) }
   private var bottom: EdgeInsets { EdgeInsets(horizontal: full, top: half, bottom: full) }
+  private var imageAnalysisTypes: ImageAnalysisTypes {
+    var types = ImageAnalysisTypes()
+
+    if self.isLiveTextEnabled {
+      types.insert(.text)
+
+      if self.isLiveTextSubjectEnabled {
+        types.insert(.visualLookUp)
+      }
+    }
+
+    return types
+  }
 
   var body: some View {
     ScrollViewReader { proxy in
@@ -208,7 +204,7 @@ struct ImagesDetailView2: View {
         //
         // For some reason, we need to extract accesses to item's properties into dedicated views to prevent slow view
         // updates when switching windows.
-        ImagesDetailItemView2(item: item)
+        ImagesDetailItemImageView(item: item)
           .anchorPreference(key: ImagesVisibleItemsPreferenceKey.self, value: .bounds) { anchor in
             [ImagesVisibleItem(item: item, anchor: anchor)]
           }
@@ -217,11 +213,8 @@ struct ImagesDetailView2: View {
               searchError: $searchError,
               isSearchErrorPresented: $isSearchErrorPresented,
               item: item,
-              isSupplementaryInterfaceVisible: isSupplementaryInterfaceVisible,
+              isSupplementaryInterfaceVisible: self.isSupplementaryInterfaceVisible,
             )
-          }
-          .background {
-            ImagesDetailItemBackgroundView(item: item)
           }
           .contextMenu {
             Section {
@@ -268,8 +261,8 @@ struct ImagesDetailView2: View {
       } message: { error in
         Text(error.recoverySuggestion ?? "")
       }
-      .task(id: images) {
-        for await item in images.detail {
+      .task(id: self.images) {
+        for await item in self.images.detail {
           // TODO: Figure out how to accurately animate scrolling.
           //
           // See ImagesSidebarView2.
@@ -290,51 +283,20 @@ struct ImagesDetailView2: View {
                 .filter { frame.intersects($0.frame) }
 
               let items = resolved.map(\.item)
-              await self.itemsChannel.send(items)
+              async let x: () = self.images.visibleItemsChannel.send(items)
 
               guard let item = resolved.first else {
+                await x
+
                 return
               }
 
-              await self.images.detailResample.send(ImagesModelResample(width: item.frame.width, items: items))
+              async let y: () = self.images.detailResample.send(ImagesModelResample(width: item.frame.width, items: items))
+              async let z: () = self.images.detailImageAnalysis.send(ImagesModelResample(width: item.frame.width, items: items))
+              await x
+              await y
+              await z
             }
-        }
-      }
-      .task(id: ImagesViewResampleID(images: self.images, pixelLength: self.pixelLength)) {
-        for await resample in self.images.detailResample.removeDuplicates().debounce(for: .microhang) {
-          var items = [ImagesItemModel2](reservingCapacity: resample.items.count + 4)
-          items.append(contentsOf: resample.items)
-
-          let before1: BidirectionalCollectionItem<IdentifiedArrayOf<ImagesItemModel2>>?
-          let before2: BidirectionalCollectionItem<IdentifiedArrayOf<ImagesItemModel2>>?
-
-          if let item = resample.items.first,
-             let index = self.images.items.index(id: item.id) {
-            before1 = self.images.items.before(index: index)
-            before2 = before1.flatMap { self.images.items.before(index: $0.index) }
-          } else {
-            before1 = nil
-            before2 = nil
-          }
-
-          let after1: BidirectionalCollectionItem<IdentifiedArrayOf<ImagesItemModel2>>?
-          let after2: BidirectionalCollectionItem<IdentifiedArrayOf<ImagesItemModel2>>?
-
-          if let item = resample.items.last,
-             let index = self.images.items.index(id: item.id) {
-            after1 = self.images.items.after(index: index)
-            after2 = after1.flatMap { self.images.items.after(index: $0.index) }
-          } else {
-            after1 = nil
-            after2 = nil
-          }
-
-          before1.map { items.append($0.element) }
-          after1.map { items.append($0.element) }
-          before2.map { items.append($0.element) }
-          after2.map { items.append($0.element) }
-          
-          await self.images.loadImages(in: .detail, items: items, width: resample.width, pixelLength: self.pixelLength)
         }
       }
       .task(id: self.images) {
@@ -345,7 +307,7 @@ struct ImagesDetailView2: View {
         // For some reason, scrolling via the sidebar may cause this to output nil, immediately followed by a proper
         // item. Debouncing defends against this, but is not a sound solution, since it's based on time, rather than
         // state.
-        var iterator = self.itemsChannel
+        var iterator = self.images.visibleItemsChannel
           // Drop the current item before items have been loaded (that is, nil).
           .dropFirst()
           // Remove duplicate current items.
@@ -354,27 +316,62 @@ struct ImagesDetailView2: View {
 
         // At this point, items have been loaded and we need to account for whether or not we have a current item. If we
         // have one, we'll scroll to it and ignore the following element that is a result of this.
-        if restoreLastImage,
+        if self.restoreLastImage,
            let items = await iterator.next() {
-          if let item = images.currentItem {
-            if columnVisibility != .detailOnly {
-              await images.sidebar.send(ImagesModelSidebarElement(item: item.id, isSelected: false))
+          let iitems: [ImagesItemModel2]
+
+          if let item = self.images.currentItem {
+            if self.columnVisibility != .detailOnly {
+              await self.images.sidebar.send(ImagesModelSidebarElement(item: item.id, isSelected: false))
             }
 
-            await images.detail.send(item.id)
+            await self.images.detail.send(item.id)
 
-            _ = await iterator.next()
+//            guard let items = await iterator.next() else {
+//              return
+//            }
+
+            iitems = items
           } else {
-            self.images.visibleItems = items
-            self.images.isHighlighted = !self.images.visibleItems.isEmpty && self.images.visibleItems.allSatisfy(\.isSelectableItemsHighlighted)
-            await images.setCurrentItem(item: items.first)
+            iitems = items
           }
+
+          self.images.visibleItems = iitems
+          self.images.isHighlighted = !iitems.isEmpty && iitems.allSatisfy(\.selectableItemsHighlighted)
+          await self.images.setCurrentItem(item: iitems.first)
         }
 
         while let items = await iterator.next() {
           self.images.visibleItems = items
-          self.images.isHighlighted = !self.images.visibleItems.isEmpty && self.images.visibleItems.allSatisfy(\.isSelectableItemsHighlighted)
-          await images.setCurrentItem(item: items.first)
+          self.images.isHighlighted = !items.isEmpty && items.allSatisfy(\.selectableItemsHighlighted)
+          await self.images.setCurrentItem(item: items.first)
+        }
+      }
+      .task(id: ImagesViewResampleID(images: self.images, pixelLength: self.pixelLength)) {
+        for await resample in self.images.detailResample.removeDuplicates().debounce(for: .microhang) {
+          await self.images.loadImages(
+            in: .detail,
+            items: self.items(resample: resample),
+            parameters: ImagesItemModelImageParameters(width: resample.width, pixelLength: self.pixelLength),
+          )
+        }
+      }
+      .task(
+        id: ImagesDetailViewImageAnalysisID(
+          images: self.images,
+          types: self.imageAnalysisTypes,
+          pixelLength: self.pixelLength,
+        ),
+      ) {
+        for await resample in self.images.detailImageAnalysis.removeDuplicates().debounce(for: .microhang) {
+          await self.images.loadImageAnalyses(
+            for: self.items(resample: resample),
+            parameters: ImagesItemModelImageAnalysisParameters(
+              types: self.imageAnalysisTypes,
+              width: resample.width,
+              pixelLength: self.pixelLength,
+            )
+          )
         }
       }
     }
@@ -408,5 +405,41 @@ struct ImagesDetailView2: View {
       }
     }
     .fileDialogCustomizationID(FoldersSettingsScene.id)
+  }
+
+  private func items(resample: ImagesModelResample) -> [ImagesItemModel2] {
+    var items = [ImagesItemModel2](reservingCapacity: resample.items.count + 4)
+    items.append(contentsOf: resample.items)
+
+    let before1: BidirectionalCollectionItem<IdentifiedArrayOf<ImagesItemModel2>>?
+    let before2: BidirectionalCollectionItem<IdentifiedArrayOf<ImagesItemModel2>>?
+
+    if let item = resample.items.first,
+       let index = self.images.items.index(id: item.id) {
+      before1 = self.images.items.before(index: index)
+      before2 = before1.flatMap { self.images.items.before(index: $0.index) }
+    } else {
+      before1 = nil
+      before2 = nil
+    }
+
+    let after1: BidirectionalCollectionItem<IdentifiedArrayOf<ImagesItemModel2>>?
+    let after2: BidirectionalCollectionItem<IdentifiedArrayOf<ImagesItemModel2>>?
+
+    if let item = resample.items.last,
+       let index = self.images.items.index(id: item.id) {
+      after1 = self.images.items.after(index: index)
+      after2 = after1.flatMap { self.images.items.after(index: $0.index) }
+    } else {
+      after1 = nil
+      after2 = nil
+    }
+
+    before1.map { items.append($0.element) }
+    after1.map { items.append($0.element) }
+    before2.map { items.append($0.element) }
+    after2.map { items.append($0.element) }
+
+    return items
   }
 }

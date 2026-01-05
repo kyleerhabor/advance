@@ -63,23 +63,11 @@ final class AppModel {
   let commandsSubject: any Subject<AppModelCommand, Never>
   let commandsPublisher: AnyPublisher<AppModelCommand, Never>
   var isImagesFileImporterPresented: Bool
-  var isBookmarked: Bool
-  var isBookmarkedSet: Bool
-  var isSupplementaryInterfaceVisible: Bool
-  var isSupplementaryInterfaceVisibleSet: Bool
-  var isSelectableItemsHighlighted: Bool
-  var isSelectableItemsHighlightedSet: Bool
 
   init() {
     self.commandsSubject = PassthroughSubject()
     self.commandsPublisher = commandsSubject.eraseToAnyPublisher()
     self.isImagesFileImporterPresented = false
-    self.isBookmarked = false
-    self.isBookmarkedSet = false
-    self.isSupplementaryInterfaceVisible = false
-    self.isSupplementaryInterfaceVisibleSet = false
-    self.isSelectableItemsHighlighted = false
-    self.isSelectableItemsHighlightedSet = false
   }
 
   func isShowFinderDisabled(for scene: AppModelCommandScene?) -> Bool {
@@ -98,12 +86,24 @@ final class AppModel {
     scene?.bookmark.isDisabled ?? true
   }
 
+  func isBookmarkOn(for scene: AppModelCommandScene?) -> Bool {
+    scene?.bookmark.isOn ?? false
+  }
+
   func isLiveTextIconDisabled(for scene: AppModelCommandScene?) -> Bool {
     scene?.liveTextIcon.isDisabled ?? true
   }
 
+  func isLiveTextIconOn(for scene: AppModelCommandScene?) -> Bool {
+    scene?.liveTextIcon.isOn ?? false
+  }
+
   func isLiveTextHighlightDisabled(for scene: AppModelCommandScene?) -> Bool {
     scene?.liveTextHighlight.isDisabled ?? true
+  }
+
+  func isLiveTextHighlightOn(for scene: AppModelCommandScene?) -> Bool {
+    scene?.liveTextHighlight.isOn ?? false
   }
 
   func isResetWindowSizeDisabled(for scene: AppModelCommandScene?) -> Bool {

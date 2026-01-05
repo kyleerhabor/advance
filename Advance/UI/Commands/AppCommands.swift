@@ -116,34 +116,49 @@ struct AppCommands: Commands {
 
     CommandMenu("Commands.Image") {
       Section {
-        @Bindable var app = self.app
+        let isOn = app.isBookmarkOn(for: scene)
 
-        Toggle(
-          app.isBookmarked ? "Commands.Image.Bookmark.Remove" : "Commands.Image.Bookmark.Add",
-          systemImage: "bookmark",
-          isOn: $app.isBookmarked,
-        )
+        // I'd prefer to use Toggle, but based on what I've seen, onChange doesn't work on Commands and fluctuate on
+        // focused scene values in Scene.
+        Button(
+          isOn ? "Commands.Image.Bookmark.Remove" : "Commands.Image.Bookmark.Add",
+          systemImage: isOn ? "bookmark.fill" : "bookmark",
+        ) {
+          guard let scene else {
+            return
+          }
+
+          app.commandsSubject.send(AppModelCommand(action: .bookmark, sceneID: scene.id))
+        }
         .keyboardShortcut(.bookmark)
         .disabled(app.isBookmarkDisabled(for: scene))
       }
 
       Section {
-        @Bindable var app = self.app
-
-        Toggle(
-          app.isSupplementaryInterfaceVisible ? "Commands.Image.LiveTextIcon.Hide" : "Commands.Image.LiveTextIcon.Show",
+        Button(
+          app.isLiveTextIconOn(for: scene) ? "Commands.Image.LiveTextIcon.Hide" : "Commands.Image.LiveTextIcon.Show",
           systemImage: "text.viewfinder",
-          isOn: $app.isSupplementaryInterfaceVisible,
-        )
+        ) {
+          guard let scene else {
+            return
+          }
+
+          app.commandsSubject.send(AppModelCommand(action: .toggleLiveTextIcon, sceneID: scene.id))
+        }
         .keyboardShortcut(.toggleLiveTextIcon)
         .disabled(app.isLiveTextIconDisabled(for: scene))
 
-        Toggle(
-          app.isSelectableItemsHighlighted
+        Button(
+          app.isLiveTextHighlightOn(for: scene)
             ? "Commands.Image.LiveTextHighlight.Hide"
             : "Commands.Image.LiveTextHighlight.Show",
-          isOn: $app.isSelectableItemsHighlighted,
-        )
+        ) {
+          guard let scene else {
+            return
+          }
+
+          app.commandsSubject.send(AppModelCommand(action: .toggleLiveTextHighlight, sceneID: scene.id))
+        }
         .keyboardShortcut(.toggleLiveTextHighlight)
         .disabled(app.isLiveTextHighlightDisabled(for: scene))
       }

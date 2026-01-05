@@ -7,11 +7,7 @@
 
 import AdvanceCore
 import Combine
-import Defaults
-import ImageIO
-import OSLog
 import SwiftUI
-@preconcurrency import VisionKit
 
 struct ImageCollectionVisiblePreferenceKey: PreferenceKey {
   typealias Value = [ImageCollectionItemImage]
@@ -27,15 +23,12 @@ struct ImageCollectionVisiblePreferenceKey: PreferenceKey {
 
 struct ImageCollectionDetailItemPhaseView: View {
   @State private var phase = ImageResamplePhase.empty
-  let image: ImageCollectionItemImage
 
   var body: some View {
-    let size = image.properties.orientedSize
-
     ImageCollectionItemView(phase: $phase) {
       ImageCollectionItemPhaseView(phase: phase)
     }
-    .aspectRatio(size.width / size.height, contentMode: .fit)
+    .scaledToFit()
   }
 }
 
@@ -47,7 +40,7 @@ struct ImageCollectionDetailItemView: View {
     VStack {
       // For some reason, we need to isolate the phase state to its own view for SwiftUI to automatically discard the
       // view and its memory.
-      ImageCollectionDetailItemPhaseView(image: image)
+      ImageCollectionDetailItemPhaseView()
     }
     .fileDialogCopy()
   }
@@ -92,7 +85,7 @@ struct ImageCollectionDetailView: View {
       VStack {
         // For some reason, we need to isolate the phase state to its own view for SwiftUI to automatically discard the
         // view and its memory.
-        ImageCollectionDetailItemPhaseView(image: image)
+        ImageCollectionDetailItemPhaseView()
       }
       .fileDialogCopy()
       .anchorPreference(key: VisiblePreferenceKey.self, value: .bounds) { [VisibleItem(item: image, anchor: $0)] }
