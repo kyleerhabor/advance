@@ -5,7 +5,6 @@
 //  Created by Kyle Erhabor on 12/30/25.
 //
 
-import AdvanceCore
 import AsyncAlgorithms
 import IdentifiedCollections
 import SwiftUI
@@ -101,7 +100,6 @@ struct ImagesSidebarItemView: View {
 struct ImagesSidebarSelectionID {
   let images: ImagesModel
   let selection: Set<ImagesItemModel2.ID>
-//  let isSidebarShowSelectActive: Bool
 }
 
 extension ImagesSidebarSelectionID: @MainActor Equatable {}
@@ -212,7 +210,11 @@ struct ImagesSidebarView2: View {
       }
       .task(id: ImagesViewResampleID(images: self.images, pixelLength: self.pixelLength)) {
         for await resample in self.images.sidebarResample.removeDuplicates().debounce(for: .microhang) {
-          await self.resample(resample)
+          await self.images.loadImages(
+            in: .sidebar,
+            items: await self.resample(resample),
+            parameters: ImagesItemModelImageParameters(width: resample.width / self.pixelLength),
+          )
         }
       }
       .contextMenu { ids in
@@ -382,20 +384,20 @@ struct ImagesSidebarView2: View {
     }
   }
 
-  func resample(_ resample: ImagesModelResample) async {
+  func resample(_ resample: ImagesModelResample) async -> [ImagesItemModel2] {
     var items = [ImagesItemModel2](reservingCapacity: resample.items.count + 8)
     items.append(contentsOf: resample.items)
 
-    let before1: BidirectionalCollectionItem<IdentifiedArrayOf<ImagesItemModel2>>?
-    let before2: BidirectionalCollectionItem<IdentifiedArrayOf<ImagesItemModel2>>?
-    let before3: BidirectionalCollectionItem<IdentifiedArrayOf<ImagesItemModel2>>?
-    let before4: BidirectionalCollectionItem<IdentifiedArrayOf<ImagesItemModel2>>?
+    let before1: IdentifiedArrayOf<ImagesItemModel2>.Index?
+    let before2: IdentifiedArrayOf<ImagesItemModel2>.Index?
+    let before3: IdentifiedArrayOf<ImagesItemModel2>.Index?
+    let before4: IdentifiedArrayOf<ImagesItemModel2>.Index?
 
     if let index = self.images.items.index(id: resample.items.first!.id) {
-      before1 = self.images.items.before(index: index)
-      before2 = before1.flatMap { self.images.items.before(index: $0.index) }
-      before3 = before2.flatMap { self.images.items.before(index: $0.index) }
-      before4 = before3.flatMap { self.images.items.before(index: $0.index) }
+      before1 = self.images.items.subscriptIndex(before: index)
+      before2 = before1.flatMap { self.images.items.subscriptIndex(before: $0) }
+      before3 = before2.flatMap { self.images.items.subscriptIndex(before: $0) }
+      before4 = before3.flatMap { self.images.items.subscriptIndex(before: $0) }
     } else {
       before1 = nil
       before2 = nil
@@ -403,16 +405,16 @@ struct ImagesSidebarView2: View {
       before4 = nil
     }
 
-    let after1: BidirectionalCollectionItem<IdentifiedArrayOf<ImagesItemModel2>>?
-    let after2: BidirectionalCollectionItem<IdentifiedArrayOf<ImagesItemModel2>>?
-    let after3: BidirectionalCollectionItem<IdentifiedArrayOf<ImagesItemModel2>>?
-    let after4: BidirectionalCollectionItem<IdentifiedArrayOf<ImagesItemModel2>>?
+    let after1: IdentifiedArrayOf<ImagesItemModel2>.Index?
+    let after2: IdentifiedArrayOf<ImagesItemModel2>.Index?
+    let after3: IdentifiedArrayOf<ImagesItemModel2>.Index?
+    let after4: IdentifiedArrayOf<ImagesItemModel2>.Index?
 
     if let index = self.images.items.index(id: resample.items.last!.id) {
-      after1 = self.images.items.after(index: index)
-      after2 = after1.flatMap { self.images.items.after(index: $0.index) }
-      after3 = after2.flatMap { self.images.items.after(index: $0.index) }
-      after4 = after3.flatMap { self.images.items.after(index: $0.index) }
+      after1 = self.images.items.subscriptIndex(after: index)
+      after2 = after1.flatMap { self.images.items.subscriptIndex(after: $0) }
+      after3 = after2.flatMap { self.images.items.subscriptIndex(after: $0) }
+      after4 = after3.flatMap { self.images.items.subscriptIndex(after: $0) }
     } else {
       after1 = nil
       after2 = nil
@@ -420,19 +422,15 @@ struct ImagesSidebarView2: View {
       after4 = nil
     }
 
-    before1.map { items.append($0.element) }
-    after1.map { items.append($0.element) }
-    before2.map { items.append($0.element) }
-    after2.map { items.append($0.element) }
-    before3.map { items.append($0.element) }
-    after3.map { items.append($0.element) }
-    before4.map { items.append($0.element) }
-    after4.map { items.append($0.element) }
+    before1.map { items.append(self.images.items[$0]) }
+    after1.map { items.append(self.images.items[$0]) }
+    before2.map { items.append(self.images.items[$0]) }
+    after2.map { items.append(self.images.items[$0]) }
+    before3.map { items.append(self.images.items[$0]) }
+    after3.map { items.append(self.images.items[$0]) }
+    before4.map { items.append(self.images.items[$0]) }
+    after4.map { items.append(self.images.items[$0]) }
 
-    await self.images.loadImages(
-      in: .sidebar,
-      items: items,
-      parameters: ImagesItemModelImageParameters(width: resample.width, pixelLength: self.pixelLength),
-    )
+    return items
   }
 }

@@ -12,18 +12,10 @@ import OSLog
 import SwiftUI
 
 struct ImagesDetailListVisibleItem {
-  typealias HighlightAction = (Bool) -> Void
-
   let item: ImagesItemModel
-  let isHighlighted: Bool
-  let highlight: HighlightAction
 }
 
-extension ImagesDetailListVisibleItem: Equatable {
-  static func ==(lhs: Self, rhs: Self) -> Bool {
-    lhs.item == rhs.item && lhs.isHighlighted == rhs.isHighlighted
-  }
-}
+extension ImagesDetailListVisibleItem: Equatable {}
 
 @Observable
 class ImagesDetailListViewModel {

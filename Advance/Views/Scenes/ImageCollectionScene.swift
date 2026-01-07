@@ -5,7 +5,6 @@
 //  Created by Kyle Erhabor on 9/13/23.
 //
 
-import AdvanceCore
 import Algorithms
 import OSLog
 import SwiftUI
@@ -22,20 +21,14 @@ struct ImageCollectionSceneView: View {
 struct ImageCollectionScene: Scene {
   @State private var manager = ImageCollectionManager()
 
-  // This is the default size used by SwiftUI. I'm using it since I think it looks nice, but the constant is here for
-  // de-duplication and safeguarding from the future.
-  static let defaultSize = CGSize(width: 900, height: 450)
-
   var body: some Scene {
     WindowGroup(for: UUID.self) { $id in
       ImageCollectionSceneView()
-        .environment(\.imagesID, id)
         .windowed()
     } defaultValue: {
       .init()
     }
     .windowToolbarStyle(.unifiedCompact)
-    .defaultSize(Self.defaultSize)
     .commands {
       // This is given its own struct so focus states don't re-evaluate the whole scene.
       ImageCollectionCommands()

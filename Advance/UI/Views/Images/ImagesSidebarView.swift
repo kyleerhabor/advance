@@ -5,59 +5,9 @@
 //  Created by Kyle Erhabor on 6/30/24.
 //
 
-import AdvanceCore
 import Combine
 import OSLog
 import SwiftUI
-
-//struct ImagesItemEphemeralTransfer {
-//  let source: URL
-//  let destination: URL
-//}
-//
-//enum ImagesItemTransfer {
-//  case source(URL), ephemeral(ImagesItemEphemeralTransfer)
-//}
-//
-//extension ImagesItemTransfer: Transferable {
-//  static var transferRepresentation: some TransferRepresentation {
-//    FileRepresentation(importedContentType: .image, shouldAttemptToOpenInPlace: true) { received in
-//      try Self(received, directoryHint: .notDirectory)
-//    }
-//
-//    FileRepresentation(importedContentType: .folder, shouldAttemptToOpenInPlace: true) { received in
-//      try Self(received, directoryHint: .isDirectory)
-//    }
-//  }
-//
-//  init(_ received: ReceivedTransferredFile, directoryHint: URL.DirectoryHint) throws {
-//    let url = received.file
-//
-//    // The file may be:
-//    // - An original
-//    // - A copy
-//    // - A promise
-//    //
-//    // The first case is most common, corresponding to a local URL. The second case is likely to come from a source
-//    // where copying is the only option. The third case is a specialization of the second case where the file is
-//    // ephemeral. A file of the last case is valid for the lifetime of the drop operation (that is, for the synchronous
-//    // execution of several method calls).
-//
-//    // Should this codepath even exist? Since its local to images, we implicitly know the accepted URLs.
-//    if received.isOriginalFile && !URL.cachesDirectory.contains(url: url) {
-//      self = .source(url)
-//
-//      return
-//    }
-//
-//    let destination = URL.temporaryDataDirectory.appending(component: UUID().uuidString, directoryHint: directoryHint)
-//    // I don't believe we need to wrap this as a security-scoped resource given cases two and three imply the file has
-//    // been transferred to the App Sandbox directory.
-//    try FileManager.default.moveItem(at: url, to: destination)
-//
-//    self = .ephemeral(ImagesItemEphemeralTransfer(source: url, destination: destination))
-//  }
-//}
 
 struct ImagesSidebarContentItemTitleView: NSViewControllerRepresentable {
   let label: String

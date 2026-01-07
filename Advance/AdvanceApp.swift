@@ -5,7 +5,6 @@
 //  Created by Kyle Erhabor on 7/27/23.
 //
 
-import AdvanceCore
 import Foundation
 import GRDB
 import OSLog
@@ -38,7 +37,7 @@ struct AdvanceApp: App {
 
     Task {
       do {
-        try await run(base: analyses, count: 10)
+        try await run(analyses, count: 10)
       } catch {
         // TODO: Elaborate.
         Logger.model.fault("\(error)")

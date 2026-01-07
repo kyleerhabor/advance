@@ -5,7 +5,6 @@
 //  Created by Kyle Erhabor on 6/29/24.
 //
 
-import AdvanceCore
 import SwiftUI
 import Combine
 import UniformTypeIdentifiers
@@ -177,8 +176,8 @@ enum StorageKeys {
     defaultValue: StorageColumnVisibility.automatic,
   )
 
-  static let liveTextSupplementaryInterfaceVisibility = StorageKey(
-    "\(Bundle.appID).live-text-supplementary-interface-visibility",
+  static let imageAnalysisSupplementaryInterfaceVisibility = StorageKey(
+    "\(Bundle.appID).image-analysis-supplementary-interface-visibility",
     defaultValue: StorageVisibility.automatic,
   )
 

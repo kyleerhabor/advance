@@ -5,7 +5,6 @@
 //  Created by Kyle Erhabor on 12/30/25.
 //
 
-import AdvanceCore
 import AsyncAlgorithms
 import IdentifiedCollections
 import OSLog
@@ -42,7 +41,7 @@ struct ImageDetailItemImageAnalysisView: View {
     @Bindable var item = self.item
 
     ImageAnalysisView(
-      selectableItemsHighlighted: $item.selectableItemsHighlighted,
+      selectableItemsHighlighted: $item.isImageAnalysisSelectableItemsHighlighted,
       analysis: item.imageAnalysis,
       preferredInteractionTypes: preferredInteractionTypes,
       isSupplementaryInterfaceHidden: !self.isSupplementaryInterfaceVisible,
@@ -165,13 +164,13 @@ struct ImagesDetailView2: View {
   @State private var searchError: ImagesModelEngineURLError?
   @State private var isSearchErrorPresented = false
   let columnVisibility: NavigationSplitViewVisibility
-  let isSupplementaryInterfaceVisible: Bool
+  let isImageAnalysisSupplementaryInterfaceVisible: Bool
   private var half: CGFloat { self.margins * 3 }
   private var full: CGFloat { self.half * 2 }
-  private var all: EdgeInsets { EdgeInsets(full) }
-  private var top: EdgeInsets { EdgeInsets(horizontal: full, top: full, bottom: half) }
-  private var between: EdgeInsets { EdgeInsets(horizontal: full, top: half, bottom: half) }
-  private var bottom: EdgeInsets { EdgeInsets(horizontal: full, top: half, bottom: full) }
+  private var all: EdgeInsets { EdgeInsets(self.full) }
+  private var top: EdgeInsets { EdgeInsets(horizontal: self.full, top: self.full, bottom: self.half) }
+  private var between: EdgeInsets { EdgeInsets(horizontal: self.full, top: self.half, bottom: self.half) }
+  private var bottom: EdgeInsets { EdgeInsets(horizontal: self.full, top: self.half, bottom: self.full) }
   private var imageAnalysisTypes: ImageAnalysisTypes {
     var types = ImageAnalysisTypes()
 
@@ -213,7 +212,7 @@ struct ImagesDetailView2: View {
               searchError: $searchError,
               isSearchErrorPresented: $isSearchErrorPresented,
               item: item,
-              isSupplementaryInterfaceVisible: self.isSupplementaryInterfaceVisible,
+              isSupplementaryInterfaceVisible: self.isImageAnalysisSupplementaryInterfaceVisible,
             )
           }
           .contextMenu {
@@ -304,46 +303,37 @@ struct ImagesDetailView2: View {
           return
         }
 
-        // For some reason, scrolling via the sidebar may cause this to output nil, immediately followed by a proper
-        // item. Debouncing defends against this, but is not a sound solution, since it's based on time, rather than
-        // state.
+        // For some reason, scrolling via the sidebar may cause this to output an empty array, immediately followed by
+        // the proper items. Debouncing defends against this, but is not a sound solution, since our problem is state.
         var iterator = self.images.visibleItemsChannel
-          // Drop the current item before items have been loaded (that is, nil).
+          // Drop the items before items has loaded (that is, an empty array).
           .dropFirst()
-          // Remove duplicate current items.
+          // Remove duplicate arrays.
           .removeDuplicates()
           .makeAsyncIterator()
 
-        // At this point, items have been loaded and we need to account for whether or not we have a current item. If we
-        // have one, we'll scroll to it and ignore the following element that is a result of this.
         if self.restoreLastImage,
            let items = await iterator.next() {
-          let iitems: [ImagesItemModel2]
+          // If we have a restore item, this initially sets the current item to the visible item that may be updated. In
+          // an ideal case, we'd only use the latest value, but that'd require considering states like whether or not
+          // scrolling to the restore item will send another element (i.e., whether or not we're already at the restore
+          // item). At the moment, I don't want to implement it, since I'm not sure if it's a good idea.
+          self.images.visibleItems = items
+          self.images.isHighlighted = !items.isEmpty && items.allSatisfy(\.isImageAnalysisSelectableItemsHighlighted)
+          await self.images.setCurrentItem(item: items.first)
 
-          if let item = self.images.currentItem {
+          if let item = self.images.restoredItem {
             if self.columnVisibility != .detailOnly {
               await self.images.sidebar.send(ImagesModelSidebarElement(item: item.id, isSelected: false))
             }
 
             await self.images.detail.send(item.id)
-
-//            guard let items = await iterator.next() else {
-//              return
-//            }
-
-            iitems = items
-          } else {
-            iitems = items
           }
-
-          self.images.visibleItems = iitems
-          self.images.isHighlighted = !iitems.isEmpty && iitems.allSatisfy(\.selectableItemsHighlighted)
-          await self.images.setCurrentItem(item: iitems.first)
         }
 
         while let items = await iterator.next() {
           self.images.visibleItems = items
-          self.images.isHighlighted = !items.isEmpty && items.allSatisfy(\.selectableItemsHighlighted)
+          self.images.isHighlighted = !items.isEmpty && items.allSatisfy(\.isImageAnalysisSelectableItemsHighlighted)
           await self.images.setCurrentItem(item: items.first)
         }
       }
@@ -352,7 +342,7 @@ struct ImagesDetailView2: View {
           await self.images.loadImages(
             in: .detail,
             items: self.items(resample: resample),
-            parameters: ImagesItemModelImageParameters(width: resample.width, pixelLength: self.pixelLength),
+            parameters: ImagesItemModelImageParameters(width: resample.width / self.pixelLength),
           )
         }
       }
@@ -368,8 +358,7 @@ struct ImagesDetailView2: View {
             for: self.items(resample: resample),
             parameters: ImagesItemModelImageAnalysisParameters(
               types: self.imageAnalysisTypes,
-              width: resample.width,
-              pixelLength: self.pixelLength,
+              width: resample.width / self.pixelLength,
             )
           )
         }
@@ -411,34 +400,34 @@ struct ImagesDetailView2: View {
     var items = [ImagesItemModel2](reservingCapacity: resample.items.count + 4)
     items.append(contentsOf: resample.items)
 
-    let before1: BidirectionalCollectionItem<IdentifiedArrayOf<ImagesItemModel2>>?
-    let before2: BidirectionalCollectionItem<IdentifiedArrayOf<ImagesItemModel2>>?
+    let before1: IdentifiedArrayOf<ImagesItemModel2>.Index?
+    let before2: IdentifiedArrayOf<ImagesItemModel2>.Index?
 
     if let item = resample.items.first,
        let index = self.images.items.index(id: item.id) {
-      before1 = self.images.items.before(index: index)
-      before2 = before1.flatMap { self.images.items.before(index: $0.index) }
+      before1 = self.images.items.subscriptIndex(before: index)
+      before2 = before1.flatMap { self.images.items.subscriptIndex(before: $0) }
     } else {
       before1 = nil
       before2 = nil
     }
 
-    let after1: BidirectionalCollectionItem<IdentifiedArrayOf<ImagesItemModel2>>?
-    let after2: BidirectionalCollectionItem<IdentifiedArrayOf<ImagesItemModel2>>?
+    let after1: IdentifiedArrayOf<ImagesItemModel2>.Index?
+    let after2: IdentifiedArrayOf<ImagesItemModel2>.Index?
 
     if let item = resample.items.last,
        let index = self.images.items.index(id: item.id) {
-      after1 = self.images.items.after(index: index)
-      after2 = after1.flatMap { self.images.items.after(index: $0.index) }
+      after1 = self.images.items.subscriptIndex(after: index)
+      after2 = after1.flatMap { self.images.items.subscriptIndex(after: $0) }
     } else {
       after1 = nil
       after2 = nil
     }
 
-    before1.map { items.append($0.element) }
-    after1.map { items.append($0.element) }
-    before2.map { items.append($0.element) }
-    after2.map { items.append($0.element) }
+    before1.map { items.append(self.images.items[$0]) }
+    after1.map { items.append(self.images.items[$0]) }
+    before2.map { items.append(self.images.items[$0]) }
+    after2.map { items.append(self.images.items[$0]) }
 
     return items
   }

@@ -15,9 +15,7 @@ struct ImagesDetailItemContentView: View {
   var body: some View {
     ImagesItemPhaseView(phase: phase)
       .anchorPreference(key: VisiblePreferenceKey<ImagesDetailListVisibleItem>.self, value: .bounds) { anchor in
-        let item = ImagesDetailListVisibleItem(item: item, isHighlighted: isHighlighted) { isOn in
-          isHighlighted = isOn
-        }
+        let item = ImagesDetailListVisibleItem(item: item)
 
         return [VisibleItem(item: item, anchor: anchor)]
       }

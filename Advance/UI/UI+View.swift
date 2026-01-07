@@ -5,7 +5,6 @@
 //  Created by Kyle Erhabor on 6/11/24.
 //
 
-import AdvanceCore
 import AppKit
 import Combine
 import CoreGraphics
@@ -18,17 +17,6 @@ let OPACITY_OPAQUE = 1.0
 
 extension Logger {
   static let ui = Self(subsystem: Bundle.appID, category: "UI")
-}
-
-extension NSWorkspace {
-  func icon(forFileAt url: URL) -> NSImage {
-    self.icon(forFile: url.pathString)
-  }
-}
-
-extension NSMenuItem {
-  // "Search With [...]" (e.g., Google).
-  static let search = NSUserInterfaceItemIdentifier(rawValue: "_searchWithGoogleFromMenu:")
 }
 
 extension NSWindow {
@@ -220,19 +208,47 @@ extension UserDefaults {
   }
 }
 
+// MARK: - AppKit
+
+extension NSWorkspace {
+  func icon(forFileAt url: URL) -> NSImage {
+    self.icon(forFile: url.pathString)
+  }
+}
+
+extension NSMenuItem {
+  // "Search With [...]" (e.g., Google).
+  static let search = NSUserInterfaceItemIdentifier(rawValue: "_searchWithGoogleFromMenu:")
+}
+
 // MARK: - SwiftUI
 
 extension EdgeInsets {
   init(_ insets: CGFloat) {
-    self.init(top: insets, leading: insets, bottom: insets, trailing: insets)
+    self.init(
+      top: insets,
+      leading: insets,
+      bottom: insets,
+      trailing: insets,
+    )
   }
 
   init(vertical: Double, horizontal: Double) {
-    self.init(top: vertical, leading: horizontal, bottom: vertical, trailing: horizontal)
+    self.init(
+      top: vertical,
+      leading: horizontal,
+      bottom: vertical,
+      trailing: horizontal,
+    )
   }
 
   init(horizontal: Double, top: Double, bottom: Double) {
-    self.init(top: top, leading: horizontal, bottom: bottom, trailing: horizontal)
+    self.init(
+      top: top,
+      leading: horizontal,
+      bottom: bottom,
+      trailing: horizontal,
+    )
   }
 }
 
@@ -533,10 +549,6 @@ extension EnvironmentValues {
     get { self[WindowLiveResizeEnvironmentKey.self] }
     set { self[WindowLiveResizeEnvironmentKey.self] = newValue }
   }
-
-  // MARK: - Old
-  @Entry var isImageAnalysisSupplementaryInterfaceHidden = false
-  @Entry var imagesID = UUID()
 }
 
 extension FocusedValues {

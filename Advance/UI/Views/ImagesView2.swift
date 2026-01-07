@@ -5,7 +5,6 @@
 //  Created by Kyle Erhabor on 11/23/25.
 //
 
-import AdvanceCore
 import AsyncAlgorithms
 import OSLog
 import SwiftUI
@@ -84,13 +83,13 @@ struct ImagesBackgroundView: View {
 }
 
 @MainActor
-struct ImagesViewLiveTextID {
+struct ImagesViewSupplementaryInterfaceVisibleID {
   let images: ImagesModel
   let isLiveTextEnabled: Bool
   let isLiveTextIconEnabled: Bool
 }
 
-extension ImagesViewLiveTextID: @MainActor Equatable {}
+extension ImagesViewSupplementaryInterfaceVisibleID: @MainActor Equatable {}
 
 struct ImagesView2: View {
   @Environment(AppModel.self) private var app
@@ -105,13 +104,13 @@ struct ImagesView2: View {
   @AppStorage(StorageKeys.isLiveTextEnabled) private var isLiveTextEnabled
   @AppStorage(StorageKeys.isLiveTextIconEnabled) private var isLiveTextIconEnabled
   @SceneStorage(StorageKeys.columnVisibility) private var columnVisibilityStorage
-  @SceneStorage(StorageKeys.liveTextSupplementaryInterfaceVisibility)
-  private var liveTextSupplementaryInterfaceVisibility
+  @SceneStorage(StorageKeys.imageAnalysisSupplementaryInterfaceVisibility)
+  private var imageAnalysisSupplementaryInterfaceVisibility
 
   @State private var columnVisibility = NavigationSplitViewVisibility.automatic
   @State private var isColumnVisibilitySet = false
-  @State private var isSupplementaryInterfaceVisible = false
-  @State private var isSupplementaryInterfaceVisibleSet = false
+  @State private var isImageAnalysisSupplementaryInterfaceVisible = false
+  @State private var isImageAnalysisSupplementaryInterfaceVisibleSet = false
   @State private var isActive = true
   @State private var selection = Set<ImagesItemModel2.ID>()
   @State private var isFileImporterPresented = false
@@ -130,7 +129,7 @@ struct ImagesView2: View {
     NavigationSplitView(columnVisibility: $columnVisibility) {
       ImagesSidebarView2(
         columnVisibility: $columnVisibility,
-        isSupplementaryInterfaceVisible: $isSupplementaryInterfaceVisible,
+        isSupplementaryInterfaceVisible: $isImageAnalysisSupplementaryInterfaceVisible,
         selection: $selection,
         isFileImporterPresented: $isFileImporterPresented,
         copyFolderError: $copyFolderError,
@@ -142,7 +141,7 @@ struct ImagesView2: View {
         copyFolderError: $copyFolderError,
         isCopyFolderErrorPresented: $isCopyFolderErrorPresented,
         columnVisibility: self.columnVisibility,
-        isSupplementaryInterfaceVisible: self.isSupplementaryInterfaceVisible,
+        isImageAnalysisSupplementaryInterfaceVisible: self.isImageAnalysisSupplementaryInterfaceVisible,
       )
       .frame(minWidth: 256)
       // For some reason, applying toolbar(id:content:) to the enclosing NavigationSplitView causes the app to crash.
@@ -152,18 +151,18 @@ struct ImagesView2: View {
       //   Duplicate items of this type are not allowed.
       .toolbar(id: "\(Bundle.appID).Images") {
         ToolbarItem(id: "\(Bundle.appID).Images.LiveTextIcon") {
-          let key: LocalizedStringKey = self.isSupplementaryInterfaceVisible
-          ? "Images.Toolbar.LiveTextIcon.Hide"
-          : "Images.Toolbar.LiveTextIcon.Show"
+          let key: LocalizedStringKey = self.isImageAnalysisSupplementaryInterfaceVisible
+            ? "Images.Toolbar.LiveTextIcon.Hide"
+            : "Images.Toolbar.LiveTextIcon.Show"
 
-          Toggle(key, systemImage: "text.viewfinder", isOn: $isSupplementaryInterfaceVisible)
+          Toggle(key, systemImage: "text.viewfinder", isOn: $isImageAnalysisSupplementaryInterfaceVisible)
             .help(key)
             .disabled(!self.isLiveTextEnabled)
         }
       }
     }
     .background {
-      ImagesBackgroundView(isSupplementaryInterfaceVisible: isSupplementaryInterfaceVisible)
+      ImagesBackgroundView(isSupplementaryInterfaceVisible: isImageAnalysisSupplementaryInterfaceVisible)
     }
     .toolbar(self.isWindowFullScreen ? .hidden : .automatic)
     .toolbarVisible(!self.hiddenLayout.toolbar || isVisible || self.isWindowFullScreen)
@@ -237,8 +236,9 @@ struct ImagesView2: View {
       }
     }
     .onChange(of: self.images) {
-      self.columnVisibility = self.columnVisibilityStorage.columnVisibility
-      self.isColumnVisibilitySet = true
+      let visibility = self.columnVisibilityStorage.columnVisibility
+      self.isColumnVisibilitySet = self.columnVisibility != visibility
+      self.columnVisibility = visibility
     }
     .onChange(of: self.columnVisibility) {
       guard !self.isColumnVisibilitySet else {
@@ -254,28 +254,31 @@ struct ImagesView2: View {
       self.columnVisibilityStorage = columnVisibility
     }
     .onChange(
-      of: ImagesViewLiveTextID(
-        images: images,
-        isLiveTextEnabled: isLiveTextEnabled,
-        isLiveTextIconEnabled: isLiveTextIconEnabled,
+      of: ImagesViewSupplementaryInterfaceVisibleID(
+        images: self.images,
+        isLiveTextEnabled: self.isLiveTextEnabled,
+        isLiveTextIconEnabled: self.isLiveTextIconEnabled,
       ),
     ) { prior, id in
-      isSupplementaryInterfaceVisible = switch liveTextSupplementaryInterfaceVisibility {
+      let isVisible = switch self.imageAnalysisSupplementaryInterfaceVisibility {
         case .automatic: id.isLiveTextEnabled && id.isLiveTextIconEnabled
         case .visible: id.isLiveTextEnabled
         case .hidden: false
       }
 
-      isSupplementaryInterfaceVisibleSet = true
+      self.isImageAnalysisSupplementaryInterfaceVisibleSet = self.isImageAnalysisSupplementaryInterfaceVisible != isVisible
+      self.isImageAnalysisSupplementaryInterfaceVisible = isVisible
     }
-    .onChange(of: isSupplementaryInterfaceVisible) {
-      guard !isSupplementaryInterfaceVisibleSet else {
-        isSupplementaryInterfaceVisibleSet = false
+    .onChange(of: self.isImageAnalysisSupplementaryInterfaceVisible) {
+      guard !self.isImageAnalysisSupplementaryInterfaceVisibleSet else {
+        self.isImageAnalysisSupplementaryInterfaceVisibleSet = false
 
         return
       }
 
-      liveTextSupplementaryInterfaceVisibility = isSupplementaryInterfaceVisible ? .visible : .hidden
+      self.imageAnalysisSupplementaryInterfaceVisibility = self.isImageAnalysisSupplementaryInterfaceVisible
+        ? .visible
+        : .hidden
     }
     .onReceive(self.app.commandsPublisher) { command in
       self.onCommand(command)
@@ -323,7 +326,7 @@ struct ImagesView2: View {
           await self.images.bookmark(item: item, isBookmarked: !item.isBookmarked)
         }
       case .toggleLiveTextIcon:
-        self.isSupplementaryInterfaceVisible.toggle()
+        self.isImageAnalysisSupplementaryInterfaceVisible.toggle()
       case .toggleLiveTextHighlight:
         self.images.isHighlighted.toggle()
         self.images.highlight(items: self.images.visibleItems, isHighlighted: self.images.isHighlighted)

@@ -9,7 +9,6 @@ import SwiftUI
 
 struct ImageCollectionCommands: Commands {
   var body: some Commands {
-    ImageCollectionEditCommands()
     ImageCollectionNavigatorCommands()
   }
 }

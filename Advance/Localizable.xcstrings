@@ -1,12 +1,6 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "" : {
-
-    },
-    "Clear" : {
-
-    },
     "Commands.Image" : {
       "localizations" : {
         "en" : {
@@ -370,10 +364,8 @@
         }
       }
     },
-    "Search" : {
-
-    },
     "Search.Interaction" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {

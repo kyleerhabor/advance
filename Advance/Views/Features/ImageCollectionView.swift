@@ -5,7 +5,6 @@
 //  Created by Kyle Erhabor on 9/13/23.
 //
 
-import AdvanceCore
 import Combine
 import OSLog
 import SwiftUI
@@ -31,14 +30,11 @@ struct ImageCollectionView: View {
   @Environment(Window.self) private var windowed
   @Environment(\.isTrackingMenu) private var isTrackingMenu
   @Environment(\.isWindowFullScreen) private var fullScreen
-  @Environment(\.imagesID) private var id
   @State private var columns = NavigationSplitViewVisibility.all
   @State private var isHovering = false
   @State private var isScrolling = false
-  private var isVisible: Bool { !(isHovering && isScrolling) }
   private var window: NSWindow? { windowed.window }
   private var isDetailOnly: Bool { columns == .detailOnly }
-
   private let cursorSubject = PassthroughSubject<Void, Never>()
   private let scrollSubject = PassthroughSubject<CGPoint, Never>()
   private let scrollingSubject = PassthroughSubject<Bool, Never>()

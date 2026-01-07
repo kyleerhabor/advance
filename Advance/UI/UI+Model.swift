@@ -5,7 +5,6 @@
 //  Created by Kyle Erhabor on 11/29/25.
 //
 
-import AdvanceCore
 import Algorithms
 import AsyncAlgorithms
 @preconcurrency import BigInt
@@ -15,12 +14,172 @@ import ImageIO
 import OSLog
 import VisionKit
 
-let analyses = AsyncChannel<Run<ImageAnalysis, any Error>>()
+// MARK: - Swift
+
+struct ClockMeasurement<T, Duration> where Duration: DurationProtocol {
+  let value: T
+  let duration: Duration
+}
+
+extension Clock {
+  func measure<T>(_ body: () async throws -> T) async rethrows -> ClockMeasurement<T, Duration> {
+    var value: T!
+    let duration = try await self.measure {
+      value = try await body()
+    }
+
+    let measurement = ClockMeasurement(value: value!, duration: duration)
+
+    return measurement
+  }
+}
+
+// MARK: - Swift Concurrency
+
+struct Run<T, E> where E: Error {
+  let continuation: CheckedContinuation<T, E>
+  let body: @Sendable () async throws(E) -> T
+
+  init(continuation: CheckedContinuation<T, E>, _ body: @escaping @Sendable () async throws(E) -> T) {
+    self.continuation = continuation
+    self.body = body
+  }
+
+  func run() async {
+    do {
+      self.continuation.resume(returning: try await self.body())
+    } catch {
+      self.continuation.resume(throwing: error)
+    }
+  }
+}
+
+extension Run: Sendable {}
+
+func run<T, E, Base>(_ base: Base, count: Int) async throws where Base: AsyncSequence,
+                                                                  Base.Element == Run<T, E>,
+                                                                  E: Error {
+  try await withThrowingTaskGroup { group in
+    for try await element in base.prefix(count) {
+      group.addTask {
+        await element.run()
+      }
+    }
+
+    var iterator = base.makeAsyncIterator()
+
+    for try await _ in group {
+      guard let element = try await iterator.next() else {
+        break
+      }
+
+      group.addTask {
+        await element.run()
+      }
+    }
+  }
+}
+
+// MARK: - Foundation
+
+struct TypedIterator<Base, T>: IteratorProtocol where Base: IteratorProtocol {
+  private var base: Base
+
+  init(_ base: Base, as type: T.Type = T.self) {
+    self.base = base
+  }
+
+  mutating func next() -> T? {
+    self.base.next() as? T
+  }
+}
+
+extension TypedIterator: Sequence {}
+
+struct CurrentValueIterator<Base>: IteratorProtocol where Base: IteratorProtocol {
+  private var base: Base
+  private var value: Element?
+
+  init(_ base: Base) {
+    self.base = base
+    self.value = self.base.next()
+  }
+
+  mutating func next() -> Base.Element? {
+    let next = self.base.next()
+    let value = self.value
+    self.value = next
+
+    return value
+  }
+}
+
+extension CurrentValueIterator: Sequence {}
+
+enum FileManagerDirectoryEnumerationError: Error {
+  case creationFailed, iterationFailed(any Error)
+}
+
+extension FileManager {
+  func enumerate(
+    at url: URL,
+    resourceKeys: [URLResourceKey]? = nil,
+    options: FileManager.DirectoryEnumerationOptions,
+  ) throws(FileManagerDirectoryEnumerationError) -> some Sequence<URL> {
+    var error: (any Error)?
+    let enumerator = self.enumerator(at: url, includingPropertiesForKeys: resourceKeys, options: options) { eurl, err in
+      // We only care about the error on the initial enumeration (for example, the URL doesn't point to a directory).
+      if eurl == url {
+        error = err
+      }
+
+      return true
+    }
+
+    guard let enumerator else {
+      throw .creationFailed
+    }
+
+    let iterator = CurrentValueIterator(TypedIterator(enumerator.makeIterator(), as: URL.self))
+
+    if let error {
+      throw .iterationFailed(error)
+    }
+
+    return iterator
+  }
+}
+
+// MARK: - Core Graphics
+
+extension CGSize {
+  var length: Double {
+    max(self.width, self.height)
+  }
+}
+
+// MARK: - Image I/O
+
+extension CGImagePropertyOrientation {
+  static let identity = Self.up
+
+  var isRotated90Degrees: Bool {
+    switch self {
+      case .leftMirrored, .right, .rightMirrored, .left: true
+      default: false
+    }
+  }
+}
+
+// MARK: - VisionKit
 
 extension ImageAnalyzer {
-  // The max supported dimension is 8192, exclusive.
-  static let maxLength: CGFloat = 8191
+  static let maxLength: CGFloat = 8192
 }
+
+// MARK: -
+
+let analyses = AsyncChannel<Run<ImageAnalysis, any Error>>()
 
 func delta(lowerBound: BigFraction, upperBound: BigFraction, base: BInt) -> BigFraction {
   let denominator = lowerBound.denominator * upperBound.denominator
@@ -32,17 +191,6 @@ func delta(lowerBound: BigFraction, upperBound: BigFraction, base: BInt) -> BigF
   }
 
   return BigFraction(.ONE, denominator * base)
-}
-
-extension CGImagePropertyOrientation {
-  static let identity = Self.up
-
-  var isRotated90Degrees: Bool {
-    switch self {
-      case .leftMirrored, .right, .rightMirrored, .left: true
-      default: false
-    }
-  }
 }
 
 struct SizeOrientation {
@@ -76,8 +224,7 @@ func bookmark(data: Data, assigned: AssignedBookmark?) -> BookmarkStatus {
   }
 
   // If the bookmark was resolved and is stale, return the new bookmark data to notify observers that the state of the
-  // underlying resource has changed (e.g., a file we think is available is still available, but has new data
-  // represent it).
+  // underlying resource has changed (e.g., a file we think is available is still available, but has new bookmark data).
   return .new
 }
 
@@ -180,7 +327,7 @@ struct ImagesItemAssignmentTaskResult {
 }
 
 enum ImagesItemAssignmentError: Error {
-  case relativeUnresolved
+  case unresolvedRelative
 }
 
 struct ImagesItemAssignment {
@@ -216,19 +363,8 @@ struct ImagesItemAssignment {
       }
 
       items.forEach { item in
-        group.addTask { [bookmarks = self.bookmarks] in
-          let relative: URLSource?
-
-          if let r = item.fileBookmark.relative {
-            guard let bookmark = bookmarks[r.relative.rowID!] else {
-              throw ImagesItemAssignmentError.relativeUnresolved
-            }
-
-            relative = URLSource(url: bookmark.resolved.url, options: r.relative.options!)
-          } else {
-            relative = nil
-          }
-
+        group.addTask { [self] in
+          let relative = try self.relative(item.fileBookmark.relative)
           let bookmark = try await relative.accessingSecurityScopedResource {
             try await AssignedBookmark(
               data: item.fileBookmark.bookmark.bookmark.data!,
@@ -294,16 +430,18 @@ struct ImagesItemAssignment {
     }
   }
 
-  func relative(_ relative: ImagesItemFileBookmarkRelativeInfo?) throws(ImagesItemAssignmentError) -> URLSource? {
+  private func relative(_ relative: ImagesItemFileBookmarkRelativeInfo?) throws(ImagesItemAssignmentError) -> URLSource? {
     guard let relative else {
       return nil
     }
 
     guard let bookmark = bookmarks[relative.relative.rowID!] else {
-      throw .relativeUnresolved
+      throw .unresolvedRelative
     }
 
-    return URLSource(url: bookmark.resolved.url, options: relative.relative.options!)
+    let source = URLSource(url: bookmark.resolved.url, options: relative.relative.options!)
+
+    return source
   }
 
   func document(fileBookmark: ImagesItemFileBookmarkInfo) throws(ImagesItemAssignmentError) -> URLSourceDocument? {

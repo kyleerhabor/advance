@@ -86,7 +86,6 @@ enum ImagesItemModelImagePhase {
 
 struct ImagesItemModelImageParameters {
   let width: CGFloat
-  let pixelLength: CGFloat
 }
 
 extension ImagesItemModelImageParameters: Equatable {}
@@ -94,7 +93,6 @@ extension ImagesItemModelImageParameters: Equatable {}
 struct ImagesItemModelImageAnalysisParameters {
   let types: ImageAnalysisTypes
   let width: CGFloat
-  let pixelLength: CGFloat
 }
 
 extension ImagesItemModelImageAnalysisParameters: Equatable {}
@@ -117,7 +115,7 @@ final class ImagesItemModel2 {
   @ObservationIgnored var detailImageParameters: ImagesItemModelImageParameters
   var imageAnalysis: ImageAnalysis?
   @ObservationIgnored var imageAnalysisParameters: ImagesItemModelImageAnalysisParameters
-  var selectableItemsHighlighted: Bool
+  var isImageAnalysisSelectableItemsHighlighted: Bool
 
   init(
     id: RowID,
@@ -152,7 +150,7 @@ final class ImagesItemModel2 {
     self.detailImageParameters = detailImageParameters
     self.imageAnalysis = imageAnalysis
     self.imageAnalysisParameters = imageAnalysisParameters
-    self.selectableItemsHighlighted = selectableItemsHighlighted
+    self.isImageAnalysisSelectableItemsHighlighted = selectableItemsHighlighted
   }
 }
 
@@ -310,10 +308,9 @@ final class ImagesModel {
   typealias ID = UUID
 
   let id: ID
-  @ObservationIgnored private var hasLoaded: Bool
   var items: IdentifiedArrayOf<ImagesItemModel2>
   var bookmarkedItems: Set<ImagesItemModel2.ID>
-  var currentItem: ImagesItemModel2?
+  var restoredItem: ImagesItemModel2?
   var hasLoadedNoImages: Bool
   @ObservationIgnored let hoverChannel: AsyncChannel<Bool>
   @ObservationIgnored let sidebar: AsyncChannel<ImagesModelSidebarElement>
@@ -325,6 +322,7 @@ final class ImagesModel {
   @ObservationIgnored private var resolvedItems: Set<ImagesItemModel2.ID>
 
   // MARK: - UI properties
+  var currentItem: ImagesItemModel2?
   var visibleItems: [ImagesItemModel2]
   var isHighlighted: Bool
 
@@ -339,7 +337,6 @@ final class ImagesModel {
 
   init(id: UUID) {
     self.id = id
-    self.hasLoaded = false
     self.items = []
     self.bookmarkedItems = []
     self.hasLoadedNoImages = false
@@ -571,7 +568,7 @@ final class ImagesModel {
   }
 
   func highlight(items: [ImagesItemModel2], isHighlighted: Bool) {
-    items.forEach(setter(on: \.selectableItemsHighlighted, value: isHighlighted))
+    items.forEach(setter(on: \.isImageAnalysisSelectableItemsHighlighted, value: isHighlighted))
   }
 
   nonisolated private func orientationImageProperty(data: [CFString : Any]) -> CGImagePropertyOrientation? {
@@ -657,13 +654,13 @@ final class ImagesModel {
             sidebarAspectRatio: item2.aspectRatio,
             sidebarImage: NSImage(),
             sidebarImagePhase: .empty,
-            sidebarImageParameters: ImagesItemModelImageParameters(width: .nan, pixelLength: .nan),
+            sidebarImageParameters: ImagesItemModelImageParameters(width: .nan),
             detailAspectRatio: item2.aspectRatio,
             detailImage: NSImage(),
             detailImagePhase: .empty,
-            detailImageParameters: ImagesItemModelImageParameters(width: .nan, pixelLength: .nan),
+            detailImageParameters: ImagesItemModelImageParameters(width: .nan),
             imageAnalysis: nil,
-            imageAnalysisParameters: ImagesItemModelImageAnalysisParameters(types: [], width: .nan, pixelLength: .nan),
+            imageAnalysisParameters: ImagesItemModelImageAnalysisParameters(types: [], width: .nan),
             selectableItemsHighlighted: false,
           )
         }
@@ -672,17 +669,7 @@ final class ImagesModel {
     self.items.first?.edge.insert(.top)
     self.items.last?.edge.insert(.bottom)
 
-    if !self.hasLoaded {
-      // FIXME: ImagesRecord.currentImage should be internal.
-      //
-      // ImagesRecord.currentImage exists to support restoration, but we're using it in our UI code, causing bugs like
-      // ImagesModel.currentImage not being nil while ImagesModel.visibleItems is empty. We still want a notion of a
-      // current item in our UI (e.g., for the toolbar), but it should be distinct from the database value, which
-      // should not be synced to the UI.
-      self.currentItem = images.currentItem.flatMap { self.items[id: $0.item.rowID!] }
-    }
-
-    self.hasLoaded = true
+    self.restoredItem = images.currentItem.flatMap { self.items[id: $0.item.rowID!] }
     self.hasLoadedNoImages = self.items.isEmpty
     self.bookmarkedItems = Set(self.items.filter(\.isBookmarked).map(\.id))
     self.resolvedItems = Set(self.items.filter { details.items[$0.id] != nil }.map(\.id))
@@ -734,68 +721,81 @@ final class ImagesModel {
       // TODO: Rewrite.
       items.forEach { item in
         group.addTask { [state1] in
-          let relative: URLSource?
+          let document: URLSourceDocument?
 
           do {
-            relative = try state1.relative(item.fileBookmark.relative)
-          } catch {
-            // TODO: Elaborate.
-            Logger.model.error("\(error)")
-
-            return nil
-          }
-
-          guard let bookmark = state1.bookmarks[item.fileBookmark.bookmark.bookmark.rowID!] else {
-            return nil
-          }
-
-          let source = URLSource(url: bookmark.resolved.url, options: item.fileBookmark.bookmark.bookmark.options!)
-          let item = relative.accessingSecurityScopedResource { () -> ImagesModelLoadDetailsStateItem? in
-            source.accessingSecurityScopedResource {
-              let resourceValues: URLResourceValues
-
-              do {
-                resourceValues = try source.url.resourceValues(forKeys: [.localizedNameKey, .hasHiddenExtensionKey])
-              } catch {
-                // TODO: Elaborate.
-                Logger.model.error("\(error)")
-
-                return nil
-              }
-
-              guard let name = resourceValues.localizedName,
-                    let isExtensionHidden = resourceValues.hasHiddenExtension else {
-                // TODO: Log.
-                return nil
-              }
-
-              let title = URL(filePath: name, directoryHint: .notDirectory).title(extensionHidden: isExtensionHidden)
-
-              guard let imageSource = CGImageSourceCreateWithURL(source.url as CFURL, nil) else {
-                // TODO: Log.
-                return nil
-              }
-
-              let options = [kCGImageSourceShouldCache: false]
-
-              guard let copyProperties = CGImageSourceCopyPropertiesAtIndex(
-                      imageSource,
-                      CGImageSourceGetPrimaryImageIndex(imageSource),
-                      options as CFDictionary,
-                    ) else {
-                Logger.model.error("Could not copy properties of image source at file URL '\(source.url.pathString)'")
-
-                return nil
-              }
-
-              guard let sizeOrientation = self.sizeOrientation(at: source.url, data: copyProperties as! [CFString: Any]) else {
-                return nil
-              }
-
-              let size = sizeOrientation.orientedSize
-
-              return ImagesModelLoadDetailsStateItem(item: item, title: title, aspectRatio: size.width / size.height)
+            document = try state1.document(fileBookmark: item.fileBookmark)
+          } catch let error as ImagesItemAssignmentError {
+            switch error {
+              case .unresolvedRelative: break
             }
+
+            return nil
+          } catch {
+            unreachable()
+          }
+
+          guard let document else {
+            return nil
+          }
+
+          let item = document.accessingSecurityScopedResource { () -> ImagesModelLoadDetailsStateItem? in
+            let resourceValues: URLResourceValues
+
+            do {
+              resourceValues = try document.source.url.resourceValues(
+                forKeys: [.localizedNameKey, .hasHiddenExtensionKey],
+              )
+            } catch {
+              // TODO: Elaborate.
+              Logger.model.error("\(error)")
+
+              return nil
+            }
+
+            guard let name = resourceValues.localizedName,
+                  let isExtensionHidden = resourceValues.hasHiddenExtension else {
+              // TODO: Log.
+              return nil
+            }
+
+            let title: String
+
+            if isExtensionHidden {
+              title = URL(filePath: name, directoryHint: .notDirectory).deletingPathExtension().lastPathComponent
+            } else {
+              title = name
+            }
+
+            guard let imageSource = CGImageSourceCreateWithURL(document.source.url as CFURL, nil) else {
+              // TODO: Log.
+              return nil
+            }
+
+            let options = [kCGImageSourceShouldCache: false]
+
+            guard let copyProperties = CGImageSourceCopyPropertiesAtIndex(
+              imageSource,
+              CGImageSourceGetPrimaryImageIndex(imageSource),
+              options as CFDictionary,
+            ) else {
+              Logger.model.error(
+                "Could not copy properties of image source at file URL '\(document.source.url.pathString)'",
+              )
+
+              return nil
+            }
+
+            guard let sizeOrientation = self.sizeOrientation(
+                    at: document.source.url,
+                    data: copyProperties as! [CFString: Any],
+                  ) else {
+              return nil
+            }
+
+            let size = sizeOrientation.orientedSize
+
+            return ImagesModelLoadDetailsStateItem(item: item, title: title, aspectRatio: size.width / size.height)
           }
 
           return item
@@ -905,13 +905,6 @@ final class ImagesModel {
     return sizeOrientation
   }
 
-  nonisolated private func length(size: CGSize, width: CGFloat, pixelLength: CGFloat) -> CGFloat {
-    let height = width * (size.height / size.width)
-    let length = max(width, height) / pixelLength
-
-    return length
-  }
-
   nonisolated private func createThumbnail(
     source: CGImageSource,
     at index: Int,
@@ -993,7 +986,7 @@ final class ImagesModel {
       document = try state.document(fileBookmark: item.fileBookmark)
     } catch {
       switch error {
-        case .relativeUnresolved: break
+        case .unresolvedRelative: break
       }
 
       return
@@ -1018,7 +1011,7 @@ final class ImagesModel {
       let image = self.createThumbnail(
         source: imageSource,
         at: index,
-        length: self.length(size: size, width: parameters.width, pixelLength: parameters.pixelLength),
+        length: size.scale(width: parameters.width).length,
         size: size,
         url: document.source.url,
       )
@@ -1174,7 +1167,7 @@ final class ImagesModel {
       document = try state.document(fileBookmark: item.fileBookmark)
     } catch {
       switch error {
-        case .relativeUnresolved: break
+        case .unresolvedRelative: break
       }
 
       return
@@ -1200,8 +1193,8 @@ final class ImagesModel {
       }
 
       let size = sizeOrientation.orientedSize
-      let len = self.length(size: size, width: parameters.width, pixelLength: parameters.pixelLength)
-      let length = min(len, ImageAnalyzer.maxLength)
+      let len = size.scale(width: parameters.width).length
+      let length = min(len, ImageAnalyzer.maxLength.decremented())
 
       guard let image = self.createThumbnail(
               source: imageSource,
@@ -1524,7 +1517,7 @@ final class ImagesModel {
 
         return .directory(ItemDirectory(item: source, files: files))
       } catch {
-        guard case let .iterationFailed(error) = error as? FileManager.DirectoryEnumerationError,
+        guard case let .iterationFailed(error) = error as? FileManagerDirectoryEnumerationError,
               let error = error as? CocoaError, error.code == .fileReadUnknown,
               let error = error.underlying as? POSIXError, error.code == .ENOTDIR else {
           // TODO: Elaborate.
@@ -1623,22 +1616,25 @@ final class ImagesModel {
 
   nonisolated private func source(
     assigned: AssignedBookmarkDocument,
+    relative: BookmarkRecord?,
+  ) -> URLSource? {
+    guard let relative else {
+      return nil
+    }
+
+    let source = URLSource(url: assigned.relative!.resolved.url, options: relative.options!)
+
+    return source
+  }
+
+  nonisolated private func document(
+    assigned: AssignedBookmarkDocument,
     bookmark: BookmarkRecord,
     relative: BookmarkRecord?,
   ) -> URLSourceDocument {
-    let rel: URLSource?
-
-    if let relative {
-      // If relative is non-nil, assigned.relative should be non-nil, too, because assign(bookmark:relative:) returns
-      // nil for cases where resolving relative fails.
-      rel = URLSource(url: assigned.relative!.resolved.url, options: relative.options!)
-    } else {
-      rel = nil
-    }
-
-    return URLSourceDocument(
+    URLSourceDocument(
       source: URLSource(url: assigned.bookmark.resolved.url, options: bookmark.options!),
-      relative: rel,
+      relative: self.source(assigned: assigned, relative: relative),
     )
   }
 
@@ -1711,7 +1707,7 @@ final class ImagesModel {
       return nil
     }
 
-    return source(
+    return document(
       assigned: assigned,
       bookmark: item.fileBookmark.bookmark.bookmark,
       relative: item.fileBookmark.relative?.relative,
@@ -2087,16 +2083,16 @@ final class ImagesModel {
     }
 
     let folderSource = URLSource(url: assignedFolder.resolved.url, options: options)
-    let itemSource = self.source(
+    let document = self.document(
       assigned: assignedItem,
       bookmark: item.fileBookmark.bookmark.bookmark,
       relative: item.fileBookmark.relative?.relative,
     )
 
     try folderSource.accessingSecurityScopedResource { () throws(ImagesModelCopyFolderError) in
-      try itemSource.accessingSecurityScopedResource { () throws(ImagesModelCopyFolderError) in
+      try document.accessingSecurityScopedResource { () throws(ImagesModelCopyFolderError) in
         try copyFolder(
-          item: itemSource.source.url,
+          item: document.source.url,
           to: folderSource.url,
           locale: locale,
           resolveConflicts: resolveConflicts,
@@ -2188,7 +2184,7 @@ final class ImagesModel {
       return
     }
 
-    let itemSource = self.source(
+    let itemSource = self.document(
       assigned: assigned,
       bookmark: item.fileBookmark.bookmark.bookmark,
       relative: item.fileBookmark.relative?.relative,
@@ -2343,29 +2339,27 @@ final class ImagesModel {
     try source.accessingSecurityScopedResource { () throws(ImagesModelCopyFolderError) in
       do {
         try items.forEach { item in
-          let relative: URLSource?
+          let document: URLSourceDocument?
 
           do {
-            relative = try state2.relative(item.fileBookmark.relative)
+            document = try state2.document(fileBookmark: item.fileBookmark)
+          } catch let error as ImagesItemAssignmentError {
+            switch error {
+              case .unresolvedRelative: break
+            }
+
+            return
           } catch {
-            // TODO: Elaborate.
-            Logger.model.error("\(error)")
+            unreachable()
+          }
 
+          guard let document else {
             return
           }
 
-          guard let bookmark = state2.bookmarks[item.fileBookmark.bookmark.bookmark.rowID!] else {
-            return
-          }
-
-          let itemSource = URLSourceDocument(
-            source: URLSource(url: bookmark.resolved.url, options: item.fileBookmark.bookmark.bookmark.options!),
-            relative: relative,
-          )
-
-          try itemSource.accessingSecurityScopedResource {
+          try document.accessingSecurityScopedResource {
             try copyFolder(
-              item: itemSource.source.url,
+              item: document.source.url,
               to: source.url,
               locale: locale,
               resolveConflicts: resolveConflicts,
@@ -2470,29 +2464,27 @@ final class ImagesModel {
     try folder.accessingSecurityScopedResource { () throws(ImagesModelCopyFolderError) in
       do {
         try items3.forEach { item in
-          let relative: URLSource?
+          let document: URLSourceDocument?
 
           do {
-            relative = try state2.relative(item.fileBookmark.relative)
+            document = try state2.document(fileBookmark: item.fileBookmark)
+          } catch let error as ImagesItemAssignmentError {
+            switch error {
+              case .unresolvedRelative: break
+            }
+
+            return
           } catch {
-            // TODO: Elaborate.
-            Logger.model.error("\(error)")
+            unreachable()
+          }
 
+          guard let document else {
             return
           }
 
-          guard let bookmark = state2.bookmarks[item.fileBookmark.bookmark.bookmark.rowID!] else {
-            return
-          }
-
-          let itemSource = URLSourceDocument(
-            source: URLSource(url: bookmark.resolved.url, options: item.fileBookmark.bookmark.bookmark.options!),
-            relative: relative,
-          )
-
-          try itemSource.accessingSecurityScopedResource {
+          try document.accessingSecurityScopedResource {
             try copyFolder(
-              item: itemSource.source.url,
+              item: document.source.url,
               to: folder,
               locale: locale,
               resolveConflicts: resolveConflicts,

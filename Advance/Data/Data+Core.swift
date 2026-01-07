@@ -5,7 +5,6 @@
 //  Created by Kyle Erhabor on 6/12/24.
 //
 
-import AdvanceCore
 import Foundation
 import GRDB
 import OSLog
@@ -20,7 +19,37 @@ extension URL {
     .appendingPathExtension("sqlite3")
 }
 
-func createSchema(connection: some DatabaseWriter) async throws {
+actor Once<Value, each Argument> where Value: Sendable {
+  private let body: (repeat each Argument) async throws -> Value
+  private var task: Task<Value, any Error>?
+
+  init(_ body: @escaping (repeat each Argument) async throws -> Value) {
+    self.body = body
+  }
+
+  func callAsFunction(_ args: repeat each Argument) async throws -> Value {
+    if let task = self.task {
+      return try await task.value
+    }
+
+    let task = Task {
+      try await self.body(repeat each args)
+    }
+
+    self.task = task
+
+    do {
+      return try await task.value
+    } catch {
+      // We didn't get a value, so we can try again on the next call.
+      self.task = nil
+
+      throw error
+    }
+  }
+}
+
+func createSchema(connection: some DatabaseWriter) throws {
   var migrator = DatabaseMigrator()
 
   #if DEBUG
@@ -264,7 +293,7 @@ let databaseConnection = Once {
   let url = URL.databaseFile
   let configuration = GRDB.Configuration.standard
   let connection = try createDatabaseConnection(at: url, configuration: configuration)
-  try await createSchema(connection: connection)
+  try createSchema(connection: connection)
 
   return connection
 }

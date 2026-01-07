@@ -18,7 +18,7 @@ struct ImageCollectionSidebarView: View {
       .overlay {
         let isEmpty = isEmpty
 
-        ImageCollectionSidebarEmptyView(visible: isEmpty)
+        Color.clear
           .visible(isEmpty)
           .animation(.default, value: isEmpty)
           .transaction(value: isEmpty, setter(on: \.disablesAnimations, value: !isEmpty))

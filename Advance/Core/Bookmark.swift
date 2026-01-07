@@ -1,15 +1,19 @@
 //
 //  Bookmark.swift
-//  
+//  Advance
 //
-//  Created by Kyle Erhabor on 6/14/24.
+//  Created by Kyle Erhabor on 1/5/26.
 //
 
 import Foundation
 import OSLog
 
+extension Logger {
+  static let sandbox = Self(subsystem: Bundle.appID, category: "Sandbox")
+}
+
 extension URL {
-  public func startSecurityScope() -> Bool {
+  func startSecurityScope() -> Bool {
     let accessing = self.startAccessingSecurityScopedResource()
 
     if accessing {
@@ -21,25 +25,24 @@ extension URL {
     return accessing
   }
 
-  public func endSecurityScope() {
+  func endSecurityScope() {
     self.stopAccessingSecurityScopedResource()
-
-    Logger.sandbox.debug("Ended security scope for file URL '\(self.pathString)'")
+    Logger.sandbox.debug("Ended security scope for resource at file URL '\(self.pathString)'")
   }
 
   @available(*, noasync)
-  public func bookmark(options: BookmarkCreationOptions, relativeTo relative: URL?) throws -> Data {
+  func bookmark(options: BookmarkCreationOptions, relativeTo relative: URL?) throws -> Data {
     try self.bookmarkData(options: options, relativeTo: relative)
   }
 
-  public func bookmark(options: BookmarkCreationOptions, relativeTo relative: URL?) async throws -> Data {
+  func bookmark(options: BookmarkCreationOptions, relativeTo relative: URL?) async throws -> Data {
     try await schedule {
       try self.bookmark(options: options, relativeTo: relative)
     }
   }
 }
 
-public protocol SecurityScopedResource {
+protocol SecurityScopedResource {
   associatedtype SecurityScope
 
   func startSecurityScope() -> SecurityScope
@@ -48,23 +51,21 @@ public protocol SecurityScopedResource {
 }
 
 extension SecurityScopedResource {
-  public func accessingSecurityScopedResource<R, E>(_ body: () throws(E) -> R) throws(E) -> R {
-    let scope = startSecurityScope()
+  func accessingSecurityScopedResource<R, E>(_ body: () throws(E) -> R) throws(E) -> R {
+    let scope = self.startSecurityScope()
 
     defer {
-      endSecurityScope(scope)
+      self.endSecurityScope(scope)
     }
 
     return try body()
   }
 
-  public func accessingSecurityScopedResource<Result, E>(
-    _ body: @isolated(any) () async throws(E) -> Result
-  ) async throws(E) -> Result where Result: Sendable {
-    let scope = startSecurityScope()
+  func accessingSecurityScopedResource<R, E>(_ body: () async throws(E) -> R) async throws(E) -> R {
+    let scope = self.startSecurityScope()
 
     defer {
-      endSecurityScope(scope)
+      self.endSecurityScope(scope)
     }
 
     return try await body()
@@ -72,7 +73,7 @@ extension SecurityScopedResource {
 }
 
 extension URL: SecurityScopedResource {
-  public func endSecurityScope(_ scope: Bool) {
+  func endSecurityScope(_ scope: Bool) {
     guard scope else {
       return
     }
@@ -81,83 +82,72 @@ extension URL: SecurityScopedResource {
   }
 }
 
-public struct URLSource {
-  public let url: URL
-  public let options: URL.BookmarkCreationOptions
-
-  public init(url: URL, options: URL.BookmarkCreationOptions) {
-    self.url = url
-    self.options = options
-  }
+struct URLSource {
+  let url: URL
+  let options: URL.BookmarkCreationOptions
 }
 
-extension URLSource: Sendable, Equatable {}
+extension URLSource: Equatable {}
 
 extension URLSource: Hashable {
-  public func hash(into hasher: inout Hasher) {
-    hasher.combine(url)
-    hasher.combine(options.rawValue)
+  func hash(into hasher: inout Hasher) {
+    hasher.combine(self.url)
+    hasher.combine(self.options.rawValue)
   }
 }
 
 extension URLSource: SecurityScopedResource {
-  public func startSecurityScope() -> Bool {
-    options.contains(.withSecurityScope) && url.startSecurityScope()
+  func startSecurityScope() -> Bool {
+    self.options.contains(.withSecurityScope) && self.url.startSecurityScope()
   }
 
-  public func endSecurityScope(_ scope: Bool) {
-    url.endSecurityScope(scope)
-  }
-}
-
-public struct URLSourceDocument {
-  public let source: URLSource
-  public let relative: URLSource?
-
-  public init(source: URLSource, relative: URLSource?) {
-    self.source = source
-    self.relative = relative
+  func endSecurityScope(_ scope: Bool) {
+    self.url.endSecurityScope(scope)
   }
 }
 
-extension URLSourceDocument: Sendable {}
+struct URLSourceDocument {
+  let source: URLSource
+  let relative: URLSource?
+}
 
 extension URLSourceDocument: SecurityScopedResource {
-  public struct SecurityScope {
+  struct SecurityScope {
     let source: URLSource.SecurityScope
     let relative: URLSource.SecurityScope?
   }
 
-  public func startSecurityScope() -> SecurityScope {
-    let relative = relative?.startSecurityScope()
-    let source = source.startSecurityScope()
+  func startSecurityScope() -> SecurityScope {
+    let relative = self.relative?.startSecurityScope()
+    let source = self.source.startSecurityScope()
+    let scope = SecurityScope(source: source, relative: relative)
 
-    return SecurityScope(source: source, relative: relative)
+    return scope
   }
 
-  public func endSecurityScope(_ scope: SecurityScope) {
-    source.endSecurityScope(scope.source)
+  func endSecurityScope(_ scope: SecurityScope) {
+    self.source.endSecurityScope(scope.source)
 
-    if let scope = scope.relative {
-      relative?.endSecurityScope(scope)
+    guard let scope = scope.relative else {
+      return
     }
+
+    self.relative!.endSecurityScope(scope)
   }
 }
 
-// TODO: Remove.
-//
-// With URLSourceDocument, this is a hazard for our use case.
+// This has one and only one use case: handling an optional relative.
 extension Optional: SecurityScopedResource where Wrapped: SecurityScopedResource {
-  public func startSecurityScope() -> Wrapped.SecurityScope? {
+  func startSecurityScope() -> Wrapped.SecurityScope? {
     self?.startSecurityScope()
   }
 
-  public func endSecurityScope(_ scope: Wrapped.SecurityScope?) {
+  func endSecurityScope(_ scope: Wrapped.SecurityScope?) {
     guard let scope else {
       return
     }
 
-    self?.endSecurityScope(scope)
+    self!.endSecurityScope(scope)
   }
 }
 
@@ -166,7 +156,7 @@ extension KeyedEncodingContainer {
     try self.encode(value.rawValue, forKey: key)
   }
 
-  public mutating func encode(_ value: URL.BookmarkCreationOptions?, forKey key: KeyedEncodingContainer<K>.Key) throws {
+  mutating func encode(_ value: URL.BookmarkCreationOptions?, forKey key: KeyedEncodingContainer<K>.Key) throws {
     try self.encode(value?.rawValue, forKey: key)
   }
 }
@@ -179,7 +169,7 @@ extension KeyedDecodingContainer {
     URL.BookmarkCreationOptions(rawValue: try self.decode(URL.BookmarkCreationOptions.RawValue.self, forKey: key))
   }
 
-  public func decodeIfPresent(
+  func decodeIfPresent(
     _ type: URL.BookmarkCreationOptions.Type,
     forKey key: KeyedDecodingContainer<K>.Key,
   ) throws -> URL.BookmarkCreationOptions? {
@@ -187,32 +177,27 @@ extension KeyedDecodingContainer {
       return nil
     }
 
-    return URL.BookmarkCreationOptions(rawValue: rawValue)
+    let options = URL.BookmarkCreationOptions(rawValue: rawValue)
+
+    return options
   }
 }
 
-public struct Bookmark {
-  public let data: Data
-  public let options: URL.BookmarkCreationOptions
+struct Bookmark {
+  let data: Data
+  let options: URL.BookmarkCreationOptions
+}
 
-  public init(data: Data, options: URL.BookmarkCreationOptions) {
-    self.data = data
-    self.options = options
-  }
-
+extension Bookmark {
   @available(*, noasync)
-  public init(url: URL, options: URL.BookmarkCreationOptions, relativeTo relative: URL?) throws {
+  init(url: URL, options: URL.BookmarkCreationOptions, relativeTo relative: URL?) throws {
     self.init(
       data: try url.bookmark(options: options, relativeTo: relative),
       options: options
     )
   }
 
-  public init(
-    url: URL,
-    options: URL.BookmarkCreationOptions,
-    relativeTo relative: URL?,
-  ) async throws {
+  init(url: URL, options: URL.BookmarkCreationOptions, relativeTo relative: URL?) async throws {
     self.init(
       data: try await url.bookmark(options: options, relativeTo: relative),
       options: options
@@ -227,7 +212,7 @@ extension Bookmark: Codable {
     case data, options
   }
 
-  public init(from decoder: any Decoder) throws {
+  init(from decoder: any Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
 
     self.init(
@@ -236,31 +221,31 @@ extension Bookmark: Codable {
     )
   }
 
-  public func encode(to encoder: any Encoder) throws {
+  func encode(to encoder: any Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
     try container.encode(data, forKey: .data)
     try container.encode(options, forKey: .options)
   }
 }
 
-public struct URLBookmark {
-  public let url: URL
-  public let bookmark: Bookmark
+struct URLBookmark {
+  let url: URL
+  let bookmark: Bookmark
 
-  public init(url: URL, bookmark: Bookmark) {
+  init(url: URL, bookmark: Bookmark) {
     self.url = url
     self.bookmark = bookmark
   }
 
   @available(*, noasync)
-  public init(url: URL, options: URL.BookmarkCreationOptions, relativeTo relative: URL?) throws {
+  init(url: URL, options: URL.BookmarkCreationOptions, relativeTo relative: URL?) throws {
     self.init(
       url: url,
       bookmark: try Bookmark(url: url, options: options, relativeTo: relative),
     )
   }
 
-  public init(
+  init(
     url: URL,
     options: URL.BookmarkCreationOptions,
     relativeTo relative: URL?,
@@ -274,16 +259,16 @@ public struct URLBookmark {
 
 extension URLBookmark: Sendable, Codable {}
 
-public struct ResolvedBookmark {
-  public let url: URL
-  public let isStale: Bool
+struct ResolvedBookmark {
+  let url: URL
+  let isStale: Bool
 
-  public init(url: URL, isStale: Bool) {
+  init(url: URL, isStale: Bool) {
     self.url = url
     self.isStale = isStale
   }
 
-  public init(data: Data, options: URL.BookmarkResolutionOptions, relativeTo relative: URL?) throws {
+  init(data: Data, options: URL.BookmarkResolutionOptions, relativeTo relative: URL?) throws {
     var isStale = false
 
     self.url = try URL(resolvingBookmarkData: data, options: options, relativeTo: relative, bookmarkDataIsStale: &isStale)
@@ -294,18 +279,18 @@ public struct ResolvedBookmark {
 extension ResolvedBookmark: Sendable {}
 
 // https://english.stackexchange.com/a/227919
-public struct AssignedBookmark {
-  public let resolved: ResolvedBookmark
-  public let data: Data
+struct AssignedBookmark {
+  let resolved: ResolvedBookmark
+  let data: Data
 
-  public init(resolved: ResolvedBookmark, data: Data) {
+  init(resolved: ResolvedBookmark, data: Data) {
     self.resolved = resolved
     self.data = data
   }
 
   // There's really only one reason you'd want to call this from a synchronous function.
   @available(*, noasync)
-  public init(
+  init(
     data: Data,
     options: URL.BookmarkResolutionOptions,
     relativeTo relative: URL?,
@@ -321,7 +306,7 @@ public struct AssignedBookmark {
     self.init(resolved: resolved, data: data)
   }
 
-  public init(
+  init(
     data: Data,
     options: URL.BookmarkResolutionOptions,
     relativeTo relative: URL?,
@@ -340,11 +325,11 @@ public struct AssignedBookmark {
 
 extension AssignedBookmark: Sendable {}
 
-public struct AssignedBookmarkDocument {
-  public let bookmark: AssignedBookmark
-  public let relative: AssignedBookmark?
+struct AssignedBookmarkDocument {
+  let bookmark: AssignedBookmark
+  let relative: AssignedBookmark?
 
-  public init(bookmark: AssignedBookmark, relative: AssignedBookmark?) {
+  init(bookmark: AssignedBookmark, relative: AssignedBookmark?) {
     self.bookmark = bookmark
     self.relative = relative
   }

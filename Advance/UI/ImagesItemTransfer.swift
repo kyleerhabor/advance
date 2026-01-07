@@ -5,7 +5,6 @@
 //  Created by Kyle Erhabor on 11/25/25.
 //
 
-import AdvanceCore
 import CoreTransferable
 import OSLog
 import UniformTypeIdentifiers
@@ -21,10 +20,11 @@ extension ImagesItemTransfer: Transferable {
       url: received.file,
       options: received.isOriginalFile
         ? [.withSecurityScope, .securityScopeAllowOnlyReadAccess]
-        : [],
+        : [.withoutImplicitSecurityScope],
     )
 
-    guard !received.isOriginalFile || source.url.relativeString.starts(with: URL.localTemporaryDirectory.relativeString) else {
+    guard !received.isOriginalFile
+          || source.url.relativeString.starts(with: URL.localTemporaryDirectory.relativeString) else {
       self.init(source: source, contentType: contentType)
 
       return

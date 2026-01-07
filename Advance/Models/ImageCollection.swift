@@ -5,7 +5,6 @@
 //  Created by Kyle Erhabor on 9/17/23.
 //
 
-import AdvanceCore
 import Foundation
 import OrderedCollections
 import OSLog
@@ -13,34 +12,6 @@ import SwiftUI
 
 extension URL {
   static let collectionDirectory = dataDirectory.appending(component: "Collections")
-}
-
-struct URLSecurityScope {
-  let url: URL
-  let accessing: Bool
-}
-
-extension URLSecurityScope {
-  init(source: URLSource) {
-    self.init(url: source.url, accessing: source.startSecurityScope())
-  }
-}
-
-struct ImageCollectionDocumentSource<T> {
-  let source: T
-  let files: [T]
-}
-
-enum ImageCollectionSourceKind<T> {
-  case file(T)
-  case document(ImageCollectionDocumentSource<T>)
-
-  var files: [T] {
-    switch self {
-      case .file(let file): [file]
-      case .document(let document): document.files
-    }
-  }
 }
 
 struct ImageCollectionItemRoot {
@@ -61,16 +32,10 @@ extension ImageCollectionItemRoot: Codable {}
 @Observable
 class ImageCollectionItemImage {
   let bookmark: UUID
-
-  let source: URLSource
-  let relative: URLSource?
-
   var bookmarked: Bool
 
-  init(bookmark: UUID, source: URLSource, relative: URLSource?, bookmarked: Bool) {
+  init(bookmark: UUID, bookmarked: Bool) {
     self.bookmark = bookmark
-    self.source = source
-    self.relative = relative
     self.bookmarked = bookmarked
   }
 }
@@ -78,45 +43,6 @@ class ImageCollectionItemImage {
 extension ImageCollectionItemImage: Identifiable {
   var id: UUID {
     self.bookmark
-  }
-}
-
-extension ImageCollectionItemImage: Equatable {
-  static func ==(lhs: ImageCollectionItemImage, rhs: ImageCollectionItemImage) -> Bool {
-    lhs.url == rhs.url
-  }
-}
-
-extension ImageCollectionItemImage: Hashable {
-  func hash(into hasher: inout Hasher) {
-    hasher.combine(url)
-  }
-}
-
-extension ImageCollectionItemImage: SecurityScopedResource {
-  var url: URL { source.url }
-
-  func startSecurityScope() -> SecurityScope {
-    .init(
-      image: .init(source: source),
-      relative: relative.map { .init(source: $0) }
-    )
-  }
-
-  func endSecurityScope(_ scope: SecurityScope) {
-    if scope.image.accessing {
-      scope.image.url.endSecurityScope()
-    }
-
-    if let relative = scope.relative,
-       relative.accessing {
-      relative.url.endSecurityScope()
-    }
-  }
-
-  struct SecurityScope {
-    let image: URLSecurityScope
-    let relative: URLSecurityScope?
   }
 }
 
@@ -173,7 +99,6 @@ class ImageCollectionSidebar {
 struct ImageCollectionSidebars {
   let images = ImageCollectionSidebar()
   let bookmarks = ImageCollectionSidebar()
-  let search = ImageCollectionSidebar()
 }
 
 struct ImageCollectionDetailItem {
@@ -183,8 +108,6 @@ struct ImageCollectionDetailItem {
 extension ImageCollectionDetailItem: Identifiable {
   var id: ImageCollectionItemImage.ID { image.id }
 }
-
-extension ImageCollectionDetailItem: Equatable {}
 
 @Observable
 class ImageCollection: Codable {
@@ -204,7 +127,6 @@ class ImageCollection: Codable {
 
   // Extra UI state.
   var sidebarPage = \ImageCollectionSidebars.images
-  var sidebarSearch = ""
   var bookmarks = Set<ImageCollectionItemRoot.ID>()
   @ObservationIgnored var sidebars = ImageCollectionSidebars()
 
@@ -233,13 +155,8 @@ class ImageCollection: Codable {
     let page = sidebarPage
 
     switch page {
-      case \.images,
-           // An empty string never passes the later filter
-           \.search where sidebarSearch.isEmpty:
+      case \.images:
         bookmarked = images
-      case \.search:
-        // Eventually, we want to expand search to analyze images for their transcripts.
-        bookmarked = images.filter { $0.url.lastPath.localizedCaseInsensitiveContains(sidebarSearch) }
       case \.bookmarks:
         bookmarked = bookmarks
       default:

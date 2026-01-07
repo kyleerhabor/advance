@@ -1,32 +1,11 @@
 //
-//  File.swift
-//  AdvanceCore
+//  BigInt.swift
+//  Advance
 //
 //  Created by Kyle Erhabor on 11/28/25.
 //
 
 @preconcurrency import BigInt
-
-extension BInt {
-  public func digitCount(base: Self) -> Int {
-    var n = self
-    var count = 1
-
-    // n = 100, base = 10
-    //
-    //
-    while n >= base {
-      guard n % base == BInt.ZERO else { // Ambiguous use of 'ZERO'
-        break
-      }
-
-      n /= base
-      count += 1
-    }
-
-    return count
-  }
-}
 
 // This re-defines BFraction to not simplify.
 //
