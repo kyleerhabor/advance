@@ -17,16 +17,7 @@ struct ImageCollectionNavigationSidebarView: View {
   }
 }
 
-struct ImageCollectionNavigationDetailView: View {
-  @Environment(ImageCollection.self) private var collection
-
-  var body: some View {
-    ImageCollectionDetailView(items: collection.detail)
-  }
-}
-
 struct ImageCollectionView: View {
-  @Environment(ImageCollection.self) private var collection
   @Environment(Window.self) private var windowed
   @Environment(\.isTrackingMenu) private var isTrackingMenu
   @Environment(\.isWindowFullScreen) private var fullScreen
@@ -49,7 +40,7 @@ struct ImageCollectionView: View {
       ImageCollectionNavigationSidebarView()
         .navigationSplitViewColumnWidth(min: 128, ideal: 128, max: 256)
     } detail: {
-      ImageCollectionNavigationDetailView()
+      Color.clear
         .scrollIndicators(isDetailOnly ? .hidden : .automatic)
         .frame(minWidth: 256)
         .onContinuousHover { phase in
@@ -71,7 +62,6 @@ struct ImageCollectionView: View {
         }
     }
     .toolbar(fullScreen ? .hidden : .automatic)
-    .environment(collection.sidebar)
     // Yes, the code listed below is dumb.
     .onChange(of: columns) {
       scrollingSubject.send(false)

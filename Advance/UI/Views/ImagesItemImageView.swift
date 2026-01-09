@@ -19,13 +19,13 @@ struct ImagesItemImageView: View {
 
     Image(nsImage: image)
       .resizable()
-      .background(.fill.quaternary.visible(!isSuccess), in: .rect)
+      .background(.fill.quaternary.isVisible(!isSuccess), in: .rect)
       .animation(.default, value: isSuccess)
       .overlay {
         let isVisible = phase == .empty && hasElapsed
 
         ProgressView()
-          .visible(isVisible)
+          .isVisible(isVisible)
           .animation(.default, value: isVisible)
       }
       .overlay {
@@ -34,7 +34,7 @@ struct ImagesItemImageView: View {
         Image(systemName: "exclamationmark.triangle.fill")
           .symbolRenderingMode(.multicolor)
           .imageScale(.large)
-          .visible(isVisible)
+          .isVisible(isVisible)
           .animation(.default, value: isVisible)
       }
       .aspectRatio(self.aspectRatio, contentMode: .fit)

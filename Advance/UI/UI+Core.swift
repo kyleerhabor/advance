@@ -72,8 +72,6 @@ struct StorageHiddenLayout: OptionSet {
   static let cursor = Self(rawValue: 1 << 1)
   static let scroll = Self(rawValue: 1 << 2)
 
-  // Is there a better way to represent this?
-
   var toolbar: Bool {
     get { self.contains(.toolbar) }
     set { self = value(newValue, for: .toolbar) }

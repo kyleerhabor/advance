@@ -50,6 +50,7 @@ extension ImagesViewItemsID: @MainActor Equatable {}
 struct ImagesBackgroundView: View {
   @Environment(ImagesModel.self) private var images
   @AppStorage(StorageKeys.isLiveTextEnabled) private var isLiveTextEnabled
+  let isBookmarked: Bool
   let isSupplementaryInterfaceVisible: Bool
 
   var body: some View {
@@ -59,6 +60,7 @@ struct ImagesBackgroundView: View {
         showFinder: AppModelActionCommand(isDisabled: self.images.currentItem == nil),
         openFinder: AppModelActionCommand(isDisabled: true),
         showSidebar: AppModelActionCommand(isDisabled: self.images.currentItem == nil),
+        sidebarBookmarks: AppModelToggleCommand(isDisabled: false, isOn: self.isBookmarked),
         bookmark: AppModelToggleCommand(
           isDisabled: self.images.currentItem == nil,
           isOn: self.images.currentItem?.isBookmarked ?? false,
@@ -109,10 +111,10 @@ struct ImagesView2: View {
 
   @State private var columnVisibility = NavigationSplitViewVisibility.automatic
   @State private var isColumnVisibilitySet = false
+  @State private var isBookmarked = false
   @State private var isImageAnalysisSupplementaryInterfaceVisible = false
   @State private var isImageAnalysisSupplementaryInterfaceVisibleSet = false
   @State private var isActive = true
-  @State private var selection = Set<ImagesItemModel2.ID>()
   @State private var isFileImporterPresented = false
   @State private var copyFolderError: ImagesModelCopyFolderError?
   @State private var isCopyFolderErrorPresented = false
@@ -122,20 +124,20 @@ struct ImagesView2: View {
 
   var body: some View {
     let isVisible = self.isTrackingMenu
-    || !self.appearsActive
-    || self.columnVisibility != .detailOnly
-    || self.isActive
+      || !self.appearsActive
+      || self.columnVisibility != .detailOnly
+      || self.isActive
 
     NavigationSplitView(columnVisibility: $columnVisibility) {
       ImagesSidebarView2(
         columnVisibility: $columnVisibility,
-        isSupplementaryInterfaceVisible: $isImageAnalysisSupplementaryInterfaceVisible,
-        selection: $selection,
+        isBookmarked: $isBookmarked,
+        isImageAnalysisSupplementaryInterfaceVisible: $isImageAnalysisSupplementaryInterfaceVisible,
         isFileImporterPresented: $isFileImporterPresented,
         copyFolderError: $copyFolderError,
         isCopyFolderErrorPresented: $isCopyFolderErrorPresented,
       )
-      .navigationSplitViewColumnWidth(min: 128, max: 256)
+      .navigationSplitViewColumnWidth(min: 128, ideal: 128, max: 256)
     } detail: {
       ImagesDetailView2(
         copyFolderError: $copyFolderError,
@@ -162,7 +164,10 @@ struct ImagesView2: View {
       }
     }
     .background {
-      ImagesBackgroundView(isSupplementaryInterfaceVisible: isImageAnalysisSupplementaryInterfaceVisible)
+      ImagesBackgroundView(
+        isBookmarked: self.isBookmarked,
+        isSupplementaryInterfaceVisible: self.isImageAnalysisSupplementaryInterfaceVisible,
+      )
     }
     .toolbar(self.isWindowFullScreen ? .hidden : .automatic)
     .toolbarVisible(!self.hiddenLayout.toolbar || isVisible || self.isWindowFullScreen)
@@ -253,16 +258,20 @@ struct ImagesView2: View {
 
       self.columnVisibilityStorage = columnVisibility
     }
+    .onChange(of: self.isBookmarked) {
+      self.images.isBookmarked = self.isBookmarked
+      self.images.loadBookmarks()
+    }
     .onChange(
       of: ImagesViewSupplementaryInterfaceVisibleID(
         images: self.images,
         isLiveTextEnabled: self.isLiveTextEnabled,
         isLiveTextIconEnabled: self.isLiveTextIconEnabled,
       ),
-    ) { prior, id in
+    ) {
       let isVisible = switch self.imageAnalysisSupplementaryInterfaceVisibility {
-        case .automatic: id.isLiveTextEnabled && id.isLiveTextIconEnabled
-        case .visible: id.isLiveTextEnabled
+        case .automatic: self.isLiveTextEnabled && self.isLiveTextIconEnabled
+        case .visible: self.isLiveTextEnabled
         case .hidden: false
       }
 
@@ -317,6 +326,8 @@ struct ImagesView2: View {
         Task {
           await self.images.sidebar.send(ImagesModelSidebarElement(item: item.id, isSelected: true))
         }
+      case .toggleSidebarBookmarks:
+        self.isBookmarked.toggle()
       case .bookmark:
         guard let item = self.images.currentItem else {
           return

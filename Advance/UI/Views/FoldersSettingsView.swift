@@ -43,6 +43,7 @@ struct FoldersSettingsView: View {
       showFinder: AppModelActionCommand(isDisabled: isInvalidSelection),
       openFinder: AppModelActionCommand(isDisabled: isInvalidSelection),
       showSidebar: AppModelActionCommand(isDisabled: true),
+      sidebarBookmarks: AppModelToggleCommand(isDisabled: true, isOn: false),
       bookmark: AppModelToggleCommand(isDisabled: true, isOn: false),
       liveTextIcon: AppModelToggleCommand(isDisabled: true, isOn: false),
       liveTextHighlight: AppModelToggleCommand(isDisabled: true, isOn: false),
@@ -99,16 +100,17 @@ struct FoldersSettingsView: View {
 
     switch command.action {
       case .open:
-        isFileImporterPresented = true
+        self.isFileImporterPresented = true
       case .showFinder:
         Task {
-          await folders.showFinder(items: selection)
+          await self.folders.showFinder(items: self.selection)
         }
       case .openFinder:
         Task {
-          await folders.openFinder(items: selection)
+          await self.folders.openFinder(items: self.selection)
         }
-      case .showSidebar, .bookmark, .toggleLiveTextIcon, .toggleLiveTextHighlight, .resetWindowSize:
+      case .showSidebar, .toggleSidebarBookmarks, .bookmark, .toggleLiveTextIcon, .toggleLiveTextHighlight,
+           .resetWindowSize:
         unreachable()
     }
   }

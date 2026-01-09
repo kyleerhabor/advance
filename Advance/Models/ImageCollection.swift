@@ -18,7 +18,6 @@ struct ImageCollectionItemRoot {
   typealias ID = UUID
 
   let bookmark: UUID
-  let bookmarked: Bool
 }
 
 extension ImageCollectionItemRoot: Equatable {
@@ -32,11 +31,9 @@ extension ImageCollectionItemRoot: Codable {}
 @Observable
 class ImageCollectionItemImage {
   let bookmark: UUID
-  var bookmarked: Bool
 
-  init(bookmark: UUID, bookmarked: Bool) {
+  init(bookmark: UUID) {
     self.bookmark = bookmark
-    self.bookmarked = bookmarked
   }
 }
 
@@ -49,8 +46,6 @@ extension ImageCollectionItemImage: Identifiable {
 struct ImageCollectionItem {
   let root: ImageCollectionItemRoot
   let image: ImageCollectionItemImage?
-
-  var bookmarked: Bool { image?.bookmarked ?? root.bookmarked }
 }
 
 extension ImageCollectionItem: Equatable {
@@ -70,35 +65,10 @@ extension ImageCollectionItem: Codable {
   }
 
   func encode(to encoder: any Encoder) throws {
-    let root = ImageCollectionItemRoot(bookmark: root.bookmark, bookmarked: bookmarked)
-
+    let root = ImageCollectionItemRoot(bookmark: root.bookmark)
     var container = encoder.singleValueContainer()
     try container.encode(root)
   }
-}
-
-@Observable
-class ImageCollectionSidebar {
-  typealias Selection = Set<ImageCollectionItemImage.ID>
-
-  var images: [ImageCollectionItemImage]
-  var selection: Selection
-  @ObservationIgnored var current: ImageCollectionItemImage.ID?
-
-  init(
-    images: [ImageCollectionItemImage] = [],
-    selection: Selection = [],
-    current: ImageCollectionItemImage.ID? = nil
-  ) {
-    self.images = images
-    self.selection = selection
-    self.current = current
-  }
-}
-
-struct ImageCollectionSidebars {
-  let images = ImageCollectionSidebar()
-  let bookmarks = ImageCollectionSidebar()
 }
 
 struct ImageCollectionDetailItem {
@@ -111,63 +81,23 @@ extension ImageCollectionDetailItem: Identifiable {
 
 @Observable
 class ImageCollection: Codable {
-  typealias Order = OrderedSet<ImageCollectionItemRoot.ID>
-  typealias Items = [ImageCollectionItemRoot.ID: ImageCollectionItem]
-
   // The source of truth for the collection.
   //
   // TODO: Remove unused bookmarks in store via items or order
-  @ObservationIgnored var items: Items
-  @ObservationIgnored var order: Order
+  @ObservationIgnored var items: [ImageCollectionItemRoot.ID: ImageCollectionItem]
+  @ObservationIgnored var order: OrderedSet<ImageCollectionItemRoot.ID>
 
   // The materialized state for the UI.
   var images = [ImageCollectionItemImage]()
-  var detail = [ImageCollectionDetailItem]()
-  var sidebar: ImageCollectionSidebar { sidebars[keyPath: sidebarPage] }
-
-  // Extra UI state.
-  var sidebarPage = \ImageCollectionSidebars.images
   var bookmarks = Set<ImageCollectionItemRoot.ID>()
-  @ObservationIgnored var sidebars = ImageCollectionSidebars()
 
   init() {
-    self.items = .init()
-    self.order = .init()
-  }
-
-  init(items: Items, order: Order) {
-    self.items = items
-    self.order = order
+    self.items = [ImageCollectionItemRoot.ID: ImageCollectionItem]()
+    self.order = OrderedSet<ImageCollectionItemRoot.ID>()
   }
 
   func update() {
-    images = order.compactMap { items[$0]?.image }
-    detail = images.map { image in
-      ImageCollectionDetailItem(image: image)
-    }
-
-    updateBookmarks()
-  }
-
-  func updateBookmarks() {
-    let bookmarks = images.filter(\.bookmarked)
-    let bookmarked: [ImageCollectionItemImage]
-    let page = sidebarPage
-
-    switch page {
-      case \.images:
-        bookmarked = images
-      case \.bookmarks:
-        bookmarked = bookmarks
-      default:
-        Logger.model.error("Unknown sidebar page \"\(page.debugDescription)\"; defaulting to all")
-
-        bookmarked = images
-    }
-
-    sidebars[keyPath: page].images = bookmarked
-
-    self.bookmarks = .init(bookmarks.map(\.bookmark))
+    self.images = self.order.compactMap { self.items[$0]?.image }
   }
 
   func persist(to url: URL) throws {
@@ -189,7 +119,7 @@ class ImageCollection: Codable {
     let roots = try container.decode([ImageCollectionItem].self, forKey: .items)
 
     self.items = .init(uniqueKeysWithValues: roots.map { ($0.root.bookmark, $0) })
-    self.order = try container.decode(Order.self, forKey: .order)
+    self.order = try container.decode(OrderedSet<ImageCollectionItemRoot.ID>.self, forKey: .order)
   }
 
   func encode(to encoder: any Encoder) throws {
@@ -210,22 +140,5 @@ extension ImageCollection: Hashable {
 
   func hash(into hasher: inout Hasher) {
     hasher.combine(order)
-  }
-}
-
-extension Navigator {
-  init?(page: KeyPath<ImageCollectionSidebars, ImageCollectionSidebar>) {
-    switch page {
-      case \.images: self = .images
-      case \.bookmarks: self = .bookmarks
-      default: return nil
-    }
-  }
-
-  var page: KeyPath<ImageCollectionSidebars, ImageCollectionSidebar> {
-    switch self {
-      case .images: \.images
-      case .bookmarks: \.bookmarks
-    }
   }
 }

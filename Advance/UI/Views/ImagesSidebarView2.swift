@@ -29,25 +29,36 @@ struct ImagesSidebarBackgroundView: View {
   @Environment(ImagesModel.self) private var images
   @AppStorage(StorageKeys.isLiveTextEnabled) private var isLiveTextEnabled
   let selection: Set<ImagesItemModel2.ID>
-  let isSupplementaryInterfaceVisible: Bool
+  let isBookmarked: Bool
+  let isImageAnalysisSupplementaryInterfaceVisible: Bool
 
   var body: some View {
     let isInvalidSelection = self.images.isInvalidSelection(of: self.selection)
 
     Color.clear
-      .focusedSceneValue(\.commandScene, AppModelCommandScene(
-        id: .imagesSidebar(self.images.id),
-        showFinder: AppModelActionCommand(isDisabled: isInvalidSelection),
-        openFinder: AppModelActionCommand(isDisabled: true),
-        showSidebar: AppModelActionCommand(isDisabled: self.images.currentItem == nil),
-        bookmark: AppModelToggleCommand(isDisabled: isInvalidSelection, isOn: self.images.isBookmarked(items: selection)),
-        liveTextIcon: AppModelToggleCommand(isDisabled: !self.isLiveTextEnabled, isOn: self.isSupplementaryInterfaceVisible),
-        liveTextHighlight: AppModelToggleCommand(
-          isDisabled: !self.isLiveTextEnabled || self.images.visibleItems.isEmpty,
-          isOn: self.images.isHighlighted,
+      .focusedSceneValue(
+        \.commandScene,
+        AppModelCommandScene(
+          id: .imagesSidebar(self.images.id),
+          showFinder: AppModelActionCommand(isDisabled: isInvalidSelection),
+          openFinder: AppModelActionCommand(isDisabled: true),
+          showSidebar: AppModelActionCommand(isDisabled: self.images.currentItem == nil),
+          sidebarBookmarks: AppModelToggleCommand(isDisabled: false, isOn: self.isBookmarked),
+          bookmark: AppModelToggleCommand(
+            isDisabled: isInvalidSelection,
+            isOn: self.images.isBookmarked(items: self.selection),
+          ),
+          liveTextIcon: AppModelToggleCommand(
+            isDisabled: !self.isLiveTextEnabled,
+            isOn: self.isImageAnalysisSupplementaryInterfaceVisible,
+          ),
+          liveTextHighlight: AppModelToggleCommand(
+            isDisabled: !self.isLiveTextEnabled || self.images.visibleItems.isEmpty,
+            isOn: self.images.isHighlighted,
+          ),
+          resetWindowSize: AppModelActionCommand(isDisabled: false),
         ),
-        resetWindowSize: AppModelActionCommand(isDisabled: false),
-      ))
+      )
   }
 }
 
@@ -84,7 +95,7 @@ struct ImagesSidebarItemView: View {
             .opacity(0.85)
             .shadow(radius: 0.5)
             .padding(4)
-            .visible(item.isBookmarked)
+            .isVisible(item.isBookmarked)
         }
 
       Text(item.title)
@@ -116,12 +127,15 @@ struct ImagesSidebarView2: View {
   @AppStorage(StorageKeys.importSubdirectories) private var importSubdirectories
   @AppStorage(StorageKeys.resolveConflicts) private var resolveConflicts
   @Binding var columnVisibility: NavigationSplitViewVisibility
-  @Binding var isSupplementaryInterfaceVisible: Bool
-  @Binding var selection: Set<ImagesItemModel2.ID>
+  @Binding var isBookmarked: Bool
+  @Binding var isImageAnalysisSupplementaryInterfaceVisible: Bool
   @Binding var isFileImporterPresented: Bool
   @Binding var copyFolderError: ImagesModelCopyFolderError?
   @Binding var isCopyFolderErrorPresented: Bool
-  @State private var isSelectionSet = false
+  @State private var selection = Set<ImagesItemModel2.ID>()
+  @State private var isShowSidebarSet = false
+  @State private var currentItem: ImagesItemModel2?
+  @State private var bookmarkCurrentItem: ImagesItemModel2?
   @State private var copyFolderSelection = Set<ImagesItemModel2.ID>()
   @State private var isCopyFolderFileImporterPresented = false
   @FocusState private var isFocused
@@ -131,40 +145,55 @@ struct ImagesSidebarView2: View {
 
   var body: some View {
     ScrollViewReader { proxy in
-      List(images.items, selection: $selection) { item in
+      List(images.sidebarItems, selection: $selection) { item in
         ImagesSidebarItemView(item: item)
       }
       .focused($isFocused)
       .overlay {
         ContentUnavailableView {
           Button {
-            isFileImporterPresented = true
+            self.isFileImporterPresented = true
           } label: {
             Label("Images.Sidebar.Import", systemImage: "square.and.arrow.down")
               .labelStyle(ImagesSidebarImportLabelStyle())
           }
           .buttonStyle(.plain)
           .disabled(!images.hasLoadedNoImages)
-          .visible(images.hasLoadedNoImages)
+          .isVisible(images.hasLoadedNoImages)
         }
       }
-//      .overlay(alignment: .bottom) {
-//        VStack(spacing: 0) {
-//          Divider()
-//
-//          HStack {
-//            Spacer()
-//
-//            Toggle("Bookmark", systemImage: "bookmark.fill", isOn: .constant(true))
-//              .toggleStyle(.button)
-//              .buttonStyle(.plain)
-//              .labelStyle(.iconOnly)
-//              .foregroundStyle(Color(.controlAccentColor))
-//              .controlSize(.large)
-//          }
-//          .padding(10)
-//        }
-//      }
+      .safeAreaInset(edge: .bottom, spacing: 0) {
+        VStack(spacing: 0) {
+          Divider()
+
+          HStack {
+            Spacer()
+
+            @Bindable var images = self.images
+            let key: LocalizedStringKey = self.isBookmarked
+              ? "Images.Sidebar.Bookmark.Hide"
+              : "Images.Sidebar.Bookmark.Show"
+
+            Toggle(key, systemImage: self.isBookmarked ? "bookmark.fill" : "bookmark", isOn: $isBookmarked)
+              .toggleStyle(.button)
+              .buttonStyle(.plain)
+              .labelStyle(.iconOnly)
+              .help(key)
+              .font(.system(size: 13))
+              .foregroundStyle(Color(self.isBookmarked ? .controlAccentColor : .secondaryLabelColor))
+              .onChange(of: self.isBookmarked) {
+                guard let currentItem = self.isBookmarked ? self.bookmarkCurrentItem : self.currentItem else {
+                  return
+                }
+
+                Task {
+                  await images.sidebar.send(ImagesModelSidebarElement(item: currentItem.id, isSelected: false))
+                }
+              }
+          }
+          .padding(10)
+        }
+      }
       .overlay {
         if images.hasLoadedNoImages {
           Color.clear
@@ -192,6 +221,14 @@ struct ImagesSidebarView2: View {
                 .map { ImagesResolvedVisibleItem(item: $0.item, frame: proxy[$0.anchor]) }
                 .filter { frame.intersects($0.frame) }
 
+              let currentItem = items.middleItem
+
+              if self.isBookmarked {
+                self.bookmarkCurrentItem = currentItem?.item
+              } else {
+                self.currentItem = currentItem?.item
+              }
+
               guard let item = items.first else {
                 return
               }
@@ -202,15 +239,15 @@ struct ImagesSidebarView2: View {
               //
               // I've found that it can still send the element when the task is canceled. While we could check for
               // cancellation, it's unnecessary since the debouncer will act first.
-              await self.images.sidebarResample.send(
+              await images.sidebarResample.send(
                 ImagesModelResample(width: item.frame.width, items: items.map(\.item)),
               )
             }
         }
       }
-      .task(id: ImagesViewResampleID(images: self.images, pixelLength: self.pixelLength)) {
-        for await resample in self.images.sidebarResample.removeDuplicates().debounce(for: .microhang) {
-          await self.images.loadImages(
+      .task(id: ImagesViewResampleID(images: images, pixelLength: self.pixelLength)) {
+        for await resample in images.sidebarResample.removeDuplicates().debounce(for: .microhang) {
+          await images.loadImages(
             in: .sidebar,
             items: await self.resample(resample),
             parameters: ImagesItemModelImageParameters(width: resample.width / self.pixelLength),
@@ -258,22 +295,19 @@ struct ImagesSidebarView2: View {
         }
         .disabled(images.isInvalidSelection(of: ids))
       }
-      .copyable(images.urls(ofItems: selection))
+      .copyable(self.images.urls(ofItems: self.selection))
       .onChange(of: ImagesSidebarSelectionID(images: self.images, selection: self.selection)) { prior, id in
-        guard id.images == prior.images else {
-          return
-        }
-
-        guard !self.isSelectionSet else {
-          self.isSelectionSet = false
+        guard !self.isShowSidebarSet else {
+          self.isShowSidebarSet = false
 
           return
         }
 
         // TODO: Document.
         let difference = id.selection.subtracting(prior.selection)
+        let item = id.images.sidebarItems.last { difference.contains($0.id) }
 
-        guard let item = id.images.items.last(where: { difference.contains($0.id) }) else {
+        guard let item else {
           return
         }
 
@@ -285,7 +319,7 @@ struct ImagesSidebarView2: View {
         for await element in self.images.sidebar {
           if element.isSelected {
             self.selection = [element.item]
-            self.isSelectionSet = true
+            self.isShowSidebarSet = true
           }
 
           // TODO: Figure out how to finish scrolling off-screen before showing columns.
@@ -305,7 +339,11 @@ struct ImagesSidebarView2: View {
       }
     }
     .background {
-      ImagesSidebarBackgroundView(selection: selection, isSupplementaryInterfaceVisible: isSupplementaryInterfaceVisible)
+      ImagesSidebarBackgroundView(
+        selection: self.selection,
+        isBookmarked: self.isBookmarked,
+        isImageAnalysisSupplementaryInterfaceVisible: self.isImageAnalysisSupplementaryInterfaceVisible,
+      )
     }
     .fileImporter(isPresented: $isCopyFolderFileImporterPresented, allowedContentTypes: foldersContentTypes) { result in
       let url: URL
@@ -323,7 +361,7 @@ struct ImagesSidebarView2: View {
       Task {
         do {
           try await images.copyFolder(
-            items: images.items.ids.filter(in: copyFolderSelection),
+            items: images.sidebarItems.ids.filter(in: copyFolderSelection),
             to: url,
             locale: locale,
             resolveConflicts: resolveConflicts,
@@ -337,8 +375,8 @@ struct ImagesSidebarView2: View {
       }
     }
     .fileDialogCustomizationID(FoldersSettingsScene.id)
-    .onReceive(app.commandsPublisher) { command in
-      onCommand(command)
+    .onReceive(self.app.commandsPublisher) { command in
+      self.onCommand(command)
     }
   }
 
@@ -349,33 +387,38 @@ struct ImagesSidebarView2: View {
 
     switch command.action {
       case .open:
-        guard images.hasLoadedNoImages else {
-          app.isImagesFileImporterPresented = true
+        guard self.images.hasLoadedNoImages else {
+          self.app.isImagesFileImporterPresented = true
 
           return
         }
 
-        isFileImporterPresented = true
+        self.isFileImporterPresented = true
       case .showFinder:
         Task {
-          await images.showFinder(items: selection)
+          await self.images.showFinder(items: self.selection)
         }
       case .openFinder:
         unreachable()
       case .showSidebar:
-        guard let item = images.currentItem else {
+        guard let item = self.images.currentItem else {
           return
         }
 
         Task {
-          await images.sidebar.send(ImagesModelSidebarElement(item: item.id, isSelected: true))
+          await self.images.sidebar.send(ImagesModelSidebarElement(item: item.id, isSelected: true))
         }
+      case .toggleSidebarBookmarks:
+        self.isBookmarked.toggle()
       case .bookmark:
         Task {
-          await images.bookmark(items: selection, isBookmarked: !images.isBookmarked(items: selection))
+          await self.images.bookmark(
+            items: self.selection,
+            isBookmarked: !self.images.isBookmarked(items: self.selection),
+          )
         }
       case .toggleLiveTextIcon:
-        self.isSupplementaryInterfaceVisible.toggle()
+        self.isImageAnalysisSupplementaryInterfaceVisible.toggle()
       case .toggleLiveTextHighlight:
         self.images.isHighlighted.toggle()
         self.images.highlight(items: self.images.visibleItems, isHighlighted: self.images.isHighlighted)
@@ -393,11 +436,11 @@ struct ImagesSidebarView2: View {
     let before3: IdentifiedArrayOf<ImagesItemModel2>.Index?
     let before4: IdentifiedArrayOf<ImagesItemModel2>.Index?
 
-    if let index = self.images.items.index(id: resample.items.first!.id) {
-      before1 = self.images.items.subscriptIndex(before: index)
-      before2 = before1.flatMap { self.images.items.subscriptIndex(before: $0) }
-      before3 = before2.flatMap { self.images.items.subscriptIndex(before: $0) }
-      before4 = before3.flatMap { self.images.items.subscriptIndex(before: $0) }
+    if let index = self.images.sidebarItems.index(id: resample.items.first!.id) {
+      before1 = self.images.sidebarItems.subscriptIndex(before: index)
+      before2 = before1.flatMap { self.images.sidebarItems.subscriptIndex(before: $0) }
+      before3 = before2.flatMap { self.images.sidebarItems.subscriptIndex(before: $0) }
+      before4 = before3.flatMap { self.images.sidebarItems.subscriptIndex(before: $0) }
     } else {
       before1 = nil
       before2 = nil
@@ -410,11 +453,11 @@ struct ImagesSidebarView2: View {
     let after3: IdentifiedArrayOf<ImagesItemModel2>.Index?
     let after4: IdentifiedArrayOf<ImagesItemModel2>.Index?
 
-    if let index = self.images.items.index(id: resample.items.last!.id) {
-      after1 = self.images.items.subscriptIndex(after: index)
-      after2 = after1.flatMap { self.images.items.subscriptIndex(after: $0) }
-      after3 = after2.flatMap { self.images.items.subscriptIndex(after: $0) }
-      after4 = after3.flatMap { self.images.items.subscriptIndex(after: $0) }
+    if let index = self.images.sidebarItems.index(id: resample.items.last!.id) {
+      after1 = self.images.sidebarItems.subscriptIndex(after: index)
+      after2 = after1.flatMap { self.images.sidebarItems.subscriptIndex(after: $0) }
+      after3 = after2.flatMap { self.images.sidebarItems.subscriptIndex(after: $0) }
+      after4 = after3.flatMap { self.images.sidebarItems.subscriptIndex(after: $0) }
     } else {
       after1 = nil
       after2 = nil
@@ -422,14 +465,14 @@ struct ImagesSidebarView2: View {
       after4 = nil
     }
 
-    before1.map { items.append(self.images.items[$0]) }
-    after1.map { items.append(self.images.items[$0]) }
-    before2.map { items.append(self.images.items[$0]) }
-    after2.map { items.append(self.images.items[$0]) }
-    before3.map { items.append(self.images.items[$0]) }
-    after3.map { items.append(self.images.items[$0]) }
-    before4.map { items.append(self.images.items[$0]) }
-    after4.map { items.append(self.images.items[$0]) }
+    before1.map { items.append(self.images.sidebarItems[$0]) }
+    after1.map { items.append(self.images.sidebarItems[$0]) }
+    before2.map { items.append(self.images.sidebarItems[$0]) }
+    after2.map { items.append(self.images.sidebarItems[$0]) }
+    before3.map { items.append(self.images.sidebarItems[$0]) }
+    after3.map { items.append(self.images.sidebarItems[$0]) }
+    before4.map { items.append(self.images.sidebarItems[$0]) }
+    after4.map { items.append(self.images.sidebarItems[$0]) }
 
     return items
   }

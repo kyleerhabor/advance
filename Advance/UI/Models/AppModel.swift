@@ -6,14 +6,16 @@
 //
 
 import Combine
-import Foundation
 import Observation
 
 enum AppModelCommandAction {
-  case open, showFinder, openFinder, showSidebar, bookmark, toggleLiveTextIcon, toggleLiveTextHighlight, resetWindowSize
+  case open, showFinder, openFinder, showSidebar, toggleSidebarBookmarks, bookmark, toggleLiveTextIcon,
+       toggleLiveTextHighlight, resetWindowSize
 }
 
 enum AppModelCommandSceneID {
+  // I would prefer to compare ImagesModel, but that results in a memory leak. I presume that it's illegal to escape
+  // data from a data-presenting window group.
   case images(ImagesModel.ID),
        imagesSidebar(ImagesModel.ID),
        folders
@@ -39,6 +41,7 @@ struct AppModelCommandScene {
   let showFinder: AppModelActionCommand
   let openFinder: AppModelActionCommand
   let showSidebar: AppModelActionCommand
+  let sidebarBookmarks: AppModelToggleCommand
   let bookmark: AppModelToggleCommand
   let liveTextIcon: AppModelToggleCommand
   let liveTextHighlight: AppModelToggleCommand
@@ -69,43 +72,15 @@ final class AppModel {
     self.isImagesFileImporterPresented = false
   }
 
-  func isShowFinderDisabled(for scene: AppModelCommandScene?) -> Bool {
-    scene?.showFinder.isDisabled ?? true
+  func isDisabled(action: AppModelActionCommand?) -> Bool {
+    action?.isDisabled ?? true
   }
 
-  func isOpenFinderDisabled(for scene: AppModelCommandScene?) -> Bool {
-    scene?.openFinder.isDisabled ?? true
+  func isDisabled(toggle: AppModelToggleCommand?) -> Bool {
+    toggle?.isDisabled ?? true
   }
 
-  func isShowSidebarDisabled(for scene: AppModelCommandScene?) -> Bool {
-    scene?.showSidebar.isDisabled ?? true
-  }
-
-  func isBookmarkDisabled(for scene: AppModelCommandScene?) -> Bool {
-    scene?.bookmark.isDisabled ?? true
-  }
-
-  func isBookmarkOn(for scene: AppModelCommandScene?) -> Bool {
-    scene?.bookmark.isOn ?? false
-  }
-
-  func isLiveTextIconDisabled(for scene: AppModelCommandScene?) -> Bool {
-    scene?.liveTextIcon.isDisabled ?? true
-  }
-
-  func isLiveTextIconOn(for scene: AppModelCommandScene?) -> Bool {
-    scene?.liveTextIcon.isOn ?? false
-  }
-
-  func isLiveTextHighlightDisabled(for scene: AppModelCommandScene?) -> Bool {
-    scene?.liveTextHighlight.isDisabled ?? true
-  }
-
-  func isLiveTextHighlightOn(for scene: AppModelCommandScene?) -> Bool {
-    scene?.liveTextHighlight.isOn ?? false
-  }
-
-  func isResetWindowSizeDisabled(for scene: AppModelCommandScene?) -> Bool {
-    scene?.resetWindowSize.isDisabled ?? true
+  func isOn(toggle: AppModelToggleCommand?) -> Bool {
+    toggle?.isOn ?? false
   }
 }

@@ -19,7 +19,7 @@ struct ImageCollectionSidebarView: View {
         let isEmpty = isEmpty
 
         Color.clear
-          .visible(isEmpty)
+          .isVisible(isEmpty)
           .animation(.default, value: isEmpty)
           .transaction(value: isEmpty, setter(on: \.disablesAnimations, value: !isEmpty))
       }

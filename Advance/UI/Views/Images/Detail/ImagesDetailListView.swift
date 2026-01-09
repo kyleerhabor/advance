@@ -8,14 +8,7 @@
 import AdvanceCore
 import Combine
 import IdentifiedCollections
-import OSLog
 import SwiftUI
-
-struct ImagesDetailListVisibleItem {
-  let item: ImagesItemModel
-}
-
-extension ImagesDetailListVisibleItem: Equatable {}
 
 @Observable
 class ImagesDetailListViewModel {
@@ -24,8 +17,6 @@ class ImagesDetailListViewModel {
   @ObservationIgnored let cursorSubject = PassthroughSubject<Void, Never>()
   @ObservationIgnored let scrollSubject = PassthroughSubject<CGPoint, Never>()
   @ObservationIgnored let isScrollingSubject = PassthroughSubject<Bool, Never>()
-  @ObservationIgnored let visiblesSubject = PassthroughSubject<[VisibleItem<ImagesItemModel>], Never>()
-  @ObservationIgnored let visiblesPublisher: AnyPublisher<[VisibleItem<ImagesItemModel>], Never>
   @ObservationIgnored private var isActiveCancellable: AnyCancellable?
 
   init() {
@@ -50,10 +41,6 @@ class ImagesDetailListViewModel {
       // to effectively counter a mouse (especially if it's heavy).
       .throttle(for: .imagesHoverInteraction, scheduler: DispatchQueue.main, latest: false)
 
-    self.visiblesPublisher = visiblesSubject
-      .throttle(for: .imagesScrollInteraction, scheduler: DispatchQueue.main, latest: true)
-      .eraseToAnyPublisher()
-
     self.isActiveCancellable = scroll
       .map { _ in cursor }
       .switchToLatest()
@@ -62,6 +49,22 @@ class ImagesDetailListViewModel {
       .sink { [weak self] isActive in
         self?.isActive = isActive
       }
+  }
+}
+
+struct ScrollOffsetPreferenceKey<A>: PreferenceKey {
+  typealias Value = Anchor<A>?
+
+  static var defaultValue: Value {
+    nil
+  }
+
+  static func reduce(value: inout Value, nextValue: () -> Value) {
+    guard let next = nextValue() else {
+      return
+    }
+
+    value = next
   }
 }
 
@@ -76,8 +79,8 @@ struct ImagesDetailListView: View {
 
   var body: some View {
     ScrollViewReader { proxy in
-      List(images.isReady ? images.items2 : []) { item in
-        ImagesDetailItemView(item: item)
+      List(images.isReady ? images.items2 : []) { _ in
+        Color.clear
           .anchorPreference(key: ScrollOffsetPreferenceKey.self, value: .origin, transform: identity)
       }
       .listStyle(.plain)
@@ -92,12 +95,6 @@ struct ImagesDetailListView: View {
 
             model.scrollSubject.send(origin)
           }
-        }
-      }
-      .preferencePublisher(VisiblePreferenceKey.self, subject: model.visiblesSubject, publisher: model.visiblesPublisher)
-      .overlayPreferenceValue(VisiblePreferenceKey<ImagesDetailListVisibleItem>.self) { items in
-        GeometryReader { _ in
-          Color.clear
         }
       }
       // TODO: Document rationale for not hiding on scroll.

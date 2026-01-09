@@ -81,6 +81,26 @@
         }
       }
     },
+    "Commands.Sidebar.Bookmarks.Hide" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide Bookmarks"
+          }
+        }
+      }
+    },
+    "Commands.Sidebar.Bookmarks.Show" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Bookmarks"
+          }
+        }
+      }
+    },
     "Commands.Window.Size.Reset" : {
       "localizations" : {
         "en" : {
@@ -90,9 +110,6 @@
           }
         }
       }
-    },
-    "Copy" : {
-
     },
     "Finder.Item.%@.Open" : {
       "localizations" : {
@@ -120,46 +137,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Show in Finder"
-          }
-        }
-      }
-    },
-    "Images.Bookmarks.Hide" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hide bookmarks"
-          }
-        }
-      }
-    },
-    "Images.Bookmarks.Show" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show bookmarks"
-          }
-        }
-      }
-    },
-    "Images.Commands.Navigator.Bookmarks" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bookmarks"
-          }
-        }
-      }
-    },
-    "Images.Commands.Navigator.Images" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Images"
           }
         }
       }
@@ -334,6 +311,26 @@
         }
       }
     },
+    "Images.Sidebar.Bookmark.Hide" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide Bookmarks"
+          }
+        }
+      }
+    },
+    "Images.Sidebar.Bookmark.Show" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Bookmarks"
+          }
+        }
+      }
+    },
     "Images.Sidebar.Import" : {
       "localizations" : {
         "en" : {
@@ -360,17 +357,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Show Live Text Icon"
-          }
-        }
-      }
-    },
-    "Search.Interaction" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Search..."
           }
         }
       }

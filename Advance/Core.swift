@@ -61,6 +61,27 @@ extension Collection {
   }
 }
 
+extension Collection where Index: FixedWidthInteger {
+  // This is obviously invalid for discontiguous collections.
+  var middleIndex: Index {
+    let start = self.startIndex
+    let end = self.endIndex
+    let middle = start + ((end - start) / 2)
+
+    return middle
+  }
+
+  var middleItem: Element? {
+    let index = self.middleIndex
+
+    guard index != self.endIndex else {
+      return nil
+    }
+
+    return self[index]
+  }
+}
+
 extension BidirectionalCollection {
   func subscriptIndex(before index: Index) -> Index? {
     guard index > self.startIndex else {
@@ -156,7 +177,7 @@ extension CGSize {
 // MARK: - BigInt
 
 extension BInt {
-  public func digitCount(base: Self) -> Int {
+  func digitCount(base: Self) -> Int {
     var n = self
     var count = 1
 

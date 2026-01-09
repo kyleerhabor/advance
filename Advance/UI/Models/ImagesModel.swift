@@ -309,6 +309,7 @@ final class ImagesModel {
 
   let id: ID
   var items: IdentifiedArrayOf<ImagesItemModel2>
+  var sidebarItems: IdentifiedArrayOf<ImagesItemModel2>
   var bookmarkedItems: Set<ImagesItemModel2.ID>
   var restoredItem: ImagesItemModel2?
   var hasLoadedNoImages: Bool
@@ -322,6 +323,7 @@ final class ImagesModel {
   @ObservationIgnored private var resolvedItems: Set<ImagesItemModel2.ID>
 
   // MARK: - UI properties
+  var isBookmarked: Bool
   var currentItem: ImagesItemModel2?
   var visibleItems: [ImagesItemModel2]
   var isHighlighted: Bool
@@ -338,6 +340,7 @@ final class ImagesModel {
   init(id: UUID) {
     self.id = id
     self.items = []
+    self.sidebarItems = []
     self.bookmarkedItems = []
     self.hasLoadedNoImages = false
     self.hoverChannel = AsyncChannel()
@@ -348,6 +351,7 @@ final class ImagesModel {
     self.detailImageAnalysis = AsyncChannel()
     self.sidebarResample = AsyncChannel()
     self.resolvedItems = []
+    self.isBookmarked = false
     self.visibleItems = []
     self.isHighlighted = false
 
@@ -356,6 +360,10 @@ final class ImagesModel {
 
   func load() async {
     await _load()
+  }
+
+  func loadBookmarks() {
+    self.loadBookmarkResults()
   }
 
   func loadImages(
@@ -525,33 +533,23 @@ final class ImagesModel {
   }
 
   func isBookmarked(items: Set<ImagesItemModel2.ID>) -> Bool {
-    items.isNonEmptySubset(of: bookmarkedItems)
+    items.isNonEmptySubset(of: self.bookmarkedItems)
   }
 
   func bookmark(item: ImagesItemModel2, isBookmarked: Bool) async {
     item.isBookmarked = isBookmarked
 
-    if isBookmarked {
-      bookmarkedItems.insert(item.id)
-    } else {
-      bookmarkedItems.remove(item.id)
-    }
-
-    await _bookmark(item: item.id, isBookmarked: isBookmarked)
+    self.loadBookmarkResults()
+    await self._bookmark(item: item.id, isBookmarked: isBookmarked)
   }
 
   func bookmark(items: Set<ImagesItemModel2.ID>, isBookmarked: Bool) async {
-    if isBookmarked {
-      bookmarkedItems.formUnion(items)
-    } else {
-      bookmarkedItems.subtract(items)
-    }
-
     items.forEach { item in
       self.items[id: item]!.isBookmarked = isBookmarked
     }
 
-    await _bookmark(items: items, isBookmarked: isBookmarked)
+    self.loadBookmarkResults()
+    await self._bookmark(items: items, isBookmarked: isBookmarked)
   }
 
   func setCurrentItem(item: ImagesItemModel2?) async {
@@ -612,6 +610,12 @@ final class ImagesModel {
     hasLoadedNoImages = true
   }
 
+  private func loadBookmarkResults() {
+    let bookmarkItems = self.items.filter(\.isBookmarked)
+    self.sidebarItems = self.isBookmarked ? bookmarkItems : self.items
+    self.bookmarkedItems = Set(bookmarkItems.ids)
+  }
+
   private func loadResults(
     images: ImagesModelLoadImagesInfo,
     assigned: ImagesItemAssignment,
@@ -668,10 +672,10 @@ final class ImagesModel {
 
     self.items.first?.edge.insert(.top)
     self.items.last?.edge.insert(.bottom)
+    self.loadBookmarkResults()
 
     self.restoredItem = images.currentItem.flatMap { self.items[id: $0.item.rowID!] }
     self.hasLoadedNoImages = self.items.isEmpty
-    self.bookmarkedItems = Set(self.items.filter(\.isBookmarked).map(\.id))
     self.resolvedItems = Set(self.items.filter { details.items[$0.id] != nil }.map(\.id))
   }
 
@@ -759,13 +763,9 @@ final class ImagesModel {
               return nil
             }
 
-            let title: String
-
-            if isExtensionHidden {
-              title = URL(filePath: name, directoryHint: .notDirectory).deletingPathExtension().lastPathComponent
-            } else {
-              title = name
-            }
+            let title = isExtensionHidden
+              ? name
+              : URL(filePath: name, directoryHint: .notDirectory).deletingPathExtension().lastPathComponent
 
             guard let imageSource = CGImageSourceCreateWithURL(document.source.url as CFURL, nil) else {
               // TODO: Log.
@@ -2499,17 +2499,8 @@ final class ImagesModel {
     }
   }
 
-  nonisolated private func _bookmark(item: ImagesItemModel2.ID, isBookmarked: Bool) async {
-    let connection: DatabasePool
-
-    do {
-      connection = try await databaseConnection()
-    } catch {
-      // TODO: Elaborate.
-      Logger.model.error("\(error)")
-
-      return
-    }
+  nonisolated private func _bookmark(item: RowID, isBookmarked: Bool) async {
+    let connection = try! await databaseConnection()
 
     do {
       try await connection.write { db in
@@ -2517,24 +2508,14 @@ final class ImagesModel {
         try item.update(db, columns: [ImagesItemRecord.Columns.isBookmarked])
       }
     } catch {
-      // TODO: Elaborate.
-      Logger.model.error("\(error)")
+      Logger.model.error("Could not write to database for item bookmark: \(error)")
 
       return
     }
   }
 
   nonisolated private func _bookmark(items: Set<ImagesItemModel2.ID>, isBookmarked: Bool) async {
-    let connection: DatabasePool
-
-    do {
-      connection = try await databaseConnection()
-    } catch {
-      // TODO: Elaborate.
-      Logger.model.error("\(error)")
-
-      return
-    }
+    let connection = try! await databaseConnection()
 
     do {
       try await connection.write { db in
@@ -2544,8 +2525,7 @@ final class ImagesModel {
         }
       }
     } catch {
-      // TODO: Elaborate.
-      Logger.model.error("\(error)")
+      Logger.model.error("Could not write to database for bookmarks of items: \(error)")
 
       return
     }

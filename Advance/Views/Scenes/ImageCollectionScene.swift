@@ -26,13 +26,9 @@ struct ImageCollectionScene: Scene {
       ImageCollectionSceneView()
         .windowed()
     } defaultValue: {
-      .init()
+      UUID()
     }
     .windowToolbarStyle(.unifiedCompact)
-    .commands {
-      // This is given its own struct so focus states don't re-evaluate the whole scene.
-      ImageCollectionCommands()
-    }
     .environment(manager)
     // It seems delaying the action to the next cycle in SwiftUI creates enough time for the task in ImageCollectionSceneView
     // to collect all the collection IDs before initialize(allowing:) gets called. Personally, I wonder if this may

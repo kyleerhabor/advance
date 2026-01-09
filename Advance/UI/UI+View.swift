@@ -12,170 +12,8 @@ import SwiftUI
 import IdentifiedCollections
 import OSLog
 
-let OPACITY_TRANSPARENT = 0.0
-let OPACITY_OPAQUE = 1.0
-
 extension Logger {
   static let ui = Self(subsystem: Bundle.appID, category: "UI")
-}
-
-extension NSWindow {
-  func isFullScreen() -> Bool {
-    self.styleMask.contains(.fullScreen)
-  }
-
-  func setToolbarVisibility(_ flag: Bool) {
-    self.standardWindowButton(.closeButton)?.superview?.animator().alphaValue = flag ? OPACITY_OPAQUE : OPACITY_TRANSPARENT
-
-    // For some reason, a window in full screen with a light appearance draws a white line at the top of the screen
-    // after scrolling. This doesn't occur with a dark appearance, which is interesting.
-    //
-    // TODO: Figure out how to animate the title bar separator.
-    //
-    // The property does not have an associated animation by default.
-    self.titlebarSeparatorStyle = flag && !self.isFullScreen() ? .automatic : .none
-  }
-}
-
-struct VisibleItem<Item> {
-  let item: Item
-  let anchor: Anchor<CGRect>
-}
-
-extension VisibleItem: Equatable where Item: Equatable {}
-
-struct AppMenuItemAction<I, A> where I: Equatable {
-  let identity: I
-  let action: A
-}
-
-extension AppMenuItemAction: Equatable {
-  static func ==(lhs: Self, rhs: Self) -> Bool {
-    lhs.identity == rhs.identity
-  }
-}
-
-struct AppMenuItem<I, A> where I: Equatable {
-  let enabled: Bool
-  let action: AppMenuItemAction<I, A>
-}
-
-extension AppMenuItem {
-  init(identity: I, enabled: Bool, action: A) {
-    self.init(
-      enabled: enabled,
-      action: AppMenuItemAction(identity: identity, action: action)
-    )
-  }
-}
-
-extension AppMenuItem: Equatable {}
-
-typealias AppMenuItemDefaultAction = () -> Void
-
-extension AppMenuItem where A == AppMenuItemDefaultAction {
-  func callAsFunction() {
-    action.action()
-  }
-}
-
-typealias AppMenuActionItem<I> = AppMenuItem<I, AppMenuItemDefaultAction> where I: Equatable
-
-// MARK: - Preferences
-
-struct ScrollOffsetPreferenceKey<A>: PreferenceKey {
-  typealias Value = Anchor<A>?
-
-  static var defaultValue: Value {
-    nil
-  }
-
-  static func reduce(value: inout Value, nextValue: () -> Value) {
-    guard let next = nextValue() else {
-      return
-    }
-
-    value = next
-  }
-}
-
-// https://swiftwithmajid.com/2020/03/18/anchor-preferences-in-swiftui/
-struct VisiblePreferenceKey<Item>: PreferenceKey {
-  typealias Value = [VisibleItem<Item>]
-
-  // The default is optimized for the detail view, which, for a set of not-too-wide images in a not-too-thin container,
-  // will house ~2 images. The sidebar view suffers, storing ~14 images given similar constraints; but the detail view
-  // is the most active, so it makes sense to optimize for it.
-  static var defaultMinimumCapacity: Int { 4 }
-
-  static var defaultValue: Value {
-    Value(reservingCapacity: defaultMinimumCapacity)
-  }
-
-  static func reduce(value: inout Value, nextValue: () -> Value) {
-    value.append(contentsOf: nextValue())
-  }
-}
-
-// MARK: - View modifiers
-
-struct ToolbarVisibleViewModifier: ViewModifier {
-  @Environment(Window.self) private var window
-  let isVisible: Bool
-
-  func body(content: Content) -> some View {
-    content
-      .onChange(of: isVisible, initial: true) {
-        self.setToolbarVisibility(isVisible)
-      }
-      .onDisappear {
-        self.setToolbarVisibility(true)
-      }
-  }
-
-  private func setToolbarVisibility(_ flag: Bool) {
-    self.window.window?.setToolbarVisibility(flag)
-  }
-}
-
-struct PreferencePublisherViewModifier<Source, Destination, Subject, Publisher>: ViewModifier
-where Source: PreferenceKey,
-      Source.Value: Equatable,
-      Destination: PreferenceKey,
-      Subject: Combine.Subject<Source.Value, Never>,
-      Publisher: Combine.Publisher<Destination.Value, Never> {
-  private let source: Source.Type
-  private let destination: Destination.Type
-  private let subject: Subject
-  private let publisher: Publisher
-  private let defaultValue: Destination.Value
-
-  @State private var value: Destination.Value?
-
-  init(
-    source: Source.Type = Source.self,
-    destination: Destination.Type = Destination.self,
-    subject: Subject,
-    publisher: Publisher,
-    defaultValue: Destination.Value
-  ) {
-    self.source = source
-    self.destination = destination
-    self.subject = subject
-    self.publisher = publisher
-    self.defaultValue = defaultValue
-  }
-
-  func body(content: Content) -> some View {
-    content
-      .onPreferenceChange(source) { value in
-        subject.send(value)
-      }
-      .onReceive(publisher) { value in
-        self.value = value
-      }
-      .preference(key: destination, value: value ?? defaultValue)
-  }
 }
 
 // MARK: - Swift
@@ -209,6 +47,24 @@ extension UserDefaults {
 }
 
 // MARK: - AppKit
+
+extension NSWindow {
+  func isFullScreen() -> Bool {
+    self.styleMask.contains(.fullScreen)
+  }
+
+  func setToolbarVisibility(_ flag: Bool) {
+    self.standardWindowButton(.closeButton)?.superview?.animator().alphaValue = flag ? 1 : 0
+
+    // For some reason, a window in full screen with a light appearance draws a white line at the top of the screen
+    // after scrolling. This doesn't occur with a dark appearance, which is interesting.
+    //
+    // TODO: Figure out how to animate the title bar separator.
+    //
+    // The property does not have an associated animation by default.
+    self.titlebarSeparatorStyle = flag && !self.isFullScreen() ? .automatic : .none
+  }
+}
 
 extension NSWorkspace {
   func icon(forFileAt url: URL) -> NSImage {
@@ -396,6 +252,25 @@ struct VisibleViewModifier: ViewModifier {
   }
 }
 
+struct ToolbarVisibleViewModifier: ViewModifier {
+  @Environment(Window.self) private var window
+  let isVisible: Bool
+
+  func body(content: Content) -> some View {
+    content
+      .onChange(of: self.isVisible, initial: true) {
+        self.setToolbarVisibility(self.isVisible)
+      }
+      .onDisappear {
+        self.setToolbarVisibility(true)
+      }
+  }
+
+  private func setToolbarVisibility(_ flag: Bool) {
+    self.window.window?.setToolbarVisibility(flag)
+  }
+}
+
 struct CursorVisibleViewModifier: ViewModifier {
   let isVisible: Bool
 
@@ -446,7 +321,7 @@ extension View {
     self.modifier(WindowedViewModifier())
   }
 
-  func visible(_ isVisible: Bool) -> some View {
+  func isVisible(_ isVisible: Bool) -> some View {
     self.modifier(VisibleViewModifier(isVisible: isVisible))
   }
 
@@ -457,52 +332,14 @@ extension View {
   func toolbarVisible(_ isVisible: Bool) -> some View {
     self.modifier(ToolbarVisibleViewModifier(isVisible: isVisible))
   }
-
-  func navigationSplitViewColumnWidth(min: CGFloat, max: CGFloat) -> some View {
-    self.navigationSplitViewColumnWidth(min: min, ideal: min, max: max)
-  }
-
-  func preferencePublisher<Source, Destination, Subject, Publisher>(
-    source: Source.Type = Source.self,
-    destination: Destination.Type = Destination.self,
-    subject: Subject,
-    publisher: Publisher,
-    defaultValue: Destination.Value
-  ) -> some View where Source: PreferenceKey,
-                       Source.Value: Equatable,
-                       Destination: PreferenceKey,
-                       Subject: Combine.Subject<Source.Value, Never>,
-                       Publisher: Combine.Publisher<Destination.Value, Never> {
-    self.modifier(PreferencePublisherViewModifier(
-      source: source,
-      destination: destination,
-      subject: subject,
-      publisher: publisher,
-      defaultValue: defaultValue
-    ))
-  }
-
-  func preferencePublisher<Key, Subject, Publisher>(
-    _ key: Key.Type = Key.self,
-    subject: Subject,
-    publisher: Publisher
-  ) -> some View where Key: PreferenceKey,
-                       Key.Value: Equatable,
-                       Subject: Combine.Subject<Key.Value, Never>,
-                       Publisher: Combine.Publisher<Key.Value, Never> {
-    self.preferencePublisher(
-      source: key,
-      destination: key,
-      subject: subject,
-      publisher: publisher,
-      defaultValue: key.defaultValue
-    )
-  }
 }
 
 extension ShapeStyle {
-  func visible(_ flag: Bool) -> some ShapeStyle {
-    self.opacity(flag ? OPACITY_OPAQUE : OPACITY_TRANSPARENT)
+  func isVisible(_ isVisible: Bool) -> some ShapeStyle {
+    let transparent = 0.0
+    let opaque = 1.0
+
+    return self.opacity(isVisible ? opaque : transparent)
   }
 }
 
@@ -560,14 +397,15 @@ extension KeyboardShortcut {
   static let showFinder = Self("r", modifiers: .command)
   static let openFinder = Self("r", modifiers: [.command, .shift])
   static let showSidebar = Self("l", modifiers: .command)
+  static let toggleSidebarBookmarks = Self("b", modifiers: [.command, .option])
   // Preview > Tools > Add Bookmark
   static let bookmark = Self("d", modifiers: .command)
   static let toggleLiveTextIcon = Self("t", modifiers: .command)
   static let toggleLiveTextHighlight = Self("t", modifiers: [.command, .shift])
   // Terminal > Window > Return to Default Size
   static let resetWindowSize = Self("m", modifiers: [.command, .control])
-  static let foldersSettings = Self("2", modifiers: .command)
-  static let searchSettings = Self("3", modifiers: .command)
+  static let foldersSettings = Self("2", modifiers: [.command, .shift])
+  static let searchSettings = Self("3", modifiers: [.command, .shift])
 
   // MARK: - Old
   static let back = Self("[", modifiers: .command)

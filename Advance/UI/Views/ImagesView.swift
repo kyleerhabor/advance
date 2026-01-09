@@ -9,8 +9,6 @@ import OSLog
 import SwiftUI
 
 struct ImagesView: View {
-  @Environment(ImagesModel.self) private var images
-
   var body: some View {
     NavigationSplitView {
       ImagesSidebarView()
