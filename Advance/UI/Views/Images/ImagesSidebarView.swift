@@ -19,7 +19,7 @@ struct ImagesSidebarView: View {
 //        let isEmpty = isEmpty
 //
 //        ImagesSidebarImportView()
-//          .isVisible(isEmpty)
+//          .visible(isEmpty)
 //          .animation(.default, value: isEmpty)
 //          .transaction(value: isEmpty, setter(on: \.disablesAnimations, value: !isEmpty))
 //      }

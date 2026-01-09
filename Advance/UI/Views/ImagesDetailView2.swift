@@ -120,19 +120,110 @@ struct ImagesDetailItemBookmarkView: View {
   }
 }
 
-struct ImagesDetailItemImageView: View {
+struct ImagesDetailItemView: View {
+  @Environment(ImagesModel.self) private var images
+  @Environment(\.locale) private var locale
+  @AppStorage(StorageKeys.foldersPathDirection) private var foldersPathDirection
+  @AppStorage(StorageKeys.foldersPathSeparator) private var foldersPathSeparator
+  @AppStorage(StorageKeys.resolveConflicts) private var resolveConflicts
+  @State private var copyFolderError: ImagesModelCopyFolderError?
+  @State private var isCopyFolderErrorPresented = false
+  @State private var copyFolderSelection: ImagesItemModel2.ID?
+  @State private var isCopyFolderFileImporterPresented = false
+  @State private var searchError: ImagesModelEngineURLError?
+  @State private var isSearchErrorPresented = false
   let item: ImagesItemModel2
+  let isImageAnalysisSupplementaryInterfaceVisible: Bool
 
   var body: some View {
-    // For some reason, we need to wrap this in a VStack for animations to apply.
-    VStack {
-      ImagesItemImageView(
-        item: self.item,
-        aspectRatio: self.item.detailAspectRatio,
-        image: self.item.detailImage,
-        phase: self.item.detailImagePhase,
-      )
-    }
+    // TODO: Figure out how to remove the border when the context menu is open.
+    //
+    // For some reason, we need to extract accesses to item's properties into dedicated views to prevent slow view
+    // updates when switching windows.
+    ImagesItemImageView(item: self.item, image: self.item.detailImage, phase: self.item.detailImagePhase)
+      .aspectRatio(self.item.detailAspectRatio, contentMode: .fit)
+      .overlay {
+        ImageDetailItemImageAnalysisView(
+          searchError: $searchError,
+          isSearchErrorPresented: $isSearchErrorPresented,
+          item: self.item,
+          isSupplementaryInterfaceVisible: self.isImageAnalysisSupplementaryInterfaceVisible,
+        )
+      }
+      .anchorPreference(key: ImagesVisibleItemsPreferenceKey.self, value: .bounds) { anchor in
+        [ImagesVisibleItem(item: self.item, anchor: anchor)]
+      }
+      .contextMenu {
+        Section {
+          Button("Finder.Item.Show", systemImage: "finder") {
+            Task {
+              await self.images.showFinder(item: self.item.id)
+            }
+          }
+
+          Button("Sidebar.Item.Show", systemImage: "sidebar.squares.leading") {
+            Task {
+              await self.images.sidebar.send(ImagesModelSidebarElement(item: self.item.id, isSelected: true))
+            }
+          }
+        }
+
+        Section {
+          Button("Images.Item.Copy", systemImage: "document.on.document") {
+            Task {
+              await self.images.copy(item: self.item.id)
+            }
+          }
+
+          ImagesDetailItemCopyFolderView(
+            selection: $copyFolderSelection,
+            isFileImporterPresented: $isCopyFolderFileImporterPresented,
+            error: $copyFolderError,
+            isErrorPresented: $isCopyFolderErrorPresented,
+            item: self.item.id,
+          )
+        }
+
+        Section {
+          ImagesDetailItemBookmarkView(item: self.item)
+        }
+      }
+      .alert(isPresented: $isCopyFolderErrorPresented, error: self.copyFolderError) {}
+      .alert(isPresented: $isSearchErrorPresented, error: self.searchError) { error in
+        // Empty
+      } message: { error in
+        Text(error.recoverySuggestion ?? "")
+      }
+      .fileImporter(isPresented: $isCopyFolderFileImporterPresented, allowedContentTypes: foldersContentTypes) { result in
+        let url: URL
+
+        switch result {
+          case let .success(x):
+            url = x
+          case let .failure(error):
+            // TODO: Elaborate.
+            Logger.ui.error("\(error)")
+
+            return
+        }
+
+        Task {
+          do {
+            try await self.images.copyFolder(
+              item: self.copyFolderSelection,
+              to: url,
+              locale: self.locale,
+              resolveConflicts: self.resolveConflicts,
+              pathSeparator: self.foldersPathSeparator,
+              pathDirection: self.foldersPathDirection,
+            )
+          } catch let error as ImagesModelCopyFolderError {
+            self.copyFolderError = error
+            self.isCopyFolderErrorPresented = true
+          }
+        }
+      }
+      .fileDialogCustomizationID(FoldersSettingsScene.id)
   }
 }
 
@@ -147,24 +238,15 @@ extension ImagesDetailViewImageAnalysisID: @MainActor Equatable {}
 
 struct ImagesDetailView2: View {
   @Environment(ImagesModel.self) private var images
-  @Environment(\.locale) private var locale
   @Environment(\.pixelLength) private var pixelLength
   @AppStorage(StorageKeys.collapseMargins) private var collapseMargins
-  @AppStorage(StorageKeys.foldersPathSeparator) private var foldersPathSeparator
-  @AppStorage(StorageKeys.foldersPathDirection) private var foldersPathDirection
   @AppStorage(StorageKeys.isLiveTextEnabled) private var isLiveTextEnabled
   @AppStorage(StorageKeys.isLiveTextSubjectEnabled) private var isLiveTextSubjectEnabled
   @AppStorage(StorageKeys.margins) private var margins
-  @AppStorage(StorageKeys.resolveConflicts) private var resolveConflicts
   @AppStorage(StorageKeys.restoreLastImage) private var restoreLastImage
-  @Binding var copyFolderError: ImagesModelCopyFolderError?
-  @Binding var isCopyFolderErrorPresented: Bool
-  @State private var copyFolderSelection: ImagesItemModel2.ID?
-  @State private var isCopyFolderFileImporterPresented = false
-  @State private var searchError: ImagesModelEngineURLError?
-  @State private var isSearchErrorPresented = false
   let columnVisibility: NavigationSplitViewVisibility
   let isImageAnalysisSupplementaryInterfaceVisible: Bool
+  // At 3, the image's trailing edge and the scroll bar are perfectly aligned.
   private var half: CGFloat { self.margins * 3 }
   private var full: CGFloat { self.half * 2 }
   private var all: EdgeInsets { EdgeInsets(self.full) }
@@ -199,67 +281,15 @@ struct ImagesDetailView2: View {
             self.collapseMargins ? self.between : self.all
         }
 
-        // TODO: Figure out how to remove the border when the context menu is open.
-        //
-        // For some reason, we need to extract accesses to item's properties into dedicated views to prevent slow view
-        // updates when switching windows.
-        ImagesDetailItemImageView(item: item)
-          .anchorPreference(key: ImagesVisibleItemsPreferenceKey.self, value: .bounds) { anchor in
-            [ImagesVisibleItem(item: item, anchor: anchor)]
-          }
-          .overlay {
-            ImageDetailItemImageAnalysisView(
-              searchError: $searchError,
-              isSearchErrorPresented: $isSearchErrorPresented,
-              item: item,
-              isSupplementaryInterfaceVisible: self.isImageAnalysisSupplementaryInterfaceVisible,
-            )
-          }
-          .contextMenu {
-            Section {
-              Button("Finder.Item.Show", systemImage: "finder") {
-                Task {
-                  await images.showFinder(item: item.id)
-                }
-              }
-
-              Button("Sidebar.Item.Show", systemImage: "sidebar.squares.leading") {
-                Task {
-                  await images.sidebar.send(ImagesModelSidebarElement(item: item.id, isSelected: true))
-                }
-              }
-            }
-
-            Section {
-              Button("Images.Item.Copy", systemImage: "document.on.document") {
-                Task {
-                  await images.copy(item: item.id)
-                }
-              }
-
-              ImagesDetailItemCopyFolderView(
-                selection: $copyFolderSelection,
-                isFileImporterPresented: $isCopyFolderFileImporterPresented,
-                error: $copyFolderError,
-                isErrorPresented: $isCopyFolderErrorPresented,
-                item: item.id,
-              )
-            }
-
-            Section {
-              ImagesDetailItemBookmarkView(item: item)
-            }
-          }
-          .shadow(radius: self.margins / 2)
-          .listRowInsets(.listRow + insets)
-          .listRowSeparator(.hidden)
+        ImagesDetailItemView(
+          item: item,
+          isImageAnalysisSupplementaryInterfaceVisible: self.isImageAnalysisSupplementaryInterfaceVisible,
+        )
+        .shadow(radius: self.margins / 2)
+        .listRowInsets(.listRow + insets)
+        .listRowSeparator(.hidden)
       }
       .listStyle(.plain)
-      .alert(isPresented: $isSearchErrorPresented, error: searchError) { error in
-        // Empty
-      } message: { error in
-        Text(error.recoverySuggestion ?? "")
-      }
       .task(id: self.images) {
         for await item in self.images.detail {
           // TODO: Figure out how to accurately animate scrolling.
@@ -364,36 +394,6 @@ struct ImagesDetailView2: View {
         }
       }
     }
-    .fileImporter(isPresented: $isCopyFolderFileImporterPresented, allowedContentTypes: foldersContentTypes) { result in
-      let url: URL
-
-      switch result {
-        case let .success(x):
-          url = x
-        case let .failure(error):
-          // TODO: Elaborate.
-          Logger.ui.error("\(error)")
-
-          return
-      }
-
-      Task {
-        do {
-          try await images.copyFolder(
-            item: copyFolderSelection,
-            to: url,
-            locale: locale,
-            resolveConflicts: resolveConflicts,
-            pathSeparator: foldersPathSeparator,
-            pathDirection: foldersPathDirection,
-          )
-        } catch let error as ImagesModelCopyFolderError {
-          self.copyFolderError = error
-          self.isCopyFolderErrorPresented = true
-        }
-      }
-    }
-    .fileDialogCustomizationID(FoldersSettingsScene.id)
   }
 
   private func items(resample: ImagesModelResample) -> [ImagesItemModel2] {

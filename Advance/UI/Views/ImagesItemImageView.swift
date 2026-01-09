@@ -10,34 +10,32 @@ import SwiftUI
 struct ImagesItemImageView: View {
   @State private var hasElapsed = false
   let item: ImagesItemModel2
-  let aspectRatio: CGFloat
   let image: NSImage
   let phase: ImagesItemModelImagePhase
 
   var body: some View {
-    let isSuccess = phase == .success
+    let isSuccess = self.phase == .success
 
-    Image(nsImage: image)
+    Image(nsImage: self.image)
       .resizable()
-      .background(.fill.quaternary.isVisible(!isSuccess), in: .rect)
+      .background(.fill.quaternary.visible(!isSuccess), in: .rect)
       .animation(.default, value: isSuccess)
       .overlay {
-        let isVisible = phase == .empty && hasElapsed
+        let isVisible = self.phase == .empty && self.hasElapsed
 
         ProgressView()
-          .isVisible(isVisible)
+          .visible(isVisible)
           .animation(.default, value: isVisible)
       }
       .overlay {
-        let isVisible = phase == .failure
+        let isVisible = self.phase == .failure
 
         Image(systemName: "exclamationmark.triangle.fill")
           .symbolRenderingMode(.multicolor)
           .imageScale(.large)
-          .isVisible(isVisible)
+          .visible(isVisible)
           .animation(.default, value: isVisible)
       }
-      .aspectRatio(self.aspectRatio, contentMode: .fit)
       .task {
         do {
           try await Task.sleep(for: .imagesElapse)

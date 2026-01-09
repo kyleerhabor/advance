@@ -4,7 +4,7 @@ A macOS app that simplifies browsing large collections of images.
 
 ## Rationale
 
-The Preview app built-in to macOS is probably one of the most useful features the OS has to offer. As a simple productivity app, it fits in many people's workflows for managing documents, but can feel cumbersome when all you need is to view images. This can be seen in features like [Live Text][live-text], where the default automatic selection is unreliable for image viewing, unlike a dedicated image viewer that can unconditionally support this.
+The Preview app built-in to macOS is probably one of the most useful features the OS has to offer. As a simple productivity app, it fits in many people's workflows for managing documents, but can feel cumbersome when all you need is to view images. This can be seen in features like [Live Text][live-text], where the default automatic selection is unreliable for image viewing, whereas a dedicated image viewer can unconditionally support this.
 
 Advance is an image viewer that has a plethora of features. In particular: 
 

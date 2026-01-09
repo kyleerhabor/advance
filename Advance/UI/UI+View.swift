@@ -321,7 +321,7 @@ extension View {
     self.modifier(WindowedViewModifier())
   }
 
-  func isVisible(_ isVisible: Bool) -> some View {
+  func visible(_ isVisible: Bool) -> some View {
     self.modifier(VisibleViewModifier(isVisible: isVisible))
   }
 
@@ -335,7 +335,7 @@ extension View {
 }
 
 extension ShapeStyle {
-  func isVisible(_ isVisible: Bool) -> some ShapeStyle {
+  func visible(_ isVisible: Bool) -> some ShapeStyle {
     let transparent = 0.0
     let opaque = 1.0
 
@@ -404,8 +404,9 @@ extension KeyboardShortcut {
   static let toggleLiveTextHighlight = Self("t", modifiers: [.command, .shift])
   // Terminal > Window > Return to Default Size
   static let resetWindowSize = Self("m", modifiers: [.command, .control])
-  static let foldersSettings = Self("2", modifiers: [.command, .shift])
-  static let searchSettings = Self("3", modifiers: [.command, .shift])
+  // For some reason, system actions like "Capture Entire Screen" take precedent when using Shift-Command.
+  static let foldersSettings = Self("2", modifiers: .command)
+  static let searchSettings = Self("3", modifiers: .command)
 
   // MARK: - Old
   static let back = Self("[", modifiers: .command)

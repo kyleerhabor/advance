@@ -116,8 +116,6 @@ struct ImagesView2: View {
   @State private var isImageAnalysisSupplementaryInterfaceVisibleSet = false
   @State private var isActive = true
   @State private var isFileImporterPresented = false
-  @State private var copyFolderError: ImagesModelCopyFolderError?
-  @State private var isCopyFolderErrorPresented = false
   private var sceneID: AppModelCommandSceneID {
     .images(self.images.id)
   }
@@ -134,14 +132,10 @@ struct ImagesView2: View {
         isBookmarked: $isBookmarked,
         isImageAnalysisSupplementaryInterfaceVisible: $isImageAnalysisSupplementaryInterfaceVisible,
         isFileImporterPresented: $isFileImporterPresented,
-        copyFolderError: $copyFolderError,
-        isCopyFolderErrorPresented: $isCopyFolderErrorPresented,
       )
       .navigationSplitViewColumnWidth(min: 128, ideal: 128, max: 256)
     } detail: {
       ImagesDetailView2(
-        copyFolderError: $copyFolderError,
-        isCopyFolderErrorPresented: $isCopyFolderErrorPresented,
         columnVisibility: self.columnVisibility,
         isImageAnalysisSupplementaryInterfaceVisible: self.isImageAnalysisSupplementaryInterfaceVisible,
       )
@@ -173,7 +167,6 @@ struct ImagesView2: View {
     .toolbarVisible(!self.hiddenLayout.toolbar || isVisible || self.isWindowFullScreen)
     .cursorVisible(!self.hiddenLayout.cursor || isVisible)
     .scrollIndicators(!self.hiddenLayout.scroll || isVisible ? .automatic : .hidden)
-    .alert(isPresented: $isCopyFolderErrorPresented, error: copyFolderError) {}
     .fileImporter(
       isPresented: $isFileImporterPresented,
       allowedContentTypes: imagesContentTypes,

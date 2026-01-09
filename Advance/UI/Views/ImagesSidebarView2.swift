@@ -62,47 +62,39 @@ struct ImagesSidebarBackgroundView: View {
   }
 }
 
-struct ImagesSidebarItemImageView: View {
-  let item: ImagesItemModel2
-
-  var body: some View {
-    ImagesItemImageView(
-      item: self.item,
-      aspectRatio: self.item.sidebarAspectRatio,
-      image: self.item.sidebarImage,
-      phase: self.item.sidebarImagePhase,
-    )
-  }
-}
-
 struct ImagesSidebarItemView: View {
   let item: ImagesItemModel2
 
   var body: some View {
     VStack {
-      ImagesSidebarItemImageView(item: item)
-        .anchorPreference(key: ImagesVisibleItemsPreferenceKey.self, value: .bounds) { anchor in
-          [ImagesVisibleItem(item: item, anchor: anchor)]
-        }
-        .overlay(alignment: .topTrailing) {
-          // TODO: Figure out how to draw a white outline.
-          //
-          // I don't know how to do the above, so I'm using opacity to create depth as a fallback.
-          Image(systemName: "bookmark.fill")
-            .font(.title)
-            .imageScale(.small)
-            .symbolRenderingMode(.multicolor)
-            .opacity(0.85)
-            .shadow(radius: 0.5)
-            .padding(4)
-            .isVisible(item.isBookmarked)
-        }
+      ImagesItemImageView(
+        item: self.item,
+        image: self.item.sidebarImage,
+        phase: self.item.sidebarImagePhase,
+      )
+      .aspectRatio(self.item.sidebarAspectRatio, contentMode: .fit)
+      .anchorPreference(key: ImagesVisibleItemsPreferenceKey.self, value: .bounds) { anchor in
+        [ImagesVisibleItem(item: self.item, anchor: anchor)]
+      }
+      .overlay(alignment: .topTrailing) {
+        // TODO: Figure out how to draw a white outline.
+        //
+        // I don't know how to do the above, so I'm using opacity to create depth as a fallback.
+        Image(systemName: "bookmark.fill")
+          .font(.title)
+          .imageScale(.small)
+          .symbolRenderingMode(.multicolor)
+          .opacity(0.85)
+          .shadow(radius: 0.5)
+          .padding(4)
+          .visible(self.item.isBookmarked)
+      }
 
-      Text(item.title)
+      Text(self.item.title)
         .font(.subheadline)
         .padding(EdgeInsets(vertical: 4, horizontal: 8))
         .background(.fill.tertiary, in: .rect(cornerRadius: 4))
-        .help(item.title)
+        .help(self.item.title)
     }
   }
 }
@@ -130,14 +122,14 @@ struct ImagesSidebarView2: View {
   @Binding var isBookmarked: Bool
   @Binding var isImageAnalysisSupplementaryInterfaceVisible: Bool
   @Binding var isFileImporterPresented: Bool
-  @Binding var copyFolderError: ImagesModelCopyFolderError?
-  @Binding var isCopyFolderErrorPresented: Bool
   @State private var selection = Set<ImagesItemModel2.ID>()
   @State private var isShowSidebarSet = false
   @State private var currentItem: ImagesItemModel2?
   @State private var bookmarkCurrentItem: ImagesItemModel2?
   @State private var copyFolderSelection = Set<ImagesItemModel2.ID>()
   @State private var isCopyFolderFileImporterPresented = false
+  @State private var copyFolderError: ImagesModelCopyFolderError?
+  @State private var isCopyFolderErrorPresented = false
   @FocusState private var isFocused
   private var sceneID: AppModelCommandSceneID {
     .imagesSidebar(self.images.id)
@@ -147,6 +139,47 @@ struct ImagesSidebarView2: View {
     ScrollViewReader { proxy in
       List(images.sidebarItems, selection: $selection) { item in
         ImagesSidebarItemView(item: item)
+      }
+      .contextMenu { ids in
+        Group {
+          Section {
+            Button("Finder.Item.Show", systemImage: "finder") {
+              Task {
+                await self.images.showFinder(items: ids)
+              }
+            }
+          }
+
+          Section {
+            Button("Images.Item.Copy", systemImage: "document.on.document") {
+              Task {
+                await self.images.copy(items: ids)
+              }
+            }
+
+            ImagesSidebarItemCopyFolderView(
+              selection: $copyFolderSelection,
+              isFileImporterPresented: $isCopyFolderFileImporterPresented,
+              error: $copyFolderError,
+              isErrorPresented: $isCopyFolderErrorPresented,
+              items: ids,
+            )
+          }
+
+          Section {
+            let isBookmarked = self.images.isBookmarked(items: ids)
+
+            Button(
+              isBookmarked ? "Images.Item.Bookmark.Remove" : "Images.Item.Bookmark.Add",
+              systemImage: isBookmarked ? "bookmark.fill" : "bookmark"
+            ) {
+              Task {
+                await self.images.bookmark(items: ids, isBookmarked: !self.images.isBookmarked(items: ids))
+              }
+            }
+          }
+        }
+        .disabled(images.isInvalidSelection(of: ids))
       }
       .focused($isFocused)
       .overlay {
@@ -159,7 +192,7 @@ struct ImagesSidebarView2: View {
           }
           .buttonStyle(.plain)
           .disabled(!images.hasLoadedNoImages)
-          .isVisible(images.hasLoadedNoImages)
+          .visible(images.hasLoadedNoImages)
         }
       }
       .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -254,47 +287,6 @@ struct ImagesSidebarView2: View {
           )
         }
       }
-      .contextMenu { ids in
-        Group {
-          Section {
-            Button("Finder.Item.Show", systemImage: "finder") {
-              Task {
-                await images.showFinder(items: ids)
-              }
-            }
-          }
-
-          Section {
-            Button("Images.Item.Copy", systemImage: "document.on.document") {
-              Task {
-                await images.copy(items: ids)
-              }
-            }
-
-            ImagesSidebarItemCopyFolderView(
-              selection: $copyFolderSelection,
-              isFileImporterPresented: $isCopyFolderFileImporterPresented,
-              error: $copyFolderError,
-              isErrorPresented: $isCopyFolderErrorPresented,
-              items: ids,
-            )
-          }
-
-          Section {
-            let isBookmarked = images.isBookmarked(items: ids)
-
-            Button(
-              isBookmarked ? "Images.Item.Bookmark.Remove" : "Images.Item.Bookmark.Add",
-              systemImage: isBookmarked ? "bookmark.fill" : "bookmark"
-            ) {
-              Task {
-                await images.bookmark(items: ids, isBookmarked: !images.isBookmarked(items: ids))
-              }
-            }
-          }
-        }
-        .disabled(images.isInvalidSelection(of: ids))
-      }
       .copyable(self.images.urls(ofItems: self.selection))
       .onChange(of: ImagesSidebarSelectionID(images: self.images, selection: self.selection)) { prior, id in
         guard !self.isShowSidebarSet else {
@@ -345,6 +337,7 @@ struct ImagesSidebarView2: View {
         isImageAnalysisSupplementaryInterfaceVisible: self.isImageAnalysisSupplementaryInterfaceVisible,
       )
     }
+    .alert(isPresented: $isCopyFolderErrorPresented, error: copyFolderError) {}
     .fileImporter(isPresented: $isCopyFolderFileImporterPresented, allowedContentTypes: foldersContentTypes) { result in
       let url: URL
 
