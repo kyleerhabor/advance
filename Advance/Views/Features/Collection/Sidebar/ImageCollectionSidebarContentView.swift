@@ -29,19 +29,6 @@ struct ImageCollectionSidebarContentView: View {
 //            }
 //          }
 //        }
-//        // This adds a "Delete" menu item under Edit.
-//        .onDelete { offsets in
-//          collection.order.elements.remove(atOffsets: offsets)
-//          collection.update()
-//
-//          Task(priority: .medium) {
-//            do {
-//              try await collection.persist(id: id)
-//            } catch {
-//              Logger.model.error("Could not persist image collection \"\(id)\" (via menu bar delete): \(error)")
-//            }
-//          }
-//        }
       }
 //      .onDeleteCommand {
 //        collection.order.subtract(selection)

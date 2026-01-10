@@ -137,8 +137,15 @@ struct ImagesSidebarView2: View {
 
   var body: some View {
     ScrollViewReader { proxy in
-      List(images.sidebarItems, selection: $selection) { item in
-        ImagesSidebarItemView(item: item)
+      List(selection: $selection) {
+        ForEach(self.images.sidebarItems) { item in
+          ImagesSidebarItemView(item: item)
+        }
+        .onDelete { items in
+          Task {
+            await self.images.remove(items: items.map { self.images.sidebarItems[$0] })
+          }
+        }
       }
       .contextMenu { ids in
         Group {
@@ -368,6 +375,11 @@ struct ImagesSidebarView2: View {
       }
     }
     .fileDialogCustomizationID(FoldersSettingsScene.id)
+    .onDeleteCommand {
+      Task {
+        await self.images.remove(items: self.selection.compactMap { self.images.sidebarItems[id: $0] })
+      }
+    }
     .onReceive(self.app.commandsPublisher) { command in
       self.onCommand(command)
     }

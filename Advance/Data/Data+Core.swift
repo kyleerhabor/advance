@@ -113,7 +113,7 @@ func createSchema(connection: some DatabaseWriter) throws {
       // TODO: Ensure ItemImagesRecord(images: id, item: currentItem).
       table
         .column(ImagesRecord.Columns.currentItem.name, .integer)
-        .references(ImagesItemRecord.databaseTableName)
+        .references(ImagesItemRecord.databaseTableName, onDelete: .setNull)
         .indexed()
     }
 
@@ -129,7 +129,7 @@ func createSchema(connection: some DatabaseWriter) throws {
         .column(ItemImagesRecord.Columns.item.name, .integer)
         .notNull()
         .unique()
-        .references(ImagesItemRecord.databaseTableName)
+        .references(ImagesItemRecord.databaseTableName, onDelete: .cascade)
     }
 
     try db.create(table: FolderPathComponentRecord.databaseTableName) { table in

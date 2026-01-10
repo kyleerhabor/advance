@@ -430,6 +430,12 @@ final class ImagesModel {
     await _store(items: items, enumerationOptions: enumerationOptions)
   }
 
+  func remove(items: [ImagesItemModel2]) async {
+    // If we wanted to make this instant in the UI, we'd need to update a number of dependent variables, and I can't be
+    // asked to do that manually. Maybe there's a system to do this for us.
+    await self.remove(items: items.map(\.id))
+  }
+
   func isInvalidSelection(of items: Set<ImagesItemModel2.ID>) -> Bool {
     items.isEmpty
   }
@@ -1563,6 +1569,28 @@ final class ImagesModel {
     }
 
     await store(items: items)
+  }
+
+  nonisolated private func remove(items: [RowID]) async {
+    let connection: DatabasePool
+
+    do {
+      connection = try await databaseConnection()
+    } catch {
+      Logger.model.error("Could not create database connection for image collection items removal: \(error)")
+
+      return
+    }
+
+    do {
+      try await connection.write { db in
+        _ = try ImagesItemRecord.deleteAll(db, keys: items)
+      }
+    } catch {
+      Logger.model.error("Could not write to database for image collection items removal: \(error)")
+
+      return
+    }
   }
 
   nonisolated private func assign(bookmark: BookmarkRecord, relative: BookmarkRecord?) -> AssignedBookmarkDocument? {

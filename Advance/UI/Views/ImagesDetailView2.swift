@@ -123,8 +123,10 @@ struct ImagesDetailItemBookmarkView: View {
 struct ImagesDetailItemView: View {
   @Environment(ImagesModel.self) private var images
   @Environment(\.locale) private var locale
+  @AppStorage(StorageKeys.collapseMargins) private var collapseMargins
   @AppStorage(StorageKeys.foldersPathDirection) private var foldersPathDirection
   @AppStorage(StorageKeys.foldersPathSeparator) private var foldersPathSeparator
+  @AppStorage(StorageKeys.margins) private var margins
   @AppStorage(StorageKeys.resolveConflicts) private var resolveConflicts
   @State private var copyFolderError: ImagesModelCopyFolderError?
   @State private var isCopyFolderErrorPresented = false
@@ -134,14 +136,35 @@ struct ImagesDetailItemView: View {
   @State private var isSearchErrorPresented = false
   let item: ImagesItemModel2
   let isImageAnalysisSupplementaryInterfaceVisible: Bool
+  // At 3, the image's trailing edge and the scroll bar perfectly align.
+  private var half: CGFloat { self.margins * 3 }
+  private var full: CGFloat { self.half * 2 }
+  private var all: EdgeInsets { EdgeInsets(self.full) }
+  private var top: EdgeInsets { EdgeInsets(horizontal: self.full, top: self.full, bottom: self.half) }
+  private var between: EdgeInsets { EdgeInsets(horizontal: self.full, top: self.half, bottom: self.half) }
+  private var bottom: EdgeInsets { EdgeInsets(horizontal: self.full, top: self.half, bottom: self.full) }
 
   var body: some View {
+    let insets = switch item.edge {
+      case .all:
+        self.all
+      case .top:
+        self.collapseMargins ? self.top : self.all
+      case .bottom:
+        self.collapseMargins ? self.bottom : self.all
+      default:
+        self.collapseMargins ? self.between : self.all
+    }
+
     // TODO: Figure out how to remove the border when the context menu is open.
     //
     // For some reason, we need to extract accesses to item's properties into dedicated views to prevent slow view
     // updates when switching windows.
     ImagesItemImageView(item: self.item, image: self.item.detailImage, phase: self.item.detailImagePhase)
       .aspectRatio(self.item.detailAspectRatio, contentMode: .fit)
+      .shadow(radius: self.margins / 2)
+      .listRowInsets(.listRow + insets)
+      .listRowSeparator(.hidden)
       .overlay {
         ImageDetailItemImageAnalysisView(
           searchError: $searchError,
@@ -239,20 +262,11 @@ extension ImagesDetailViewImageAnalysisID: @MainActor Equatable {}
 struct ImagesDetailView2: View {
   @Environment(ImagesModel.self) private var images
   @Environment(\.pixelLength) private var pixelLength
-  @AppStorage(StorageKeys.collapseMargins) private var collapseMargins
   @AppStorage(StorageKeys.isLiveTextEnabled) private var isLiveTextEnabled
   @AppStorage(StorageKeys.isLiveTextSubjectEnabled) private var isLiveTextSubjectEnabled
-  @AppStorage(StorageKeys.margins) private var margins
   @AppStorage(StorageKeys.restoreLastImage) private var restoreLastImage
   let columnVisibility: NavigationSplitViewVisibility
   let isImageAnalysisSupplementaryInterfaceVisible: Bool
-  // At 3, the image's trailing edge and the scroll bar are perfectly aligned.
-  private var half: CGFloat { self.margins * 3 }
-  private var full: CGFloat { self.half * 2 }
-  private var all: EdgeInsets { EdgeInsets(self.full) }
-  private var top: EdgeInsets { EdgeInsets(horizontal: self.full, top: self.full, bottom: self.half) }
-  private var between: EdgeInsets { EdgeInsets(horizontal: self.full, top: self.half, bottom: self.half) }
-  private var bottom: EdgeInsets { EdgeInsets(horizontal: self.full, top: self.half, bottom: self.full) }
   private var imageAnalysisTypes: ImageAnalysisTypes {
     var types = ImageAnalysisTypes()
 
@@ -270,24 +284,10 @@ struct ImagesDetailView2: View {
   var body: some View {
     ScrollViewReader { proxy in
       List(images.items) { item in
-        let insets = switch item.edge {
-          case .all:
-            self.all
-          case .top:
-            self.collapseMargins ? self.top : self.all
-          case .bottom:
-            self.collapseMargins ? self.bottom : self.all
-          default:
-            self.collapseMargins ? self.between : self.all
-        }
-
         ImagesDetailItemView(
           item: item,
           isImageAnalysisSupplementaryInterfaceVisible: self.isImageAnalysisSupplementaryInterfaceVisible,
         )
-        .shadow(radius: self.margins / 2)
-        .listRowInsets(.listRow + insets)
-        .listRowSeparator(.hidden)
       }
       .listStyle(.plain)
       .task(id: self.images) {
