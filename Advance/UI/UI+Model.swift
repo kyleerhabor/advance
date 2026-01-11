@@ -12,6 +12,7 @@ import Foundation
 import GRDB
 import ImageIO
 import OSLog
+import UniformTypeIdentifiers
 import VisionKit
 
 // MARK: - Swift
@@ -96,55 +97,17 @@ struct TypedIterator<Base, T>: IteratorProtocol where Base: IteratorProtocol {
 
 extension TypedIterator: Sequence {}
 
-struct CurrentValueIterator<Base>: IteratorProtocol where Base: IteratorProtocol {
-  private var base: Base
-  private var value: Element?
-
-  init(_ base: Base) {
-    self.base = base
-    self.value = self.base.next()
-  }
-
-  mutating func next() -> Base.Element? {
-    let next = self.base.next()
-    let value = self.value
-    self.value = next
-
-    return value
-  }
-}
-
-extension CurrentValueIterator: Sequence {}
-
-enum FileManagerDirectoryEnumerationError: Error {
-  case creationFailed, iterationFailed(any Error)
-}
-
 extension FileManager {
   func enumerate(
     at url: URL,
-    resourceKeys: [URLResourceKey]? = nil,
+    includingPropertiesForKeys keys: [URLResourceKey]?,
     options: FileManager.DirectoryEnumerationOptions,
-  ) throws(FileManagerDirectoryEnumerationError) -> some Sequence<URL> {
-    var error: (any Error)?
-    let enumerator = self.enumerator(at: url, includingPropertiesForKeys: resourceKeys, options: options) { eurl, err in
-      // We only care about the error on the initial enumeration (for example, the URL doesn't point to a directory).
-      if eurl == url {
-        error = err
-      }
-
-      return true
+  ) -> (some Sequence<URL>)? {
+    guard let enumerator = self.enumerator(at: url, includingPropertiesForKeys: keys, options: options) else {
+      return nil as TypedIterator<NSFastEnumerationIterator, URL>?
     }
 
-    guard let enumerator else {
-      throw .creationFailed
-    }
-
-    let iterator = CurrentValueIterator(TypedIterator(enumerator.makeIterator(), as: URL.self))
-
-    if let error {
-      throw .iterationFailed(error)
-    }
+    let iterator = TypedIterator(enumerator.makeIterator(), as: URL.self)
 
     return iterator
   }
@@ -175,6 +138,12 @@ extension CGImagePropertyOrientation {
 
 extension ImageAnalyzer {
   static let maxLength: CGFloat = 8192
+}
+
+// MARK: - Uniform Type Identifiers
+
+extension UTType {
+  static let settingsAccessorySearchItem = Self(exportedAs: "com.kyleerhabor.AdvanceSettingsAccessorySearchItem")
 }
 
 // MARK: -

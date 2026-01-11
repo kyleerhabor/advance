@@ -14,15 +14,15 @@ extension Logger {
 
 extension URL {
   func startSecurityScope() -> Bool {
-    let accessing = self.startAccessingSecurityScopedResource()
+    let isAccessing = self.startAccessingSecurityScopedResource()
 
-    if accessing {
+    if isAccessing {
       Logger.sandbox.debug("Started security scope for resource at file URL '\(self.pathString)'")
     } else {
       Logger.sandbox.log("Could not start security scope for resource at file URL '\(self.pathString)'")
     }
 
-    return accessing
+    return isAccessing
   }
 
   func endSecurityScope() {

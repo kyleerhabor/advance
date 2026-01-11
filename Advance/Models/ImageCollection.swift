@@ -89,27 +89,10 @@ class ImageCollection: Codable {
 
   // The materialized state for the UI.
   var images = [ImageCollectionItemImage]()
-  var bookmarks = Set<ImageCollectionItemRoot.ID>()
 
   init() {
     self.items = [ImageCollectionItemRoot.ID: ImageCollectionItem]()
     self.order = OrderedSet<ImageCollectionItemRoot.ID>()
-  }
-
-  func update() {
-    self.images = self.order.compactMap { self.items[$0]?.image }
-  }
-
-  func persist(to url: URL) throws {
-    let encoder = PropertyListEncoder()
-    let encoded = try encoder.encode(self)
-
-    do {
-      try encoded.write(to: url)
-    } catch let err as CocoaError where err.code == .fileNoSuchFile {
-      try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-      try encoded.write(to: url)
-    }
   }
 
   // MARK: - Codable conformance

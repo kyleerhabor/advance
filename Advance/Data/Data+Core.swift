@@ -49,6 +49,82 @@ actor Once<Value, each Argument> where Value: Sendable {
   }
 }
 
+func createImagesItemPositionSchemaTriggers(_ db: Database) throws {
+  let name = "\(ItemImagesRecord.databaseTableName).\(ItemImagesRecord.Columns.item.name).\(ImagesItemRecord.Columns.position.name)"
+  let message = "(\(ItemImagesRecord.databaseTableName).\(ItemImagesRecord.Columns.images.name), \(name)) must be unique"
+  let when: SQL = """
+    SELECT 1
+    FROM \(ImagesItemRecord.self)
+    LEFT JOIN \(ItemImagesRecord.self) other
+      ON other.\(.rowID) != NEW.\(.rowID)
+    LEFT JOIN \(ImagesItemRecord.self) other_images_item
+      ON other_images_item.\(.rowID) = other.\(ItemImagesRecord.Columns.item)
+    WHERE \(ImagesItemRecord.self).\(.rowID) = NEW.\(ItemImagesRecord.Columns.item)
+      AND other.\(ItemImagesRecord.Columns.images) = NEW.\(ItemImagesRecord.Columns.images)
+      AND \(ImagesItemRecord.self).\(ImagesItemRecord.Columns.position) = other_images_item.\(ImagesItemRecord.Columns.position)
+    """
+
+  try db.execute(
+    literal: """
+      CREATE TRIGGER \(sql: "\(name)_ai".quotedDatabaseIdentifier)
+      AFTER INSERT ON \(ItemImagesRecord.self)
+      FOR EACH ROW WHEN (\(when))
+      BEGIN
+        SELECT RAISE(ABORT, \(sql: message.quotedDatabaseIdentifier));
+      END
+      """,
+  )
+
+  try db.execute(
+    literal: """
+      CREATE TRIGGER \(sql: "\(name)_au".quotedDatabaseIdentifier)
+      AFTER UPDATE ON \(ItemImagesRecord.self)
+      FOR EACH ROW WHEN (\(when))
+      BEGIN
+        SELECT RAISE(ABORT, \(sql: message.quotedDatabaseIdentifier));
+      END
+      """,
+  )
+}
+
+func createImagesItemFileBookmarkSchemaTriggers(_ db: Database) throws {
+  let name = "\(ItemImagesRecord.databaseTableName).\(ItemImagesRecord.Columns.item.name).\(ImagesItemRecord.Columns.fileBookmark.name)"
+  let message = "(\(ItemImagesRecord.databaseTableName).\(ItemImagesRecord.Columns.images.name), \(name)) must be unique"
+  let when: SQL = """
+    SELECT 1
+    FROM \(ImagesItemRecord.self)
+    LEFT JOIN \(ItemImagesRecord.self) other
+      ON other.\(.rowID) != NEW.\(.rowID)
+    LEFT JOIN \(ImagesItemRecord.self) other_images_item
+      ON other_images_item.\(.rowID) = other.\(ItemImagesRecord.Columns.item)
+    WHERE \(ImagesItemRecord.self).\(.rowID) = NEW.\(ItemImagesRecord.Columns.item)
+      AND other.\(ItemImagesRecord.Columns.images) = NEW.\(ItemImagesRecord.Columns.images)
+      AND \(ImagesItemRecord.self).\(ImagesItemRecord.Columns.fileBookmark) = other_images_item.\(ImagesItemRecord.Columns.fileBookmark)
+    """
+
+  try db.execute(
+    literal: """
+      CREATE TRIGGER \(sql: "\(name)_ai".quotedDatabaseIdentifier)
+      AFTER INSERT ON \(ItemImagesRecord.self)
+      FOR EACH ROW WHEN (\(when))
+      BEGIN
+        SELECT RAISE(ABORT, \(sql: message.quotedDatabaseIdentifier));
+      END
+      """,
+  )
+
+  try db.execute(
+    literal: """
+      CREATE TRIGGER \(sql: "\(name)_au".quotedDatabaseIdentifier)
+      AFTER UPDATE ON \(ItemImagesRecord.self)
+      FOR EACH ROW WHEN (\(when))
+      BEGIN
+        SELECT RAISE(ABORT, \(sql: message.quotedDatabaseIdentifier));
+      END
+      """,
+  )
+}
+
 func createSchema(connection: some DatabaseWriter) throws {
   var migrator = DatabaseMigrator()
 
@@ -86,8 +162,12 @@ func createSchema(connection: some DatabaseWriter) throws {
 
     try db.create(table: ImagesItemRecord.databaseTableName) { table in
       table.primaryKey(Column.rowID.name, .integer)
+      table
+        .column(ImagesItemRecord.Columns.fileBookmark.name, .integer)
+        .notNull()
+        .references(FileBookmarkRecord.databaseTableName)
+        .indexed()
 
-      // TODO: Enforce uniqueness via trigger.
       table
         .column(ImagesItemRecord.Columns.position.name, .text)
         .notNull()
@@ -95,12 +175,6 @@ func createSchema(connection: some DatabaseWriter) throws {
       table
         .column(ImagesItemRecord.Columns.isBookmarked.name, .boolean)
         .notNull()
-
-      table
-        .column(ImagesItemRecord.Columns.fileBookmark.name, .integer)
-        .notNull()
-        .references(FileBookmarkRecord.databaseTableName)
-        .indexed()
     }
 
     try db.create(table: ImagesRecord.databaseTableName) { table in
@@ -132,6 +206,8 @@ func createSchema(connection: some DatabaseWriter) throws {
         .references(ImagesItemRecord.databaseTableName, onDelete: .cascade)
     }
 
+    try createImagesItemPositionSchemaTriggers(db)
+    try createImagesItemFileBookmarkSchemaTriggers(db)
     try db.create(table: FolderPathComponentRecord.databaseTableName) { table in
       table.primaryKey(Column.rowID.name, .integer)
       // We could de-duplicate this, but the table only exists so we don't have to encode an array of strings manually.
@@ -280,12 +356,14 @@ extension GRDB.Configuration {
 }
 
 func createDatabaseConnection(at url: URL, configuration: GRDB.Configuration) throws -> DatabasePool {
+  let path = url.pathString
+
   do {
-    return try DatabasePool(path: url.pathString, configuration: configuration)
+    return try DatabasePool(path: path, configuration: configuration)
   } catch let error as DatabaseError where error.resultCode == .SQLITE_CANTOPEN {
     try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
 
-    return try DatabasePool(path: url.pathString, configuration: configuration)
+    return try DatabasePool(path: path, configuration: configuration)
   }
 }
 

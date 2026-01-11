@@ -10,12 +10,21 @@
 // This re-defines BFraction to not simplify.
 //
 // https://github.com/leif-ibsen/BigInt/blob/8c6f93aa37504b7b1ba3954335b5548a19fbbd82/Sources/BigInt/BigFrac.swift
-public struct BigFraction {
+public struct BigFraction: CustomStringConvertible, Comparable, Equatable {
   public static let zero = Self(BInt.ZERO, BInt.ONE)
   public static let one = Self(BInt.ONE, BInt.ONE)
 
-  public var numerator: BInt
-  public var denominator: BInt
+  // MARK: Stored properties
+
+  /// The numerator - a `BInt` value
+  public internal(set) var numerator: BInt
+  /// The denominator - a positive `BInt` value
+  public internal(set) var denominator: BInt
+
+  /// String value of `self`
+  public var description: String {
+    return self.asString()
+  }
 
   public var isNegative: Bool {
     return self.numerator.isNegative
@@ -90,6 +99,46 @@ public struct BigFraction {
 
   public static func ==(x: Self, y: Self) -> Bool {
     return x.numerator == y.numerator && x.denominator == y.denominator
+  }
+
+  /// Less than
+  ///
+  /// - Parameters:
+  ///   - x: First operand
+  ///   - y: Second operand
+  /// - Returns: `true` if x < y, `false` otherwise
+  public static func <(x: Self, y: Self) -> Bool {
+    return x.numerator * y.denominator < y.numerator * x.denominator
+  }
+
+  /// Greater than
+  ///
+  /// - Parameters:
+  ///   - x: First operand
+  ///   - y: Second operand
+  /// - Returns: `true` if x > y, `false` otherwise
+  public static func >(x: Self, y: Self) -> Bool {
+    return x.numerator * y.denominator > y.numerator * x.denominator
+  }
+
+  /// Less than or equal
+  ///
+  /// - Parameters:
+  ///   - x: First operand
+  ///   - y: Second operand
+  /// - Returns: `true` if x <= y, `false` otherwise
+  public static func <=(x: Self, y: Self) -> Bool {
+    return !(x > y)
+  }
+
+  /// Greater than or equal
+  ///
+  /// - Parameters:
+  ///   - x: First operand
+  ///   - y: Second operand
+  /// - Returns: `true` if x >= y, `false` otherwise
+  public static func >=(x: Self, y: Self) -> Bool {
+    return !(x < y)
   }
 
   static func parseString(_ s: String) -> (mantissa: BInt, exponent: Int)? {
@@ -229,11 +278,4 @@ public struct BigFraction {
   }
 }
 
-extension BigFraction: Sendable, Equatable {}
-
-extension BigFraction: CustomStringConvertible {
-  public var description: String {
-    self.asString()
-  }
-}
-
+extension BigFraction: Sendable {}

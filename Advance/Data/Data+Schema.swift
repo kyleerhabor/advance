@@ -5,10 +5,8 @@
 //  Created by Kyle Erhabor on 12/20/25.
 //
 
-import AdvanceCore
 import Foundation
 import GRDB
-import BigInt
 
 typealias RowID = Int64
 
@@ -22,15 +20,9 @@ struct BookmarkRecord {
   var rowID: RowID?
   let data: Data?
   let options: URL.BookmarkCreationOptions?
-
-  init(rowID: RowID? = nil, data: Data?, options: URL.BookmarkCreationOptions?) {
-    self.rowID = rowID
-    self.data = data
-    self.options = options
-  }
 }
 
-extension BookmarkRecord: Sendable, Equatable, FetchableRecord {}
+extension BookmarkRecord: Equatable, FetchableRecord {}
 
 extension BookmarkRecord: Codable {
   enum CodingKeys: String, CodingKey {
@@ -85,7 +77,7 @@ struct FileBookmarkRecord {
   }
 }
 
-extension FileBookmarkRecord: Sendable, Equatable, FetchableRecord {}
+extension FileBookmarkRecord: Equatable, FetchableRecord {}
 
 extension FileBookmarkRecord: Codable {
   enum CodingKeys: String, CodingKey {
@@ -122,19 +114,12 @@ extension FileBookmarkRecord: TableRecord {
 
 struct ImagesItemRecord {
   var rowID: RowID?
-  let position: BigFraction?
-  let isBookmarked: Bool?
   let fileBookmark: RowID?
-
-  init(rowID: RowID? = nil, position: BigFraction?, isBookmarked: Bool?, fileBookmark: RowID?) {
-    self.rowID = rowID
-    self.position = position
-    self.isBookmarked = isBookmarked
-    self.fileBookmark = fileBookmark
-  }
+  let position: String?
+  let isBookmarked: Bool?
 }
 
-extension ImagesItemRecord: Sendable, Equatable, FetchableRecord {}
+extension ImagesItemRecord: Equatable, FetchableRecord {}
 
 extension ImagesItemRecord: Codable {
   enum CodingKeys: String, CodingKey {
@@ -148,29 +133,6 @@ extension ImagesItemRecord: Codable {
     static let position = Column(CodingKeys.position)
     static let isBookmarked = Column(CodingKeys.isBookmarked)
     static let fileBookmark = Column(CodingKeys.fileBookmark)
-  }
-
-  init(from decoder: any Decoder) throws {
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.rowID = try container.decodeIfPresent(RowID.self, forKey: .rowID)
-    self.position = try container
-      .decodeIfPresent(String.self, forKey: .position)
-      .flatMap(BigFraction.init(_:))
-
-    self.isBookmarked = try container.decodeIfPresent(Bool.self, forKey: .isBookmarked)
-    self.fileBookmark = try container.decodeIfPresent(RowID.self, forKey: .fileBookmark)
-  }
-
-  func encode(to encoder: any Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(rowID, forKey: .rowID)
-    try container.encode(
-      position.map { $0.asDecimalString(precision: $0.denominator.digitCount(base: .TEN).decremented()) },
-      forKey: .position,
-    )
-
-    try container.encode(isBookmarked, forKey: .isBookmarked)
-    try container.encode(fileBookmark, forKey: .fileBookmark)
   }
 }
 
@@ -197,7 +159,7 @@ struct ImagesRecord {
   let currentItem: RowID?
 }
 
-extension ImagesRecord: Sendable, Equatable, FetchableRecord {}
+extension ImagesRecord: Equatable, FetchableRecord {}
 
 extension ImagesRecord: Codable {
   enum CodingKeys: String, CodingKey {
@@ -291,7 +253,7 @@ struct FolderPathComponentRecord {
   }
 }
 
-extension FolderPathComponentRecord: Sendable, Equatable {}
+extension FolderPathComponentRecord: Equatable {}
 
 extension FolderPathComponentRecord: Codable {
   enum CodingKeys: String, CodingKey {
@@ -328,7 +290,7 @@ struct FolderRecord {
   }
 }
 
-extension FolderRecord: Sendable, Equatable {}
+extension FolderRecord: Equatable {}
 
 extension FolderRecord: Codable {
   enum CodingKeys: String, CodingKey {

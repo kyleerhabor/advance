@@ -14,7 +14,7 @@ struct ImageCollectionSidebarView: View {
   }
 
   var body: some View {
-    ImageCollectionSidebarContentView()
+    Color.clear
       .overlay {
         let isEmpty = isEmpty
 

@@ -21,10 +21,10 @@ struct FoldersSettingsScene: Scene {
     .windowToolbarStyle(.unifiedCompact)
     .windowResizability(.contentSize)
     .keyboardShortcut(.foldersSettings)
-    .onChange(of: locale, initial: true) {
-      task?.cancel()
-      task = Task {
-        await folders.load(locale: locale)
+    .onChange(of: self.locale, initial: true) {
+      self.task?.cancel()
+      self.task = Task {
+        await self.folders.load(locale: self.locale)
       }
     }
   }

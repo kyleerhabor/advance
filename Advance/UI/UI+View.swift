@@ -128,10 +128,10 @@ struct TrackingMenuViewModifier: ViewModifier {
 }
 
 class WindowCaptureView: NSView {
-  var model: Window
+  var _window: Window
 
   init(window: Window) {
-    self.model = window
+    self._window = window
 
     super.init(frame: .zero)
   }
@@ -143,7 +143,7 @@ class WindowCaptureView: NSView {
   override func viewWillMove(toWindow window: NSWindow?) {
     super.viewWillMove(toWindow: window)
 
-    model.window = window
+    self._window.window = window
   }
 }
 
@@ -151,11 +151,11 @@ struct WindowCapturingView: NSViewRepresentable {
   let window: Window
 
   func makeNSView(context: Context) -> WindowCaptureView {
-    WindowCaptureView(window: window)
+    WindowCaptureView(window: self.window)
   }
 
   func updateNSView(_ captureView: WindowCaptureView, context: Context) {
-    captureView.model = window
+    captureView._window = self.window
   }
 }
 
@@ -166,7 +166,7 @@ struct WindowViewModifier: ViewModifier {
     content
       .environment(window)
       .background {
-        WindowCapturingView(window: window)
+        WindowCapturingView(window: self.window)
       }
   }
 }

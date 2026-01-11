@@ -426,13 +426,29 @@ final class ImagesModel {
     await _store(urls: urls, directoryEnumerationOptions: directoryEnumerationOptions)
   }
 
-  func store(items: [ImagesItemTransfer], enumerationOptions: FileManager.DirectoryEnumerationOptions) async {
-    await _store(items: items, enumerationOptions: enumerationOptions)
+  func store(items: [ImagesItemTransfer], directoryEnumerationOptions: FileManager.DirectoryEnumerationOptions) async {
+    await _store(items: items, directoryEnumerationOptions: directoryEnumerationOptions)
+  }
+
+  // FIXME: Storing an item may result in double entries where the difference is whether or not the resource requires a security scope.
+  //
+  // The only solution I can think of is comparing the URL, but we'd need to resolve them, somehow (whether via URL/init(resolvingBookmarkData:options:relativeTo:bookmarkDataIsStale:),
+  // URL/resourceValues(forKeys:fromBookmarkData:), storing the path in the database, etc.).
+  func store(
+    items: [URL],
+    before: ImagesItemModel2?,
+    directoryEnumerationOptions: FileManager.DirectoryEnumerationOptions,
+  ) async {
+    await self.store(items: items, before: before?.id, directoryEnumerationOptions: directoryEnumerationOptions)
+  }
+
+  func store(items: [ImagesItemModel2], before: ImagesItemModel2?) async {
+    await self.store(items: items.map(\.id), before: before?.id)
   }
 
   func remove(items: [ImagesItemModel2]) async {
     // If we wanted to make this instant in the UI, we'd need to update a number of dependent variables, and I can't be
-    // asked to do that manually. Maybe there's a system to do this for us.
+    // asked to do that manually. Maybe there's a system to do this for us (besides method calls, of course).
     await self.remove(items: items.map(\.id))
   }
 
@@ -1341,7 +1357,12 @@ final class ImagesModel {
     fileBookmark: RowID,
     position: BigFraction,
   ) throws -> ItemImagesRecord {
-    var imagesItem = ImagesItemRecord(position: position, isBookmarked: false, fileBookmark: fileBookmark)
+    var imagesItem = ImagesItemRecord(
+      fileBookmark: fileBookmark,
+      position: position.asDecimalString(precision: position.denominator.digitCount(base: .TEN).decremented()),
+      isBookmarked: false,
+    )
+
     try imagesItem.insert(db)
 
     var itemImages = ItemImagesRecord(images: images, item: imagesItem.rowID)
@@ -1351,80 +1372,7 @@ final class ImagesModel {
   }
 
   nonisolated private func store(items: [Item<URLSource>]) async {
-    let state1 = await withThrowingTaskGroup(of: Item<URLBookmark>.self) { group in
-      var state = ImagesModelStoreState(bookmarks: [:])
-
-      items.forEach { item in
-        group.addTask {
-          switch item {
-            case let .file(source):
-              let bookmark = try await source.accessingSecurityScopedResource {
-                try await URLBookmark(url: source.url, options: source.options, relativeTo: nil)
-              }
-
-              return .file(bookmark)
-            case let .directory(directory):
-              return try await directory.item.accessingSecurityScopedResource {
-                let bookmark = try await URLBookmark(
-                  url: directory.item.url,
-                  options: directory.item.options,
-                  relativeTo: nil,
-                )
-
-                let files = await withThrowingTaskGroup { group in
-                  var items = [URLBookmark](reservingCapacity: directory.files.count)
-
-                  directory.files.forEach { source in
-                    group.addTask {
-                      try await source.accessingSecurityScopedResource {
-                        try await URLBookmark(url: source.url, options: source.options, relativeTo: bookmark.url)
-                      }
-                    }
-                  }
-
-                  while let result = await group.nextResult() {
-                    switch result {
-                      case let .success(child):
-                        items.append(child)
-                      case let .failure(error):
-                        // TODO: Elaborate.
-                        Logger.model.error("\(error)")
-                    }
-                  }
-
-                  return items
-                }
-
-                return .directory(ItemDirectory(item: bookmark, files: files))
-              }
-          }
-        }
-      }
-
-      while let result = await group.nextResult() {
-        switch result {
-          case let .success(item):
-            switch item {
-              case let .file(item):
-                state.bookmarks[item.url] = item.bookmark
-              case let .directory(directory):
-                let item = directory.item
-
-                state.bookmarks[item.url] = item.bookmark
-
-                directory.files.forEach { item in
-                  state.bookmarks[item.url] = item.bookmark
-                }
-            }
-          case let .failure(error):
-            // TODO: Elaborate.
-            Logger.model.error("\(error)")
-        }
-      }
-
-      return state
-    }
-
+    let state1 = await self.urbs(items: items)
     let connection: DatabasePool
 
     do {
@@ -1455,7 +1403,7 @@ final class ImagesModel {
           .asRequest(of: ImagesModelStoreImagesItemsImagesInfo.self)
           .fetchOne(db)!
 
-        _ = try items.reduce(images2.items.first?.item.position ?? BigFraction.zero) { position, item in
+        _ = try items.reduce(images2.items.first?.item.position.flatMap(BigFraction.init(_:)) ?? BigFraction.zero) { position, item in
           switch item {
             case let .file(source):
               guard let item = state1.bookmarks[source.url] else {
@@ -1510,65 +1458,447 @@ final class ImagesModel {
     urls: [URL],
     directoryEnumerationOptions: FileManager.DirectoryEnumerationOptions,
   ) async {
-    let items = urls.compactMap { url -> Item<URLSource>? in
-      let source = URLSource(url: url, options: [.withSecurityScope, .securityScopeAllowOnlyReadAccess])
-
-      do {
-        let files = try source.accessingSecurityScopedResource {
-          try FileManager.default
-            .enumerate(at: source.url, options: directoryEnumerationOptions)
-            .finderSort(by: \.pathComponents)
-            .map { URLSource(url: $0, options: .withoutImplicitSecurityScope) }
-        }
-
-        return .directory(ItemDirectory(item: source, files: files))
-      } catch {
-        guard case let .iterationFailed(error) = error as? FileManagerDirectoryEnumerationError,
-              let error = error as? CocoaError, error.code == .fileReadUnknown,
-              let error = error.underlying as? POSIXError, error.code == .ENOTDIR else {
-          // TODO: Elaborate.
-          Logger.model.error("\(error)")
-
-          return nil
-        }
-
-        return .file(source)
-      }
-    }
-
-    await store(items: items)
+    await store(items: self.items(urls, directoryEnumerationOptions: directoryEnumerationOptions))
   }
 
-  nonisolated private func _store(items: [ImagesItemTransfer], enumerationOptions: FileManager.DirectoryEnumerationOptions) async {
-    let items = items.compactMap { item -> Item<URLSource>? in
-      switch item.contentType {
-        case .image:
-          return .file(item.source)
-        case .folder:
-          let files: [URLSource]
+  nonisolated private func _store(
+    items: [ImagesItemTransfer],
+    directoryEnumerationOptions: FileManager.DirectoryEnumerationOptions,
+  ) async {
+    await store(items: self.items(items, directoryEnumerationOptions: directoryEnumerationOptions))
+  }
+
+  // TODO: Rename.
+  nonisolated private func items(
+    in directory: URLSource,
+    directoryEnumerationOptions: FileManager.DirectoryEnumerationOptions,
+  ) -> ItemDirectory<URLSource>? {
+    // TODO: Rename and extract.
+    struct X {
+      let item: URL
+      let pathComponents: [String]
+    }
+
+    let files = directory.accessingSecurityScopedResource {
+      return FileManager.default
+        .enumerate(at: directory.url, includingPropertiesForKeys: [.contentTypeKey], options: directoryEnumerationOptions)?
+        .compactMap { item -> X? in
+          let path = item.pathString
+          let resourceValues: URLResourceValues
 
           do {
-            files = try item.source.accessingSecurityScopedResource {
-              try FileManager.default
-                .enumerate(at: item.source.url, options: enumerationOptions)
-                // TODO: Sort using componentsToDisplay(forPath:)
-                .finderSort(by: \.pathComponents)
-                .map { URLSource(url: $0, options: .withoutImplicitSecurityScope) }
-            }
+            resourceValues = try item.resourceValues(forKeys: [.contentTypeKey])
           } catch {
-            // TODO: Elaborate.
-            Logger.model.error("\(error)")
+            Logger.model.error("Could not determine resource values for resource at file URL '\(path)'")
 
             return nil
           }
 
-          return .directory(ItemDirectory(item: item.source, files: files))
+          guard let contentType = resourceValues.contentType else {
+            Logger.model.error("Could not determine content type of resource at file URL '\(path)'")
+
+            return nil
+          }
+
+          guard contentType.conforms(to: .image) else {
+            Logger.model.debug(
+              """
+              Skipping resource at file URL '\(path)' because its content type '\(contentType)' doesn't refer to an \
+              image
+              """,
+            )
+
+            return nil
+          }
+
+          guard let components = FileManager.default.componentsToDisplay(forPath: path) else {
+            Logger.model.error("Could not determine path components for resource at file URL '\(path)'")
+
+            return nil
+          }
+
+          return X(item: item, pathComponents: components)
+        }
+        .finderSort(by: \.pathComponents)
+    }
+
+    guard let files else {
+      return nil
+    }
+
+    let directory = ItemDirectory(
+      item: directory,
+      files: files.map { URLSource(url: $0.item, options: .withoutImplicitSecurityScope) },
+    )
+
+    return directory
+  }
+
+  // TODO: Rename.
+  nonisolated private func items(
+    _ items: [URL],
+    directoryEnumerationOptions: FileManager.DirectoryEnumerationOptions,
+  ) -> [Item<URLSource>] {
+    items.compactMap { item in
+      let resourceValues: URLResourceValues
+
+      do {
+        resourceValues = try item.resourceValues(forKeys: [.contentTypeKey])
+      } catch {
+        Logger.model.error("Could not determine resource values for resource at file URL '\(item.pathString)'")
+
+        return nil
+      }
+
+      guard let contentType = resourceValues.contentType else {
+        Logger.model.error("Could not determine content type of resource at file URL '\(item.pathString)'")
+
+        return nil
+      }
+
+      let source = URLSource(url: item, options: [.withSecurityScope, .securityScopeAllowOnlyReadAccess])
+
+      if contentType.conforms(to: .image) {
+        return .file(source)
+      }
+
+      if contentType.conforms(to: .folder) {
+        guard let directory = self.items(in: source, directoryEnumerationOptions: directoryEnumerationOptions) else {
+          // TODO: Elaborate.
+          return nil
+        }
+
+        return .directory(directory)
+      }
+
+      return nil
+    }
+  }
+
+  nonisolated private func items(
+    _ items: [ImagesItemTransfer],
+    directoryEnumerationOptions: FileManager.DirectoryEnumerationOptions,
+  ) -> [Item<URLSource>] {
+    items.compactMap { item -> Item<URLSource>? in
+      switch item.contentType {
+        case .image:
+          return .file(item.source)
+        case .folder:
+          guard let directory = self.items(
+            in: item.source,
+            directoryEnumerationOptions: directoryEnumerationOptions,
+          ) else {
+            // TODO: Elaborate.
+            return nil
+          }
+
+          return .directory(directory)
         default:
           unreachable()
       }
     }
+  }
 
-    await store(items: items)
+  nonisolated private func urbs(items: [Item<URLSource>]) async -> ImagesModelStoreState {
+    await withThrowingTaskGroup(of: Item<URLBookmark>.self) { group in
+      var state = ImagesModelStoreState(bookmarks: [:])
+
+      items.forEach { item in
+        group.addTask {
+          switch item {
+            case let .file(source):
+              let bookmark = try await source.accessingSecurityScopedResource {
+                try await URLBookmark(url: source.url, options: source.options, relativeTo: nil)
+              }
+
+              return .file(bookmark)
+            case let .directory(directory):
+              return try await directory.item.accessingSecurityScopedResource {
+                let bookmark = try await URLBookmark(
+                  url: directory.item.url,
+                  options: directory.item.options,
+                  relativeTo: nil,
+                )
+
+                let files = await withThrowingTaskGroup { group in
+                  var items = [URLBookmark](reservingCapacity: directory.files.count)
+                  directory.files.forEach { source in
+                    group.addTask {
+                      try await source.accessingSecurityScopedResource {
+                        try await URLBookmark(url: source.url, options: source.options, relativeTo: bookmark.url)
+                      }
+                    }
+                  }
+
+                  while let result = await group.nextResult() {
+                    switch result {
+                      case let .success(child):
+                        items.append(child)
+                      case let .failure(error):
+                        // TODO: Elaborate.
+                        Logger.model.error("\(error)")
+                    }
+                  }
+
+                  return items
+                }
+
+                return .directory(ItemDirectory(item: bookmark, files: files))
+              }
+          }
+        }
+      }
+
+      while let result = await group.nextResult() {
+        switch result {
+          case let .success(item):
+            switch item {
+              case let .file(item):
+                state.bookmarks[item.url] = item.bookmark
+              case let .directory(directory):
+                let item = directory.item
+
+                state.bookmarks[item.url] = item.bookmark
+
+                directory.files.forEach { item in
+                  state.bookmarks[item.url] = item.bookmark
+                }
+            }
+          case let .failure(error):
+            // TODO: Elaborate.
+            Logger.model.error("\(error)")
+        }
+      }
+
+      return state
+    }
+  }
+
+  nonisolated private func store(
+    items: [URL],
+    before: RowID?,
+    directoryEnumerationOptions: FileManager.DirectoryEnumerationOptions,
+  ) async {
+    // Interestingly, the items have no security scope, but we still need to create bookmarks with them so they don't
+    // later become unavailable.
+    let items = self.items(items, directoryEnumerationOptions: directoryEnumerationOptions)
+    let state = await self.urbs(items: items)
+    let connection: DatabasePool
+
+    do {
+      connection = try await databaseConnection()
+    } catch {
+      Logger.model.error("Could not create database connection: \(error)")
+
+      return
+    }
+
+    do {
+      try await connection.write { db in
+        let images = try ImagesRecord
+          .select(.rowID)
+          .filter(key: [ImagesRecord.Columns.id.name: self.id])
+          .including(
+            all: ImagesRecord.items
+              .forKey(ImagesModelStoreBeforeImagesInfo.CodingKeys.items)
+              .select(.rowID, ImagesItemRecord.Columns.position)
+              .including(
+                required: ImagesItemRecord.fileBookmark
+                  .forKey(ImagesModelStoreBeforeImagesItemInfo.CodingKeys.fileBookmark)
+                  .select(.rowID),
+              ),
+          )
+          .asRequest(of: ImagesModelStoreBeforeImagesInfo.self)
+          .fetchOne(db)
+
+        let lowerBound: BigFraction
+        let upperBound: BigFraction
+        let record: ImagesRecord
+        let index: [RowID: RowID]
+
+        if let images {
+          let upper = images.items.firstIndex { $0.item.rowID == before }
+          let lower = upper.flatMap { images.items.subscriptIndex(before: $0) }
+
+          lowerBound = lower.flatMap { BigFraction(images.items[$0].item.position!) } ?? .zero
+          upperBound = upper.flatMap { BigFraction(images.items[$0].item.position!) } ?? .one
+          record = images.images
+          index = Dictionary(
+            uniqueKeysWithValues: images.items.map { ($0.fileBookmark.fileBookmark.rowID!, $0.item.rowID!) },
+          )
+        } else {
+          lowerBound = .zero
+          upperBound = .one
+          var images = ImagesRecord(id: self.id, currentItem: nil)
+          try images.insert(db)
+
+          record = images
+          index = [:]
+        }
+
+        _ = try items.reduce(lowerBound...upperBound) { partialResult, item in
+          // TODO: Extract.
+          switch item {
+            case let .file(source):
+              guard let bookmark = state.bookmarks[source.url] else {
+                return partialResult
+              }
+
+              var bookmarkRecord = BookmarkRecord(data: bookmark.data, options: bookmark.options)
+              try bookmarkRecord.upsert(db)
+
+              var fileBookmark = FileBookmarkRecord(bookmark: bookmarkRecord.rowID, relative: nil)
+              try fileBookmark.upsert(db)
+
+              let fileBookmarkID = fileBookmark.rowID!
+              let position = partialResult.lowerBound
+                + delta(lowerBound: partialResult.lowerBound, upperBound: partialResult.upperBound, base: .TEN)
+
+              let positionString = position.asDecimalString(
+                precision: position.denominator.digitCount(base: .TEN).decremented(),
+              )
+
+              let item: ImagesItemRecord
+
+              if let id = index[fileBookmarkID] {
+                let record = ImagesItemRecord(rowID: id, fileBookmark: nil, position: positionString, isBookmarked: nil)
+                try record.update(db, columns: [ImagesItemRecord.Columns.position])
+
+                item = record
+              } else {
+                var record = ImagesItemRecord(
+                  fileBookmark: fileBookmarkID,
+                  position: positionString,
+                  isBookmarked: false,
+                )
+
+                try record.insert(db)
+
+                item = record
+              }
+
+              var itemImages = ItemImagesRecord(images: record.rowID, item: item.rowID)
+              try itemImages.upsert(db)
+
+              return position...upperBound
+            case let .directory(directory):
+              guard let bookmark = state.bookmarks[directory.item.url] else {
+                return partialResult
+              }
+
+              var bookmarkRecord = BookmarkRecord(data: bookmark.data, options: bookmark.options)
+              try bookmarkRecord.upsert(db)
+
+              var fileBookmark = FileBookmarkRecord(bookmark: bookmarkRecord.rowID, relative: nil)
+              try fileBookmark.upsert(db)
+
+              let fileBookmarkID = fileBookmark.rowID!
+              let range = try directory.files.reduce(partialResult) { partialResult, file in
+                guard let bookmark = state.bookmarks[file.url] else {
+                  return partialResult
+                }
+
+                var bookmarkRecord = BookmarkRecord(data: bookmark.data, options: bookmark.options)
+                try bookmarkRecord.upsert(db)
+
+                var fileBookmark = FileBookmarkRecord(bookmark: bookmarkRecord.rowID, relative: fileBookmarkID)
+                try fileBookmark.upsert(db)
+
+                let fileBookmarkID = fileBookmark.rowID!
+                let position = partialResult.lowerBound
+                  + delta(lowerBound: partialResult.lowerBound, upperBound: partialResult.upperBound, base: .TEN)
+
+                let positionString = position.asDecimalString(
+                  precision: position.denominator.digitCount(base: .TEN).decremented(),
+                )
+
+                let item: ImagesItemRecord
+
+                if let id = index[fileBookmarkID] {
+                  let record = ImagesItemRecord(
+                    rowID: id,
+                    fileBookmark: nil,
+                    position: positionString,
+                    isBookmarked: nil,
+                  )
+
+                  try record.update(db, columns: [ImagesItemRecord.Columns.position])
+
+                  item = record
+                } else {
+                  var record = ImagesItemRecord(
+                    fileBookmark: fileBookmarkID,
+                    position: positionString,
+                    isBookmarked: false,
+                  )
+
+                  try record.insert(db)
+
+                  item = record
+                }
+
+                var itemImages = ItemImagesRecord(images: record.rowID, item: item.rowID)
+                try itemImages.upsert(db)
+
+                return position...upperBound
+              }
+
+              return range
+          }
+        }
+      }
+    } catch {
+      Logger.model.error("Could not write to database: \(error)")
+    }
+  }
+
+  nonisolated private func store(items: [RowID], before: RowID?) async {
+    let connection: DatabasePool
+
+    do {
+      connection = try await databaseConnection()
+    } catch {
+      Logger.model.error("Could not create database connection: \(error)")
+
+      return
+    }
+
+    do {
+      try await connection.write { db in
+        let upper = try ImagesItemRecord
+          .select(.rowID, ImagesItemRecord.Columns.position)
+          .filter(key: before)
+          .asRequest(of: ImagesModelStoreMoveBeforeImagesItemInfo.self)
+          .fetchOne(db)
+
+        let lower = try ImagesItemRecord
+          .select(.rowID, ImagesItemRecord.Columns.position)
+          .filter(ImagesItemRecord.Columns.position < upper?.item.position)
+          .order(ImagesItemRecord.Columns.position.desc)
+          .asRequest(of: ImagesModelStoreMoveBeforeImagesItemInfo.self)
+          .fetchOne(db)
+
+        let lowerBound = lower.flatMap { BigFraction($0.item.position!) } ?? .zero
+        let upperBound = upper.flatMap { BigFraction($0.item.position!) } ?? .one
+        _ = try items.reduce(lowerBound...upperBound) { partialResult, item in
+          let position = partialResult.lowerBound
+            + delta(lowerBound: partialResult.lowerBound, upperBound: partialResult.upperBound, base: .TEN)
+
+          let item = ImagesItemRecord(
+            rowID: item,
+            fileBookmark: nil,
+            position: position.asDecimalString(precision: position.denominator.digitCount(base: .TEN).decremented()),
+            isBookmarked: nil,
+          )
+
+          try item.update(db, columns: [ImagesItemRecord.Columns.position])
+
+          return position...upperBound
+        }
+      }
+    } catch {
+      Logger.model.error("Could not write to database: \(error)")
+    }
   }
 
   nonisolated private func remove(items: [RowID]) async {
@@ -1577,7 +1907,7 @@ final class ImagesModel {
     do {
       connection = try await databaseConnection()
     } catch {
-      Logger.model.error("Could not create database connection for image collection items removal: \(error)")
+      Logger.model.error("Could not create database connection: \(error)")
 
       return
     }
@@ -1587,7 +1917,7 @@ final class ImagesModel {
         _ = try ImagesItemRecord.deleteAll(db, keys: items)
       }
     } catch {
-      Logger.model.error("Could not write to database for image collection items removal: \(error)")
+      Logger.model.error("Could not write to database: \(error)")
 
       return
     }
@@ -2532,7 +2862,7 @@ final class ImagesModel {
 
     do {
       try await connection.write { db in
-        let item = ImagesItemRecord(rowID: item, position: nil, isBookmarked: isBookmarked, fileBookmark: nil)
+        let item = ImagesItemRecord(rowID: item, fileBookmark: nil, position: nil, isBookmarked: isBookmarked)
         try item.update(db, columns: [ImagesItemRecord.Columns.isBookmarked])
       }
     } catch {
@@ -2548,7 +2878,7 @@ final class ImagesModel {
     do {
       try await connection.write { db in
         try items.forEach { item in
-          let item = ImagesItemRecord(rowID: item, position: nil, isBookmarked: isBookmarked, fileBookmark: nil)
+          let item = ImagesItemRecord(rowID: item, fileBookmark: nil, position: nil, isBookmarked: isBookmarked)
           try item.update(db, columns: [ImagesItemRecord.Columns.isBookmarked])
         }
       }

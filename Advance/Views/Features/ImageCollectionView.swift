@@ -38,7 +38,6 @@ struct ImageCollectionView: View {
       // This requires knowing the sidebar was explicitly opened by the user (and not through implicit means like scrolling
       // to a particular image, aka "Show in Sidebar")
       ImageCollectionNavigationSidebarView()
-        .navigationSplitViewColumnWidth(min: 128, ideal: 128, max: 256)
     } detail: {
       Color.clear
         .scrollIndicators(isDetailOnly ? .hidden : .automatic)

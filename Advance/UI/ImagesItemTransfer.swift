@@ -20,9 +20,10 @@ extension ImagesItemTransfer: Transferable {
       url: received.file,
       options: received.isOriginalFile
         ? [.withSecurityScope, .securityScopeAllowOnlyReadAccess]
-        : [.withoutImplicitSecurityScope],
+        : .withoutImplicitSecurityScope,
     )
 
+    // If I remember correctly, we're using relativeString for App Sandbox.
     guard !received.isOriginalFile
           || source.url.relativeString.starts(with: URL.localTemporaryDirectory.relativeString) else {
       self.init(source: source, contentType: contentType)
@@ -30,23 +31,18 @@ extension ImagesItemTransfer: Transferable {
       return
     }
 
-    let directoryHint: URL.DirectoryHint = switch contentType {
-      case .image: .notDirectory
-      case .folder: .isDirectory
-      default: unreachable()
-    }
-
+    // TODO: Add a directory hint for the last path component.
     let url = source.url.pathComponents.dropFirst().reduce(into: URL.imagesDirectory) { partialResult, component in
-      partialResult.append(component: component, directoryHint: directoryHint)
+      partialResult.append(component: component)
     }
 
     try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
     try source.accessingSecurityScopedResource {
-      // In case the user drops a temporary file, we want to copy it so it doesn't disappear under their nose.
+      // In case the user drops a temporary file, we want to copy it so it doesn't disappear on them.
       try FileManager.default.copyItem(at: source.url, to: url)
     }
 
-    self.init(source: URLSource(url: url, options: []), contentType: contentType)
+    self.init(source: URLSource(url: url, options: .withoutImplicitSecurityScope), contentType: contentType)
   }
 
   static var transferRepresentation: some TransferRepresentation {

@@ -14,10 +14,6 @@ import Observation
 import OSLog
 import UniformTypeIdentifiers
 
-extension UTType {
-  static let settingsAccessorySearchItem = Self(exportedAs: "com.kyleerhabor.AdvanceSettingsAccessorySearchItem")
-}
-
 struct SearchSettingsItemModelID {
   let id: UUID
 }
@@ -155,7 +151,7 @@ final class SearchSettingsModel {
 
   func move(items: [SearchSettingsItemModelID], toOffset offset: Int) async {
     // TODO: Make offset respect exists status.
-    let item = self.items.indices.contains(offset) ? self.items[offset].id   : nil
+    let item = self.items.indices.contains(offset) ? self.items[offset].id : nil
     self.items.move(
       fromOffsets: IndexSet(items.map { self.items.index(id: $0.id)! }),
       toOffset: offset,
