@@ -37,6 +37,8 @@
 		003763C82AB4068700D53F2E /* ImageCollectionSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionSidebarView.swift; sourceTree = "<group>"; };
 		004379D32A77734200246057 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		006437582F05D9D30058CA61 /* Core.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core.swift; sourceTree = "<group>"; };
+		008A17FA2F1392B500B03C88 /* Advance.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Advance.xcconfig; sourceTree = "<group>"; };
+		008A17FB2F1392D200B03C88 /* AdvanceDebug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = AdvanceDebug.xcconfig; sourceTree = "<group>"; };
 		00B6E0D42C17E32000544C8B /* AdvanceCore */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = AdvanceCore; sourceTree = "<group>"; };
 		00BA40B62B4E353C0022C488 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		00C369522AB766DC0033F10A /* ImageCollection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollection.swift; sourceTree = "<group>"; };
@@ -99,6 +101,8 @@
 				004379D32A77734200246057 /* README.md */,
 				00F128EC2F0C6BCE00190DE3 /* CONTRIBUTING.md */,
 				00C712512A7EAF7A009F1802 /* LICENSE */,
+				008A17FA2F1392B500B03C88 /* Advance.xcconfig */,
+				008A17FB2F1392D200B03C88 /* AdvanceDebug.xcconfig */,
 				00B6E0D42C17E32000544C8B /* AdvanceCore */,
 				001CB51A2A718D3C00DBB6FA /* Advance */,
 				000729542F105EB300D2E61A /* Documentation */,
@@ -427,6 +431,7 @@
 		};
 		001CB5282A718D4200DBB6FA /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 008A17FB2F1392D200B03C88 /* AdvanceDebug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -453,7 +458,6 @@
 				MARKETING_VERSION = 0.5.0;
 				MERGED_BINARY_TYPE = automatic;
 				OTHER_SWIFT_FLAGS = "-Xfrontend -warn-long-expression-type-checking=1000 -Xfrontend -warn-long-function-bodies=1000";
-				PRODUCT_BUNDLE_IDENTIFIER = com.kyleerhabor.Advance;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -462,6 +466,7 @@
 		};
 		001CB5292A718D4200DBB6FA /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 008A17FA2F1392B500B03C88 /* Advance.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -486,7 +491,6 @@
 				);
 				MARKETING_VERSION = 0.5.0;
 				MERGED_BINARY_TYPE = automatic;
-				PRODUCT_BUNDLE_IDENTIFIER = com.kyleerhabor.Advance;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_DISABLE_SAFETY_CHECKS = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;

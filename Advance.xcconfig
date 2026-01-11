@@ -1,0 +1,9 @@
+//
+//  Advance.xcconfig
+//  Advance
+//
+//  Created by Kyle Erhabor on 1/11/26.
+//
+
+ORGANIZATION_ID = com.kyleerhabor
+PRODUCT_BUNDLE_IDENTIFIER = $(ORGANIZATION_ID).Advance

@@ -142,20 +142,10 @@ extension OperationQueue {
 extension URL {
   // $ getconf DARWIN_USER_TEMP_DIR
   static let localTemporaryDirectory = Self(filePath: "/var/folders", directoryHint: .isDirectory)
-
-  #if DEBUG
   static let dataDirectory = Self.applicationSupportDirectory.appending(
-    components: Bundle.appID, "DebugData",
+    components: Bundle.appID,
     directoryHint: .isDirectory,
   )
-
-  #else
-  static let dataDirectory = Self.applicationSupportDirectory.appending(
-    components: Bundle.appID, "Data",
-    directoryHint: .isDirectory,
-  )
-
-  #endif
 
   var pathString: String {
     self.path(percentEncoded: false)

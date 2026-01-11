@@ -143,7 +143,7 @@ extension ImageAnalyzer {
 // MARK: - Uniform Type Identifiers
 
 extension UTType {
-  static let settingsAccessorySearchItem = Self(exportedAs: "com.kyleerhabor.AdvanceSettingsAccessorySearchItem")
+  static let settingsAccessorySearchItem = Self(exportedAs: "\(Bundle.appID).SettingsAccessorySearchItem")
 }
 
 // MARK: -

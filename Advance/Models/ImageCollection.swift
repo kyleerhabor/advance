@@ -11,7 +11,7 @@ import OSLog
 import SwiftUI
 
 extension URL {
-  static let collectionDirectory = dataDirectory.appending(component: "Collections")
+  static let collectionDirectory = Self.dataDirectory.appending(component: "Collections")
 }
 
 struct ImageCollectionItemRoot {

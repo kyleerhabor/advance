@@ -27,7 +27,6 @@ struct AdvanceApp: App {
       .environment(delegate)
       .environment(folders)
       .environment(search)
-      .defaultAppStorage(.default)
   }
 
   init() {

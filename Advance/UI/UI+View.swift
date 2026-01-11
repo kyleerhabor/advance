@@ -28,24 +28,6 @@ extension Duration {
   static let microhang = Self.milliseconds(250)
 }
 
-// MARK: - Foundation
-
-extension UserDefaults {
-  static var `default`: Self {
-    let suiteName: String?
-
-    #if DEBUG
-    suiteName = "\(Bundle.appID).Debug"
-
-    #else
-    suiteName = nil
-
-    #endif
-
-    return Self(suiteName: suiteName)!
-  }
-}
-
 // MARK: - AppKit
 
 extension NSWindow {

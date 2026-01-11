@@ -1,0 +1,10 @@
+//
+//  AdvanceDebug.xcconfig
+//  Advance
+//
+//  Created by Kyle Erhabor on 1/11/26.
+//
+
+#include "./Advance.xcconfig"
+
+PRODUCT_BUNDLE_IDENTIFIER = $(ORGANIZATION_ID).AdvanceDebug

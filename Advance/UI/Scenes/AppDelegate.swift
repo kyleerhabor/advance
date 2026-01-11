@@ -18,7 +18,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     let app = notification.object as! NSApplication
 
     // Set the appearance of the app before any windows appear.
-    if let appearance = StorageAppearance(rawValue: UserDefaults.default.integer(forKey: StorageKeys.appearance.name)) {
+    if let appearance = StorageAppearance(rawValue: UserDefaults.standard.integer(forKey: StorageKeys.appearance.name)) {
       app.appearance = appearance.appearance
     }
 
