@@ -6,4 +6,3 @@
 //
 
 ORGANIZATION_ID = com.kyleerhabor
-PRODUCT_BUNDLE_IDENTIFIER = $(ORGANIZATION_ID).Advance

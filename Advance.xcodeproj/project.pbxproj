@@ -14,7 +14,6 @@
 		002379092B3DFC9F00097BF0 /* Scened.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002379082B3DFC9F00097BF0 /* Scened.swift */; };
 		003763C92AB4068700D53F2E /* ImageCollectionSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003763C82AB4068700D53F2E /* ImageCollectionSidebarView.swift */; };
 		004015DF2ED422B8001DB655 /* BigInt in Frameworks */ = {isa = PBXBuildFile; productRef = 004015DE2ED422B8001DB655 /* BigInt */; };
-		0051A2AC2F0E21F200067141 /* OrderedCollections in Frameworks */ = {isa = PBXBuildFile; productRef = 0051A2AB2F0E21F200067141 /* OrderedCollections */; };
 		006437592F05D9D30058CA61 /* Core.swift in Sources */ = {isa = PBXBuildFile; fileRef = 006437582F05D9D30058CA61 /* Core.swift */; };
 		008815F62B07DC8A00D8F3D8 /* Algorithms in Frameworks */ = {isa = PBXBuildFile; productRef = 008815F52B07DC8A00D8F3D8 /* Algorithms */; };
 		0094EBA32EF10DF40030E0C7 /* AsyncAlgorithms in Frameworks */ = {isa = PBXBuildFile; productRef = 0094EBA22EF10DF40030E0C7 /* AsyncAlgorithms */; };
@@ -47,6 +46,7 @@
 		00CBAB592AB23E9C0045FF83 /* ImageCollectionScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionScene.swift; sourceTree = "<group>"; };
 		00DC498E2A75B92000161495 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		00E42E9A2B33EB8000BC05A7 /* ImageCollectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionManager.swift; sourceTree = "<group>"; };
+		00EEAC502F14469E00125DA1 /* AdvanceRelease.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = AdvanceRelease.xcconfig; sourceTree = "<group>"; };
 		00F128EC2F0C6BCE00190DE3 /* CONTRIBUTING.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CONTRIBUTING.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -78,7 +78,6 @@
 				0013F6082C2208720038BB2A /* IdentifiedCollections in Frameworks */,
 				00B6E0D92C18103300544C8B /* AdvanceCore in Frameworks */,
 				008815F62B07DC8A00D8F3D8 /* Algorithms in Frameworks */,
-				0051A2AC2F0E21F200067141 /* OrderedCollections in Frameworks */,
 				0094EBA32EF10DF40030E0C7 /* AsyncAlgorithms in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -103,6 +102,7 @@
 				00C712512A7EAF7A009F1802 /* LICENSE */,
 				008A17FA2F1392B500B03C88 /* Advance.xcconfig */,
 				008A17FB2F1392D200B03C88 /* AdvanceDebug.xcconfig */,
+				00EEAC502F14469E00125DA1 /* AdvanceRelease.xcconfig */,
 				00B6E0D42C17E32000544C8B /* AdvanceCore */,
 				001CB51A2A718D3C00DBB6FA /* Advance */,
 				000729542F105EB300D2E61A /* Documentation */,
@@ -209,7 +209,6 @@
 				0099BE802E84C95F007B04D8 /* GRDB */,
 				004015DE2ED422B8001DB655 /* BigInt */,
 				0094EBA22EF10DF40030E0C7 /* AsyncAlgorithms */,
-				0051A2AB2F0E21F200067141 /* OrderedCollections */,
 			);
 			productName = Sequential;
 			productReference = 001CB5182A718D3C00DBB6FA /* Advance.app */;
@@ -243,7 +242,6 @@
 			packageReferences = (
 				008815F42B07DC8A00D8F3D8 /* XCRemoteSwiftPackageReference "swift-algorithms" */,
 				0013F6062C2208720038BB2A /* XCRemoteSwiftPackageReference "swift-identified-collections" */,
-				00B0B27C2C55EA2200542E0D /* XCRemoteSwiftPackageReference "swift-collections" */,
 				0099BE7F2E84C95F007B04D8 /* XCRemoteSwiftPackageReference "GRDB" */,
 				004015DD2ED422B7001DB655 /* XCRemoteSwiftPackageReference "BigInt" */,
 				0094EBA12EF10DF40030E0C7 /* XCRemoteSwiftPackageReference "swift-async-algorithms" */,
@@ -440,7 +438,6 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 10;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_APP_SANDBOX = YES;
@@ -455,7 +452,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.5.0;
+				MARKETING_VERSION = 1.0.0;
 				MERGED_BINARY_TYPE = automatic;
 				OTHER_SWIFT_FLAGS = "-Xfrontend -warn-long-expression-type-checking=1000 -Xfrontend -warn-long-function-bodies=1000";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -466,7 +463,7 @@
 		};
 		001CB5292A718D4200DBB6FA /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 008A17FA2F1392B500B03C88 /* Advance.xcconfig */;
+			baseConfigurationReference = 00EEAC502F14469E00125DA1 /* AdvanceRelease.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -475,7 +472,6 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 10;
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -489,7 +485,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.5.0;
+				MARKETING_VERSION = 1.0.0;
 				MERGED_BINARY_TYPE = automatic;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_DISABLE_SAFETY_CHECKS = NO;
@@ -562,14 +558,6 @@
 				revision = aa0079aeb82a4bf00324561a40bffe68c6fe1c26;
 			};
 		};
-		00B0B27C2C55EA2200542E0D /* XCRemoteSwiftPackageReference "swift-collections" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/apple/swift-collections.git";
-			requirement = {
-				kind = revision;
-				revision = 3d2dc41a01f9e49d84f0a3925fb858bed64f702d;
-			};
-		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -582,11 +570,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 004015DD2ED422B7001DB655 /* XCRemoteSwiftPackageReference "BigInt" */;
 			productName = BigInt;
-		};
-		0051A2AB2F0E21F200067141 /* OrderedCollections */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 00B0B27C2C55EA2200542E0D /* XCRemoteSwiftPackageReference "swift-collections" */;
-			productName = OrderedCollections;
 		};
 		008815F52B07DC8A00D8F3D8 /* Algorithms */ = {
 			isa = XCSwiftPackageProductDependency;
