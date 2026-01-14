@@ -32,9 +32,8 @@ struct ImagesDetailItemView: View {
   private var top: EdgeInsets { EdgeInsets(horizontal: self.full, top: self.full, bottom: self.half) }
   private var between: EdgeInsets { EdgeInsets(horizontal: self.full, top: self.half, bottom: self.half) }
   private var bottom: EdgeInsets { EdgeInsets(horizontal: self.full, top: self.half, bottom: self.full) }
-
-  var body: some View {
-    let insets = switch item.edge {
+  private var insets: EdgeInsets {
+    switch self.item.edge {
       case .all:
         self.all
       case .top:
@@ -44,18 +43,17 @@ struct ImagesDetailItemView: View {
       default:
         self.collapseMargins ? self.between : self.all
     }
+  }
 
+  var body: some View {
     // TODO: Figure out how to remove the border when the context menu is open.
     //
     // For some reason, we need to extract accesses to item's properties into dedicated views to prevent slow view
     // updates when switching windows.
-    ImagesItemImageView(item: self.item, image: self.item.detailImage, phase: self.item.detailImagePhase)
-      .aspectRatio(self.item.detailAspectRatio, contentMode: .fit)
+    ImagesItemImageView(image: self.item.detailImage)
       .shadow(radius: self.margins / 2)
-      .listRowInsets(.listRow + insets)
-      .listRowSeparator(.hidden)
       .overlay {
-        ImageDetailItemImageAnalysisView(
+        ImagesDetailItemImageAnalysisView(
           searchError: $searchError,
           isSearchErrorPresented: $isSearchErrorPresented,
           item: self.item,
@@ -136,5 +134,7 @@ struct ImagesDetailItemView: View {
         }
       }
       .fileDialogCustomizationID(FoldersSettingsScene.id)
+      .listRowInsets(.listRow + self.insets)
+      .listRowSeparator(.hidden)
   }
 }

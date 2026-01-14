@@ -7,13 +7,14 @@
 
 import AsyncAlgorithms
 import IdentifiedCollections
+import OSLog
 import SwiftUI
+import Algorithms
 
 @MainActor
 struct ImagesDetailViewImageAnalysisID {
   let images: ImagesModel
   let types: ImageAnalysisTypes
-  let pixelLength: CGFloat
 }
 
 extension ImagesDetailViewImageAnalysisID: @MainActor Equatable {}
@@ -22,7 +23,7 @@ struct ImagesDetailView2: View {
   @Environment(ImagesModel.self) private var images
   @Environment(\.pixelLength) private var pixelLength
   @AppStorage(StorageKeys.isLiveTextEnabled) private var isLiveTextEnabled
-  @AppStorage(StorageKeys.isLiveTextSubjectEnabled) private var isLiveTextSubjectEnabled
+//  @AppStorage(StorageKeys.isLiveTextSubjectEnabled) private var isLiveTextSubjectEnabled
   @AppStorage(StorageKeys.restoreLastImage) private var restoreLastImage
   let columnVisibility: NavigationSplitViewVisibility
   let isImageAnalysisSupplementaryInterfaceVisible: Bool
@@ -32,9 +33,9 @@ struct ImagesDetailView2: View {
     if self.isLiveTextEnabled {
       types.insert(.text)
 
-      if self.isLiveTextSubjectEnabled {
-        types.insert(.visualLookUp)
-      }
+//      if self.isLiveTextSubjectEnabled {
+//        types.insert(.visualLookUp)
+//      }
     }
 
     return types
@@ -80,7 +81,7 @@ struct ImagesDetailView2: View {
               }
 
               async let y: () = self.images.detailResample.send(ImagesModelResample(width: item.frame.width, items: items))
-              async let z: () = self.images.detailImageAnalysis.send(ImagesModelResample(width: item.frame.width, items: items))
+              async let z: () = self.images.detailImageAnalysis.send(items)
               await x
               await y
               await z
@@ -130,39 +131,30 @@ struct ImagesDetailView2: View {
         for await resample in self.images.detailResample.removeDuplicates().debounce(for: .microhang) {
           await self.images.loadImages(
             in: .detail,
-            items: self.items(resample: resample),
+            items: self.items(resample: resample.items),
             parameters: ImagesItemModelImageParameters(width: resample.width / self.pixelLength),
           )
         }
       }
-      .task(
-        id: ImagesDetailViewImageAnalysisID(
-          images: self.images,
-          types: self.imageAnalysisTypes,
-          pixelLength: self.pixelLength,
-        ),
-      ) {
+      .task(id: ImagesDetailViewImageAnalysisID(images: self.images, types: self.imageAnalysisTypes)) {
         for await resample in self.images.detailImageAnalysis.removeDuplicates().debounce(for: .microhang) {
           await self.images.loadImageAnalyses(
             for: self.items(resample: resample),
-            parameters: ImagesItemModelImageAnalysisParameters(
-              types: self.imageAnalysisTypes,
-              width: resample.width / self.pixelLength,
-            )
+            parameters: ImagesItemModelImageAnalysisParameters(types: self.imageAnalysisTypes)
           )
         }
       }
     }
   }
 
-  private func items(resample: ImagesModelResample) -> [ImagesItemModel2] {
-    var items = [ImagesItemModel2](reservingCapacity: resample.items.count + 4)
-    items.append(contentsOf: resample.items)
+  private func items(resample: [ImagesItemModel2]) -> [ImagesItemModel2] {
+    var items = [ImagesItemModel2](reservingCapacity: resample.count + 4)
+    items.append(contentsOf: resample)
 
     let before1: IdentifiedArrayOf<ImagesItemModel2>.Index?
     let before2: IdentifiedArrayOf<ImagesItemModel2>.Index?
 
-    if let item = resample.items.first,
+    if let item = resample.first,
        let index = self.images.items.index(id: item.id) {
       before1 = self.images.items.subscriptIndex(before: index)
       before2 = before1.flatMap { self.images.items.subscriptIndex(before: $0) }
@@ -174,7 +166,7 @@ struct ImagesDetailView2: View {
     let after1: IdentifiedArrayOf<ImagesItemModel2>.Index?
     let after2: IdentifiedArrayOf<ImagesItemModel2>.Index?
 
-    if let item = resample.items.last,
+    if let item = resample.last,
        let index = self.images.items.index(id: item.id) {
       after1 = self.images.items.subscriptIndex(after: index)
       after2 = after1.flatMap { self.images.items.subscriptIndex(after: $0) }

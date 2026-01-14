@@ -913,6 +913,7 @@
       }
     },
     "Settings.General.LiveText.Subject" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -923,6 +924,7 @@
       }
     },
     "Settings.General.LiveText.Subject.Note" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {

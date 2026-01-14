@@ -15,7 +15,7 @@ struct ImagesModelLoadURLImagesItemFileBookmarkBookmarkInfo {
 extension ImagesModelLoadURLImagesItemFileBookmarkBookmarkInfo: Decodable, FetchableRecord {}
 
 struct ImagesModelLoadURLImagesItemFileBookmarkRelativeInfo {
-  let relative: BookmarkRecord
+  let bookmark: BookmarkRecord
 }
 
 extension ImagesModelLoadURLImagesItemFileBookmarkRelativeInfo: Decodable, FetchableRecord {}

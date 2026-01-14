@@ -1,5 +1,5 @@
 //
-//  ImageDetailItemImageAnalysisView.swift
+//  ImagesDetailItemImageAnalysisView.swift
 //  Advance
 //
 //  Created by Kyle Erhabor on 1/10/26.
@@ -8,13 +8,13 @@
 import SwiftUI
 import VisionKit
 
-struct ImageDetailItemImageAnalysisView: View {
+struct ImagesDetailItemImageAnalysisView: View {
   @Environment(ImagesModel.self) private var images
   @Environment(SearchSettingsModel.self) private var search
   @Environment(\.locale) private var locale
   @Environment(\.openURL) private var openURL
   @AppStorage(StorageKeys.isLiveTextEnabled) private var isLiveTextEnabled
-  @AppStorage(StorageKeys.isLiveTextSubjectEnabled) private var isLiveTextSubjectEnabled
+//  @AppStorage(StorageKeys.isLiveTextSubjectEnabled) private var isLiveTextSubjectEnabled
   @AppStorage(StorageKeys.isSystemSearchEnabled) private var isSystemSearchEnabled
   @Binding var searchError: ImagesModelEngineURLError?
   @Binding var isSearchErrorPresented: Bool
@@ -23,12 +23,12 @@ struct ImageDetailItemImageAnalysisView: View {
   private var preferredInteractionTypes: ImageAnalysisOverlayView.InteractionTypes {
     var interactionTypes = ImageAnalysisOverlayView.InteractionTypes()
 
-    if self.isLiveTextEnabled && self.item.detailImagePhase == .success {
+    if self.isLiveTextEnabled && self.item.detailImage.phase == .success {
       interactionTypes.insert(.automaticTextOnly)
 
-      if self.isLiveTextSubjectEnabled {
-        interactionTypes.insert(.automatic)
-      }
+//      if self.isLiveTextSubjectEnabled {
+//        interactionTypes.insert(.automatic)
+//      }
     }
 
     return interactionTypes
@@ -38,7 +38,7 @@ struct ImageDetailItemImageAnalysisView: View {
     @Bindable var item = self.item
 
     ImageAnalysisView(
-      selectableItemsHighlighted: $item.isImageAnalysisSelectableItemsHighlighted,
+      isSelectableItemsHighlighted: $item.isImageAnalysisSelectableItemsHighlighted,
       analysis: item.imageAnalysis,
       preferredInteractionTypes: self.preferredInteractionTypes,
       isSupplementaryInterfaceHidden: !self.isSupplementaryInterfaceVisible,

@@ -23,7 +23,10 @@ struct ClockMeasurement<T, Duration> where Duration: DurationProtocol {
 }
 
 extension Clock {
-  func measure<T>(_ body: () async throws -> T) async rethrows -> ClockMeasurement<T, Duration> {
+  func measure<T>(
+    isolation: isolated (any Actor)? = #isolation,
+    _ body: () async throws -> T,
+  ) async rethrows -> ClockMeasurement<T, Duration> {
     var value: T!
     let duration = try await self.measure {
       value = try await body()
@@ -138,6 +141,7 @@ extension CGImagePropertyOrientation {
 
 extension ImageAnalyzer {
   static let maxLength: CGFloat = 8192
+  static let `default` = ImageAnalyzer()
 }
 
 // MARK: - Uniform Type Identifiers
@@ -147,6 +151,10 @@ extension UTType {
 }
 
 // MARK: -
+
+extension Logger {
+  static let model = Self(subsystem: Bundle.appID, category: "Model")
+}
 
 let analyses = AsyncChannel<Run<ImageAnalysis, any Error>>()
 
@@ -198,21 +206,167 @@ func bookmark(data: Data, assigned: AssignedBookmark?) -> BookmarkStatus {
 }
 
 func write(_ db: Database, bookmark: BookmarkRecord, assigned: AssignedBookmark?) throws {
-  let id = bookmark.rowID!
-
   switch Advance.bookmark(data: bookmark.data!, assigned: assigned) {
     case .old:
       try db.notifyChanges(in: BookmarkRecord.all())
     case .current:
       break
     case .new:
-      let bookmark = BookmarkRecord(rowID: id, data: assigned?.data, options: nil)
+      let bookmark = BookmarkRecord(rowID: bookmark.rowID, data: assigned?.data, options: nil)
       try bookmark.update(db, columns: [BookmarkRecord.Columns.data])
   }
 }
 
-extension Logger {
-  static let model = Self(subsystem: Bundle.appID, category: "Model")
+struct BookmarkAssignmentFileBookmarkBookmark {
+  let bookmark: BookmarkRecord
+}
+
+struct BookmarkAssignmentFileBookmarkRelative {
+  let bookmark: BookmarkRecord
+}
+
+struct BookmarkAssignmentFileBookmark {
+  let fileBookmark: FileBookmarkRecord
+  let bookmark: BookmarkAssignmentFileBookmarkBookmark
+  let relative: BookmarkAssignmentFileBookmarkRelative?
+}
+
+struct BookmarkAssignmentTaskResult {
+  let bookmark: BookmarkRecord
+  let assigned: AssignedBookmark
+}
+
+struct BookmarkAssignment {
+  var bookmarks: [RowID: AssignedBookmark]
+
+  init() {
+    self.bookmarks = [:]
+  }
+
+  mutating func assign(fileBookmarks: [BookmarkAssignmentFileBookmark]) async {
+    await withTaskGroup(of: BookmarkAssignmentTaskResult?.self) { group in
+      fileBookmarks
+        .compactMap(\.relative)
+        .uniqued(on: \.bookmark.rowID)
+        .forEach { relative in
+          group.addTask {
+            let bookmark: AssignedBookmark
+
+            do {
+              bookmark = try await AssignedBookmark(
+                data: relative.bookmark.data!,
+                options: relative.bookmark.options!,
+                relativeTo: nil,
+              )
+            } catch {
+              // TODO: Elaborate.
+              Logger.model.error("\(error)")
+
+              return nil
+            }
+
+            let result = BookmarkAssignmentTaskResult(bookmark: relative.bookmark, assigned: bookmark)
+
+            return result
+          }
+        }
+
+      for await result in group {
+        guard let result else {
+          continue
+        }
+
+        self.bookmarks[result.bookmark.rowID!] = result.assigned
+      }
+
+      fileBookmarks.forEach { fileBookmark in
+        group.addTask { [self] in
+          let relative: URLSource?
+
+          if let r = fileBookmark.relative {
+            guard let bookmark = self.bookmarks[r.bookmark.rowID!] else {
+              return nil
+            }
+
+            relative = URLSource(url: bookmark.resolved.url, options: r.bookmark.options!)
+          } else {
+            relative = nil
+          }
+
+          let bookmark: AssignedBookmark
+
+          do {
+            bookmark = try await relative.accessingSecurityScopedResource {
+              try await AssignedBookmark(
+                data: fileBookmark.bookmark.bookmark.data!,
+                options: fileBookmark.bookmark.bookmark.options!,
+                relativeTo: relative?.url,
+              )
+            }
+          } catch {
+            // TODO: Elaborate.
+            Logger.model.error("\(error)")
+
+            return nil
+          }
+
+          let result = BookmarkAssignmentTaskResult(bookmark: fileBookmark.bookmark.bookmark, assigned: bookmark)
+
+          return result
+        }
+      }
+
+      for await result in group {
+        guard let result else {
+          continue
+        }
+
+        self.bookmarks[result.bookmark.rowID!] = result.assigned
+      }
+    }
+  }
+
+  func write(_ db: Database, fileBookmarks: [BookmarkAssignmentFileBookmark]) throws {
+    try fileBookmarks
+      .compactMap(\.relative)
+      .uniqued(on: \.bookmark.rowID)
+      .forEach { relative in
+        try Advance.write(db, bookmark: relative.bookmark, assigned: self.bookmarks[relative.bookmark.rowID!])
+      }
+
+    try fileBookmarks.forEach { fileBookmark in
+      try Advance.write(
+        db,
+        bookmark: fileBookmark.bookmark.bookmark,
+        assigned: self.bookmarks[fileBookmark.bookmark.bookmark.rowID!],
+      )
+    }
+  }
+
+  func document(fileBookmark: BookmarkAssignmentFileBookmark) -> URLSourceDocument? {
+    let relative: URLSource?
+
+    if let r = fileBookmark.relative {
+      guard let bookmark = self.bookmarks[r.bookmark.rowID!] else {
+        return nil
+      }
+
+      relative = URLSource(url: bookmark.resolved.url, options: r.bookmark.options!)
+    } else {
+      relative = nil
+    }
+
+    guard let bookmark = self.bookmarks[fileBookmark.bookmark.bookmark.rowID!] else {
+      return nil
+    }
+
+    let document = URLSourceDocument(
+      source: URLSource(url: bookmark.resolved.url, options: fileBookmark.bookmark.bookmark.options!),
+      relative: relative,
+    )
+
+    return document
+  }
 }
 
 struct ImagesItemFileBookmarkBookmarkInfo {

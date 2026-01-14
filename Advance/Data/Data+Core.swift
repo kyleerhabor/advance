@@ -348,6 +348,7 @@ extension GRDB.Configuration {
         return
       }
 
+      // This will execute twice: once for creating the database connection, and another for schema migration.
       try db.execute(literal: "VACUUM")
     }
 

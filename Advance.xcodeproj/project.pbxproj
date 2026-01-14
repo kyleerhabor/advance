@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 70;
+	objectVersion = 71;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -36,8 +36,6 @@
 		003763C82AB4068700D53F2E /* ImageCollectionSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionSidebarView.swift; sourceTree = "<group>"; };
 		004379D32A77734200246057 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		006437582F05D9D30058CA61 /* Core.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core.swift; sourceTree = "<group>"; };
-		008A17FA2F1392B500B03C88 /* Advance.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Advance.xcconfig; sourceTree = "<group>"; };
-		008A17FB2F1392D200B03C88 /* AdvanceDebug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = AdvanceDebug.xcconfig; sourceTree = "<group>"; };
 		00B6E0D42C17E32000544C8B /* AdvanceCore */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = AdvanceCore; sourceTree = "<group>"; };
 		00BA40B62B4E353C0022C488 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		00C369522AB766DC0033F10A /* ImageCollection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollection.swift; sourceTree = "<group>"; };
@@ -46,7 +44,6 @@
 		00CBAB592AB23E9C0045FF83 /* ImageCollectionScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionScene.swift; sourceTree = "<group>"; };
 		00DC498E2A75B92000161495 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		00E42E9A2B33EB8000BC05A7 /* ImageCollectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCollectionManager.swift; sourceTree = "<group>"; };
-		00EEAC502F14469E00125DA1 /* AdvanceRelease.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = AdvanceRelease.xcconfig; sourceTree = "<group>"; };
 		00F128EC2F0C6BCE00190DE3 /* CONTRIBUTING.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CONTRIBUTING.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -64,6 +61,7 @@
 		000729542F105EB300D2E61A /* Documentation */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Documentation; sourceTree = "<group>"; };
 		000FD1E82C77042D00248E98 /* Resources */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (000FD1EB2C77043E00248E98 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (Data, ); path = Resources; sourceTree = "<group>"; };
 		0021270F2C195D990000D996 /* Data */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Data; sourceTree = "<group>"; };
+		004760642F16D62300D897DE /* Configuration */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Configuration; sourceTree = "<group>"; };
 		0069D6BF2F0CABD40047A01E /* Core */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Core; sourceTree = "<group>"; };
 		00B6E0DF2C181B1900544C8B /* UI */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = UI; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -100,11 +98,9 @@
 				004379D32A77734200246057 /* README.md */,
 				00F128EC2F0C6BCE00190DE3 /* CONTRIBUTING.md */,
 				00C712512A7EAF7A009F1802 /* LICENSE */,
-				008A17FA2F1392B500B03C88 /* Advance.xcconfig */,
-				008A17FB2F1392D200B03C88 /* AdvanceDebug.xcconfig */,
-				00EEAC502F14469E00125DA1 /* AdvanceRelease.xcconfig */,
 				00B6E0D42C17E32000544C8B /* AdvanceCore */,
 				001CB51A2A718D3C00DBB6FA /* Advance */,
+				004760642F16D62300D897DE /* Configuration */,
 				000729542F105EB300D2E61A /* Documentation */,
 				001CB5192A718D3C00DBB6FA /* Products */,
 				00B6E0D52C18102F00544C8B /* Frameworks */,
@@ -429,7 +425,8 @@
 		};
 		001CB5282A718D4200DBB6FA /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 008A17FB2F1392D200B03C88 /* AdvanceDebug.xcconfig */;
+			baseConfigurationReferenceAnchor = 004760642F16D62300D897DE /* Configuration */;
+			baseConfigurationReferenceRelativePath = AdvanceDebug.xcconfig;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -463,7 +460,8 @@
 		};
 		001CB5292A718D4200DBB6FA /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 00EEAC502F14469E00125DA1 /* AdvanceRelease.xcconfig */;
+			baseConfigurationReferenceAnchor = 004760642F16D62300D897DE /* Configuration */;
+			baseConfigurationReferenceRelativePath = AdvanceRelease.xcconfig;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;

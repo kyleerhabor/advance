@@ -12,8 +12,7 @@ struct ImagesSidebarItemView: View {
 
   var body: some View {
     VStack {
-      ImagesItemImageView(item: self.item, image: self.item.sidebarImage, phase: self.item.sidebarImagePhase)
-        .aspectRatio(self.item.sidebarAspectRatio, contentMode: .fit)
+      ImagesItemImageView(image: self.item.sidebarImage)
         .anchorPreference(key: ImagesVisibleItemsPreferenceKey.self, value: .bounds) { anchor in
           [ImagesVisibleItem(item: self.item, anchor: anchor)]
         }

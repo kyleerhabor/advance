@@ -150,7 +150,7 @@ enum StorageKeys {
   static let importSubdirectories = StorageKey("\(Bundle.appID).import-subdirectories", defaultValue: true)
   static let isLiveTextEnabled = StorageKey("\(Bundle.appID).live-text-is-enabled", defaultValue: true)
   static let isLiveTextIconEnabled = StorageKey("\(Bundle.appID).live-text-icon-is-enabled", defaultValue: false)
-  static let isLiveTextSubjectEnabled = StorageKey("\(Bundle.appID).live-text-subject-is-enabled", defaultValue: false)
+//  static let isLiveTextSubjectEnabled = StorageKey("\(Bundle.appID).live-text-subject-is-enabled", defaultValue: false)
   static let isSystemSearchEnabled = StorageKey(
     "\(Bundle.appID).search-system-is-enabled",
     defaultValue: false,
@@ -207,7 +207,7 @@ struct ImageAnalysisTypes {
 
 extension ImageAnalysisTypes: OptionSet {
   static let text = Self(rawValue: ImageAnalyzer.AnalysisTypes.text.rawValue)
-  static let visualLookUp = Self(rawValue: ImageAnalyzer.AnalysisTypes.visualLookUp.rawValue)
+//  static let visualLookUp = Self(rawValue: ImageAnalyzer.AnalysisTypes.visualLookUp.rawValue)
 
   var analyzerAnalysisTypes: ImageAnalyzer.AnalysisTypes {
     ImageAnalyzer.AnalysisTypes(rawValue: self.rawValue)

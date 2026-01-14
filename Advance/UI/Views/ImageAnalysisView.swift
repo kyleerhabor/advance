@@ -18,11 +18,16 @@ class ImageAnalysisViewDelegate: ImageAnalysisOverlayViewDelegate {
     self.actions = [:]
   }
 
-  func overlayView(
-    _ overlayView: ImageAnalysisOverlayView,
-    highlightSelectedItemsDidChange highlightSelectedItems: Bool,
-  ) {
-    self.representable.selectableItemsHighlighted = highlightSelectedItems
+  func overlayView(_ overlayView: ImageAnalysisOverlayView, highlightSelectedItemsDidChange highlightSelectedItems: Bool) {
+    self.representable.isSelectableItemsHighlighted = highlightSelectedItems
+  }
+
+  // For some reason, implementing any of the following methods (not the implementations, themselves) results in excess
+  // memory being retained for a short duration of time (e.g., 10 seconds) when the user is not interacting with the app.
+
+  func overlayView(_ overlayView: ImageAnalysisOverlayView, didClose menu: NSMenu) {
+    // Yes, this doesn't handle nested items.
+    menu.items.forEach { self.actions[$0] = nil }
   }
 
   func overlayView(
@@ -55,21 +60,21 @@ struct ImageAnalysisViewCoordinator {
 }
 
 struct ImageAnalysisView: NSViewRepresentable {
-  @Binding var selectableItemsHighlighted: Bool
+  @Binding var isSelectableItemsHighlighted: Bool
   let analysis: ImageAnalysis?
   let preferredInteractionTypes: ImageAnalysisOverlayView.InteractionTypes
   let isSupplementaryInterfaceHidden: Bool
   let transformMenu: (ImageAnalysisViewDelegate, NSMenu, ImageAnalysisOverlayView) -> NSMenu
 
   init(
-    selectableItemsHighlighted: Binding<Bool>,
+    isSelectableItemsHighlighted: Binding<Bool>,
     analysis: ImageAnalysis?,
     preferredInteractionTypes: ImageAnalysisOverlayView.InteractionTypes,
     isSupplementaryInterfaceHidden: Bool,
     transformMenu: @escaping (ImageAnalysisViewDelegate, NSMenu, ImageAnalysisOverlayView) -> NSMenu,
   ) {
-    self._selectableItemsHighlighted = selectableItemsHighlighted
     self.analysis = analysis
+    self._isSelectableItemsHighlighted = isSelectableItemsHighlighted
     self.preferredInteractionTypes = preferredInteractionTypes
     self.isSupplementaryInterfaceHidden = isSupplementaryInterfaceHidden
     self.transformMenu = transformMenu
@@ -92,7 +97,11 @@ struct ImageAnalysisView: NSViewRepresentable {
     context.coordinator.delegate.representable = self
 
     if overlayView.preferredInteractionTypes == self.preferredInteractionTypes {
-      self.setVisibility(overlayView, selectableItemsHighlighted: self.selectableItemsHighlighted, isAnimated: true)
+      self.setVisibility(
+        overlayView,
+        selectableItemsHighlighted: self.isSelectableItemsHighlighted,
+        isAnimated: true,
+      )
     } else {
       overlayView.preferredInteractionTypes = self.preferredInteractionTypes
     }

@@ -23,14 +23,14 @@ struct AdvanceApp: App {
       .commands {
         AppCommands()
       }
-      .environment(app)
-      .environment(delegate)
-      .environment(folders)
-      .environment(search)
+      .environment(self.search)
+      .environment(self.folders)
+      .environment(self.app)
+      .environment(self.delegate)
   }
 
   init() {
-    Task { [search] in
+    Task { [search = self.search] in
       await search.load()
     }
 

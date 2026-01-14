@@ -61,7 +61,10 @@ extension SecurityScopedResource {
     return try body()
   }
 
-  func accessingSecurityScopedResource<R, E>(_ body: () async throws(E) -> R) async throws(E) -> R {
+  func accessingSecurityScopedResource<R, E>(
+    isolation: isolated (any Actor)? = #isolation,
+    _ body: () async throws(E) -> R,
+  ) async throws(E) -> R {
     let scope = self.startSecurityScope()
 
     defer {
