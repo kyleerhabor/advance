@@ -230,7 +230,7 @@ struct VisibleViewModifier: ViewModifier {
 
   func body(content: Content) -> some View {
     content
-      .opacity(isVisible ? Self.opaque : Self.transparent)
+      .opacity(self.isVisible ? Self.opaque : Self.transparent)
   }
 }
 

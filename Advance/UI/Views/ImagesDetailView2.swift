@@ -130,9 +130,9 @@ struct ImagesDetailView2: View {
       .task(id: ImagesViewResampleID(images: self.images, pixelLength: self.pixelLength)) {
         for await resample in self.images.detailResample.removeDuplicates().debounce(for: .microhang) {
           await self.images.loadImages(
-            in: .detail,
             items: self.items(resample: resample.items),
             parameters: ImagesItemModelImageParameters(width: resample.width / self.pixelLength),
+            column: .detail,
           )
         }
       }

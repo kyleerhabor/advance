@@ -11,12 +11,6 @@ import SwiftUI
 
 // MARK: - Views
 
-struct ImageCollectionNavigationSidebarView: View {
-  var body: some View {
-    ImageCollectionSidebarView()
-  }
-}
-
 struct ImageCollectionView: View {
   @Environment(Window.self) private var windowed
   @Environment(\.isTrackingMenu) private var isTrackingMenu
@@ -33,11 +27,7 @@ struct ImageCollectionView: View {
 
   var body: some View {
     NavigationSplitView(columnVisibility: $columns) {
-      // TODO: Add a feature to scroll the sidebar when opened
-      //
-      // This requires knowing the sidebar was explicitly opened by the user (and not through implicit means like scrolling
-      // to a particular image, aka "Show in Sidebar")
-      ImageCollectionNavigationSidebarView()
+      Color.clear
     } detail: {
       Color.clear
         .scrollIndicators(isDetailOnly ? .hidden : .automatic)

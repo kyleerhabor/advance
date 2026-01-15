@@ -201,10 +201,6 @@ extension ImagesModelCopyFolderError: LocalizedError {
   }
 }
 
-struct ImagesModelLoadImagesLoadState {
-  let items: [RowID: ImagesModelLoadImagesImagesItemInfo]
-}
-
 struct ImagesModelLoadImagesResampleState {
   var images: [RowID: NSImage]
 }
@@ -239,7 +235,7 @@ struct ImagesModelLoadDetailsState {
 }
 
 struct ImagesModelLoadURLState {
-  let items: [RowID: ImagesModelLoadURLImagesItemInfo]
+  let items: [RowID: ImagesModelLoadDocumentImagesItemInfo]
 }
 
 struct ImagesModelSidebarElement {
@@ -257,32 +253,38 @@ struct ImagesModelEngineURLInvalidLocationError {
   let query: String
 }
 
+extension ImagesModelEngineURLInvalidLocationError: Equatable {}
+
 enum ImagesModelEngineURLErrorType {
   case invalidLocation(ImagesModelEngineURLInvalidLocationError)
 }
+
+extension ImagesModelEngineURLErrorType: Equatable {}
 
 struct ImagesModelEngineURLError {
   let locale: Locale
   let type: ImagesModelEngineURLErrorType
 }
 
+extension ImagesModelEngineURLError: Equatable {}
+
 extension ImagesModelEngineURLError: LocalizedError {
   var errorDescription: String? {
-    switch type {
+    switch self.type {
       case let .invalidLocation(error):
         String(
           localized: "Images.Item.SearchEngine.Item.URL.Error.InvalidLocation.Name.\(error.name).Query.\(error.query)",
-          locale: locale,
+          locale: self.locale,
         )
     }
   }
 
   var recoverySuggestion: String? {
-    switch type {
+    switch self.type {
       case .invalidLocation:
         String(
           localized: "Images.Item.SearchEngine.Item.URL.Error.InvalidLocation.Name.Query.RecoverySuggestion",
-          locale: locale,
+          locale: self.locale,
         )
     }
   }
@@ -368,12 +370,11 @@ final class ImagesModel {
   }
 
   func loadImages(
-    in column: ImagesModelLoadImagesColumn,
     items: [ImagesItemModel2],
     parameters: ImagesItemModelImageParameters,
+    column: ImagesModelLoadImagesColumn,
   ) async {
-    await self._loadImages(
-      in: column,
+    await self.loadImages(
       items: items
         .filter { item in
           switch column {
@@ -385,6 +386,7 @@ final class ImagesModel {
         }
         .map(\.id),
       parameters: parameters,
+      column: column,
     )
 
     self.items.forEach { item in
@@ -931,18 +933,14 @@ final class ImagesModel {
     size: CGSize,
     url: URL,
   ) -> CGImage? {
-    let thumbnailCreationOptions = [
+    let options = [
       kCGImageSourceCreateThumbnailFromImageAlways: true,
       kCGImageSourceThumbnailMaxPixelSize: length,
       kCGImageSourceCreateThumbnailWithTransform: true,
     ] as [CFString : Any]
 
-    // This is CPU and memory-intensive, so it shouldn't be called from a task group with a variable number of child tasks.
-    guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(
-      source,
-      index,
-      thumbnailCreationOptions as CFDictionary,
-    ) else {
+    // This is memory-intensive, so it shouldn't be called from a task group with a variable number of child tasks.
+    guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, index, options as CFDictionary) else {
       Logger.model.error("Could not create thumbnail at pixel size \(length) for image source at file URL '\(url.pathString)'")
 
       return nil
@@ -959,12 +957,12 @@ final class ImagesModel {
   }
 
   private func loadImage(
-    item: ImagesItemInfo,
-    column: ImagesModelLoadImagesColumn,
+    item: RowID,
     parameters: ImagesItemModelImageParameters,
+    column: ImagesModelLoadImagesColumn,
     image: NSImage?,
   ) {
-    guard let imagesItem = self.items[id: item.item.rowID!] else {
+    guard let imagesItem = self.items[id: item] else {
       return
     }
 
@@ -996,141 +994,67 @@ final class ImagesModel {
   }
 
   nonisolated private func loadImage(
-    state: ImagesItemAssignment,
-    item: ImagesItemInfo,
-    column: ImagesModelLoadImagesColumn,
+    item: RowID,
     parameters: ImagesItemModelImageParameters,
+    column: ImagesModelLoadImagesColumn,
+    document: URLSourceDocument,
   ) async {
-    let document: URLSourceDocument?
+    let thumbnail = await withCheckedContinuation { continuation in
+      Task {
+        await resamples.send(Runner(continuation: continuation) {
+          document.accessingSecurityScopedResource {
+            guard let imageSource = self.createImageSource(at: document.source.url) else {
+              return nil
+            }
 
-    do {
-      document = try state.document(fileBookmark: item.fileBookmark)
-    } catch {
-      switch error {
-        case .unresolvedRelative: break
-      }
+            let index = CGImageSourceGetPrimaryImageIndex(imageSource)
 
-      return
-    }
+            guard let sizeOrientation = self.imageSizeOrientation(source: imageSource, at: index, url: document.source.url) else {
+              return nil
+            }
 
-    guard let document else {
-      return
-    }
-
-    let image = document.accessingSecurityScopedResource { () -> NSImage? in
-      guard let imageSource = self.createImageSource(at: document.source.url) else {
-        return nil
-      }
-
-      let index = CGImageSourceGetPrimaryImageIndex(imageSource)
-
-      guard let sizeOrientation = self.imageSizeOrientation(source: imageSource, at: index, url: document.source.url) else {
-        return nil
-      }
-
-      let size = sizeOrientation.orientedSize
-
-      guard let image = self.createThumbnail(
+            let size = sizeOrientation.orientedSize
+            let thumbnail = self.createThumbnail(
               source: imageSource,
               at: index,
               length: size.scale(width: parameters.width).length,
               size: size,
               url: document.source.url,
-            ) else {
-        return nil
-      }
+            )
 
-      return NSImage(cgImage: image, size: .zero)
+            return thumbnail
+          }
+        })
+      }
     }
 
-    await self.loadImage(item: item, column: column, parameters: parameters, image: image)
+    guard let thumbnail else {
+      return
+    }
+
+    await self.loadImage(
+      item: item,
+      parameters: parameters,
+      column: column,
+      image: NSImage(cgImage: thumbnail, size: .zero),
+    )
   }
 
-  nonisolated private func _loadImages(
-    in column: ImagesModelLoadImagesColumn,
+  nonisolated private func loadImages(
     items: [RowID],
     parameters: ImagesItemModelImageParameters,
+    column: ImagesModelLoadImagesColumn,
   ) async {
-    let connection: DatabasePool
-
-    do {
-      connection = try await databaseConnection()
-    } catch {
-      // TODO: Elaborate.
-      Logger.model.error("\(error)")
-
+    guard let documents = await self.loadDocuments(for: items) else {
       return
     }
 
-    let state1: ImagesModelLoadImagesLoadState
-
-    do {
-      state1 = try await connection.read { db in
-        let items = try ImagesItemRecord
-          .select(.rowID)
-          .filter(keys: items)
-          .including(
-            required: ImagesItemRecord.fileBookmark
-              .forKey(ImagesModelLoadImagesImagesItemInfo.CodingKeys.fileBookmark)
-              .select(.rowID)
-              .including(
-                required: FileBookmarkRecord.bookmark
-                  .forKey(ImagesModelLoadImagesImagesItemFileBookmarkInfo.CodingKeys.bookmark)
-                  .select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options),
-              )
-              .including(
-                optional: FileBookmarkRecord.relative
-                  .forKey(ImagesModelLoadImagesImagesItemFileBookmarkInfo.CodingKeys.relative)
-                  .select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options),
-              ),
-          )
-          .asRequest(of: ImagesModelLoadImagesImagesItemInfo.self)
-          .fetchCursor(db)
-
-        let state = ImagesModelLoadImagesLoadState(
-          items: try Dictionary(uniqueKeysWithValues: items.map { ($0.item.rowID!, $0) }),
-        )
-
-        return state
+    for item in items {
+      guard let document = documents[item] else {
+        continue
       }
-    } catch {
-      // TODO: Elaborate.
-      Logger.model.error("\(error)")
 
-      return
-    }
-
-    let items2 = items.map { item in
-      let item = state1.items[item]!
-
-      return ImagesItemInfo(
-        item: item.item,
-        fileBookmark: ImagesItemFileBookmarkInfo(
-          fileBookmark: item.fileBookmark.fileBookmark,
-          bookmark: ImagesItemFileBookmarkBookmarkInfo(bookmark: item.fileBookmark.bookmark.bookmark),
-          relative: item.fileBookmark.relative.map { relative in
-            ImagesItemFileBookmarkRelativeInfo(relative: relative.relative)
-          },
-        ),
-      )
-    }
-
-    var state2 = ImagesItemAssignment()
-    await state2.assign(items: items2)
-
-    do {
-      try await connection.write { [state2] db in
-        try state2.write(db, items: items2)
-      }
-    } catch {
-      // TODO: Elaborate.
-      Logger.model.error("\(error)")
-
-      return
-    }
-
-    for item in items2 {
-      await self.loadImage(state: state2, item: item, column: column, parameters: parameters)
+      await self.loadImage(item: item, parameters: parameters, column: column, document: document)
     }
   }
 
@@ -1145,7 +1069,7 @@ final class ImagesModel {
     do {
       analysis = try await withCheckedThrowingContinuation { continuation in
         Task {
-          await analyses.send(Run(continuation: continuation) {
+          await analyses.send(Runner(continuation: continuation) {
             // The analysis is performed by mediaanalysisd, so this call isn't holding up the main actor.
             let measured = try await ContinuousClock.continuous.measure {
               try await document.accessingSecurityScopedResource {
@@ -1153,9 +1077,11 @@ final class ImagesModel {
                 // app is inactive for a short period of time (e.g., 10 seconds). This makes it impractical for large
                 // collections.
                 //
-                // I'd like to support images larger than the max size (8,192), but that requires writing the image to
-                // the file, which could suck from a storage and privacy perspective. At the same time, it's probably
-                // the only method for supporting copying subjects.
+                // I'd like to support images larger than the max size (8,192), but that requires writing the image to a
+                // file, which could suck from a storage and privacy perspective. At the same time, it's probably the
+                // only method for supporting copying subjects.
+                //
+                // Maybe we can try using the CVPixelBuffer method since it seems to be the native format.
                 try await ImageAnalyzer.default.analyze(
                   imageAt: document.source.url,
                   orientation: orientation,
@@ -1234,7 +1160,7 @@ final class ImagesModel {
     for items: [RowID],
     parameters: ImagesItemModelImageAnalysisParameters,
   ) async {
-    guard let documents = await self.loadURLs(items: items) else {
+    guard let documents = await self.loadDocuments(for: items) else {
       return
     }
 
@@ -1959,7 +1885,7 @@ final class ImagesModel {
     return document
   }
 
-  nonisolated private func loadURL(item: ImagesItemModel2.ID) async -> URLSourceDocument? {
+  nonisolated private func loadDocument(for item: ImagesItemModel2.ID) async -> URLSourceDocument? {
     let connection: DatabasePool
 
     do {
@@ -1970,7 +1896,7 @@ final class ImagesModel {
       return nil
     }
 
-    let item2: ImagesModelLoadURLImagesItemInfo?
+    let item2: ImagesModelLoadDocumentImagesItemInfo?
 
     do {
       item2 = try await connection.read { db in
@@ -1979,20 +1905,20 @@ final class ImagesModel {
           .filter(key: item)
           .including(
             required: ImagesItemRecord.fileBookmark
-              .forKey(ImagesModelLoadURLImagesItemInfo.CodingKeys.fileBookmark)
+              .forKey(ImagesModelLoadDocumentImagesItemInfo.CodingKeys.fileBookmark)
               .select(.rowID)
               .including(
                 required: FileBookmarkRecord.bookmark
-                  .forKey(ImagesModelLoadURLImagesItemFileBookmarkInfo.CodingKeys.bookmark)
+                  .forKey(ImagesModelLoadDocumentImagesItemFileBookmarkInfo.CodingKeys.bookmark)
                   .select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options),
               )
               .including(
                 optional: FileBookmarkRecord.relative
-                  .forKey(ImagesModelLoadURLImagesItemFileBookmarkInfo.CodingKeys.relative)
+                  .forKey(ImagesModelLoadDocumentImagesItemFileBookmarkInfo.CodingKeys.relative)
                   .select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options),
               ),
           )
-          .asRequest(of: ImagesModelLoadURLImagesItemInfo.self)
+          .asRequest(of: ImagesModelLoadDocumentImagesItemInfo.self)
           .fetchOne(db)
       }
     } catch {
@@ -2039,7 +1965,7 @@ final class ImagesModel {
     return document
   }
 
-  nonisolated private func loadURLs(items: some Collection<RowID> & Sendable) async -> [RowID : URLSourceDocument]? {
+  nonisolated private func loadDocuments(for items: some Collection<RowID> & Sendable) async -> [RowID : URLSourceDocument]? {
     let connection: DatabasePool
 
     do {
@@ -2050,7 +1976,7 @@ final class ImagesModel {
       return nil
     }
 
-    let state1: [RowID : ImagesModelLoadURLImagesItemInfo]
+    let state1: [RowID : ImagesModelLoadDocumentImagesItemInfo]
 
     do {
       state1 = try await connection.read { db in
@@ -2059,20 +1985,20 @@ final class ImagesModel {
           .filter(keys: items)
           .including(
             required: ImagesItemRecord.fileBookmark
-              .forKey(ImagesModelLoadURLImagesItemInfo.CodingKeys.fileBookmark)
+              .forKey(ImagesModelLoadDocumentImagesItemInfo.CodingKeys.fileBookmark)
               .select(.rowID)
               .including(
                 required: FileBookmarkRecord.bookmark
-                  .forKey(ImagesModelLoadURLImagesItemFileBookmarkInfo.CodingKeys.bookmark)
+                  .forKey(ImagesModelLoadDocumentImagesItemFileBookmarkInfo.CodingKeys.bookmark)
                   .select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options),
               )
               .including(
                 optional: FileBookmarkRecord.relative
-                  .forKey(ImagesModelLoadURLImagesItemFileBookmarkInfo.CodingKeys.relative)
+                  .forKey(ImagesModelLoadDocumentImagesItemFileBookmarkInfo.CodingKeys.relative)
                   .select(.rowID, BookmarkRecord.Columns.data, BookmarkRecord.Columns.options),
               ),
           )
-          .asRequest(of: ImagesModelLoadURLImagesItemInfo.self)
+          .asRequest(of: ImagesModelLoadDocumentImagesItemInfo.self)
           .fetchCursor(db)
 
         let state = try Dictionary(uniqueKeysWithValues: items.map { ($0.item.rowID!, $0) })
@@ -2136,7 +2062,7 @@ final class ImagesModel {
   }
 
   nonisolated private func _showFinder(items: Set<ImagesItemModel2.ID>) async {
-    guard let documents = await loadURLs(items: items) else {
+    guard let documents = await loadDocuments(for: items) else {
       return
     }
 
@@ -2144,7 +2070,7 @@ final class ImagesModel {
   }
 
   nonisolated private func _showFinder(item: ImagesItemModel2.ID) async {
-    guard let document = await loadURL(item: item) else {
+    guard let document = await loadDocument(for: item) else {
       return
     }
 
@@ -2152,7 +2078,7 @@ final class ImagesModel {
   }
 
   nonisolated private func _copy(item: ImagesItemModel2.ID) async {
-    guard let document = await loadURL(item: item) else {
+    guard let document = await loadDocument(for: item) else {
       return
     }
 
@@ -2161,7 +2087,7 @@ final class ImagesModel {
   }
 
   nonisolated private func _copy(items: Set<ImagesItemModel2.ID>) async {
-    guard let documents = await loadURLs(items: items) else {
+    guard let documents = await loadDocuments(for: items) else {
       return
     }
 

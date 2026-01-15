@@ -27,9 +27,13 @@ enum StorageAppearance: Int {
   }
 }
 
+extension StorageAppearance: Equatable {}
+
 enum StorageVisibility: Int {
   case automatic, visible, hidden
 }
+
+extension StorageVisibility: Equatable {}
 
 enum StorageColumnVisibility: Int {
   case automatic, all, doubleColumn, detailOnly
@@ -58,6 +62,8 @@ enum StorageColumnVisibility: Int {
     }
   }
 }
+
+extension StorageColumnVisibility: Equatable {}
 
 extension SetAlgebra {
   func value(_ value: Bool, for set: Self) -> Self {
@@ -88,13 +94,19 @@ struct StorageHiddenLayout: OptionSet {
   }
 }
 
+extension StorageHiddenLayout: Equatable {}
+
 enum StorageFoldersPathSeparator: Int {
   case inequalitySign, singlePointingAngleQuotationMark, blackPointingTriangle, blackPointingSmallTriangle
 }
 
+extension StorageFoldersPathSeparator: Equatable {}
+
 enum StorageFoldersPathDirection: Int {
   case leading, trailing
 }
+
+extension StorageFoldersPathDirection: Equatable {}
 
 struct StorageKey<Value> {
   let name: String

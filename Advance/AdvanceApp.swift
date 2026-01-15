@@ -5,6 +5,7 @@
 //  Created by Kyle Erhabor on 7/27/23.
 //
 
+import AsyncAlgorithms
 import Foundation
 import GRDB
 import OSLog
@@ -34,14 +35,15 @@ struct AdvanceApp: App {
       await search.load()
     }
 
-    Task {
-      do {
-        try await run(analyses, count: 10)
-      } catch {
-        // TODO: Elaborate.
-        Logger.model.fault("\(error)")
+    Task.detached {
+      for await runner in resamples {
+        await runner.run()
+      }
+    }
 
-        return
+    Task.detached {
+      for await runner in analyses {
+        await runner.run()
       }
     }
   }

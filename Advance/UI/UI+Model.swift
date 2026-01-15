@@ -40,7 +40,7 @@ extension Clock {
 
 // MARK: - Swift Concurrency
 
-struct Run<T, E> where E: Error {
+struct Runner<T, E> where E: Error {
   let continuation: CheckedContinuation<T, E>
   let body: @Sendable () async throws(E) -> T
 
@@ -58,31 +58,7 @@ struct Run<T, E> where E: Error {
   }
 }
 
-extension Run: Sendable {}
-
-func run<T, E, Base>(_ base: Base, count: Int) async throws where Base: AsyncSequence,
-                                                                  Base.Element == Run<T, E>,
-                                                                  E: Error {
-  try await withThrowingTaskGroup { group in
-    for try await element in base.prefix(count) {
-      group.addTask {
-        await element.run()
-      }
-    }
-
-    var iterator = base.makeAsyncIterator()
-
-    for try await _ in group {
-      guard let element = try await iterator.next() else {
-        break
-      }
-
-      group.addTask {
-        await element.run()
-      }
-    }
-  }
-}
+extension Runner: Sendable {}
 
 // MARK: - Foundation
 
@@ -140,7 +116,7 @@ extension CGImagePropertyOrientation {
 // MARK: - VisionKit
 
 extension ImageAnalyzer {
-  static let maxLength: CGFloat = 8192
+//  static let maxLength: CGFloat = 8192
   static let `default` = ImageAnalyzer()
 }
 
@@ -156,7 +132,11 @@ extension Logger {
   static let model = Self(subsystem: Bundle.appID, category: "Model")
 }
 
-let analyses = AsyncChannel<Run<ImageAnalysis, any Error>>()
+// CGImageSourceCreateThumbnailAtIndex(_:_:_:) is memory intensive, so we don't want to call it from, e.g., a task group
+// with a variable amount of child tasks.
+let resamples = AsyncChannel<Runner<CGImage?, Never>>()
+// VisionKit processes requests serially, so there's no point in allowing runners to run simultaneously.
+let analyses = AsyncChannel<Runner<ImageAnalysis, any Error>>()
 
 func delta(lowerBound: BigFraction, upperBound: BigFraction, base: BInt) -> BigFraction {
   let denominator = lowerBound.denominator * upperBound.denominator
