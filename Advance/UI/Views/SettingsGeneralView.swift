@@ -14,7 +14,7 @@ struct SettingsGeneralView: View {
   @AppStorage(StorageKeys.hiddenLayout) private var hiddenLayout
   @AppStorage(StorageKeys.isLiveTextEnabled) private var isLiveTextEnabled
   @AppStorage(StorageKeys.isLiveTextIconEnabled) private var isLiveTextIconEnabled
-//  @AppStorage(StorageKeys.isLiveTextSubjectEnabled) private var isLiveTextSubjectEnabled
+  @AppStorage(StorageKeys.isLiveTextSubjectEnabled) private var isLiveTextSubjectEnabled
   @AppStorage(StorageKeys.margins) private var margins
   @AppStorage(StorageKeys.restoreLastImage) private var restoreLastImage
   private let isImageAnalysisSupported = ImageAnalyzer.isSupported
@@ -112,12 +112,12 @@ struct SettingsGeneralView: View {
           GroupBox {
             Toggle("Settings.General.LiveText.Icon", isOn: $isLiveTextIconEnabled)
 
-//            Toggle(isOn: $isLiveTextSubjectEnabled) {
-//              Text("Settings.General.LiveText.Subject")
-//
-//              Text("Settings.General.LiveText.Subject.Note")
-//                .fixedSize(horizontal: false, vertical: true)
-//            }
+            Toggle(isOn: $isLiveTextSubjectEnabled) {
+              Text("Settings.General.LiveText.Subject")
+
+              Text("Settings.General.LiveText.Subject.Note")
+                .fixedSize(horizontal: false, vertical: true)
+            }
           }
           .groupBoxStyle(.settingsGrouped)
           .disabled(!isLiveTextEnabled)

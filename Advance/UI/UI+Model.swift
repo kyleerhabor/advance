@@ -60,6 +60,28 @@ struct Runner<T, E> where E: Error {
 
 extension Runner: Sendable {}
 
+func run<T>(
+  on channel: AsyncChannel<Runner<T, Never>>,
+  _ body: @escaping @Sendable () async -> T,
+) async -> T {
+  await withCheckedContinuation { continuation in
+    Task {
+      await channel.send(Runner(continuation: continuation, body))
+    }
+  }
+}
+
+func run<T>(
+  on channel: AsyncChannel<Runner<T, any Error>>,
+  _ body: @escaping @Sendable () async throws -> T,
+) async throws -> T {
+  try await withCheckedThrowingContinuation { continuation in
+    Task {
+      await channel.send(Runner(continuation: continuation, body))
+    }
+  }
+}
+
 // MARK: - Foundation
 
 struct TypedIterator<Base, T>: IteratorProtocol where Base: IteratorProtocol {
@@ -116,8 +138,8 @@ extension CGImagePropertyOrientation {
 // MARK: - VisionKit
 
 extension ImageAnalyzer {
-//  static let maxLength: CGFloat = 8192
   static let `default` = ImageAnalyzer()
+  static let maxLength: CGFloat = 8192
 }
 
 // MARK: - Uniform Type Identifiers
@@ -133,8 +155,8 @@ extension Logger {
 }
 
 // CGImageSourceCreateThumbnailAtIndex(_:_:_:) is memory intensive, so we don't want to call it from, e.g., a task group
-// with a variable amount of child tasks.
-let resamples = AsyncChannel<Runner<CGImage?, Never>>()
+// with a variable amount of child tasks. We could buffer on memory usage.
+let resamples = AsyncChannel<Runner<ImageOrientation?, Never>>()
 // VisionKit processes requests serially, so there's no point in allowing runners to run simultaneously.
 let analyses = AsyncChannel<Runner<ImageAnalysis, any Error>>()
 
@@ -148,6 +170,11 @@ func delta(lowerBound: BigFraction, upperBound: BigFraction, base: BInt) -> BigF
   }
 
   return BigFraction(.ONE, denominator * base)
+}
+
+struct ImageOrientation {
+  let image: CGImage
+  let orientation: CGImagePropertyOrientation
 }
 
 struct SizeOrientation {

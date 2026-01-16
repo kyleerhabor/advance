@@ -23,7 +23,7 @@ struct ImagesDetailView2: View {
   @Environment(ImagesModel.self) private var images
   @Environment(\.pixelLength) private var pixelLength
   @AppStorage(StorageKeys.isLiveTextEnabled) private var isLiveTextEnabled
-//  @AppStorage(StorageKeys.isLiveTextSubjectEnabled) private var isLiveTextSubjectEnabled
+  @AppStorage(StorageKeys.isLiveTextSubjectEnabled) private var isLiveTextSubjectEnabled
   @AppStorage(StorageKeys.restoreLastImage) private var restoreLastImage
   let columnVisibility: NavigationSplitViewVisibility
   let isImageAnalysisSupplementaryInterfaceVisible: Bool
@@ -33,9 +33,9 @@ struct ImagesDetailView2: View {
     if self.isLiveTextEnabled {
       types.insert(.text)
 
-//      if self.isLiveTextSubjectEnabled {
-//        types.insert(.visualLookUp)
-//      }
+      if self.isLiveTextSubjectEnabled {
+        types.insert(.visualLookUp)
+      }
     }
 
     return types
@@ -80,8 +80,9 @@ struct ImagesDetailView2: View {
                 return
               }
 
-              async let y: () = self.images.detailResample.send(ImagesModelResample(width: item.frame.width, items: items))
-              async let z: () = self.images.detailImageAnalysis.send(items)
+              let resample = ImagesModelResample(width: item.frame.width, items: items)
+              async let y: () = self.images.detailResample.send(resample)
+              async let z: () = self.images.detailImageAnalysis.send(resample)
               await x
               await y
               await z
@@ -138,8 +139,8 @@ struct ImagesDetailView2: View {
       .task(id: ImagesDetailViewImageAnalysisID(images: self.images, types: self.imageAnalysisTypes)) {
         for await resample in self.images.detailImageAnalysis.removeDuplicates().debounce(for: .microhang) {
           await self.images.loadImageAnalyses(
-            for: self.items(resample: resample),
-            parameters: ImagesItemModelImageAnalysisParameters(types: self.imageAnalysisTypes)
+            for: self.items(resample: resample.items),
+            parameters: ImagesItemModelImageAnalysisParameters(width: resample.width, types: self.imageAnalysisTypes)
           )
         }
       }

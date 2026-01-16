@@ -14,7 +14,7 @@ struct ImagesDetailItemImageAnalysisView: View {
   @Environment(\.locale) private var locale
   @Environment(\.openURL) private var openURL
   @AppStorage(StorageKeys.isLiveTextEnabled) private var isLiveTextEnabled
-//  @AppStorage(StorageKeys.isLiveTextSubjectEnabled) private var isLiveTextSubjectEnabled
+  @AppStorage(StorageKeys.isLiveTextSubjectEnabled) private var isLiveTextSubjectEnabled
   @AppStorage(StorageKeys.isSystemSearchEnabled) private var isSystemSearchEnabled
   @Binding var searchError: ImagesModelEngineURLError?
   @Binding var isSearchErrorPresented: Bool
@@ -26,9 +26,9 @@ struct ImagesDetailItemImageAnalysisView: View {
     if self.isLiveTextEnabled && self.item.detailImage.phase == .success {
       interactionTypes.insert(.automaticTextOnly)
 
-//      if self.isLiveTextSubjectEnabled {
-//        interactionTypes.insert(.automatic)
-//      }
+      if self.isLiveTextSubjectEnabled {
+        interactionTypes.insert(.automatic)
+      }
     }
 
     return interactionTypes

@@ -87,6 +87,7 @@ struct ImagesItemModelImageParameters {
 extension ImagesItemModelImageParameters: Equatable {}
 
 struct ImagesItemModelImageAnalysisParameters {
+  let width: CGFloat
   let types: ImageAnalysisTypes
 }
 
@@ -243,11 +244,6 @@ struct ImagesModelSidebarElement {
   let isSelected: Bool
 }
 
-struct ImagesModelImageOrientation {
-  let image: CGImage
-  let orientation: CGImagePropertyOrientation
-}
-
 struct ImagesModelEngineURLInvalidLocationError {
   let name: String
   let query: String
@@ -299,8 +295,8 @@ struct ImagesModelResample {
 extension ImagesModelResample: @MainActor Equatable {}
 
 struct ImagesModelLoadImageAnalysis {
-  let document: URLSourceDocument
-  let orientation: CGImagePropertyOrientation
+  let image: ImageOrientation
+  let url: URL
 }
 
 @Observable
@@ -319,7 +315,7 @@ final class ImagesModel {
   @ObservationIgnored let detail: AsyncChannel<ImagesItemModel2.ID>
   @ObservationIgnored let visibleItemsChannel: AsyncChannel<[ImagesItemModel2]>
   @ObservationIgnored let detailResample: AsyncChannel<ImagesModelResample>
-  @ObservationIgnored let detailImageAnalysis: AsyncChannel<[ImagesItemModel2]>
+  @ObservationIgnored let detailImageAnalysis: AsyncChannel<ImagesModelResample>
   @ObservationIgnored let sidebarResample: AsyncChannel<ImagesModelResample>
   @ObservationIgnored private var resolvedItems: Set<ImagesItemModel2.ID>
 
@@ -683,7 +679,7 @@ final class ImagesModel {
             detailImage: ImagesItemModelImage(image: NSImage(), phase: .empty, aspectRatio: item2.aspectRatio),
             detailImageParameters: ImagesItemModelImageParameters(width: .nan),
             imageAnalysis: nil,
-            imageAnalysisParameters: ImagesItemModelImageAnalysisParameters(types: []),
+            imageAnalysisParameters: ImagesItemModelImageAnalysisParameters(width: .nan, types: []),
             isImageAnalysisSelectableItemsHighlighted: false,
           )
         }
@@ -906,69 +902,71 @@ final class ImagesModel {
   nonisolated private func loadImage(
     parameters: ImagesItemModelImageParameters,
     document: URLSourceDocument,
-  ) async -> CGImage? {
-    await withCheckedContinuation { continuation in
-      Task {
-        await resamples.send(Runner(continuation: continuation) {
-          document.accessingSecurityScopedResource {
-            guard let imageSource = self.createImageSource(at: document.source.url) else {
-              return nil
-            }
+  ) async -> ImageOrientation? {
+    await run(on: resamples) {
+      document.accessingSecurityScopedResource {
+        guard let imageSource = self.createImageSource(at: document.source.url) else {
+          return nil
+        }
 
-            let index = CGImageSourceGetPrimaryImageIndex(imageSource)
-            let copyPropertiesOptions = [
-              kCGImageSourceShouldCache: true,
-              kCGImageSourceShouldCacheImmediately: true,
-            ] as [CFString: Any]
+        let index = CGImageSourceGetPrimaryImageIndex(imageSource)
+        let copyPropertiesOptions = [
+          kCGImageSourceShouldCache: true,
+          kCGImageSourceShouldCacheImmediately: true,
+        ] as [CFString: Any]
 
-            guard let copyProperties = CGImageSourceCopyPropertiesAtIndex(
-              imageSource,
-              index,
-              copyPropertiesOptions as CFDictionary,
-            ) else {
-              Logger.model.error(
-                "Could not copy properties of image source at file URL '\(document.source.url.pathString)'",
-              )
+        guard let copyProperties = CGImageSourceCopyPropertiesAtIndex(
+          imageSource,
+          index,
+          copyPropertiesOptions as CFDictionary,
+        ) else {
+          Logger.model.error(
+            "Could not copy properties of image source at file URL '\(document.source.url.pathString)'",
+          )
 
-              return nil
-            }
+          return nil
+        }
 
-            guard let sizeOrientation = self.sizeOrientation(
-                    at: document.source.url,
-                    data: copyProperties as! [CFString: Any],
-                  ) else {
-              return nil
-            }
+        guard let sizeOrientation = self.sizeOrientation(
+          at: document.source.url,
+          data: copyProperties as! [CFString: Any],
+        ) else {
+          return nil
+        }
 
-            let size = sizeOrientation.orientedSize
-            let length = size.scale(width: parameters.width).length
-            let createThumbnailOptions = [
-              kCGImageSourceCreateThumbnailFromImageAlways: true,
-              kCGImageSourceThumbnailMaxPixelSize: length,
-              kCGImageSourceCreateThumbnailWithTransform: true,
-            ] as [CFString : Any]
+        let size = sizeOrientation.orientedSize
+        let length = size.scale(width: parameters.width).length
+        let createThumbnailOptions = [
+          kCGImageSourceCreateThumbnailFromImageAlways: true,
+          kCGImageSourceThumbnailMaxPixelSize: length,
+          kCGImageSourceCreateThumbnailWithTransform: true,
+        ] as [CFString : Any]
 
-            guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(imageSource, index, createThumbnailOptions as CFDictionary) else {
-              Logger.model.error(
-                """
-                Could not create thumbnail at pixel size \(length) for image source at file URL \
-                '\(document.source.url.pathString)'
-                """,
-              )
+        guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(
+                imageSource,
+                index,
+                createThumbnailOptions as CFDictionary,
+              ) else {
+          Logger.model.error(
+            """
+            Could not create thumbnail at pixel size \(length) for image source at file URL \
+            '\(document.source.url.pathString)'
+            """,
+          )
 
-              return nil
-            }
+          return nil
+        }
 
-            Logger.model.debug(
-              """
-              Created thumbnail at pixel size \(length) for image source at file URL '\(document.source.url.pathString)': \
-              \(size.width) x \(size.height) -> \(thumbnail.width) x \(thumbnail.height)
-              """
-            )
+        Logger.model.debug(
+          """
+          Created thumbnail at pixel size \(length) for image source at file URL '\(document.source.url.pathString)': \
+          \(size.width) x \(size.height) -> \(thumbnail.width) x \(thumbnail.height)
+          """
+        )
 
-            return thumbnail
-          }
-        })
+        let image = ImageOrientation(image: thumbnail, orientation: sizeOrientation.orientation)
+
+        return image
       }
     }
   }
@@ -983,7 +981,7 @@ final class ImagesModel {
       return nil
     }
 
-    return NSImage(cgImage: image, size: .zero)
+    return NSImage(cgImage: image.image, size: .zero)
   }
 
   private func loadSidebarImage(item: ImagesItemModel2.ID, parameters: ImagesItemModelImageParameters, image: NSImage?) {
@@ -1049,85 +1047,111 @@ final class ImagesModel {
     }
   }
 
-  nonisolated private func loadImageAnalysis(document: URLSourceDocument) async -> CGImagePropertyOrientation? {
-    let properties = document.accessingSecurityScopedResource { () -> [CFString : Any]? in
-      guard let imageSource = self.createImageSource(at: document.source.url) else {
-        return nil
+  // TODO: De-duplicate.
+  nonisolated private func loadImageAnalysis(
+    parameters: ImagesItemModelImageAnalysisParameters,
+    document: URLSourceDocument,
+  ) async -> ImagesModelLoadImageAnalysis? {
+    let image = await run(on: resamples) {
+      document.accessingSecurityScopedResource {
+        guard let imageSource = self.createImageSource(at: document.source.url) else {
+          return nil
+        }
+
+        let index = CGImageSourceGetPrimaryImageIndex(imageSource)
+        let copyPropertiesOptions = [
+          kCGImageSourceShouldCache: true,
+          kCGImageSourceShouldCacheImmediately: true,
+        ] as [CFString: Any]
+
+        guard let copyProperties = CGImageSourceCopyPropertiesAtIndex(
+          imageSource,
+          index,
+          copyPropertiesOptions as CFDictionary,
+        ) else {
+          Logger.model.error(
+            "Could not copy properties of image source at file URL '\(document.source.url.pathString)'",
+          )
+
+          return nil
+        }
+
+        guard let sizeOrientation = self.sizeOrientation(
+          at: document.source.url,
+          data: copyProperties as! [CFString: Any],
+        ) else {
+          return nil
+        }
+
+        let size = sizeOrientation.orientedSize
+        let length = max(size.scale(width: parameters.width).length, ImageAnalyzer.maxLength.decremented())
+        let createThumbnailOptions = [
+          kCGImageSourceCreateThumbnailFromImageAlways: true,
+          kCGImageSourceThumbnailMaxPixelSize: length,
+          kCGImageSourceCreateThumbnailWithTransform: true,
+        ] as [CFString : Any]
+
+        guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(
+          imageSource,
+          index,
+          createThumbnailOptions as CFDictionary,
+        ) else {
+          Logger.model.error(
+            """
+            Could not create thumbnail at pixel size \(length) for image source at file URL \
+            '\(document.source.url.pathString)'
+            """,
+          )
+
+          return nil
+        }
+
+        Logger.model.debug(
+          """
+          Created thumbnail at pixel size \(length) for image source at file URL '\(document.source.url.pathString)': \
+          \(size.width) x \(size.height) -> \(thumbnail.width) x \(thumbnail.height)
+          """
+        )
+
+        let image = ImageOrientation(image: thumbnail, orientation: sizeOrientation.orientation)
+
+        return image
       }
-
-      let index = CGImageSourceGetPrimaryImageIndex(imageSource)
-      let copyPropertiesOptions = [
-        kCGImageSourceShouldCache: true,
-        kCGImageSourceShouldCacheImmediately: true,
-      ] as [CFString : Any]
-
-      guard let copyProperties = CGImageSourceCopyPropertiesAtIndex(
-        imageSource,
-        index,
-        copyPropertiesOptions as CFDictionary,
-      ) else {
-        Logger.model.error("Could not copy properties of image source at file URL '\(document.source.url.pathString)'")
-
-        return nil
-      }
-
-      let properties = copyProperties as! [CFString : Any]
-
-      return properties
     }
 
-    guard let properties else {
+    guard let image else {
       return nil
     }
 
-    guard let orientation = orientationImageProperty(data: properties) else {
-      Logger.model.fault(
-        "Properties of image source at file URL '\(document.source.url.pathString)' has invalid orientation",
-      )
+    let result = ImagesModelLoadImageAnalysis(image: image, url: document.source.url)
 
-      return nil
-    }
-
-    return orientation
+    return result
   }
 
   private func loadImageAnalysis(
     parameters: ImagesItemModelImageAnalysisParameters,
-    document: URLSourceDocument,
-    orientation: CGImagePropertyOrientation,
+    analysis: ImagesModelLoadImageAnalysis,
   ) async -> ImageAnalysis? {
     do {
-      return try await withCheckedThrowingContinuation { continuation in
-        Task {
-          await analyses.send(Runner(continuation: continuation) {
-            // The analysis is performed by mediaanalysisd, so this call isn't holding up the main actor.
-            let measured = try await ContinuousClock.continuous.measure {
-              try await document.accessingSecurityScopedResource {
-                // I'd prefer to use the CGImage method, but for some reason, VisionKit seems to retain memory until the
-                // app is inactive for a short period of time (e.g., 10 seconds). This makes it impractical for large
-                // collections.
-                //
-                // I'd like to support images larger than the max size (8,192), but that requires writing the image to a
-                // file, which could suck from a storage and privacy perspective. At the same time, it's probably the
-                // only method for supporting copying subjects.
-                //
-                // Maybe we can try using the CVPixelBuffer method since it seems to be the native format.
-                try await ImageAnalyzer.default.analyze(
-                  imageAt: document.source.url,
-                  orientation: orientation,
-                  configuration: ImageAnalyzer.Configuration(parameters.types.analyzerAnalysisTypes),
-                )
-              }
-            }
-
-            Logger.model.debug("Took \(measured.duration) to analyze image at file URL '\(document.source.url.pathString)'")
-
-            return measured.value
-          })
+      return try await run(on: analyses) {
+        // The analysis is performed by mediaanalysisd, so this call isn't holding up the main actor.
+        let measured = try await ContinuousClock.continuous.measure {
+          // For some reason, VisionKit seems to retain image memory until the app is inactive for a short period of
+          // time (e.g., 10 seconds). I tried using analyze(imageAt:orientation:configuration:), but that just pushed
+          // the memory to mediaanalysisd. Maybe we can try using CVPixelBuffer since it's the native format.
+          try await ImageAnalyzer.default.analyze(
+            analysis.image.image,
+            orientation: analysis.image.orientation,
+            configuration: ImageAnalyzer.Configuration(parameters.types.analyzerAnalysisTypes),
+          )
         }
+
+        Logger.model.debug("Took \(measured.duration) to analyze image at file URL '\(analysis.url.pathString)'")
+
+        return measured.value
       }
     } catch {
-      Logger.model.error("Could not analyze image at file URL '\(document.source.url.pathString)': \(error)")
+      Logger.model.error("Could not analyze image at file URL '\(analysis.url.pathString)': \(error)")
 
       return nil
     }
@@ -1149,24 +1173,20 @@ final class ImagesModel {
   private func loadImageAnalysis(
     item: ImagesItemModel2.ID,
     parameters: ImagesItemModelImageAnalysisParameters,
-    image: ImagesModelLoadImageAnalysis?,
+    analysis: ImagesModelLoadImageAnalysis?
   ) async {
-    let analysis: ImageAnalysis?
+    let result: ImageAnalysis?
 
-    if let image {
-      analysis = await self.loadImageAnalysis(
-        parameters: parameters,
-        document: image.document,
-        orientation: image.orientation,
-      )
+    if let analysis {
+      result = await self.loadImageAnalysis(parameters: parameters, analysis: analysis)
     } else {
-      analysis = nil
+      result = nil
     }
 
     self.loadImageAnalysis(
       item: item,
       parameters: parameters,
-      analysis: analysis,
+      analysis: result,
     )
   }
 
@@ -1179,16 +1199,16 @@ final class ImagesModel {
     }
 
     for item in items {
-      let image: ImagesModelLoadImageAnalysis?
+      let analysis: ImagesModelLoadImageAnalysis?
 
       if let document = documents[item],
-         let orientation = await self.loadImageAnalysis(document: document) {
-        image = ImagesModelLoadImageAnalysis(document: document, orientation: orientation)
+         let img = await self.loadImageAnalysis(parameters: parameters, document: document) {
+        analysis = img
       } else {
-        image = nil
+        analysis = nil
       }
 
-      await self.loadImageAnalysis(item: item, parameters: parameters, image: image)
+      await self.loadImageAnalysis(item: item, parameters: parameters, analysis: analysis)
     }
   }
 

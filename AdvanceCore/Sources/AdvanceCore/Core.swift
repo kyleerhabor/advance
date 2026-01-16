@@ -23,12 +23,14 @@ public func constantly<Value, each Argument>(_ value: Value) -> (repeat each Arg
 }
 
 extension Numeric {
+  public static var one: Self { 1 }
+
   public func incremented() -> Self {
-    self + 1
+    self + Self.one
   }
 
   public func decremented() -> Self {
-    self - 1
+    self - Self.one
   }
 }
 

@@ -18,7 +18,7 @@ struct ImagesItemImageView: View {
 
     // For some reason, drawing the image in a Canvas reduces hangs when scrolling. rendersAsynchronously further
     // reduces this.
-    Canvas(rendersAsynchronously: true) { context, size in
+    Canvas/*(rendersAsynchronously: true)*/ { context, size in
       // context.opacity is writable, but doesn't seem to animate.
       context.draw(
         Image(nsImage: self.image.image),
