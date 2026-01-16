@@ -22,9 +22,6 @@ class ImageAnalysisViewDelegate: ImageAnalysisOverlayViewDelegate {
     self.representable.isSelectableItemsHighlighted = highlightSelectedItems
   }
 
-  // For some reason, implementing any of the following methods (not the implementations, themselves) results in excess
-  // memory being retained for a short duration of time (e.g., 10 seconds) when the user is not interacting with the app.
-
   func overlayView(_ overlayView: ImageAnalysisOverlayView, didClose menu: NSMenu) {
     // Yes, this doesn't handle nested items.
     menu.items.forEach { self.actions[$0] = nil }
@@ -65,20 +62,6 @@ struct ImageAnalysisView: NSViewRepresentable {
   let preferredInteractionTypes: ImageAnalysisOverlayView.InteractionTypes
   let isSupplementaryInterfaceHidden: Bool
   let transformMenu: (ImageAnalysisViewDelegate, NSMenu, ImageAnalysisOverlayView) -> NSMenu
-
-  init(
-    isSelectableItemsHighlighted: Binding<Bool>,
-    analysis: ImageAnalysis?,
-    preferredInteractionTypes: ImageAnalysisOverlayView.InteractionTypes,
-    isSupplementaryInterfaceHidden: Bool,
-    transformMenu: @escaping (ImageAnalysisViewDelegate, NSMenu, ImageAnalysisOverlayView) -> NSMenu,
-  ) {
-    self.analysis = analysis
-    self._isSelectableItemsHighlighted = isSelectableItemsHighlighted
-    self.preferredInteractionTypes = preferredInteractionTypes
-    self.isSupplementaryInterfaceHidden = isSupplementaryInterfaceHidden
-    self.transformMenu = transformMenu
-  }
 
   func makeNSView(context: Context) -> ImageAnalysisOverlayView {
     context.coordinator.delegate.representable = self

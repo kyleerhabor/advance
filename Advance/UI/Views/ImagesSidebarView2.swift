@@ -268,10 +268,9 @@ struct ImagesSidebarView2: View {
       }
       .task(id: ImagesViewResampleID(images: images, pixelLength: self.pixelLength)) {
         for await resample in images.sidebarResample.removeDuplicates().debounce(for: .microhang) {
-          await images.loadImages(
+          await images.loadSidebarImages(
             items: await self.resample(resample),
             parameters: ImagesItemModelImageParameters(width: resample.width / self.pixelLength),
-            column: .sidebar,
           )
         }
       }
