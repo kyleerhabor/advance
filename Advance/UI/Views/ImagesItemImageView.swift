@@ -11,7 +11,7 @@ struct ImagesItemImageView: View {
   @State private var hasElapsed = false
   // For some reason, storing an NSImage directly results in a memory leak. I presume that passing it to the initializer
   // binds the view's lifetime to it, rather than the individual views.
-  let image: ImagesItemModelImage
+  let image: ImagesItemImageModel
 
   var body: some View {
     let isSuccess = self.image.phase == .success

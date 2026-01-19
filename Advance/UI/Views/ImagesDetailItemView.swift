@@ -46,99 +46,95 @@ struct ImagesDetailItemView: View {
   }
 
   var body: some View {
-    // For some reason, we need to wrap this in a VStack for animations to apply.
-    //
     // TODO: Figure out how to remove the border when the context menu is open.
     //
     // For some reason, we need to extract accesses to item's properties into dedicated views to prevent slow view
     // updates when switching windows.
-    VStack {
-      ImagesItemImageView(image: self.item.detailImage)
-    }
-    .shadow(radius: self.margins / 2)
-    .overlay {
-      ImagesDetailItemImageAnalysisView(
-        searchError: $searchError,
-        isSearchErrorPresented: $isSearchErrorPresented,
-        item: self.item,
-        isSupplementaryInterfaceVisible: self.isImageAnalysisSupplementaryInterfaceVisible,
-      )
-    }
-    .anchorPreference(key: ImagesVisibleItemsPreferenceKey.self, value: .bounds) { anchor in
-      [ImagesVisibleItem(item: self.item, anchor: anchor)]
-    }
-    .contextMenu {
-      Section {
-        Button("Finder.Item.Show", systemImage: "finder") {
-          Task {
-            await self.images.showFinder(item: self.item.id)
-          }
-        }
-
-        Button("Sidebar.Item.Show", systemImage: "sidebar.squares.leading") {
-          Task {
-            await self.images.sidebar.send(ImagesModelSidebarElement(item: self.item.id, isSelected: true))
-          }
-        }
-      }
-
-      Section {
-        Button("Images.Item.Copy", systemImage: "document.on.document") {
-          Task {
-            await self.images.copy(item: self.item.id)
-          }
-        }
-
-        ImagesDetailItemCopyFolderView(
-          selection: $copyFolderSelection,
-          isFileImporterPresented: $isCopyFolderFileImporterPresented,
-          error: $copyFolderError,
-          isErrorPresented: $isCopyFolderErrorPresented,
-          item: self.item.id,
+    ImagesItemImageView(image: self.item.detailImage)
+      .shadow(radius: self.margins / 2)
+      .overlay {
+        ImagesDetailItemImageAnalysisView(
+          searchError: $searchError,
+          isSearchErrorPresented: $isSearchErrorPresented,
+          item: self.item,
+          isSupplementaryInterfaceVisible: self.isImageAnalysisSupplementaryInterfaceVisible,
         )
       }
-
-      Section {
-        ImagesDetailItemBookmarkView(item: self.item)
+      .anchorPreference(key: ImagesVisibleItemsPreferenceKey.self, value: .bounds) { anchor in
+        [ImagesVisibleItem(item: self.item, anchor: anchor)]
       }
-    }
-    .alert(isPresented: $isCopyFolderErrorPresented, error: self.copyFolderError) {}
-    .alert(isPresented: $isSearchErrorPresented, error: self.searchError) { error in
-      // Empty
-    } message: { error in
-      Text(error.recoverySuggestion ?? "")
-    }
-    .fileImporter(isPresented: $isCopyFolderFileImporterPresented, allowedContentTypes: foldersContentTypes) { result in
-      let url: URL
+      .contextMenu {
+        Section {
+          Button("Finder.Item.Show", systemImage: "finder") {
+            Task {
+              await self.images.showFinder(item: self.item.id)
+            }
+          }
 
-      switch result {
-        case let .success(x):
-          url = x
-        case let .failure(error):
-          // TODO: Elaborate.
-          Logger.ui.error("\(error)")
+          Button("Sidebar.Item.Show", systemImage: "sidebar.squares.leading") {
+            Task {
+              await self.images.sidebar.send(ImagesModelSidebarElement(item: self.item.id, isSelected: true))
+            }
+          }
+        }
 
-          return
-      }
+        Section {
+          Button("Images.Item.Copy", systemImage: "document.on.document") {
+            Task {
+              await self.images.copy(item: self.item.id)
+            }
+          }
 
-      Task {
-        do {
-          try await self.images.copyFolder(
-            item: self.copyFolderSelection,
-            to: url,
-            locale: self.locale,
-            resolveConflicts: self.resolveConflicts,
-            pathSeparator: self.foldersPathSeparator,
-            pathDirection: self.foldersPathDirection,
+          ImagesDetailItemCopyFolderView(
+            selection: $copyFolderSelection,
+            isFileImporterPresented: $isCopyFolderFileImporterPresented,
+            error: $copyFolderError,
+            isErrorPresented: $isCopyFolderErrorPresented,
+            item: self.item.id,
           )
-        } catch let error as ImagesModelCopyFolderError {
-          self.copyFolderError = error
-          self.isCopyFolderErrorPresented = true
+        }
+
+        Section {
+          ImagesDetailItemBookmarkView(item: self.item)
         }
       }
-    }
-    .fileDialogCustomizationID(FoldersSettingsScene.id)
-    .listRowInsets(.listRow + self.insets)
-    .listRowSeparator(.hidden)
+      .alert(isPresented: $isCopyFolderErrorPresented, error: self.copyFolderError) {}
+      .alert(isPresented: $isSearchErrorPresented, error: self.searchError) { error in
+        // Empty
+      } message: { error in
+        Text(error.recoverySuggestion ?? "")
+      }
+      .fileImporter(isPresented: $isCopyFolderFileImporterPresented, allowedContentTypes: foldersContentTypes) { result in
+        let url: URL
+
+        switch result {
+          case let .success(x):
+            url = x
+          case let .failure(error):
+            // TODO: Elaborate.
+            Logger.ui.error("\(error)")
+
+            return
+        }
+
+        Task {
+          do {
+            try await self.images.copyFolder(
+              item: self.copyFolderSelection,
+              to: url,
+              locale: self.locale,
+              resolveConflicts: self.resolveConflicts,
+              pathSeparator: self.foldersPathSeparator,
+              pathDirection: self.foldersPathDirection,
+            )
+          } catch let error as ImagesModelCopyFolderError {
+            self.copyFolderError = error
+            self.isCopyFolderErrorPresented = true
+          }
+        }
+      }
+      .fileDialogCustomizationID(FoldersSettingsScene.id)
+      .listRowInsets(.listRow + self.insets)
+      .listRowSeparator(.hidden)
   }
 }

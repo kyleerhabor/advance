@@ -99,7 +99,7 @@ enum ImagesItemModelImagePhase {
 
 @Observable
 @MainActor
-final class ImagesItemModelImage {
+final class ImagesItemImageModel {
   var image: NSImage
   var phase: ImagesItemModelImagePhase
   var aspectRatio: CGFloat
@@ -119,9 +119,9 @@ final class ImagesItemModel2 {
   var title: String
   var isBookmarked: Bool
   var edge: VerticalEdge.Set
-  let sidebarImage: ImagesItemModelImage
+  let sidebarImage: ImagesItemImageModel
   @ObservationIgnored var sidebarImageParameters: ImagesItemModelImageParameters
-  let detailImage: ImagesItemModelImage
+  let detailImage: ImagesItemImageModel
   @ObservationIgnored var detailImageParameters: ImagesItemModelImageParameters
   var imageAnalysis: ImageAnalysis?
   @ObservationIgnored var imageAnalysisParameters: ImagesItemModelImageAnalysisParameters
@@ -133,9 +133,9 @@ final class ImagesItemModel2 {
     title: String,
     isBookmarked: Bool,
     edge: VerticalEdge.Set,
-    sidebarImage: ImagesItemModelImage,
+    sidebarImage: ImagesItemImageModel,
     sidebarImageParameters: ImagesItemModelImageParameters,
-    detailImage: ImagesItemModelImage,
+    detailImage: ImagesItemImageModel,
     detailImageParameters: ImagesItemModelImageParameters,
     imageAnalysis: ImageAnalysis?,
     imageAnalysisParameters: ImagesItemModelImageAnalysisParameters,
@@ -376,8 +376,9 @@ final class ImagesModel {
         return
       }
 
-      item.sidebarImage.image = NSImage() // Release memory.
+      item.sidebarImage.image = NSImage()
       item.sidebarImage.phase = .empty
+      item.detailImageParameters = ImagesItemModelImageParameters(width: .nan)
     }
   }
 
@@ -394,8 +395,9 @@ final class ImagesModel {
         return
       }
 
-      item.detailImage.image = NSImage() // Release memory.
+      item.detailImage.image = NSImage()
       item.detailImage.phase = .empty
+      item.detailImageParameters = ImagesItemModelImageParameters(width: .nan)
     }
   }
 
@@ -416,6 +418,8 @@ final class ImagesModel {
       }
 
       item.imageAnalysis = nil
+      item.imageAnalysisParameters = ImagesItemModelImageAnalysisParameters(width: .nan, types: [])
+      item.isImageAnalysisSelectableItemsHighlighted = false
     }
   }
 
@@ -674,9 +678,9 @@ final class ImagesModel {
             title: item2.title,
             isBookmarked: item2.item.item.isBookmarked!,
             edge: [],
-            sidebarImage: ImagesItemModelImage(image: NSImage(), phase: .empty, aspectRatio: item2.aspectRatio),
+            sidebarImage: ImagesItemImageModel(image: NSImage(), phase: .empty, aspectRatio: item2.aspectRatio),
             sidebarImageParameters: ImagesItemModelImageParameters(width: .nan),
-            detailImage: ImagesItemModelImage(image: NSImage(), phase: .empty, aspectRatio: item2.aspectRatio),
+            detailImage: ImagesItemImageModel(image: NSImage(), phase: .empty, aspectRatio: item2.aspectRatio),
             detailImageParameters: ImagesItemModelImageParameters(width: .nan),
             imageAnalysis: nil,
             imageAnalysisParameters: ImagesItemModelImageAnalysisParameters(width: .nan, types: []),
@@ -1065,10 +1069,10 @@ final class ImagesModel {
         ] as [CFString: Any]
 
         guard let copyProperties = CGImageSourceCopyPropertiesAtIndex(
-          imageSource,
-          index,
-          copyPropertiesOptions as CFDictionary,
-        ) else {
+                imageSource,
+                index,
+                copyPropertiesOptions as CFDictionary,
+              ) else {
           Logger.model.error(
             "Could not copy properties of image source at file URL '\(document.source.url.pathString)'",
           )

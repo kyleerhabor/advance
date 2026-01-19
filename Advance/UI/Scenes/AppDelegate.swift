@@ -43,14 +43,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
       return
     }
 
-    app.windows.forEach { window in
-      guard window.isFullScreen(),
-            let toolbar = window.toolbar, toolbar.isVisible else {
-        return
-      }
-
-      toolbar.isVisible = false
-    }
+    app.windows
+      .filter(\.isFullScreen)
+      .compactMap(\.toolbar)
+      .forEach(setter(on: \.isVisible, value: false))
   }
 
   // For some reason, this method is invoked with urls in the following order from a drag and drop operation:

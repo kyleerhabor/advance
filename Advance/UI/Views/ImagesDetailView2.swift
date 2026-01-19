@@ -138,9 +138,13 @@ struct ImagesDetailView2: View {
       }
       .task(id: ImagesDetailViewImageAnalysisID(images: self.images, types: self.imageAnalysisTypes)) {
         for await resample in self.images.detailImageAnalysis.removeDuplicates().debounce(for: .microhang) {
+          // This is auxiliary and expensive, so we don't want to pre-load image analysis.
           await self.images.loadImageAnalyses(
-            for: self.items(resample: resample.items),
-            parameters: ImagesItemModelImageAnalysisParameters(width: resample.width, types: self.imageAnalysisTypes)
+            for: resample.items,
+            parameters: ImagesItemModelImageAnalysisParameters(
+              width: resample.width / self.pixelLength,
+              types: self.imageAnalysisTypes,
+            )
           )
         }
       }

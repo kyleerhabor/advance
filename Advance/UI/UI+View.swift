@@ -31,11 +31,11 @@ extension Duration {
 // MARK: - AppKit
 
 extension NSWindow {
-  func isFullScreen() -> Bool {
+  var isFullScreen: Bool {
     self.styleMask.contains(.fullScreen)
   }
 
-  func setToolbarVisibility(_ flag: Bool) {
+  func setToolbarVisibility(_ flag: Bool, isFullScreen: Bool) {
     self.standardWindowButton(.closeButton)?.superview?.animator().alphaValue = flag ? 1 : 0
 
     // For some reason, a window in full screen with a light appearance draws a white line at the top of the screen
@@ -44,7 +44,7 @@ extension NSWindow {
     // TODO: Figure out how to animate the title bar separator.
     //
     // The property does not have an associated animation by default.
-    self.titlebarSeparatorStyle = flag && !self.isFullScreen() ? .automatic : .none
+    self.titlebarSeparatorStyle = flag && !isFullScreen ? .automatic : .none
   }
 }
 
@@ -130,14 +130,12 @@ class WindowCaptureView: NSView {
 }
 
 struct WindowCapturingView: NSViewRepresentable {
-  let window: Window
-
   func makeNSView(context: Context) -> WindowCaptureView {
-    WindowCaptureView(window: self.window)
+    WindowCaptureView(window: context.environment[Window.self]!)
   }
 
   func updateNSView(_ captureView: WindowCaptureView, context: Context) {
-    captureView._window = self.window
+    captureView._window = context.environment[Window.self]!
   }
 }
 
@@ -146,10 +144,10 @@ struct WindowViewModifier: ViewModifier {
 
   func body(content: Content) -> some View {
     content
-      .environment(window)
       .background {
-        WindowCapturingView(window: self.window)
+        WindowCapturingView()
       }
+      .environment(self.window)
   }
 }
 
@@ -158,29 +156,15 @@ struct WindowFullScreenViewModifier: ViewModifier {
   @State private var isWindowFullScreen = WindowFullScreenEnvironmentKey.defaultValue
 
   func body(content: Content) -> some View {
+    // For some reason, using task(priority:_:) to await notifications results in toolbar(_:for:) not working in scene
+    // restoration into full-screen mode.
     content
       .environment(\.isWindowFullScreen, self.isWindowFullScreen)
-      .task {
-        for await notification in NotificationCenter.default.notifications(named: NSWindow.willEnterFullScreenNotification) {
-          let window = notification.object as! NSWindow
-
-          guard self.window.window == window else {
-            continue
-          }
-
-          self.isWindowFullScreen = true
-        }
+      .onReceive(NotificationCenter.default.publisher(for: NSWindow.willEnterFullScreenNotification, object: self.window.window)) { _ in
+        self.isWindowFullScreen = true
       }
-      .task {
-        for await notification in NotificationCenter.default.notifications(named: NSWindow.willExitFullScreenNotification) {
-          let window = notification.object as! NSWindow
-
-          guard self.window.window == window else {
-            continue
-          }
-
-          self.isWindowFullScreen = false
-        }
+      .onReceive(NotificationCenter.default.publisher(for: NSWindow.willExitFullScreenNotification, object: self.window.window)) { _ in
+        self.isWindowFullScreen = false
       }
   }
 }
@@ -234,13 +218,24 @@ struct VisibleViewModifier: ViewModifier {
   }
 }
 
+struct ToolbarVisibleViewModifierID {
+  let isVisible: Bool
+  let isWindowFullScreen: Bool
+}
+
+extension ToolbarVisibleViewModifierID: Equatable {}
+
 struct ToolbarVisibleViewModifier: ViewModifier {
   @Environment(Window.self) private var window
+  @Environment(\.isWindowFullScreen) private var isWindowFullScreen
   let isVisible: Bool
 
   func body(content: Content) -> some View {
     content
-      .onChange(of: self.isVisible, initial: true) {
+      .onChange(
+        of: ToolbarVisibleViewModifierID(isVisible: self.isVisible, isWindowFullScreen: self.isWindowFullScreen),
+        initial: true,
+      ) {
         self.setToolbarVisibility(self.isVisible)
       }
       .onDisappear {
@@ -249,7 +244,7 @@ struct ToolbarVisibleViewModifier: ViewModifier {
   }
 
   private func setToolbarVisibility(_ flag: Bool) {
-    self.window.window?.setToolbarVisibility(flag)
+    self.window.window?.setToolbarVisibility(flag, isFullScreen: self.isWindowFullScreen)
   }
 }
 

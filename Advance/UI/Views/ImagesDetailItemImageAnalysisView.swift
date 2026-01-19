@@ -52,7 +52,7 @@ struct ImagesDetailItemImageAnalysisView: View {
       let shareImage = menu.indexOfItem(withTag: ImageAnalysisOverlayView.MenuTag.shareImage)
 
       if shareImage != -1 {
-        menu.removeItem(at: copyImage)
+        menu.removeItem(at: shareImage)
       }
 
       if !self.isSystemSearchEnabled {

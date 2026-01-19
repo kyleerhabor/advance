@@ -89,6 +89,10 @@ struct ImageAnalysisView: NSViewRepresentable {
       overlayView.preferredInteractionTypes = self.preferredInteractionTypes
     }
 
+    // For some reason, setting this property may raise a layout constraint exception, potentially crashing the
+    // application. This can be observed by toggling or resizing the sidebar. Fortunately, AppKit can oftentimes recover,
+    // but I've seen it outright crash when displaying full-screen windows side-by-side. I have a feeling we can break
+    // the constraints ourselves and pray that no negative consequences ensue.
     overlayView.analysis = self.analysis
   }
 
