@@ -7,27 +7,10 @@
 
 import SwiftUI
 
-extension EnvironmentValues {
-  @Entry var settingsWidth = CGFloat.zero
-}
-
 struct SettingsGroupBoxStyle: GroupBoxStyle {
   func makeBody(configuration: Configuration) -> some View {
     VStack(alignment: .leading, spacing: 6) { // 2^2 + 2^1
-      configuration.label
-
       configuration.content
-        .groupBoxStyle(.settings)
-        .padding(.leading)
-    }
-  }
-}
-
-struct SettingsGroupedGroupBoxStyle: GroupBoxStyle {
-  func makeBody(configuration: Configuration) -> some View {
-    VStack(alignment: .leading, spacing: 6) { // 2^2 + 2^1
-      configuration.content
-        .groupBoxStyle(.settings)
     }
   }
 }
@@ -38,30 +21,40 @@ extension GroupBoxStyle where Self == SettingsGroupBoxStyle {
   }
 }
 
+struct SettingsLabeledGroupBoxStyle: GroupBoxStyle {
+  func makeBody(configuration: Configuration) -> some View {
+    VStack(alignment: .leading, spacing: 6) { // 2^2 + 2^1
+      configuration.label
 
-extension GroupBoxStyle where Self == SettingsGroupedGroupBoxStyle {
-  static var settingsGrouped: SettingsGroupedGroupBoxStyle {
-    SettingsGroupedGroupBoxStyle()
+      configuration.content
+        .padding(.leading)
+    }
+  }
+}
+
+extension GroupBoxStyle where Self == SettingsLabeledGroupBoxStyle {
+  static var settingsLabeled: SettingsLabeledGroupBoxStyle {
+    SettingsLabeledGroupBoxStyle()
   }
 }
 
 struct SettingsLabeledContentStyle: LabeledContentStyle {
-  @Environment(\.settingsWidth) private var width
+  let width: CGFloat
 
   func makeBody(configuration: Configuration) -> some View {
+    // There's probably a better way to model this, but we want all tabs to share the same alignment.
     GridRow(alignment: .firstTextBaseline) {
       Color.clear
         .frame(maxWidth: .infinity, maxHeight: 0)
 
       configuration.label
-        .frame(width: width * 0.35, alignment: .trailing)
+        .frame(width: self.width * 0.35, alignment: .trailing)
 
       VStack(alignment: .leading) {
         configuration.content
-          .groupBoxStyle(.settings)
           .fixedSize(horizontal: false, vertical: true)
       }
-      .frame(width: width * 0.65, alignment: .leading)
+      .frame(width: self.width * 0.65, alignment: .leading)
 
       Color.clear
         .frame(maxWidth: .infinity, maxHeight: 0)
@@ -70,8 +63,8 @@ struct SettingsLabeledContentStyle: LabeledContentStyle {
 }
 
 extension LabeledContentStyle where Self == SettingsLabeledContentStyle {
-  static var settings: SettingsLabeledContentStyle {
-    SettingsLabeledContentStyle()
+  static func settings(width: CGFloat) -> some LabeledContentStyle {
+    SettingsLabeledContentStyle(width: width)
   }
 }
 
@@ -81,19 +74,18 @@ struct SettingsFormStyle: FormStyle {
   func makeBody(configuration: Configuration) -> some View {
     Grid {
       configuration.content
-        .labeledContentStyle(.settings)
-        .environment(\.settingsWidth, width)
+        .labeledContentStyle(.settings(width: self.width))
     }
   }
 }
 
-extension FormStyle {
-  static func settings(width: CGFloat) -> some FormStyle where Self == SettingsFormStyle {
+extension FormStyle where Self == SettingsFormStyle {
+  static func settings(width: CGFloat) -> some FormStyle {
     SettingsFormStyle(width: width)
   }
 }
 
-struct SettingsView2: View {
+struct SettingsView: View {
   static let contentWidth: CGFloat = 500
   static let pickerWidth: CGFloat = 150
   static let sliderWidth: CGFloat = 200

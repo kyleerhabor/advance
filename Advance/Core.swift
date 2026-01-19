@@ -43,6 +43,10 @@ extension Sequence {
   func filter(in set: some SetAlgebra<Element>) -> [Element] {
     self.filter { set.contains($0) }
   }
+
+  func sum() -> Element where Element: AdditiveArithmetic {
+    self.reduce(.zero, +)
+  }
 }
 
 extension Collection {

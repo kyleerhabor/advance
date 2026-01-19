@@ -19,6 +19,6 @@ struct SettingsFilesView: View {
         Toggle("Settings.Files.Import.Subdirectories", isOn: $importSubdirectories)
       }
     }
-    .formStyle(.settings(width: SettingsView2.contentWidth))
+    .formStyle(.settings(width: SettingsView.contentWidth))
   }
 }

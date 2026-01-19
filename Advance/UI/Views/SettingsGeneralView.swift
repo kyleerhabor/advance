@@ -17,7 +17,6 @@ struct SettingsGeneralView: View {
   @AppStorage(StorageKeys.isLiveTextSubjectEnabled) private var isLiveTextSubjectEnabled
   @AppStorage(StorageKeys.margins) private var margins
   @AppStorage(StorageKeys.restoreLastImage) private var restoreLastImage
-  private let isImageAnalysisSupported = ImageAnalyzer.isSupported
 
   var body: some View {
     Form {
@@ -37,9 +36,9 @@ struct SettingsGeneralView: View {
           }
         }
         .labelsHidden()
-        .frame(width: SettingsView2.pickerWidth)
+        .frame(width: SettingsView.pickerWidth)
         .onChange(of: self.appearance) {
-          NSApp.appearance = appearance.appearance
+          NSApp.appearance = self.appearance.appearance
         }
       }
 
@@ -64,27 +63,27 @@ struct SettingsGeneralView: View {
 
           HStack {
             Button("Settings.General.Margins.Minimum") {
-              margins = max(range.lowerBound, margins - step)
+              self.margins = max(range.lowerBound, self.margins - step)
             }
 
             Spacer()
 
             Button("Settings.General.Margins.Maximum") {
-              margins = min(range.upperBound, margins + step)
+              self.margins = min(range.upperBound, self.margins + step)
             }
           }
           .font(.caption)
           .foregroundStyle(.secondary)
           .buttonStyle(.plain)
         }
-        .frame(width: SettingsView2.sliderWidth)
+        .frame(width: SettingsView.sliderWidth)
 
         Toggle(isOn: $collapseMargins) {
           Text("Settings.General.Margins.Collapse")
 
           Text("Settings.General.Margins.Collapse.Note")
         }
-        .disabled(margins == 0)
+        .disabled(self.margins == 0)
       }
 
       LabeledContent("Settings.General.Layout") {
@@ -100,13 +99,14 @@ struct SettingsGeneralView: View {
           Toggle(
             "Settings.General.Layout.Hidden",
             sources: [$hiddenLayout.toolbar, $hiddenLayout.cursor, $hiddenLayout.scroll],
-            isOn: \.self
+            isOn: \.self,
           )
         }
+        .groupBoxStyle(.settingsLabeled)
       }
 
       LabeledContent("Settings.General.LiveText") {
-        VStack(alignment: .leading) {
+        Group {
           Toggle("Settings.General.LiveText.Enable", isOn: $isLiveTextEnabled)
 
           GroupBox {
@@ -119,13 +119,13 @@ struct SettingsGeneralView: View {
                 .fixedSize(horizontal: false, vertical: true)
             }
           }
-          .groupBoxStyle(.settingsGrouped)
-          .disabled(!isLiveTextEnabled)
+          .groupBoxStyle(.settings)
+          .disabled(!self.isLiveTextEnabled)
         }
-        .disabled(!isImageAnalysisSupported)
-        .help(isImageAnalysisSupported ? Text() : Text("Settings.LiveText.Unsupported"))
+        .disabled(!ImageAnalyzer.isSupported)
+        .help(ImageAnalyzer.isSupported ? Text() : Text("Settings.LiveText.Unsupported"))
       }
     }
-    .formStyle(.settings(width: SettingsView2.contentWidth))
+    .formStyle(.settings(width: SettingsView.contentWidth))
   }
 }

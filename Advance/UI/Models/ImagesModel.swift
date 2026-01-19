@@ -59,6 +59,15 @@ struct ItemDirectory<File>: Sendable where File: Sendable {
 
 enum Item<File>: Sendable where File: Sendable {
   case file(File), directory(ItemDirectory<File>)
+
+  var count: Int {
+    switch self {
+      case .file:
+        1
+      case let .directory(directory):
+        1 + directory.files.count
+    }
+  }
 }
 
 struct ImagesModelStoreImagesItemsImagesItemInfo {
@@ -1536,7 +1545,7 @@ final class ImagesModel {
 
   nonisolated private func urbs(items: [Item<URLSource>]) async -> ImagesModelStoreState {
     await withThrowingTaskGroup(of: Item<URLBookmark>.self) { group in
-      var state = ImagesModelStoreState(bookmarks: [:])
+      var state = ImagesModelStoreState(bookmarks: Dictionary(minimumCapacity: items.map(\.count).sum()))
 
       items.forEach { item in
         group.addTask {

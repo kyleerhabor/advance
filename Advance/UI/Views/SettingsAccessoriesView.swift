@@ -18,59 +18,55 @@ struct SettingsAccessoriesView: View {
   var body: some View {
     Form {
       LabeledContent("Settings.Accessories.SearchEngine") {
-        VStack(alignment: .leading) {
-          HStack(alignment: .firstTextBaseline) {
-            @Bindable var search = search
-
-            Picker("Settings.Accessories.SearchEngine.Use", selection: $search.selection) {
-              Section {
-                Text("Settings.Accessories.SearchEngine.Use.None")
-                  .tag(nil as SearchSettingsEngineModel.ID?, includeOptional: false)
-              }
-
-              Section {
-                ForEach(search.engines) { engine in
-                  Text(engine.name)
-                    .tag(engine.id as SearchSettingsEngineModel.ID?, includeOptional: false)
-                }
+        HStack(alignment: .firstTextBaseline) {
+          @Bindable var search = self.search
+          
+          Picker("Settings.Accessories.SearchEngine.Use", selection: $search.selection) {
+            Section {
+              Text("Settings.Accessories.SearchEngine.Use.None")
+                .tag(nil as SearchSettingsEngineModel.ID?, includeOptional: false)
+            }
+            
+            Section {
+              ForEach(search.engines) { engine in
+                Text(engine.name)
+                  .tag(engine.id as SearchSettingsEngineModel.ID?, includeOptional: false)
               }
             }
-            .disabled(isSystemSearchEnabled)
-            .labelsHidden()
-            .frame(width: SettingsView2.pickerWidth)
-            .onChange(of: search.selection) {
-              Task {
-                await search.storeSelection()
-              }
-            }
-
-            Button("Settings.Accessories.SearchEngine.Manage") {
-              openWindow(id: SearchSettingsScene.id)
-            }
-            .buttonStyle(.accessory)
           }
-
-          Toggle(isOn: $isSystemSearchEnabled) {
-            Text("Settings.Accessories.SearchEngine.Default")
-
-            Text("Settings.Accessories.SearchEngine.Default.Note")
-              .fixedSize(horizontal: false, vertical: true)
+          .disabled(self.isSystemSearchEnabled)
+          .labelsHidden()
+          .frame(width: SettingsView.pickerWidth)
+          .onChange(of: search.selection) {
+            Task {
+              await search.storeSelection()
+            }
           }
+          
+          Button("Settings.Accessories.SearchEngine.Manage") {
+            self.openWindow(id: SearchSettingsScene.id)
+          }
+          .buttonStyle(.accessory)
+        }
+        
+        Toggle(isOn: $isSystemSearchEnabled) {
+          Text("Settings.Accessories.SearchEngine.Default")
+          
+          Text("Settings.Accessories.SearchEngine.Default.Note")
+            .fixedSize(horizontal: false, vertical: true)
         }
       }
 
       LabeledContent("Settings.Accessories.Folders") {
-        VStack(alignment: .leading) {
-          Button("Settings.Accessories.Folders.Manage") {
-            openWindow(id: FoldersSettingsScene.id)
-          }
-          .buttonStyle(.accessory)
+        Button("Settings.Accessories.Folders.Manage") {
+          self.openWindow(id: FoldersSettingsScene.id)
+        }
+        .buttonStyle(.accessory)
 
-          Toggle(isOn: $resolveConflicts) {
-            Text("Settings.Accessories.Folders.ResolveConflicts")
+        Toggle(isOn: $resolveConflicts) {
+          Text("Settings.Accessories.Folders.ResolveConflicts")
 
-            Text("Settings.Accessories.Folders.ResolveConflicts.Note")
-          }
+          Text("Settings.Accessories.Folders.ResolveConflicts.Note")
         }
       }
 
@@ -108,7 +104,7 @@ struct SettingsAccessoriesView: View {
         .horizontalRadioGroupLayout()
       }
     }
-    .formStyle(.settings(width: SettingsView2.contentWidth))
+    .formStyle(.settings(width: SettingsView.contentWidth))
   }
 
   private func pathComponent(

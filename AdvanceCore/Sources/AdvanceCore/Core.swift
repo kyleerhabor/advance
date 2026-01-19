@@ -35,10 +35,7 @@ extension Numeric {
 }
 
 extension Sequence {
-  public func finderSort(
-    by transform: (Element) throws -> [String],
-    _ predicate: (String, String) -> Bool
-  ) rethrows -> [Element] {
+  public func finderSort(by transform: (Element) throws -> [String]) rethrows -> [Element] {
     try self.sorted { a, b in
       let ap = try transform(a)
       let bp = try transform(b)
@@ -61,13 +58,7 @@ extension Sequence {
         return false
       }
 
-      return predicate(ac, bc)
-    }
-  }
-
-  public func finderSort(by transform: (Element) throws -> [String]) rethrows -> [Element] {
-    try finderSort(by: transform) { a, b in
-      a.localizedStandardCompare(b) == .orderedAscending
+      return ac.localizedStandardCompare(bc) == .orderedAscending
     }
   }
 }

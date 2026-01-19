@@ -11,7 +11,7 @@ import SwiftUI
 struct SettingsScene: Scene {
   var body: some Scene {
     Settings {
-      SettingsView2()
+      SettingsView()
         .windowed()
         .frame(width: 600)
     }
