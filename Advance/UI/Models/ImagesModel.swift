@@ -775,6 +775,8 @@ final class ImagesModel {
             let resourceValues: URLResourceValues
 
             do {
+              // This reads the whole file, airing out the disk. I think we could use resourceValues(forKeys:fromBookmarkData:)
+              // as a cache, but that wouldn't handle the later code that may need to read the whole file.
               resourceValues = try document.source.url.resourceValues(
                 forKeys: [.localizedNameKey, .hasHiddenExtensionKey],
               )
@@ -795,8 +797,7 @@ final class ImagesModel {
               ? name
               : URL(filePath: name, directoryHint: .notDirectory).deletingPathExtension().lastPathComponent
 
-            guard let imageSource = CGImageSourceCreateWithURL(document.source.url as CFURL, nil) else {
-              // TODO: Log.
+            guard let imageSource = self.createImageSource(at: document.source.url) else {
               return nil
             }
 
@@ -1097,7 +1098,7 @@ final class ImagesModel {
         }
 
         let size = sizeOrientation.orientedSize
-        let length = max(size.scale(width: parameters.width).length, ImageAnalyzer.maxLength.decremented())
+        let length = min(size.scale(width: parameters.width).length, ImageAnalyzer.maxLength.decremented())
         let createThumbnailOptions = [
           kCGImageSourceCreateThumbnailFromImageAlways: true,
           kCGImageSourceThumbnailMaxPixelSize: length,
