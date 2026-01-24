@@ -19,15 +19,15 @@ struct ImagesDetailItemImageAnalysisView: View {
   @Binding var searchError: ImagesModelEngineURLError?
   @Binding var isSearchErrorPresented: Bool
   let item: ImagesItemModel2
-  let isSupplementaryInterfaceVisible: Bool
+//  let isSupplementaryInterfaceVisible: Bool
   private var preferredInteractionTypes: ImageAnalysisOverlayView.InteractionTypes {
     var interactionTypes = ImageAnalysisOverlayView.InteractionTypes()
 
     if self.isLiveTextEnabled && self.item.detailImage.phase == .success {
-      interactionTypes.insert(.automaticTextOnly)
+      interactionTypes.insert([.textSelection, .dataDetectors])
 
       if self.isLiveTextSubjectEnabled {
-        interactionTypes.insert(.automatic)
+        interactionTypes.insert([.imageSubject, .visualLookUp])
       }
     }
 
@@ -39,9 +39,10 @@ struct ImagesDetailItemImageAnalysisView: View {
 
     ImageAnalysisView(
       isSelectableItemsHighlighted: $item.isImageAnalysisSelectableItemsHighlighted,
+      id: item.imageAnalysisID,
       analysis: item.imageAnalysis,
       preferredInteractionTypes: self.preferredInteractionTypes,
-      isSupplementaryInterfaceHidden: !self.isSupplementaryInterfaceVisible,
+//      isSupplementaryInterfaceHidden: !self.isSupplementaryInterfaceVisible,
     ) { delegate, menu, overlayView in
       let copyImage = menu.indexOfItem(withTag: ImageAnalysisOverlayView.MenuTag.copyImage)
 

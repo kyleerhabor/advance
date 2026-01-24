@@ -36,7 +36,7 @@ extension URL {
   }
 
   func bookmark(options: BookmarkCreationOptions, relativeTo relative: URL?) async throws -> Data {
-    try await schedule {
+    try await schedule(on: .bookmark) {
       try self.bookmark(options: options, relativeTo: relative)
     }
   }

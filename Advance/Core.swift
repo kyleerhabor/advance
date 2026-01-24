@@ -119,15 +119,12 @@ extension SetAlgebra {
 //   2. Being I/O bound
 //   3. Blocking a cooperative thread
 //
-// The solution, then, is to not block cooperative threads. We use operation queues here to prevent thread explosion.
+// The solution, then, is to not block cooperative threads.
 //
 // See https://forums.swift.org/t/cooperative-pool-deadlock-when-calling-into-an-opaque-subsystem/70685
-func schedule<T>(
-  on queue: OperationQueue = .global,
-  _ body: @Sendable @escaping () throws -> T,
-) async throws -> T {
+func schedule<T>(on queue: DispatchQueue, _ body: @Sendable @escaping () throws -> T) async throws -> T {
   try await withCheckedThrowingContinuation { continuation in
-    queue.addOperation {
+    queue.async {
       do {
         continuation.resume(returning: try body())
       } catch {
@@ -137,8 +134,8 @@ func schedule<T>(
   }
 }
 
-extension OperationQueue {
-  static let global = OperationQueue()
+extension DispatchQueue {
+  static let bookmark = DispatchQueue(label: "\(Bundle.appID).Bookmark", target: .global())
 }
 
 // MARK: - Foundation

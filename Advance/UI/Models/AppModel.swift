@@ -9,7 +9,7 @@ import Combine
 import Observation
 
 enum AppModelCommandAction {
-  case open, showFinder, openFinder, showSidebar, toggleSidebarBookmarks, bookmark, toggleLiveTextIcon,
+  case open, showFinder, openFinder, showSidebar, toggleSidebarBookmarks, bookmark, /*toggleLiveTextIcon,*/
        toggleLiveTextHighlight, resetWindowSize
 }
 
@@ -43,7 +43,7 @@ struct AppModelCommandScene {
   let showSidebar: AppModelActionCommand
   let sidebarBookmarks: AppModelToggleCommand
   let bookmark: AppModelToggleCommand
-  let liveTextIcon: AppModelToggleCommand
+//  let liveTextIcon: AppModelToggleCommand
   let liveTextHighlight: AppModelToggleCommand
   let resetWindowSize: AppModelActionCommand
 }

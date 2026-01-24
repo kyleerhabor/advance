@@ -227,7 +227,7 @@
 			packageReferences = (
 				008815F42B07DC8A00D8F3D8 /* XCRemoteSwiftPackageReference "swift-algorithms" */,
 				0013F6062C2208720038BB2A /* XCRemoteSwiftPackageReference "swift-identified-collections" */,
-				0099BE7F2E84C95F007B04D8 /* XCRemoteSwiftPackageReference "GRDB" */,
+				0099BE7F2E84C95F007B04D8 /* XCRemoteSwiftPackageReference "GRDB.swift" */,
 				004015DD2ED422B7001DB655 /* XCRemoteSwiftPackageReference "BigInt" */,
 				0094EBA12EF10DF40030E0C7 /* XCRemoteSwiftPackageReference "swift-async-algorithms" */,
 			);
@@ -536,9 +536,9 @@
 				revision = 6c050d5ef8e1aa6342528460db614e9770d7f804;
 			};
 		};
-		0099BE7F2E84C95F007B04D8 /* XCRemoteSwiftPackageReference "GRDB" */ = {
+		0099BE7F2E84C95F007B04D8 /* XCRemoteSwiftPackageReference "GRDB.swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/groue/GRDB.swift";
+			repositoryURL = "https://github.com/groue/GRDB.swift.git";
 			requirement = {
 				kind = revision;
 				revision = aa0079aeb82a4bf00324561a40bffe68c6fe1c26;
@@ -569,7 +569,7 @@
 		};
 		0099BE802E84C95F007B04D8 /* GRDB */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 0099BE7F2E84C95F007B04D8 /* XCRemoteSwiftPackageReference "GRDB" */;
+			package = 0099BE7F2E84C95F007B04D8 /* XCRemoteSwiftPackageReference "GRDB.swift" */;
 			productName = GRDB;
 		};
 		00B6E0D82C18103300544C8B /* AdvanceCore */ = {

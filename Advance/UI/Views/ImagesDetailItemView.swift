@@ -24,7 +24,7 @@ struct ImagesDetailItemView: View {
   @State private var searchError: ImagesModelEngineURLError?
   @State private var isSearchErrorPresented = false
   let item: ImagesItemModel2
-  let isImageAnalysisSupplementaryInterfaceVisible: Bool
+//  let isImageAnalysisSupplementaryInterfaceVisible: Bool
   // At 3, the image's trailing edge and the scroll bar perfectly align.
   private var half: CGFloat { self.margins * 3 }
   private var full: CGFloat { self.half * 2 }
@@ -57,7 +57,7 @@ struct ImagesDetailItemView: View {
           searchError: $searchError,
           isSearchErrorPresented: $isSearchErrorPresented,
           item: self.item,
-          isSupplementaryInterfaceVisible: self.isImageAnalysisSupplementaryInterfaceVisible,
+//          isSupplementaryInterfaceVisible: self.isImageAnalysisSupplementaryInterfaceVisible,
         )
       }
       .anchorPreference(key: ImagesVisibleItemsPreferenceKey.self, value: .bounds) { anchor in

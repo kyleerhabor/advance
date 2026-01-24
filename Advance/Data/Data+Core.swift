@@ -19,33 +19,23 @@ extension URL {
     .appendingPathExtension("sqlite3")
 }
 
-actor Once<Value, each Argument> where Value: Sendable {
-  private let body: (repeat each Argument) async throws -> Value
-  private var task: Task<Value, any Error>?
+actor Once<Success, Failure, each Argument> where Failure: Error {
+  private let body: (repeat each Argument) throws(Failure) -> Success
+  private var value: Success?
 
-  init(_ body: @escaping (repeat each Argument) async throws -> Value) {
+  init(body: @escaping (repeat each Argument) throws(Failure) -> Success) {
     self.body = body
   }
 
-  func callAsFunction(_ args: repeat each Argument) async throws -> Value {
-    if let task = self.task {
-      return try await task.value
+  func callAsFunction(_ args: repeat each Argument) throws(Failure) -> Success {
+    if let value {
+      return value
     }
 
-    let task = Task {
-      try await self.body(repeat each args)
-    }
+    let value = try self.body(repeat each args)
+    self.value = value
 
-    self.task = task
-
-    do {
-      return try await task.value
-    } catch {
-      // We didn't get a value, so we can try again on the next call.
-      self.task = nil
-
-      throw error
-    }
+    return value
   }
 }
 

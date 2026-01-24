@@ -19,7 +19,7 @@ struct FoldersSettingsView: View {
 
     // TODO: Figure out how to get animations working.
     List(selection: $selection) {
-      ForEach(folders.items) { item in
+      ForEach(self.folders.items) { item in
         Label {
           Text(item.path)
         } icon: {
@@ -33,25 +33,28 @@ struct FoldersSettingsView: View {
       }
       .onDelete { items in
         Task {
-          await folders.remove(items: items)
+          await self.folders.remove(items: items)
         }
       }
     }
     .listStyle(.inset)
-    .focusedSceneValue(\.commandScene, AppModelCommandScene(
-      id: .folders,
-      showFinder: AppModelActionCommand(isDisabled: isInvalidSelection),
-      openFinder: AppModelActionCommand(isDisabled: isInvalidSelection),
-      showSidebar: AppModelActionCommand(isDisabled: true),
-      sidebarBookmarks: AppModelToggleCommand(isDisabled: true, isOn: false),
-      bookmark: AppModelToggleCommand(isDisabled: true, isOn: false),
-      liveTextIcon: AppModelToggleCommand(isDisabled: true, isOn: false),
-      liveTextHighlight: AppModelToggleCommand(isDisabled: true, isOn: false),
-      resetWindowSize: AppModelActionCommand(isDisabled: true),
-    ))
+    .focusedSceneValue(
+      \.commandScene,
+       AppModelCommandScene(
+        id: .folders,
+        showFinder: AppModelActionCommand(isDisabled: isInvalidSelection),
+        openFinder: AppModelActionCommand(isDisabled: isInvalidSelection),
+        showSidebar: AppModelActionCommand(isDisabled: true),
+        sidebarBookmarks: AppModelToggleCommand(isDisabled: true, isOn: false),
+        bookmark: AppModelToggleCommand(isDisabled: true, isOn: false),
+//        liveTextIcon: AppModelToggleCommand(isDisabled: true, isOn: false),
+        liveTextHighlight: AppModelToggleCommand(isDisabled: true, isOn: false),
+        resetWindowSize: AppModelActionCommand(isDisabled: true),
+       ),
+    )
     .toolbar {
       Button("Settings.Accessory.Folders.Item.Add", systemImage: "plus") {
-        isFileImporterPresented = true
+        self.isFileImporterPresented = true
       }
       .fileImporter(
         isPresented: $isFileImporterPresented,
@@ -109,7 +112,7 @@ struct FoldersSettingsView: View {
         Task {
           await self.folders.openFinder(items: self.selection)
         }
-      case .showSidebar, .toggleSidebarBookmarks, .bookmark, .toggleLiveTextIcon, .toggleLiveTextHighlight,
+      case .showSidebar, .toggleSidebarBookmarks, .bookmark, /*.toggleLiveTextIcon, */.toggleLiveTextHighlight,
            .resetWindowSize:
         unreachable()
     }

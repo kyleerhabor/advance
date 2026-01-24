@@ -26,7 +26,7 @@ struct ImagesDetailView2: View {
   @AppStorage(StorageKeys.isLiveTextSubjectEnabled) private var isLiveTextSubjectEnabled
   @AppStorage(StorageKeys.restoreLastImage) private var restoreLastImage
   let columnVisibility: NavigationSplitViewVisibility
-  let isImageAnalysisSupplementaryInterfaceVisible: Bool
+//  let isImageAnalysisSupplementaryInterfaceVisible: Bool
   private var imageAnalysisTypes: ImageAnalysisTypes {
     var types = ImageAnalysisTypes()
 
@@ -46,7 +46,7 @@ struct ImagesDetailView2: View {
       List(images.items) { item in
         ImagesDetailItemView(
           item: item,
-          isImageAnalysisSupplementaryInterfaceVisible: self.isImageAnalysisSupplementaryInterfaceVisible,
+//          isImageAnalysisSupplementaryInterfaceVisible: self.isImageAnalysisSupplementaryInterfaceVisible,
         )
       }
       .listStyle(.plain)
@@ -129,24 +129,38 @@ struct ImagesDetailView2: View {
         }
       }
       .task(id: ImagesViewResampleID(images: self.images, pixelLength: self.pixelLength)) {
+        var task: Task<Void, Never>?
+
         for await resample in self.images.detailResample.removeDuplicates().debounce(for: .microhang) {
-          await self.images.loadDetailImages(
-            items: self.items(resample: resample.items),
-            parameters: ImagesItemModelImageParameters(width: resample.width / self.pixelLength),
-          )
+          task?.cancel()
+          task = Task {
+            await self.images.loadDetailImages(
+              items: self.items(resample: resample.items),
+              parameters: ImagesItemModelImageParameters(width: resample.width / self.pixelLength),
+            )
+          }
         }
+
+        task?.cancel()
       }
       .task(id: ImagesDetailViewImageAnalysisID(images: self.images, types: self.imageAnalysisTypes)) {
+        var task: Task<Void, Never>?
+
         for await resample in self.images.detailImageAnalysis.removeDuplicates().debounce(for: .microhang) {
-          // This is auxiliary and expensive, so we don't want to pre-load image analysis.
-          await self.images.loadImageAnalyses(
-            for: resample.items,
-            parameters: ImagesItemModelImageAnalysisParameters(
-              width: resample.width / self.pixelLength,
-              types: self.imageAnalysisTypes,
+          task?.cancel()
+          task = Task {
+            // This is auxiliary and expensive, so we don't want to pre-load image analysis.
+            await self.images.loadImageAnalyses(
+              for: resample.items,
+              parameters: ImagesItemModelImageAnalysisParameters(
+                width: resample.width / self.pixelLength,
+                types: self.imageAnalysisTypes,
+              )
             )
-          )
+          }
         }
+
+        task?.cancel()
       }
     }
   }

@@ -6,6 +6,7 @@
 //
 
 import Algorithms
+import OSLog
 import SwiftUI
 import VisionKit
 
@@ -22,17 +23,15 @@ class ImageAnalysisViewDelegate: ImageAnalysisOverlayViewDelegate {
     self.representable.isSelectableItemsHighlighted = highlightSelectedItems
   }
 
-  func overlayView(_ overlayView: ImageAnalysisOverlayView, didClose menu: NSMenu) {
-    // Yes, this doesn't handle nested items.
-    menu.items.forEach { self.actions[$0] = nil }
-  }
-
   func overlayView(
     _ overlayView: ImageAnalysisOverlayView,
     updatedMenuFor menu: NSMenu,
     for event: NSEvent,
     at point: CGPoint,
   ) -> NSMenu {
+    // For some reason, overlayView(_:didClose:) runs before action(_:), so we free actions here, instead.
+    self.actions = [:]
+
     guard let vmenu = sequence(first: overlayView, next: \.superview).firstNonNil(\.menu) else {
       return menu
     }
@@ -48,7 +47,13 @@ class ImageAnalysisViewDelegate: ImageAnalysisOverlayViewDelegate {
   }
 
   @objc func action(_ sender: NSMenuItem) {
-    self.actions[sender]?()
+    guard let action = self.actions[sender] else {
+      Logger.ui.error("Could not find action for item '\(sender)'")
+
+      return
+    }
+    
+    action()
   }
 }
 
@@ -58,18 +63,19 @@ struct ImageAnalysisViewCoordinator {
 
 struct ImageAnalysisView: NSViewRepresentable {
   @Binding var isSelectableItemsHighlighted: Bool
+  let id: UUID
   let analysis: ImageAnalysis?
   let preferredInteractionTypes: ImageAnalysisOverlayView.InteractionTypes
-  let isSupplementaryInterfaceHidden: Bool
+//  let isSupplementaryInterfaceHidden: Bool
   let transformMenu: (ImageAnalysisViewDelegate, NSMenu, ImageAnalysisOverlayView) -> NSMenu
 
   func makeNSView(context: Context) -> ImageAnalysisOverlayView {
-    context.coordinator.delegate.representable = self
-
     let overlayView = ImageAnalysisOverlayView()
     overlayView.delegate = context.coordinator.delegate
     overlayView.preferredInteractionTypes = self.preferredInteractionTypes
-    self.setVisibility(overlayView, selectableItemsHighlighted: false, isAnimated: false)
+//    overlayView.isSupplementaryInterfaceHidden = self.isSupplementaryInterfaceHidden
+    overlayView.isSupplementaryInterfaceHidden = true
+//    self.setVisibility(overlayView, selectableItemsHighlighted: false, isAnimated: false)
     
     overlayView.analysis = self.analysis
 
@@ -77,39 +83,45 @@ struct ImageAnalysisView: NSViewRepresentable {
   }
 
   func updateNSView(_ overlayView: ImageAnalysisOverlayView, context: Context) {
+    let id = context.coordinator.delegate.representable.id
     context.coordinator.delegate.representable = self
 
-    if overlayView.preferredInteractionTypes == self.preferredInteractionTypes {
-      self.setVisibility(
-        overlayView,
-        selectableItemsHighlighted: self.isSelectableItemsHighlighted,
-        isAnimated: true,
-      )
-    } else {
+    if overlayView.preferredInteractionTypes != self.preferredInteractionTypes {
       overlayView.preferredInteractionTypes = self.preferredInteractionTypes
     }
 
-    // For some reason, setting this property may raise a layout constraint exception, potentially crashing the
-    // application. This can be observed by toggling or resizing the sidebar. Fortunately, AppKit can oftentimes recover,
-    // but I've seen it outright crash when displaying full-screen windows side-by-side. I have a feeling we can break
-    // the constraints ourselves and pray that no negative consequences ensue.
-    overlayView.analysis = self.analysis
+//    let isSupplementaryInterfaceHidden = !self.isSelectableItemsHighlighted && self.isSupplementaryInterfaceHidden
+//
+//    if overlayView.isSupplementaryInterfaceHidden != isSupplementaryInterfaceHidden {
+//      overlayView.setSupplementaryInterfaceHidden(isSupplementaryInterfaceHidden, animated: true)
+//    }
+
+    if overlayView.selectableItemsHighlighted != self.isSelectableItemsHighlighted {
+      overlayView.selectableItemsHighlighted = self.isSelectableItemsHighlighted
+    }
+
+    if id != self.id {
+      // For some reason, setting this property may raise a layout constraint exception when the supplementary interface
+      // is visible. Usually, AppKit will recover by breaking the violation, but othertimes, it's unable to, crashing
+      // instead. Until I find a solution, toggling the supplementary interface is disabled.
+      overlayView.analysis = self.analysis
+    }
   }
 
   func makeCoordinator() -> ImageAnalysisViewCoordinator {
     ImageAnalysisViewCoordinator(delegate: ImageAnalysisViewDelegate(representable: self))
   }
 
-  private func setVisibility(
-    _ overlayView: ImageAnalysisOverlayView,
-    selectableItemsHighlighted: Bool,
-    isAnimated animate: Bool,
-  ) {
-    overlayView.setSupplementaryInterfaceHidden(
-      !selectableItemsHighlighted && self.isSupplementaryInterfaceHidden,
-      animated: animate,
-    )
-
-    overlayView.selectableItemsHighlighted = selectableItemsHighlighted
-  }
+//  private func setVisibility(
+//    _ overlayView: ImageAnalysisOverlayView,
+//    selectableItemsHighlighted: Bool,
+//    isAnimated animate: Bool,
+//  ) {
+//    overlayView.setSupplementaryInterfaceHidden(
+//      !selectableItemsHighlighted && self.isSupplementaryInterfaceHidden,
+//      animated: animate,
+//    )
+//
+//    overlayView.selectableItemsHighlighted = selectableItemsHighlighted
+//  }
 }

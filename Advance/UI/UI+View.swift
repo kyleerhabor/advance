@@ -377,7 +377,7 @@ extension KeyboardShortcut {
   static let toggleSidebarBookmarks = Self("b", modifiers: [.command, .option])
   // Preview > Tools > Add Bookmark
   static let bookmark = Self("d", modifiers: .command)
-  static let toggleLiveTextIcon = Self("t", modifiers: .command)
+//  static let toggleLiveTextIcon = Self("t", modifiers: .command)
   static let toggleLiveTextHighlight = Self("t", modifiers: [.command, .shift])
   // Terminal > Window > Return to Default Size
   static let resetWindowSize = Self("m", modifiers: [.command, .control])

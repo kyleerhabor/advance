@@ -133,6 +133,7 @@ final class ImagesItemModel2 {
   let detailImage: ImagesItemImageModel
   @ObservationIgnored var detailImageParameters: ImagesItemModelImageParameters
   var imageAnalysis: ImageAnalysis?
+  var imageAnalysisID: UUID
   @ObservationIgnored var imageAnalysisParameters: ImagesItemModelImageAnalysisParameters
   var isImageAnalysisSelectableItemsHighlighted: Bool
 
@@ -147,6 +148,7 @@ final class ImagesItemModel2 {
     detailImage: ImagesItemImageModel,
     detailImageParameters: ImagesItemModelImageParameters,
     imageAnalysis: ImageAnalysis?,
+    imageAnalysisID: UUID,
     imageAnalysisParameters: ImagesItemModelImageAnalysisParameters,
     isImageAnalysisSelectableItemsHighlighted: Bool,
   ) {
@@ -160,6 +162,7 @@ final class ImagesItemModel2 {
     self.detailImage = detailImage
     self.detailImageParameters = detailImageParameters
     self.imageAnalysis = imageAnalysis
+    self.imageAnalysisID = imageAnalysisID
     self.imageAnalysisParameters = imageAnalysisParameters
     self.isImageAnalysisSelectableItemsHighlighted = isImageAnalysisSelectableItemsHighlighted
   }
@@ -373,12 +376,18 @@ final class ImagesModel {
   }
 
   func loadSidebarImages(items: [ImagesItemModel2], parameters: ImagesItemModelImageParameters) async {
-    await self.loadSidebarImages(
-      items: items
-        .filter { $0.sidebarImage.phase != .success || $0.sidebarImageParameters != parameters }
-        .map(\.id),
-      parameters: parameters,
-    )
+    do {
+      try await self.loadSidebarImages(
+        items: items
+          .filter { $0.sidebarImage.phase != .success || $0.sidebarImageParameters != parameters }
+          .map(\.id),
+        parameters: parameters,
+      )
+    } catch is CancellationError {
+      // Fallthrough
+    } catch {
+      unreachable()
+    }
 
     self.items.forEach { item in
       guard !items.contains(item) else {
@@ -392,12 +401,18 @@ final class ImagesModel {
   }
 
   func loadDetailImages(items: [ImagesItemModel2], parameters: ImagesItemModelImageParameters) async {
-    await self.loadDetailImages(
-      items: items
-        .filter { $0.detailImage.phase != .success || $0.detailImageParameters != parameters }
-        .map(\.id),
-      parameters: parameters,
-    )
+    do {
+      try await self.loadDetailImages(
+        items: items
+          .filter { $0.detailImage.phase != .success || $0.detailImageParameters != parameters }
+          .map(\.id),
+        parameters: parameters,
+      )
+    } catch is CancellationError {
+      // Fallthrough
+    } catch {
+      unreachable()
+    }
 
     self.items.forEach { item in
       guard !items.contains(item) else {
@@ -414,19 +429,29 @@ final class ImagesModel {
     for items: [ImagesItemModel2],
     parameters: ImagesItemModelImageAnalysisParameters
   ) async {
-    await self.loadImageAnalyses(
-      for: items
-        .filter { $0.imageAnalysis == nil || $0.imageAnalysisParameters != parameters }
-        .map(\.id),
-      parameters: parameters,
-    )
+    do {
+      try await self.loadImageAnalyses(
+        for: items
+          .filter { $0.imageAnalysis == nil || $0.imageAnalysisParameters != parameters }
+          .map(\.id),
+        parameters: parameters,
+      )
+    } catch is CancellationError {
+      // Fallthrough
+    } catch {
+      unreachable()
+    }
 
     self.items.forEach { item in
       guard !items.contains(item) else {
         return
       }
 
-      item.imageAnalysis = nil
+      if item.imageAnalysis != nil {
+        item.imageAnalysis = nil
+        item.imageAnalysisID = UUID()
+      }
+
       item.imageAnalysisParameters = ImagesItemModelImageAnalysisParameters(width: .nan, types: [])
       item.isImageAnalysisSelectableItemsHighlighted = false
     }
@@ -692,6 +717,7 @@ final class ImagesModel {
             detailImage: ImagesItemImageModel(image: NSImage(), phase: .empty, aspectRatio: item2.aspectRatio),
             detailImageParameters: ImagesItemModelImageParameters(width: .nan),
             imageAnalysis: nil,
+            imageAnalysisID: UUID(),
             imageAnalysisParameters: ImagesItemModelImageAnalysisParameters(width: .nan, types: []),
             isImageAnalysisSelectableItemsHighlighted: false,
           )
@@ -775,8 +801,6 @@ final class ImagesModel {
             let resourceValues: URLResourceValues
 
             do {
-              // This reads the whole file, airing out the disk. I think we could use resourceValues(forKeys:fromBookmarkData:)
-              // as a cache, but that wouldn't handle the later code that may need to read the whole file.
               resourceValues = try document.source.url.resourceValues(
                 forKeys: [.localizedNameKey, .hasHiddenExtensionKey],
               )
@@ -804,10 +828,11 @@ final class ImagesModel {
             let options = [kCGImageSourceShouldCache: false]
 
             guard let copyProperties = CGImageSourceCopyPropertiesAtIndex(
-              imageSource,
-              CGImageSourceGetPrimaryImageIndex(imageSource),
-              options as CFDictionary,
-            ) else {
+                    imageSource,
+                    // For some file formats (e.g., GIF), this reads the whole file, airing out the disk.
+                    CGImageSourceGetPrimaryImageIndex(imageSource),
+                    options as CFDictionary,
+                  ) else {
               Logger.model.error(
                 "Could not copy properties of image source at file URL '\(document.source.url.pathString)'",
               )
@@ -817,7 +842,7 @@ final class ImagesModel {
 
             guard let sizeOrientation = self.sizeOrientation(
                     at: document.source.url,
-                    data: copyProperties as! [CFString: Any],
+                    data: copyProperties as! [CFString : Any],
                   ) else {
               return nil
             }
@@ -916,8 +941,10 @@ final class ImagesModel {
   nonisolated private func loadImage(
     parameters: ImagesItemModelImageParameters,
     document: URLSourceDocument,
-  ) async -> ImageOrientation? {
-    await run(on: resamples) {
+  ) async throws -> ImageOrientation? {
+    try Task.checkCancellation()
+
+    let image = await run(on: resamples) {
       document.accessingSecurityScopedResource {
         guard let imageSource = self.createImageSource(at: document.source.url) else {
           return nil
@@ -983,15 +1010,17 @@ final class ImagesModel {
         return image
       }
     }
+
+    return image
   }
 
   nonisolated private func loadImage(
     item: RowID,
     parameters: ImagesItemModelImageParameters,
     documents: [RowID : URLSourceDocument],
-  ) async -> NSImage? {
+  ) async throws -> NSImage? {
     guard let document = documents[item],
-          let image = await self.loadImage(parameters: parameters, document: document) else {
+          let image = try await self.loadImage(parameters: parameters, document: document) else {
       return nil
     }
 
@@ -1033,7 +1062,7 @@ final class ImagesModel {
     item.detailImageParameters = parameters
   }
 
-  nonisolated private func loadSidebarImages(items: [RowID], parameters: ImagesItemModelImageParameters) async {
+  nonisolated private func loadSidebarImages(items: [RowID], parameters: ImagesItemModelImageParameters) async throws {
     guard let documents = await self.loadDocuments(for: items) else {
       return
     }
@@ -1042,12 +1071,14 @@ final class ImagesModel {
       await self.loadSidebarImage(
         item: item,
         parameters: parameters,
-        image: await self.loadImage(item: item, parameters: parameters, documents: documents),
+        image: try await self.loadImage(item: item, parameters: parameters, documents: documents),
       )
     }
   }
 
-  nonisolated private func loadDetailImages(items: [RowID], parameters: ImagesItemModelImageParameters) async {
+  nonisolated private func loadDetailImages(items: [RowID], parameters: ImagesItemModelImageParameters) async throws {
+    try Task.checkCancellation()
+
     guard let documents = await self.loadDocuments(for: items) else {
       return
     }
@@ -1056,7 +1087,7 @@ final class ImagesModel {
       await self.loadDetailImage(
         item: item,
         parameters: parameters,
-        image: await self.loadImage(item: item, parameters: parameters, documents: documents),
+        image: try await self.loadImage(item: item, parameters: parameters, documents: documents),
       )
     }
   }
@@ -1065,7 +1096,9 @@ final class ImagesModel {
   nonisolated private func loadImageAnalysis(
     parameters: ImagesItemModelImageAnalysisParameters,
     document: URLSourceDocument,
-  ) async -> ImagesModelLoadImageAnalysis? {
+  ) async throws -> ImagesModelLoadImageAnalysis? {
+    try Task.checkCancellation()
+
     let image = await run(on: resamples) {
       document.accessingSecurityScopedResource {
         guard let imageSource = self.createImageSource(at: document.source.url) else {
@@ -1145,7 +1178,9 @@ final class ImagesModel {
   private func loadImageAnalysis(
     parameters: ImagesItemModelImageAnalysisParameters,
     analysis: ImagesModelLoadImageAnalysis,
-  ) async -> ImageAnalysis? {
+  ) async throws -> ImageAnalysis? {
+    try Task.checkCancellation()
+
     do {
       return try await run(on: analyses) {
         // The analysis is performed by mediaanalysisd, so this call isn't holding up the main actor.
@@ -1181,6 +1216,7 @@ final class ImagesModel {
     }
 
     item.imageAnalysis = analysis
+    item.imageAnalysisID = UUID()
     item.imageAnalysisParameters = parameters
   }
 
@@ -1188,11 +1224,11 @@ final class ImagesModel {
     item: ImagesItemModel2.ID,
     parameters: ImagesItemModelImageAnalysisParameters,
     analysis: ImagesModelLoadImageAnalysis?
-  ) async {
+  ) async throws {
     let result: ImageAnalysis?
 
     if let analysis {
-      result = await self.loadImageAnalysis(parameters: parameters, analysis: analysis)
+      result = try await self.loadImageAnalysis(parameters: parameters, analysis: analysis)
     } else {
       result = nil
     }
@@ -1207,7 +1243,7 @@ final class ImagesModel {
   nonisolated private func loadImageAnalyses(
     for items: [RowID],
     parameters: ImagesItemModelImageAnalysisParameters,
-  ) async {
+  ) async throws {
     guard let documents = await self.loadDocuments(for: items) else {
       return
     }
@@ -1216,13 +1252,13 @@ final class ImagesModel {
       let analysis: ImagesModelLoadImageAnalysis?
 
       if let document = documents[item],
-         let img = await self.loadImageAnalysis(parameters: parameters, document: document) {
+         let img = try await self.loadImageAnalysis(parameters: parameters, document: document) {
         analysis = img
       } else {
         analysis = nil
       }
 
-      await self.loadImageAnalysis(item: item, parameters: parameters, analysis: analysis)
+      try await self.loadImageAnalysis(item: item, parameters: parameters, analysis: analysis)
     }
   }
 
@@ -2064,7 +2100,7 @@ final class ImagesModel {
       guard let item = imagesItems[item] else {
         Logger.model.error("Could not find image collection item '\(item)'")
 
-          return nil
+        return nil
       }
 
       let fileBookmark = BookmarkAssignmentFileBookmark(

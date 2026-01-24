@@ -30,7 +30,7 @@ struct ImagesSidebarBackgroundView: View {
   @AppStorage(StorageKeys.isLiveTextEnabled) private var isLiveTextEnabled
   let selection: Set<ImagesItemModel2.ID>
   let isBookmarked: Bool
-  let isImageAnalysisSupplementaryInterfaceVisible: Bool
+//  let isImageAnalysisSupplementaryInterfaceVisible: Bool
 
   var body: some View {
     let isInvalidSelection = self.images.isInvalidSelection(of: self.selection)
@@ -48,10 +48,10 @@ struct ImagesSidebarBackgroundView: View {
             isDisabled: isInvalidSelection,
             isOn: self.images.isBookmarked(items: self.selection),
           ),
-          liveTextIcon: AppModelToggleCommand(
-            isDisabled: !self.isLiveTextEnabled,
-            isOn: self.isImageAnalysisSupplementaryInterfaceVisible,
-          ),
+//          liveTextIcon: AppModelToggleCommand(
+//            isDisabled: !self.isLiveTextEnabled,
+//            isOn: self.isImageAnalysisSupplementaryInterfaceVisible,
+//          ),
           liveTextHighlight: AppModelToggleCommand(
             isDisabled: !self.isLiveTextEnabled || self.images.visibleItems.isEmpty,
             isOn: self.images.isHighlighted,
@@ -83,7 +83,7 @@ struct ImagesSidebarView2: View {
   @AppStorage(StorageKeys.resolveConflicts) private var resolveConflicts
   @Binding var columnVisibility: NavigationSplitViewVisibility
   @Binding var isBookmarked: Bool
-  @Binding var isImageAnalysisSupplementaryInterfaceVisible: Bool
+//  @Binding var isImageAnalysisSupplementaryInterfaceVisible: Bool
   @Binding var isFileImporterPresented: Bool
   @State private var selection = Set<ImagesItemModel2.ID>()
   @State private var isShowSidebarSet = false
@@ -266,13 +266,20 @@ struct ImagesSidebarView2: View {
             }
         }
       }
-      .task(id: ImagesViewResampleID(images: images, pixelLength: self.pixelLength)) {
-        for await resample in images.sidebarResample.removeDuplicates().debounce(for: .microhang) {
-          await images.loadSidebarImages(
-            items: await self.resample(resample),
-            parameters: ImagesItemModelImageParameters(width: resample.width / self.pixelLength),
-          )
+      .task(id: ImagesViewResampleID(images: self.images, pixelLength: self.pixelLength)) {
+        var task: Task<Void, Never>?
+
+        for await resample in self.images.sidebarResample.removeDuplicates().debounce(for: .microhang) {
+          task?.cancel()
+          task = Task {
+            await self.images.loadSidebarImages(
+              items: await self.resample(resample),
+              parameters: ImagesItemModelImageParameters(width: resample.width / self.pixelLength),
+            )
+          }
         }
+
+        task?.cancel()
       }
       .copyable(self.images.urls(ofItems: self.selection))
       .onChange(of: ImagesSidebarSelectionID(images: self.images, selection: self.selection)) { prior, id in
@@ -321,7 +328,7 @@ struct ImagesSidebarView2: View {
       ImagesSidebarBackgroundView(
         selection: self.selection,
         isBookmarked: self.isBookmarked,
-        isImageAnalysisSupplementaryInterfaceVisible: self.isImageAnalysisSupplementaryInterfaceVisible,
+//        isImageAnalysisSupplementaryInterfaceVisible: self.isImageAnalysisSupplementaryInterfaceVisible,
       )
     }
     .alert(isPresented: $isCopyFolderErrorPresented, error: copyFolderError) {}
@@ -402,8 +409,8 @@ struct ImagesSidebarView2: View {
             isBookmarked: !self.images.isBookmarked(items: self.selection),
           )
         }
-      case .toggleLiveTextIcon:
-        self.isImageAnalysisSupplementaryInterfaceVisible.toggle()
+//      case .toggleLiveTextIcon:
+//        self.isImageAnalysisSupplementaryInterfaceVisible.toggle()
       case .toggleLiveTextHighlight:
         self.images.isHighlighted.toggle()
         self.images.highlight(items: self.images.visibleItems, isHighlighted: self.images.isHighlighted)
