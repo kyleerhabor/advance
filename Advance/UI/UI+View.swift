@@ -154,54 +154,74 @@ struct WindowViewModifier: ViewModifier {
 struct WindowFullScreenViewModifier: ViewModifier {
   @Environment(Window.self) private var window
   @State private var isWindowFullScreen = WindowFullScreenEnvironmentKey.defaultValue
+  @State private var enter: AnyPublisher<Notification, Never> = AnyPublisher(Empty())
+  @State private var exit: AnyPublisher<Notification, Never> = AnyPublisher(Empty())
 
   func body(content: Content) -> some View {
     // For some reason, using task(priority:_:) to await notifications results in toolbar(_:for:) not working in scene
     // restoration into full-screen mode.
+    //
+    // Note that storing self.window.window in a modifier results in a memory leak, like so:
+    //
+    //   View.onReceive(
+    //     NotificationCenter.default.publisher(
+    //       for: NSWindow.willEnterFullScreenNotification,
+    //       object: self.window.window,
+    //     ),
+    //   ) { ... }
     content
       .environment(\.isWindowFullScreen, self.isWindowFullScreen)
-      .onReceive(NotificationCenter.default.publisher(for: NSWindow.willEnterFullScreenNotification, object: self.window.window)) { _ in
+      .onChange(of: self.window) {
+        self.enter = NotificationCenter.default
+          .publisher(for: NSWindow.willEnterFullScreenNotification, object: self.window.window)
+          .eraseToAnyPublisher()
+
+        self.exit = NotificationCenter.default
+          .publisher(for: NSWindow.willExitFullScreenNotification, object: self.window.window)
+          .eraseToAnyPublisher()
+      }
+      .onReceive(self.enter) { _ in
         self.isWindowFullScreen = true
       }
-      .onReceive(NotificationCenter.default.publisher(for: NSWindow.willExitFullScreenNotification, object: self.window.window)) { _ in
+      .onReceive(self.exit) { _ in
         self.isWindowFullScreen = false
       }
   }
 }
 
-struct WindowLiveResizeViewModifier: ViewModifier {
-  @Environment(Window.self) private var window
-  @State private var isWindowLiveResizeActive = WindowLiveResizeEnvironmentKey.defaultValue
-
-  func body(content: Content) -> some View {
-    content
-      .environment(\.isWindowLiveResizeActive, isWindowLiveResizeActive)
-      .onReceive(NotificationCenter.default.publisher(for: NSWindow.willStartLiveResizeNotification)) { notification in
-        let window = notification.object as! NSWindow
-
-        guard self.window.window == window else {
-          return
-        }
-
-        isWindowLiveResizeActive = true
-      }
-      .onReceive(NotificationCenter.default.publisher(for: NSWindow.didEndLiveResizeNotification)) { notification in
-        let window = notification.object as! NSWindow
-
-        guard self.window.window == window else {
-          return
-        }
-
-        isWindowLiveResizeActive = false
-      }
-  }
-}
+//struct WindowLiveResizeViewModifier: ViewModifier {
+//  @Environment(Window.self) private var window
+//  @State private var isWindowLiveResizeActive = WindowLiveResizeEnvironmentKey.defaultValue
+//
+//  func body(content: Content) -> some View {
+//    content
+//      .environment(\.isWindowLiveResizeActive, isWindowLiveResizeActive)
+//      .onReceive(NotificationCenter.default.publisher(for: NSWindow.willStartLiveResizeNotification)) { notification in
+//        let window = notification.object as! NSWindow
+//
+//        guard self.window.window == window else {
+//          return
+//        }
+//
+//        isWindowLiveResizeActive = true
+//      }
+//      .onReceive(NotificationCenter.default.publisher(for: NSWindow.didEndLiveResizeNotification)) { notification in
+//        let window = notification.object as! NSWindow
+//
+//        guard self.window.window == window else {
+//          return
+//        }
+//
+//        isWindowLiveResizeActive = false
+//      }
+//  }
+//}
 
 struct WindowedViewModifier: ViewModifier {
   func body(content: Content) -> some View {
     content
       .modifier(WindowFullScreenViewModifier())
-      .modifier(WindowLiveResizeViewModifier())
+//      .modifier(WindowLiveResizeViewModifier())
       .modifier(WindowViewModifier())
       .modifier(TrackingMenuViewModifier())
   }
@@ -218,12 +238,13 @@ struct VisibleViewModifier: ViewModifier {
   }
 }
 
+@MainActor
 struct ToolbarVisibleViewModifierID {
   let isVisible: Bool
   let isWindowFullScreen: Bool
 }
 
-extension ToolbarVisibleViewModifierID: Equatable {}
+extension ToolbarVisibleViewModifierID: @MainActor Equatable {}
 
 struct ToolbarVisibleViewModifier: ViewModifier {
   @Environment(Window.self) private var window

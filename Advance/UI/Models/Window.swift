@@ -13,3 +13,9 @@ import Observation
 class Window {
   weak var window: NSWindow?
 }
+
+extension Window: @MainActor Equatable {
+  static func ==(lhs: Window, rhs: Window) -> Bool {
+    lhs.window == rhs.window
+  }
+}
