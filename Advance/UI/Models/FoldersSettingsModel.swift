@@ -162,8 +162,8 @@ final class FoldersSettingsModel {
     await _showFinder(items: items)
   }
 
-  func openFinder(item: FoldersSettingsItemModel.ID) async {
-    await _openFinder(item: item)
+  func openFinder(item: FoldersSettingsItemModel) async {
+    await _openFinder(item: item.id)
   }
 
   func openFinder(items: Set<FoldersSettingsItemModel.ID>) async {

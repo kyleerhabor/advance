@@ -5,6 +5,7 @@
 //  Created by Kyle Erhabor on 12/16/25.
 //
 
+import IdentifiedCollections
 import SwiftUI
 
 struct ImagesDetailItemCopyFolderView: View {
@@ -22,18 +23,22 @@ struct ImagesDetailItemCopyFolderView: View {
 
   var body: some View {
     Menu("Images.Item.Folder.Item.Copy") {
-      ForEach(folders.resolved) { item in
-        ImagesItemCopyFolderOpenFolderView(item: item) {
+      ForEach(self.folders.resolved) { folder in
+        ImagesItemCopyFolderOpenFolderView(folder: folder) {
           Button {
+            guard let item = self.images.items[id: self.item] else {
+              return
+            }
+
             Task {
               do {
-                try await images.copyFolder(
-                  item: self.item,
-                  to: item,
-                  locale: locale,
-                  resolveConflicts: resolveConflicts,
-                  pathSeparator: foldersPathSeparator,
-                  pathDirection: foldersPathDirection,
+                try await self.images.copyFolder(
+                  item: item,
+                  to: folder,
+                  locale: self.locale,
+                  resolveConflicts: self.resolveConflicts,
+                  pathDirection: self.foldersPathDirection,
+                  pathSeparator: self.foldersPathSeparator,
                 )
               } catch let error as ImagesModelCopyFolderError {
                 self.error = error
@@ -41,13 +46,13 @@ struct ImagesDetailItemCopyFolderView: View {
               }
             }
           } label: {
-            Text(item.path)
+            Text(folder.path)
           }
         }
       }
     } primaryAction: {
-      selection = item
-      isFileImporterPresented = true
+      self.selection = self.item
+      self.isFileImporterPresented = true
     }
   }
 }

@@ -40,8 +40,8 @@ extension Bool {
 }
 
 extension Sequence {
-  func filter(in set: some SetAlgebra<Element>) -> [Element] {
-    self.filter { set.contains($0) }
+  func filter<T>(in set: some SetAlgebra<T>, by transform: (Element) -> T) -> [Element] {
+    self.filter { set.contains(transform($0)) }
   }
 
   func sum() -> Element where Element: AdditiveArithmetic {

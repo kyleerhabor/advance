@@ -491,12 +491,12 @@ final class ImagesModel {
     items.isEmpty
   }
 
-  func showFinder(item: ImagesItemModel2.ID) async {
-    await _showFinder(item: item)
+  func showFinder(item: ImagesItemModel2) async {
+    await self.showFinder(item: item.id)
   }
 
-  func showFinder(items: Set<ImagesItemModel2.ID>) async {
-    await _showFinder(items: items)
+  func showFinder(items: [ImagesItemModel2]) async {
+    await self.showFinder(items: items.map(\.id))
   }
 
   // This should be async, but is a consequence of View.copyable(_:) only accepting a synchronous closure.
@@ -509,83 +509,83 @@ final class ImagesModel {
     return items.map { self.items[id: $0]!.url }
   }
 
-  func copy(item: ImagesItemModel2.ID) async {
-    await _copy(item: item)
+  func copy(item: ImagesItemModel2) async {
+    await self.copy(item: item.id)
   }
 
-  func copy(items: Set<ImagesItemModel2.ID>) async {
-    await _copy(items: items)
+  func copy(items: [ImagesItemModel2]) async {
+    await self.copy(items: items.map(\.id))
   }
 
   func copyFolder(
-    item: ImagesItemModel2.ID?,
+    item: ImagesItemModel2,
     to folder: FoldersSettingsItemModel,
     locale: Locale,
     resolveConflicts: Bool,
-    pathSeparator: StorageFoldersPathSeparator,
     pathDirection: StorageFoldersPathDirection,
+    pathSeparator: StorageFoldersPathSeparator,
   ) async throws(ImagesModelCopyFolderError) {
-    try await _copyFolder(
-      item: item,
+    try await self.copyFolder(
+      item: item.id,
       to: folder.id,
       locale: locale,
       resolveConflicts: resolveConflicts,
-      pathSeparator: pathSeparator,
       pathDirection: pathDirection,
+      pathSeparator: pathSeparator,
     )
   }
 
   func copyFolder(
-    item: ImagesItemModel2.ID?,
+    item: ImagesItemModel2,
     to folder: URL,
     locale: Locale,
     resolveConflicts: Bool,
-    pathSeparator: StorageFoldersPathSeparator,
     pathDirection: StorageFoldersPathDirection,
+    pathSeparator: StorageFoldersPathSeparator,
   ) async throws(ImagesModelCopyFolderError) {
-    try await _copyFolder(
-      item: item,
+    try await self.copyFolder(
+      item: item.id,
       to: folder,
       locale: locale,
       resolveConflicts: resolveConflicts,
-      pathSeparator: pathSeparator,
       pathDirection: pathDirection,
+      pathSeparator: pathSeparator,
     )
   }
 
   func copyFolder(
-    items: [ImagesItemModel2.ID],
+    items: [ImagesItemModel2],
     to folder: FoldersSettingsItemModel,
     locale: Locale,
     resolveConflicts: Bool,
-    pathSeparator: StorageFoldersPathSeparator,
     pathDirection: StorageFoldersPathDirection,
+    pathSeparator: StorageFoldersPathSeparator,
   ) async throws(ImagesModelCopyFolderError) {
-    try await _copyFolder(
-      items: items,
+    try await self.copyFolder(
+      items: items.map(\.id),
       to: folder.id,
       locale: locale,
       resolveConflicts: resolveConflicts,
-      pathSeparator: pathSeparator,
       pathDirection: pathDirection,
+      pathSeparator: pathSeparator,
     )
   }
 
   func copyFolder(
-    items: [ImagesItemModel2.ID],
+    items: [ImagesItemModel2],
     to folder: URL,
     locale: Locale,
     resolveConflicts: Bool,
-    pathSeparator: StorageFoldersPathSeparator,
     pathDirection: StorageFoldersPathDirection,
+    pathSeparator: StorageFoldersPathSeparator,
   ) async throws(ImagesModelCopyFolderError) {
-    try await _copyFolder(
-      items: items,
+    try await self.copyFolder(
+      items: items.map(\.id),
       to: folder,
       locale: locale,
       resolveConflicts: resolveConflicts,
-      pathSeparator: pathSeparator,
       pathDirection: pathDirection,
+      pathSeparator: pathSeparator,
     )
   }
 
@@ -944,6 +944,9 @@ final class ImagesModel {
   ) async throws -> ImageOrientation? {
     try Task.checkCancellation()
 
+    // I've noticed that some memory is retained when closing windows. The Allocations instrument points at this
+    // function, but weak/unowned self doesn't eliminate, e.g., CGImageSourceCreateThumbnailAtIndex(_:_:_:), from the
+    // call tree, which confuses me.
     let image = await run(on: resamples) {
       document.accessingSecurityScopedResource {
         guard let imageSource = self.createImageSource(at: document.source.url) else {
@@ -957,10 +960,10 @@ final class ImagesModel {
         ] as [CFString: Any]
 
         guard let copyProperties = CGImageSourceCopyPropertiesAtIndex(
-          imageSource,
-          index,
-          copyPropertiesOptions as CFDictionary,
-        ) else {
+                imageSource,
+                index,
+                copyPropertiesOptions as CFDictionary,
+              ) else {
           Logger.model.error(
             "Could not copy properties of image source at file URL '\(document.source.url.pathString)'",
           )
@@ -1482,7 +1485,7 @@ final class ImagesModel {
       item: directory,
       files: files
         .finderSort(by: \.pathComponents)
-        .map { URLSource(url: $0.item, options: .withoutImplicitSecurityScope) },
+        .map { URLSource(url: $0.item, options: [.withoutImplicitSecurityScope]) },
     )
 
     return directory
@@ -2050,7 +2053,7 @@ final class ImagesModel {
     return document
   }
 
-  nonisolated private func loadDocuments(for items: some Collection<RowID> & Sendable) async -> [RowID : URLSourceDocument]? {
+  nonisolated private func loadDocuments(for items: some Collection<RowID> & Sendable) async -> [RowID: URLSourceDocument]? {
     let connection: DatabasePool
 
     do {
@@ -2146,38 +2149,67 @@ final class ImagesModel {
     return documents
   }
 
-  nonisolated private func _showFinder(items: Set<ImagesItemModel2.ID>) async {
-    guard let documents = await loadDocuments(for: items) else {
-      return
-    }
-
-    NSWorkspace.shared.activateFileViewerSelecting(documents.values.map(\.source.url))
-  }
-
-  nonisolated private func _showFinder(item: ImagesItemModel2.ID) async {
-    guard let document = await loadDocument(for: item) else {
+  nonisolated private func showFinder(item: RowID) async {
+    guard let document = await self.loadDocument(for: item) else {
       return
     }
 
     NSWorkspace.shared.activateFileViewerSelecting([document.source.url])
   }
 
-  nonisolated private func _copy(item: ImagesItemModel2.ID) async {
-    guard let document = await loadDocument(for: item) else {
+  nonisolated private func showFinder(items: [RowID]) async {
+    guard let documents = await self.loadDocuments(for: items) else {
       return
     }
 
-    NSPasteboard.general.prepareForNewContents()
-    NSPasteboard.general.writeObjects([document.source.url as NSURL])
+    NSWorkspace.shared.activateFileViewerSelecting(items.compactMap { documents[$0]?.source.url })
   }
 
-  nonisolated private func _copy(items: Set<ImagesItemModel2.ID>) async {
-    guard let documents = await loadDocuments(for: items) else {
+  nonisolated private func copy(url: URL) {
+    // FIXME: This does not work:
+    //
+    //   NSPasteboard.general.writeObjects([document.source.url as NSURL])
+    //
+    // writeObjects(_:) is necessary to support features like "Paste Item" in Finder (Finder > Edit > Paste Item).
+    // Because URL bookmarks no longer carry an implicit security scope, other processes can't read the image. The issue,
+    // here, is that removing the implicit security scope is necessary to process all bookmarks without exhausting the
+    // sandbox.
+    //
+    // I tried using NSFilePromiseProvider, but the delegate methods were never called.
+    //
+    // I tried creating sources with security scopes even when their relative has one, but that had no effect. This has
+    // me thinking that implicit security scopes are necessary. If we were to support this, we'd need to restructure
+    // bookmark resolution to be done in chunks. However, even with this, we couldn't support View.copyable(_:). Because
+    // of this, I think partial support is better at this point in time.
+    let isSuccess = NSPasteboard.general.setString(url.absoluteString, forType: .URL)
+
+    guard isSuccess else {
+      Logger.model.error("Could not write file URL '\(url.pathString)' to general pasteboard")
+
+      return
+    }
+  }
+
+  nonisolated private func copy(item: RowID) async {
+    guard let document = await self.loadDocument(for: item) else {
       return
     }
 
     NSPasteboard.general.prepareForNewContents()
-    NSPasteboard.general.writeObjects(documents.values.map(\.source.url) as [NSURL])
+    self.copy(url: document.source.url)
+  }
+
+  nonisolated private func copy(items: [RowID]) async {
+    guard let documents = await self.loadDocuments(for: items) else {
+      return
+    }
+
+    NSPasteboard.general.prepareForNewContents()
+    // This should store all items in the pasteboard, even if the last one is what appears in the user's clipboard,
+    // which should be useful for applications that allow you to inspect the pasteboard over time.
+    items
+      .compactMap { documents[$0] }
+      .forEach { self.copy(url: $0.source.url) }
   }
 
   nonisolated private func copyFolder(
@@ -2307,18 +2339,14 @@ final class ImagesModel {
     }
   }
 
-  nonisolated private func _copyFolder(
-    item: ImagesItemModel2.ID?,
-    to folder: FoldersSettingsItemModel.ID,
+  nonisolated private func copyFolder(
+    item: RowID,
+    to folder: RowID,
     locale: Locale,
     resolveConflicts: Bool,
-    pathSeparator: StorageFoldersPathSeparator,
     pathDirection: StorageFoldersPathDirection,
+    pathSeparator: StorageFoldersPathSeparator,
   ) async throws(ImagesModelCopyFolderError) {
-    guard let item else {
-      return
-    }
-
     let connection: DatabasePool
 
     do {
@@ -2450,18 +2478,14 @@ final class ImagesModel {
     }
   }
 
-  nonisolated private func _copyFolder(
-    item: ImagesItemModel2.ID?,
+  nonisolated private func copyFolder(
+    item: RowID,
     to folder: URL,
     locale: Locale,
     resolveConflicts: Bool,
-    pathSeparator: StorageFoldersPathSeparator,
     pathDirection: StorageFoldersPathDirection,
+    pathSeparator: StorageFoldersPathSeparator,
   ) async throws(ImagesModelCopyFolderError) {
-    guard let item else {
-      return
-    }
-
     let connection: DatabasePool
 
     do {
@@ -2551,13 +2575,13 @@ final class ImagesModel {
     }
   }
 
-  nonisolated private func _copyFolder(
-    items: [ImagesItemModel2.ID],
-    to folder: FoldersSettingsItemModel.ID,
+  nonisolated private func copyFolder(
+    items: [RowID],
+    to folder: RowID,
     locale: Locale,
     resolveConflicts: Bool,
-    pathSeparator: StorageFoldersPathSeparator,
     pathDirection: StorageFoldersPathDirection,
+    pathSeparator: StorageFoldersPathSeparator,
   ) async throws(ImagesModelCopyFolderError) {
     let connection: DatabasePool
 
@@ -2721,13 +2745,13 @@ final class ImagesModel {
     }
   }
 
-  nonisolated private func _copyFolder(
-    items: [ImagesItemModel2.ID],
+  nonisolated private func copyFolder(
+    items: [RowID],
     to folder: URL,
     locale: Locale,
     resolveConflicts: Bool,
-    pathSeparator: StorageFoldersPathSeparator,
     pathDirection: StorageFoldersPathDirection,
+    pathSeparator: StorageFoldersPathSeparator,
   ) async throws(ImagesModelCopyFolderError) {
     let connection: DatabasePool
 

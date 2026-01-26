@@ -6,6 +6,7 @@
 //
 
 import AsyncAlgorithms
+import IdentifiedCollections
 import OSLog
 import SwiftUI
 
@@ -67,7 +68,7 @@ struct ImagesDetailItemView: View {
         Section {
           Button("Finder.Item.Show", systemImage: "finder") {
             Task {
-              await self.images.showFinder(item: self.item.id)
+              await self.images.showFinder(item: self.item)
             }
           }
 
@@ -81,7 +82,7 @@ struct ImagesDetailItemView: View {
         Section {
           Button("Images.Item.Copy", systemImage: "document.on.document") {
             Task {
-              await self.images.copy(item: self.item.id)
+              await self.images.copy(item: self.item)
             }
           }
 
@@ -117,15 +118,20 @@ struct ImagesDetailItemView: View {
             return
         }
 
+        guard let item = self.images.items[id: self.copyFolderSelection!] else {
+          // TODO: Log.
+          return
+        }
+
         Task {
           do {
             try await self.images.copyFolder(
-              item: self.copyFolderSelection,
+              item: item,
               to: url,
               locale: self.locale,
               resolveConflicts: self.resolveConflicts,
-              pathSeparator: self.foldersPathSeparator,
               pathDirection: self.foldersPathDirection,
+              pathSeparator: self.foldersPathSeparator,
             )
           } catch let error as ImagesModelCopyFolderError {
             self.copyFolderError = error

@@ -111,6 +111,8 @@ struct ImagesSidebarView2: View {
         ForEach(self.images.sidebarItems) { item in
           ImagesSidebarItemView(item: item)
         }
+        // I think the following before methods are wrong because offset being equal to the end index doesn't mean that
+        // it's the case for self.items.
         .dropDestination(for: URL.self) { items, offset in
           Task {
             await self.images.store(
@@ -136,10 +138,14 @@ struct ImagesSidebarView2: View {
       }
       .contextMenu { ids in
         Group {
+          var items: [ImagesItemModel2] {
+            self.images.items.filter(in: ids, by: \.id)
+          }
+
           Section {
             Button("Finder.Item.Show", systemImage: "finder") {
               Task {
-                await self.images.showFinder(items: ids)
+                await self.images.showFinder(items: items)
               }
             }
           }
@@ -147,7 +153,7 @@ struct ImagesSidebarView2: View {
           Section {
             Button("Images.Item.Copy", systemImage: "document.on.document") {
               Task {
-                await self.images.copy(items: ids)
+                await self.images.copy(items: items)
               }
             }
 
@@ -173,7 +179,7 @@ struct ImagesSidebarView2: View {
             }
           }
         }
-        .disabled(images.isInvalidSelection(of: ids))
+        .disabled(self.images.isInvalidSelection(of: ids))
       }
       .focused($isFocused)
       .overlay {
@@ -185,8 +191,13 @@ struct ImagesSidebarView2: View {
               .labelStyle(ImagesSidebarImportLabelStyle())
           }
           .buttonStyle(.plain)
-          .disabled(!images.hasLoadedNoImages)
-          .visible(images.hasLoadedNoImages)
+          .disabled(!self.images.hasLoadedNoImages)
+          .visible(self.images.hasLoadedNoImages)
+          .animation(.default, value: self.images.hasLoadedNoImages)
+          .transaction(
+            value: self.images.hasLoadedNoImages,
+            setter(on: \.disablesAnimations, value: !self.images.hasLoadedNoImages),
+          )
         }
       }
       .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -331,7 +342,7 @@ struct ImagesSidebarView2: View {
 //        isImageAnalysisSupplementaryInterfaceVisible: self.isImageAnalysisSupplementaryInterfaceVisible,
       )
     }
-    .alert(isPresented: $isCopyFolderErrorPresented, error: copyFolderError) {}
+    .alert(isPresented: $isCopyFolderErrorPresented, error: self.copyFolderError) {}
     .fileImporter(isPresented: $isCopyFolderFileImporterPresented, allowedContentTypes: foldersContentTypes) { result in
       let url: URL
 
@@ -347,13 +358,13 @@ struct ImagesSidebarView2: View {
 
       Task {
         do {
-          try await images.copyFolder(
-            items: images.sidebarItems.ids.filter(in: copyFolderSelection),
+          try await self.images.copyFolder(
+            items: self.images.items.filter(in: self.copyFolderSelection, by: \.id),
             to: url,
-            locale: locale,
-            resolveConflicts: resolveConflicts,
-            pathSeparator: foldersPathSeparator,
-            pathDirection: foldersPathDirection,
+            locale: self.locale,
+            resolveConflicts: self.resolveConflicts,
+            pathDirection: self.foldersPathDirection,
+            pathSeparator: self.foldersPathSeparator,
           )
         } catch let error as ImagesModelCopyFolderError {
           self.copyFolderError = error
@@ -364,7 +375,7 @@ struct ImagesSidebarView2: View {
     .fileDialogCustomizationID(FoldersSettingsScene.id)
     .onDeleteCommand {
       Task {
-        await self.images.remove(items: self.selection.compactMap { self.images.sidebarItems[id: $0] })
+        await self.images.remove(items: self.images.items.filter(in: self.selection, by: \.id))
       }
     }
     .onReceive(self.app.commandsPublisher) { command in
@@ -388,7 +399,7 @@ struct ImagesSidebarView2: View {
         self.isFileImporterPresented = true
       case .showFinder:
         Task {
-          await self.images.showFinder(items: self.selection)
+          await self.images.showFinder(items: self.images.items.filter(in: self.selection, by: \.id))
         }
       case .openFinder:
         unreachable()

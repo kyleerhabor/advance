@@ -13,9 +13,9 @@ struct ImagesSidebarItemCopyFolderView: View {
   @Environment(FoldersSettingsModel.self) private var folders
   @Environment(ImagesModel.self) private var images
   @Environment(\.locale) private var locale
-  @AppStorage(StorageKeys.resolveConflicts) private var resolveConflicts
-  @AppStorage(StorageKeys.foldersPathSeparator) private var foldersPathSeparator
   @AppStorage(StorageKeys.foldersPathDirection) private var foldersPathDirection
+  @AppStorage(StorageKeys.foldersPathSeparator) private var foldersPathSeparator
+  @AppStorage(StorageKeys.resolveConflicts) private var resolveConflicts
   @Binding var selection: Set<ImagesItemModel2.ID>
   @Binding var isFileImporterPresented: Bool
   @Binding var error: ImagesModelCopyFolderError?
@@ -24,18 +24,18 @@ struct ImagesSidebarItemCopyFolderView: View {
 
   var body: some View {
     Menu("Images.Item.Folder.Item.Copy") {
-      ForEach(folders.resolved) { item in
-        ImagesItemCopyFolderOpenFolderView(item: item) {
+      ForEach(self.folders.resolved) { folder in
+        ImagesItemCopyFolderOpenFolderView(folder: folder) {
           Button {
             Task {
               do {
-                try await images.copyFolder(
-                  items: images.items.ids.filter(in: items),
-                  to: item,
-                  locale: locale,
-                  resolveConflicts: resolveConflicts,
-                  pathSeparator: foldersPathSeparator,
-                  pathDirection: foldersPathDirection,
+                try await self.images.copyFolder(
+                  items: self.images.items.filter(in: self.items, by: \.id),
+                  to: folder,
+                  locale: self.locale,
+                  resolveConflicts: self.resolveConflicts,
+                  pathDirection: self.foldersPathDirection,
+                  pathSeparator: self.foldersPathSeparator,
                 )
               } catch let error as ImagesModelCopyFolderError {
                 self.error = error
@@ -43,13 +43,13 @@ struct ImagesSidebarItemCopyFolderView: View {
               }
             }
           } label: {
-            Text(item.path)
+            Text(folder.path)
           }
         }
       }
     } primaryAction: {
-      selection = items
-      isFileImporterPresented = true
+      self.selection = self.items
+      self.isFileImporterPresented = true
     }
   }
 }

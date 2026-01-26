@@ -9,26 +9,32 @@ import SwiftUI
 
 struct ImagesItemCopyFolderOpenFolderView<Content>: View where Content: View {
   @Environment(FoldersSettingsModel.self) private var folders
-  let item: FoldersSettingsItemModel
-  let content: Content
+  private let folder: FoldersSettingsItemModel
+  private let content: Content
 
   var body: some View {
-    if #unavailable(macOS 15) {
-      content
-    } else {
-      content
-        .modifierKeyAlternate(.option) {
-          Button("Finder.Item.\(item.path).Open") {
-            Task {
-              await folders.openFinder(item: item.id)
+    // We need this VStack to prevent ForEach from taking its slow path:
+    //
+    //   Unable to determine number of views per element in the collection [...]. If this view only produces one view
+    //   per element in the collection, consider wrapping your views in a VStack to take the fast path.
+    VStack {
+      if #unavailable(macOS 15) {
+        self.content
+      } else {
+        self.content
+          .modifierKeyAlternate(.option) {
+            Button("Finder.Item.\(self.folder.path).Open") {
+              Task {
+                await self.folders.openFinder(item: self.folder)
+              }
             }
           }
-        }
+      }
     }
   }
 
-  init(item: FoldersSettingsItemModel, @ViewBuilder content: () -> Content) {
-    self.item = item
+  init(folder: FoldersSettingsItemModel, @ViewBuilder content: () -> Content) {
+    self.folder = folder
     self.content = content()
   }
 }

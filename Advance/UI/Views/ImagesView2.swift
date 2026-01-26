@@ -309,7 +309,7 @@ struct ImagesView2: View {
         }
 
         Task {
-          await self.images.showFinder(item: item.id)
+          await self.images.showFinder(item: item)
         }
       case .openFinder:
         unreachable()
