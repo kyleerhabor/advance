@@ -28,6 +28,7 @@ struct ImagesItemCopyFolderOpenFolderView<Content>: View where Content: View {
                 await self.folders.openFinder(item: self.folder)
               }
             }
+            .help(Text("Finder.Item.\(self.folder.helpPath).Open"))
           }
       }
     }

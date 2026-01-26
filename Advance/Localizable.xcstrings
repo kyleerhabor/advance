@@ -118,7 +118,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open “%@\" in Finder"
+            "value" : "Open “%@” in Finder"
           }
         }
       }

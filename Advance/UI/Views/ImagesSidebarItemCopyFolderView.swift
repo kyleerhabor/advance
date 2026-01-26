@@ -26,7 +26,7 @@ struct ImagesSidebarItemCopyFolderView: View {
     Menu("Images.Item.Folder.Item.Copy") {
       ForEach(self.folders.resolved) { folder in
         ImagesItemCopyFolderOpenFolderView(folder: folder) {
-          Button {
+          ImagesItemCopyFolderView(folder: folder) {
             Task {
               do {
                 try await self.images.copyFolder(
@@ -42,8 +42,6 @@ struct ImagesSidebarItemCopyFolderView: View {
                 self.isErrorPresented = true
               }
             }
-          } label: {
-            Text(folder.path)
           }
         }
       }

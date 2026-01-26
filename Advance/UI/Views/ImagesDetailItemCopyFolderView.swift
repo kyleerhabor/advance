@@ -25,7 +25,7 @@ struct ImagesDetailItemCopyFolderView: View {
     Menu("Images.Item.Folder.Item.Copy") {
       ForEach(self.folders.resolved) { folder in
         ImagesItemCopyFolderOpenFolderView(folder: folder) {
-          Button {
+          ImagesItemCopyFolderView(folder: folder) {
             guard let item = self.images.items[id: self.item] else {
               return
             }
@@ -45,8 +45,6 @@ struct ImagesDetailItemCopyFolderView: View {
                 self.isErrorPresented = true
               }
             }
-          } label: {
-            Text(folder.path)
           }
         }
       }
