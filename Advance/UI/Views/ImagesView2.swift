@@ -105,12 +105,10 @@ struct ImagesView2: View {
   @AppStorage(StorageKeys.importSubdirectories) private var importSubdirectories
   @AppStorage(StorageKeys.isLiveTextEnabled) private var isLiveTextEnabled
 //  @AppStorage(StorageKeys.isLiveTextIconEnabled) private var isLiveTextIconEnabled
-  @SceneStorage(StorageKeys.columnVisibility) private var columnVisibilityStorage
+  @ColumnVisibilityStorage private var columnVisibility
 //  @SceneStorage(StorageKeys.imageAnalysisSupplementaryInterfaceVisibility)
 //  private var imageAnalysisSupplementaryInterfaceVisibility
 
-  @State private var columnVisibility = NavigationSplitViewVisibility.automatic
-  @State private var isColumnVisibilitySet = false
   @State private var isBookmarked = false
 //  @State private var isImageAnalysisSupplementaryInterfaceVisible = false
 //  @State private var isImageAnalysisSupplementaryInterfaceVisibleSet = false
@@ -128,7 +126,6 @@ struct ImagesView2: View {
 
     NavigationSplitView(columnVisibility: $columnVisibility) {
       ImagesSidebarView2(
-        columnVisibility: $columnVisibility,
         isBookmarked: $isBookmarked,
 //        isImageAnalysisSupplementaryInterfaceVisible: $isImageAnalysisSupplementaryInterfaceVisible,
         isFileImporterPresented: $isFileImporterPresented,
@@ -136,7 +133,6 @@ struct ImagesView2: View {
       .navigationSplitViewColumnWidth(min: 128, ideal: 128, max: 256)
     } detail: {
       ImagesDetailView2(
-        columnVisibility: self.columnVisibility,
 //        isImageAnalysisSupplementaryInterfaceVisible: self.isImageAnalysisSupplementaryInterfaceVisible,
       )
       .frame(minWidth: 256)
@@ -234,24 +230,6 @@ struct ImagesView2: View {
       }
 
       task?.cancel()
-    }
-    .onChange(of: self.images) {
-      let visibility = self.columnVisibilityStorage.columnVisibility
-      self.isColumnVisibilitySet = self.columnVisibility != visibility
-      self.columnVisibility = visibility
-    }
-    .onChange(of: self.columnVisibility) {
-      guard !self.isColumnVisibilitySet else {
-        self.isColumnVisibilitySet = false
-
-        return
-      }
-
-      guard let columnVisibility = StorageColumnVisibility(self.columnVisibility) else {
-        return
-      }
-
-      self.columnVisibilityStorage = columnVisibility
     }
     .onChange(of: self.isBookmarked) {
       self.images.isBookmarked = self.isBookmarked

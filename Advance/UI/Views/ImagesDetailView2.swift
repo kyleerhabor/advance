@@ -19,13 +19,22 @@ struct ImagesDetailViewImageAnalysisID {
 
 extension ImagesDetailViewImageAnalysisID: @MainActor Equatable {}
 
+@MainActor
+struct ImagesDetailViewColumnVisibilityID {
+  let images: ImagesModel
+  let restoreLastImage: Bool
+  let columnVisibility: StorageColumnVisibility
+}
+
+extension ImagesDetailViewColumnVisibilityID: @MainActor Equatable {}
+
 struct ImagesDetailView2: View {
   @Environment(ImagesModel.self) private var images
   @Environment(\.pixelLength) private var pixelLength
   @AppStorage(StorageKeys.isLiveTextEnabled) private var isLiveTextEnabled
   @AppStorage(StorageKeys.isLiveTextSubjectEnabled) private var isLiveTextSubjectEnabled
   @AppStorage(StorageKeys.restoreLastImage) private var restoreLastImage
-  let columnVisibility: NavigationSplitViewVisibility
+  @SceneStorage(StorageKeys.columnVisibility) private var columnVisibility
 //  let isImageAnalysisSupplementaryInterfaceVisible: Bool
   private var imageAnalysisTypes: ImageAnalysisTypes {
     var types = ImageAnalysisTypes()
@@ -89,45 +98,6 @@ struct ImagesDetailView2: View {
             }
         }
       }
-      .task(id: self.images) {
-        guard !Task.isCancelled else {
-          return
-        }
-
-        // For some reason, scrolling via the sidebar may cause this to output an empty array, immediately followed by
-        // the proper items. Debouncing defends against this, but is not a sound solution, since our problem is state.
-        var iterator = self.images.visibleItemsChannel
-          // Drop the items before items has loaded (that is, an empty array).
-          .dropFirst()
-          // Remove duplicate arrays.
-          .removeDuplicates()
-          .makeAsyncIterator()
-
-        if self.restoreLastImage,
-           let items = await iterator.next() {
-          // If we have a restore item, this initially sets the current item to the visible item that may be updated. In
-          // an ideal case, we'd only use the latest value, but that'd require considering states like whether or not
-          // scrolling to the restore item will send another element (i.e., whether or not we're already at the restore
-          // item). At the moment, I don't want to implement it, since I'm not sure if it's a good idea.
-          self.images.visibleItems = items
-          self.images.isHighlighted = !items.isEmpty && items.allSatisfy(\.isImageAnalysisSelectableItemsHighlighted)
-          await self.images.setCurrentItem(item: items.first)
-
-          if let item = self.images.restoredItem {
-            if self.columnVisibility != .detailOnly {
-              await self.images.sidebar.send(ImagesModelSidebarElement(item: item.id, isSelected: false))
-            }
-
-            await self.images.detail.send(item.id)
-          }
-        }
-
-        while let items = await iterator.next() {
-          self.images.visibleItems = items
-          self.images.isHighlighted = !items.isEmpty && items.allSatisfy(\.isImageAnalysisSelectableItemsHighlighted)
-          await self.images.setCurrentItem(item: items.first)
-        }
-      }
       .task(id: ImagesViewResampleID(images: self.images, pixelLength: self.pixelLength)) {
         var task: Task<Void, Never>?
 
@@ -161,6 +131,34 @@ struct ImagesDetailView2: View {
         }
 
         task?.cancel()
+      }
+    }
+    .task(
+      id: ImagesDetailViewColumnVisibilityID(
+        images: self.images,
+        restoreLastImage: self.restoreLastImage,
+        columnVisibility: self.columnVisibility,
+      ),
+    ) {
+      for await items in self.images.visibleItemsChannel.dropFirst().removeDuplicates() {
+        // If we have a restore item, this initially sets the current item to the visible item that may be updated. In
+        // an ideal case, we'd only use the latest value, but that'd require considering states like whether or not
+        // scrolling to the restore item will send another element (i.e., whether or not we're already at the restore
+        // item). At the moment, I don't want to implement it, since I'm not sure if it's a good idea.
+        self.images.visibleItems = items
+        self.images.isHighlighted = !items.isEmpty && items.allSatisfy(\.isImageAnalysisSelectableItemsHighlighted)
+        await self.images.setCurrentItem(item: items.first)
+
+        if self.restoreLastImage && self.images.visibleItemsNeedsScroll,
+           let item = self.images.restoredItem {
+          if self.columnVisibility != .detailOnly {
+            await self.images.sidebar.send(ImagesModelSidebarElement(item: item.id, isSelected: false))
+          }
+
+          await self.images.detail.send(item.id)
+        }
+
+        self.images.visibleItemsNeedsScroll = false
       }
     }
   }

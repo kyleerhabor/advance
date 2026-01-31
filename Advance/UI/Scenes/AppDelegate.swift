@@ -43,6 +43,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
       return
     }
 
+    // As of macOS 15, customizationPaletteIsRunning supports KVO, meaning we can eliminate this method.
     app.windows
       .filter(\.isFullScreen)
       .compactMap(\.toolbar)

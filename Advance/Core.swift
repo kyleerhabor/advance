@@ -151,6 +151,13 @@ extension URL {
   var pathString: String {
     self.path(percentEncoded: false)
   }
+
+  var debugString: String {
+    let absoluteString = self.absoluteString
+    let string = absoluteString.removingPercentEncoding ?? absoluteString
+
+    return string
+  }
 }
 
 extension Bundle {

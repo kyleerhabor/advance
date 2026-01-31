@@ -81,7 +81,7 @@ struct ImagesSidebarView2: View {
   @AppStorage(StorageKeys.importHiddenFiles) private var importHiddenFiles
   @AppStorage(StorageKeys.importSubdirectories) private var importSubdirectories
   @AppStorage(StorageKeys.resolveConflicts) private var resolveConflicts
-  @Binding var columnVisibility: NavigationSplitViewVisibility
+  @SceneStorage(StorageKeys.columnVisibility) private var columnVisibility
   @Binding var isBookmarked: Bool
 //  @Binding var isImageAnalysisSupplementaryInterfaceVisible: Bool
   @Binding var isFileImporterPresented: Bool

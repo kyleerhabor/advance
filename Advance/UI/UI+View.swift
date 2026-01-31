@@ -154,8 +154,6 @@ struct WindowViewModifier: ViewModifier {
 struct WindowFullScreenViewModifier: ViewModifier {
   @Environment(Window.self) private var window
   @State private var isWindowFullScreen = WindowFullScreenEnvironmentKey.defaultValue
-  @State private var enter: AnyPublisher<Notification, Never> = AnyPublisher(Empty())
-  @State private var exit: AnyPublisher<Notification, Never> = AnyPublisher(Empty())
 
   func body(content: Content) -> some View {
     // For some reason, using task(priority:_:) to await notifications results in toolbar(_:for:) not working in scene
@@ -169,23 +167,31 @@ struct WindowFullScreenViewModifier: ViewModifier {
     //       object: self.window.window,
     //     ),
     //   ) { ... }
+    //
+    // For some reason, specifying the object via self.window.window results in the publisher never publishing.
     content
       .environment(\.isWindowFullScreen, self.isWindowFullScreen)
-      .onChange(of: self.window) {
-        self.enter = NotificationCenter.default
-          .publisher(for: NSWindow.willEnterFullScreenNotification, object: self.window.window)
-          .eraseToAnyPublisher()
+      .onReceive(NotificationCenter.default.publisher(for: NSWindow.willEnterFullScreenNotification)) { notification in
+        guard self.isForCurrentWindow(notification: notification) else {
+          return
+        }
 
-        self.exit = NotificationCenter.default
-          .publisher(for: NSWindow.willExitFullScreenNotification, object: self.window.window)
-          .eraseToAnyPublisher()
-      }
-      .onReceive(self.enter) { _ in
         self.isWindowFullScreen = true
       }
-      .onReceive(self.exit) { _ in
+      .onReceive(NotificationCenter.default.publisher(for: NSWindow.willExitFullScreenNotification)) { notification in
+        guard self.isForCurrentWindow(notification: notification) else {
+          return
+        }
+
         self.isWindowFullScreen = false
       }
+  }
+
+  func isForCurrentWindow(notification: Notification) -> Bool {
+    let window = notification.object as! NSWindow
+    let isCurrentWindow = window == self.window.window
+
+    return isCurrentWindow
   }
 }
 
@@ -409,4 +415,59 @@ extension KeyboardShortcut {
   // MARK: - Old
   static let back = Self("[", modifiers: .command)
   static let forward = Self("]", modifiers: .command)
+}
+
+@propertyWrapper
+struct ColumnVisibilityStorage: DynamicProperty {
+  @SceneStorage(StorageKeys.columnVisibility) private var columnVisibility
+
+  var wrappedValue: NavigationSplitViewVisibility {
+    get {
+      switch self.columnVisibility {
+        case .automatic: .automatic
+        case .all: .all
+        case .doubleColumn: .doubleColumn
+        case .detailOnly: .detailOnly
+      }
+    }
+    nonmutating set {
+      switch newValue {
+        case .automatic:
+          self.columnVisibility = .automatic
+        case .all:
+          self.columnVisibility = .all
+        case .doubleColumn:
+          self.columnVisibility = .doubleColumn
+        case .detailOnly:
+          self.columnVisibility = .detailOnly
+        default:
+          let encoder = JSONEncoder()
+          let encoded: Data
+
+          do {
+            encoded = try encoder.encode(newValue)
+          } catch {
+            Logger.ui.error("Could not map navigation split view visibility to column visibility nor encode it: \(error)")
+
+            return
+          }
+
+          guard let value = String(data: encoded, encoding: .utf8) else {
+            Logger.ui.error("Could not map navigation split view visibility to column visibility nor represent it")
+
+            return
+          }
+
+          Logger.ui.log("Could not map navigation split view visibility '\(value)' to column visibility")
+      }
+    }
+  }
+
+  var projectedValue: Binding<NavigationSplitViewVisibility> {
+    Binding {
+      self.wrappedValue
+    } set: { newValue in
+      self.wrappedValue = newValue
+    }
+  }
 }

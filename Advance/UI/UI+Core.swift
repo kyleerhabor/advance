@@ -5,8 +5,9 @@
 //  Created by Kyle Erhabor on 6/29/24.
 //
 
-import SwiftUI
 import Combine
+import OSLog
+import SwiftUI
 import UniformTypeIdentifiers
 import VisionKit
 
@@ -33,30 +34,6 @@ enum StorageVisibility: Int {
 
 enum StorageColumnVisibility: Int {
   case automatic, all, doubleColumn, detailOnly
-
-  init?(_ columnVisibility: NavigationSplitViewVisibility) {
-    switch columnVisibility {
-      case .automatic:
-        self = .automatic
-      case .all:
-        self = .all
-      case .doubleColumn:
-        self = .doubleColumn
-      case .detailOnly:
-        self = .detailOnly
-      default:
-        return nil
-    }
-  }
-
-  var columnVisibility: NavigationSplitViewVisibility {
-    switch self {
-      case .automatic: .automatic
-      case .all: .all
-      case .doubleColumn: .doubleColumn
-      case .detailOnly: .detailOnly
-    }
-  }
 }
 
 extension SetAlgebra {

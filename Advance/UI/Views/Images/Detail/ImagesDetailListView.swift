@@ -98,7 +98,7 @@ struct ImagesDetailListView: View {
         }
       }
       // TODO: Document rationale for not hiding on scroll.
-      .scrollIndicators(hiddenLayout.scroll && columnVisibility.columnVisibility == .detailOnly ? .hidden : .automatic)
+      .scrollIndicators(hiddenLayout.scroll && columnVisibility == .detailOnly ? .hidden : .automatic)
       .onContinuousHover { phase in
         switch phase {
           case .active:
@@ -127,8 +127,8 @@ struct ImagesDetailListView: View {
       .onChange(of: isWindowLiveResizeActive) {
         model.isScrollingSubject.send(false)
       }
-      .onChange(of: columnVisibility.columnVisibility) {
-        model.isScrollingSubject.send(false)
+      .onChange(of: self.columnVisibility) {
+        self.model.isScrollingSubject.send(false)
       }
     }
   }

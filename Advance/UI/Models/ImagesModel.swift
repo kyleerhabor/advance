@@ -326,6 +326,7 @@ final class ImagesModel {
   @ObservationIgnored let sidebar: AsyncChannel<ImagesModelSidebarElement>
   @ObservationIgnored let detail: AsyncChannel<ImagesItemModel2.ID>
   @ObservationIgnored let visibleItemsChannel: AsyncChannel<[ImagesItemModel2]>
+  @ObservationIgnored var visibleItemsNeedsScroll: Bool
   @ObservationIgnored let detailResample: AsyncChannel<ImagesModelResample>
   @ObservationIgnored let detailImageAnalysis: AsyncChannel<ImagesModelResample>
   @ObservationIgnored let sidebarResample: AsyncChannel<ImagesModelResample>
@@ -356,6 +357,7 @@ final class ImagesModel {
     self.sidebar = AsyncChannel()
     self.detail = AsyncChannel()
     self.visibleItemsChannel = AsyncChannel()
+    self.visibleItemsNeedsScroll = true
     self.detailResample = AsyncChannel()
     self.detailImageAnalysis = AsyncChannel()
     self.sidebarResample = AsyncChannel()
@@ -2093,6 +2095,8 @@ final class ImagesModel {
 
         return state
       }
+    } catch is CancellationError {
+      return nil
     } catch {
       Logger.model.error("Could not read from database: \(error)")
 
@@ -2181,10 +2185,8 @@ final class ImagesModel {
     // me thinking that implicit security scopes are necessary. If we were to support this, we'd need to restructure
     // bookmark resolution to be done in chunks. However, even with this, we couldn't support View.copyable(_:). Because
     // of this, I think partial support is better at this point in time.
-    let isSuccess = NSPasteboard.general.setString(url.absoluteString, forType: .URL)
-
-    guard isSuccess else {
-      Logger.model.error("Could not write file URL '\(url.pathString)' to general pasteboard")
+    guard NSPasteboard.general.setString(url.absoluteString, forType: .URL) else {
+      Logger.model.error("Could not write URL '\(url.debugString)' to general pasteboard")
 
       return
     }
