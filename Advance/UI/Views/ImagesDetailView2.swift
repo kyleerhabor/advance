@@ -20,13 +20,13 @@ struct ImagesDetailViewImageAnalysisID {
 extension ImagesDetailViewImageAnalysisID: @MainActor Equatable {}
 
 @MainActor
-struct ImagesDetailViewColumnVisibilityID {
+struct ImagesDetailViewVisibleItemsID {
   let images: ImagesModel
   let restoreLastImage: Bool
   let columnVisibility: StorageColumnVisibility
 }
 
-extension ImagesDetailViewColumnVisibilityID: @MainActor Equatable {}
+extension ImagesDetailViewVisibleItemsID: @MainActor Equatable {}
 
 struct ImagesDetailView2: View {
   @Environment(ImagesModel.self) private var images
@@ -35,7 +35,6 @@ struct ImagesDetailView2: View {
   @AppStorage(StorageKeys.isLiveTextSubjectEnabled) private var isLiveTextSubjectEnabled
   @AppStorage(StorageKeys.restoreLastImage) private var restoreLastImage
   @SceneStorage(StorageKeys.columnVisibility) private var columnVisibility
-//  let isImageAnalysisSupplementaryInterfaceVisible: Bool
   private var imageAnalysisTypes: ImageAnalysisTypes {
     var types = ImageAnalysisTypes()
 
@@ -53,10 +52,7 @@ struct ImagesDetailView2: View {
   var body: some View {
     ScrollViewReader { proxy in
       List(images.items) { item in
-        ImagesDetailItemView(
-          item: item,
-//          isImageAnalysisSupplementaryInterfaceVisible: self.isImageAnalysisSupplementaryInterfaceVisible,
-        )
+        ImagesDetailItemView(item: item)
       }
       .listStyle(.plain)
       .task(id: self.images) {
@@ -134,7 +130,7 @@ struct ImagesDetailView2: View {
       }
     }
     .task(
-      id: ImagesDetailViewColumnVisibilityID(
+      id: ImagesDetailViewVisibleItemsID(
         images: self.images,
         restoreLastImage: self.restoreLastImage,
         columnVisibility: self.columnVisibility,

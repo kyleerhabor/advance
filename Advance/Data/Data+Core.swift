@@ -39,7 +39,7 @@ actor Once<Success, Failure, each Argument> where Failure: Error {
   }
 }
 
-func createImagesItemPositionSchemaTriggers(_ db: Database) throws {
+func createImagesItemPositionSchemaCheck(_ db: Database) throws {
   let name = "\(ItemImagesRecord.databaseTableName).\(ItemImagesRecord.Columns.item.name).\(ImagesItemRecord.Columns.position.name)"
   let message = "(\(ItemImagesRecord.databaseTableName).\(ItemImagesRecord.Columns.images.name), \(name)) must be unique"
   let when: SQL = """
@@ -77,7 +77,7 @@ func createImagesItemPositionSchemaTriggers(_ db: Database) throws {
   )
 }
 
-func createImagesItemFileBookmarkSchemaTriggers(_ db: Database) throws {
+func createImagesItemFileBookmarkSchemaCheck(_ db: Database) throws {
   let name = "\(ItemImagesRecord.databaseTableName).\(ItemImagesRecord.Columns.item.name).\(ImagesItemRecord.Columns.fileBookmark.name)"
   let message = "(\(ItemImagesRecord.databaseTableName).\(ItemImagesRecord.Columns.images.name), \(name)) must be unique"
   let when: SQL = """
@@ -110,6 +110,58 @@ func createImagesItemFileBookmarkSchemaTriggers(_ db: Database) throws {
       FOR EACH ROW WHEN (\(when))
       BEGIN
         SELECT RAISE(ABORT, \(sql: message.quotedDatabaseIdentifier));
+      END
+      """,
+  )
+}
+
+func createFolderPathComponentPositionSchemaCheck(_ db: Database) throws {
+  let name = "\(PathComponentFolderRecord.databaseTableName).\(PathComponentFolderRecord.Columns.pathComponent.name).\(FolderPathComponentRecord.Columns.position.name)"
+  let message = "(\(PathComponentFolderRecord.databaseTableName).\(PathComponentFolderRecord.Columns.folder.name), \(name)) must be unique"
+  let when: SQL = """
+      SELECT 1
+      FROM \(FolderPathComponentRecord.self)
+      LEFT JOIN \(PathComponentFolderRecord.self) other
+        ON other.\(.rowID) != NEW.\(.rowID)
+      LEFT JOIN \(FolderPathComponentRecord.self) other_folder_path_component
+        ON other_folder_path_component.\(.rowID) = other.\(PathComponentFolderRecord.Columns.pathComponent)
+      WHERE \(FolderPathComponentRecord.self).\(.rowID) = NEW.\(PathComponentFolderRecord.Columns.pathComponent)
+        AND other.\(PathComponentFolderRecord.Columns.folder) = NEW.\(PathComponentFolderRecord.Columns.folder)
+        AND \(FolderPathComponentRecord.self).\(FolderPathComponentRecord.Columns.position) = other_folder_path_component.\(FolderPathComponentRecord.Columns.position)
+      """
+
+  try db.execute(
+    literal: """
+      CREATE TRIGGER \(sql: "\(name)_ai".quotedDatabaseIdentifier)
+      AFTER INSERT ON \(PathComponentFolderRecord.self)
+      FOR EACH ROW WHEN (\(when))
+      BEGIN
+        SELECT RAISE(ABORT, \(sql: message.quotedDatabaseIdentifier));
+      END
+      """,
+  )
+
+  try db.execute(
+    literal: """
+      CREATE TRIGGER \(sql: "\(name)_au".quotedDatabaseIdentifier)
+      AFTER UPDATE ON \(PathComponentFolderRecord.self)
+      FOR EACH ROW WHEN (\(when))
+      BEGIN
+        SELECT RAISE(ABORT, \(sql: message.quotedDatabaseIdentifier));
+      END
+      """,
+  )
+}
+
+func createFolderPathComponentSchemaAction(_ db: Database) throws {
+  try db.execute(
+    literal: """
+      CREATE TRIGGER \(sql: "\(PathComponentFolderRecord.databaseTableName)_ad".quotedDatabaseIdentifier)
+      AFTER DELETE ON \(PathComponentFolderRecord.self)
+      FOR EACH ROW
+      BEGIN
+        DELETE FROM \(FolderPathComponentRecord.self)
+        WHERE \(FolderPathComponentRecord.self).\(.rowID) = OLD.\(PathComponentFolderRecord.Columns.pathComponent);
       END
       """,
   )
@@ -162,6 +214,7 @@ func createSchema(connection: some DatabaseWriter) throws {
         .column(ImagesItemRecord.Columns.position.name, .text)
         .notNull()
 
+      // If we were to add more boolean columns in the future, it'd probably make more sense to use an option set.
       table
         .column(ImagesItemRecord.Columns.isBookmarked.name, .boolean)
         .notNull()
@@ -174,7 +227,7 @@ func createSchema(connection: some DatabaseWriter) throws {
         .notNull()
         .unique()
 
-      // TODO: Ensure ItemImagesRecord(images: id, item: currentItem).
+      // TODO: Ensure uniqueness.
       table
         .column(ImagesRecord.Columns.currentItem.name, .integer)
         .references(ImagesItemRecord.databaseTableName, onDelete: .setNull)
@@ -196,12 +249,12 @@ func createSchema(connection: some DatabaseWriter) throws {
         .references(ImagesItemRecord.databaseTableName, onDelete: .cascade)
     }
 
-    try createImagesItemPositionSchemaTriggers(db)
-    try createImagesItemFileBookmarkSchemaTriggers(db)
+    try createImagesItemPositionSchemaCheck(db)
+    try createImagesItemFileBookmarkSchemaCheck(db)
     try db.create(table: FolderPathComponentRecord.databaseTableName) { table in
       table.primaryKey(Column.rowID.name, .integer)
       // We could de-duplicate this, but the table only exists so we don't have to encode an array of strings manually.
-      // That is, if encoding wasn't a concern, we'd have duplication regardless.
+      // That is, if encoding wasn't a concern, we'd have duplication, regardless.
       table
         .column(FolderPathComponentRecord.Columns.component.name, .text)
         .notNull()
@@ -235,6 +288,8 @@ func createSchema(connection: some DatabaseWriter) throws {
         .references(FolderPathComponentRecord.databaseTableName)
     }
 
+    try createFolderPathComponentPositionSchemaCheck(db)
+    try createFolderPathComponentSchemaAction(db)
     try db.create(table: SearchEngineRecord.databaseTableName) { table in
       table.primaryKey(Column.rowID.name, .integer)
       table
@@ -262,55 +317,6 @@ func createSchema(connection: some DatabaseWriter) throws {
         .references(SearchEngineRecord.databaseTableName, onDelete: .setNull)
         .indexed()
     }
-
-    let pathComponentFolderPathComponentPosition = "\(PathComponentFolderRecord.databaseTableName).\(PathComponentFolderRecord.Columns.pathComponent.name).\(FolderPathComponentRecord.Columns.position.name)"
-    let pathComponentFolderPathComponentPositionWhen: SQL = """
-      SELECT 1
-      FROM \(FolderPathComponentRecord.self)
-      LEFT JOIN \(PathComponentFolderRecord.self) other
-        ON other.\(.rowID) != NEW.\(.rowID)
-      LEFT JOIN \(FolderPathComponentRecord.self) other_folder_path_component
-        ON other_folder_path_component.\(.rowID) = other.\(PathComponentFolderRecord.Columns.pathComponent)
-      WHERE \(FolderPathComponentRecord.self).\(.rowID) = NEW.\(PathComponentFolderRecord.Columns.pathComponent)
-        AND other.\(PathComponentFolderRecord.Columns.folder) = NEW.\(PathComponentFolderRecord.Columns.folder)
-        AND \(FolderPathComponentRecord.self).\(FolderPathComponentRecord.Columns.position) = other_folder_path_component.\(FolderPathComponentRecord.Columns.position)
-      """
-
-    let pathComponentFolderPathComponentPositionMessage = "(\(PathComponentFolderRecord.databaseTableName).\(PathComponentFolderRecord.Columns.folder.name), \(PathComponentFolderRecord.databaseTableName).\(PathComponentFolderRecord.Columns.pathComponent.name).\(FolderPathComponentRecord.Columns.position.name)) must be unique"
-
-    try db.execute(
-      literal: """
-      CREATE TRIGGER \(sql: "\(pathComponentFolderPathComponentPosition)_ai".quotedDatabaseIdentifier)
-      AFTER INSERT ON \(PathComponentFolderRecord.self)
-      FOR EACH ROW WHEN (\(pathComponentFolderPathComponentPositionWhen))
-      BEGIN
-        SELECT RAISE(ABORT, \(sql: pathComponentFolderPathComponentPositionMessage.quotedDatabaseIdentifier));
-      END
-      """,
-    )
-
-    try db.execute(
-      literal: """
-      CREATE TRIGGER \(sql: "\(pathComponentFolderPathComponentPosition)_au".quotedDatabaseIdentifier)
-      AFTER UPDATE ON \(PathComponentFolderRecord.self)
-      FOR EACH ROW WHEN (\(pathComponentFolderPathComponentPositionWhen))
-      BEGIN
-        SELECT RAISE(ABORT, \(sql: pathComponentFolderPathComponentPositionMessage.quotedDatabaseIdentifier));
-      END
-      """,
-    )
-
-    try db.execute(
-      literal: """
-      CREATE TRIGGER \(sql: "\(PathComponentFolderRecord.databaseTableName)_ad".quotedDatabaseIdentifier)
-      AFTER DELETE ON \(PathComponentFolderRecord.self)
-      FOR EACH ROW
-      BEGIN
-        DELETE FROM \(FolderPathComponentRecord.self)
-        WHERE \(FolderPathComponentRecord.self).\(.rowID) = OLD.\(PathComponentFolderRecord.Columns.pathComponent);
-      END
-      """,
-    )
   }
 
   try migrator.migrate(connection)

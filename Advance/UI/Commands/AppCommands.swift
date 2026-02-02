@@ -148,19 +148,19 @@ struct AppCommands: Commands {
       }
 
       Section {
-//        Button(
-//          self.app.isOn(toggle: self.scene?.liveTextIcon)
-//            ? "Commands.Image.LiveTextIcon.Hide"
-//            : "Commands.Image.LiveTextIcon.Show",
-//        ) {
-//          guard let scene = self.scene else {
-//            return
-//          }
-//
-//          self.app.commandsSubject.send(AppModelCommand(action: .toggleLiveTextIcon, sceneID: scene.id))
-//        }
-//        .keyboardShortcut(.toggleLiveTextIcon)
-//        .disabled(self.app.isDisabled(toggle: self.scene?.liveTextIcon))
+        Button(
+          self.app.isOn(toggle: self.scene?.liveTextIcon)
+            ? "Commands.Image.LiveTextIcon.Hide"
+            : "Commands.Image.LiveTextIcon.Show",
+        ) {
+          guard let scene = self.scene else {
+            return
+          }
+
+          self.app.commandsSubject.send(AppModelCommand(action: .toggleLiveTextIcon, sceneID: scene.id))
+        }
+        .keyboardShortcut(.toggleLiveTextIcon)
+        .disabled(self.app.isDisabled(toggle: self.scene?.liveTextIcon))
 
         Button(
           self.app.isOn(toggle: self.scene?.liveTextHighlight)

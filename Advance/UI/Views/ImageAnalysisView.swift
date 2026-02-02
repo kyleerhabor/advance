@@ -12,7 +12,7 @@ import VisionKit
 
 class ImageAnalysisViewDelegate: ImageAnalysisOverlayViewDelegate {
   var representable: ImageAnalysisView
-  var actions: [NSMenuItem : () -> Void]
+  var actions: [NSMenuItem: () -> Void]
 
   init(representable: ImageAnalysisView) {
     self.representable = representable
@@ -66,15 +66,14 @@ struct ImageAnalysisView: NSViewRepresentable {
   let id: UUID
   let analysis: ImageAnalysis?
   let preferredInteractionTypes: ImageAnalysisOverlayView.InteractionTypes
-//  let isSupplementaryInterfaceHidden: Bool
+  let isSupplementaryInterfaceHidden: Bool
   let transformMenu: (ImageAnalysisViewDelegate, NSMenu, ImageAnalysisOverlayView) -> NSMenu
 
   func makeNSView(context: Context) -> ImageAnalysisOverlayView {
     let overlayView = ImageAnalysisOverlayView()
     overlayView.delegate = context.coordinator.delegate
     overlayView.preferredInteractionTypes = self.preferredInteractionTypes
-//    overlayView.isSupplementaryInterfaceHidden = self.isSupplementaryInterfaceHidden
-    overlayView.isSupplementaryInterfaceHidden = true
+    overlayView.isSupplementaryInterfaceHidden = self.isSupplementaryInterfaceHidden
 //    self.setVisibility(overlayView, selectableItemsHighlighted: false, isAnimated: false)
     
     overlayView.analysis = self.analysis
@@ -90,11 +89,11 @@ struct ImageAnalysisView: NSViewRepresentable {
       overlayView.preferredInteractionTypes = self.preferredInteractionTypes
     }
 
-//    let isSupplementaryInterfaceHidden = !self.isSelectableItemsHighlighted && self.isSupplementaryInterfaceHidden
-//
-//    if overlayView.isSupplementaryInterfaceHidden != isSupplementaryInterfaceHidden {
-//      overlayView.setSupplementaryInterfaceHidden(isSupplementaryInterfaceHidden, animated: true)
-//    }
+    let isSupplementaryInterfaceHidden = !self.isSelectableItemsHighlighted && self.isSupplementaryInterfaceHidden
+
+    if overlayView.isSupplementaryInterfaceHidden != isSupplementaryInterfaceHidden {
+      overlayView.setSupplementaryInterfaceHidden(isSupplementaryInterfaceHidden, animated: true)
+    }
 
     if overlayView.selectableItemsHighlighted != self.isSelectableItemsHighlighted {
       overlayView.selectableItemsHighlighted = self.isSelectableItemsHighlighted
@@ -102,8 +101,7 @@ struct ImageAnalysisView: NSViewRepresentable {
 
     if id != self.id {
       // For some reason, setting this property may raise a layout constraint exception when the supplementary interface
-      // is visible. Usually, AppKit will recover by breaking the violation, but othertimes, it's unable to, crashing
-      // instead. Until I find a solution, toggling the supplementary interface is disabled.
+      // is visible. Usually, AppKit will recover by breaking the violation, but othertimes, it's unable to, crashing instead.
       overlayView.analysis = self.analysis
     }
   }

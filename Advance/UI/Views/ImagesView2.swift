@@ -50,28 +50,34 @@ extension ImagesViewItemsID: @MainActor Equatable {}
 struct ImagesBackgroundView: View {
   @Environment(ImagesModel.self) private var images
   @AppStorage(StorageKeys.isLiveTextEnabled) private var isLiveTextEnabled
+  @ImageAnalysisSupplementaryInterfaceVisibleStorage private var isImageAnalysisSupplementaryInterfaceVisible
   let isBookmarked: Bool
-//  let isSupplementaryInterfaceVisible: Bool
 
   var body: some View {
     Color.clear
-      .focusedSceneValue(\.commandScene, AppModelCommandScene(
-        id: .images(self.images.id),
-        showFinder: AppModelActionCommand(isDisabled: self.images.currentItem == nil),
-        openFinder: AppModelActionCommand(isDisabled: true),
-        showSidebar: AppModelActionCommand(isDisabled: self.images.currentItem == nil),
-        sidebarBookmarks: AppModelToggleCommand(isDisabled: false, isOn: self.isBookmarked),
-        bookmark: AppModelToggleCommand(
-          isDisabled: self.images.currentItem == nil,
-          isOn: self.images.currentItem?.isBookmarked ?? false,
+      .focusedSceneValue(
+        \.commandScene,
+        AppModelCommandScene(
+          id: .images(self.images.id),
+          showFinder: AppModelActionCommand(isDisabled: self.images.currentItem == nil),
+          openFinder: AppModelActionCommand(isDisabled: true),
+          showSidebar: AppModelActionCommand(isDisabled: self.images.currentItem == nil),
+          sidebarBookmarks: AppModelToggleCommand(isDisabled: false, isOn: self.isBookmarked),
+          bookmark: AppModelToggleCommand(
+            isDisabled: self.images.currentItem == nil,
+            isOn: self.images.currentItem?.isBookmarked ?? false,
+          ),
+          liveTextIcon: AppModelToggleCommand(
+            isDisabled: !self.isLiveTextEnabled,
+            isOn: self.isImageAnalysisSupplementaryInterfaceVisible,
+          ),
+          liveTextHighlight: AppModelToggleCommand(
+            isDisabled: !self.isLiveTextEnabled || self.images.visibleItems.isEmpty,
+            isOn: self.images.isHighlighted,
+          ),
+          resetWindowSize: AppModelActionCommand(isDisabled: false),
         ),
-//        liveTextIcon: AppModelToggleCommand(isDisabled: !self.isLiveTextEnabled, isOn: self.isSupplementaryInterfaceVisible),
-        liveTextHighlight: AppModelToggleCommand(
-          isDisabled: !self.isLiveTextEnabled || self.images.visibleItems.isEmpty,
-          isOn: self.images.isHighlighted,
-        ),
-        resetWindowSize: AppModelActionCommand(isDisabled: false),
-      ))
+      )
       .transform { content in
         if let item = self.images.currentItem {
           content
@@ -84,14 +90,33 @@ struct ImagesBackgroundView: View {
   }
 }
 
-//@MainActor
-//struct ImagesViewSupplementaryInterfaceVisibleID {
-//  let images: ImagesModel
-//  let isLiveTextEnabled: Bool
-//  let isLiveTextIconEnabled: Bool
-//}
-//
-//extension ImagesViewSupplementaryInterfaceVisibleID: @MainActor Equatable {}
+@propertyWrapper
+struct ImageAnalysisSupplementaryInterfaceVisibleStorage: DynamicProperty {
+  @AppStorage(StorageKeys.isLiveTextEnabled) private var isLiveTextEnabled
+  @AppStorage(StorageKeys.isLiveTextIconEnabled) private var isLiveTextIconEnabled
+  @SceneStorage(StorageKeys.imageAnalysisSupplementaryInterfaceVisibility) private var visibility
+
+  var wrappedValue: Bool {
+    get {
+      switch self.visibility {
+        case .automatic: self.isLiveTextEnabled && self.isLiveTextIconEnabled
+        case .visible: self.isLiveTextEnabled
+        case .hidden: false
+      }
+    }
+    nonmutating set {
+      self.visibility = newValue ? .visible : .hidden
+    }
+  }
+
+  var projectedValue: Binding<Bool> {
+    Binding {
+      self.wrappedValue
+    } set: { newValue in
+      self.wrappedValue = newValue
+    }
+  }
+}
 
 struct ImagesView2: View {
   @Environment(AppModel.self) private var app
@@ -104,19 +129,11 @@ struct ImagesView2: View {
   @AppStorage(StorageKeys.importHiddenFiles) private var importHiddenFiles
   @AppStorage(StorageKeys.importSubdirectories) private var importSubdirectories
   @AppStorage(StorageKeys.isLiveTextEnabled) private var isLiveTextEnabled
-//  @AppStorage(StorageKeys.isLiveTextIconEnabled) private var isLiveTextIconEnabled
   @ColumnVisibilityStorage private var columnVisibility
-//  @SceneStorage(StorageKeys.imageAnalysisSupplementaryInterfaceVisibility)
-//  private var imageAnalysisSupplementaryInterfaceVisibility
-
+  @ImageAnalysisSupplementaryInterfaceVisibleStorage private var isImageAnalysisSupplementaryInterfaceVisible
   @State private var isBookmarked = false
-//  @State private var isImageAnalysisSupplementaryInterfaceVisible = false
-//  @State private var isImageAnalysisSupplementaryInterfaceVisibleSet = false
   @State private var isActive = true
   @State private var isFileImporterPresented = false
-  private var sceneID: AppModelCommandSceneID {
-    .images(self.images.id)
-  }
 
   var body: some View {
     let isVisible = self.isTrackingMenu
@@ -127,37 +144,31 @@ struct ImagesView2: View {
     NavigationSplitView(columnVisibility: $columnVisibility) {
       ImagesSidebarView2(
         isBookmarked: $isBookmarked,
-//        isImageAnalysisSupplementaryInterfaceVisible: $isImageAnalysisSupplementaryInterfaceVisible,
         isFileImporterPresented: $isFileImporterPresented,
       )
       .navigationSplitViewColumnWidth(min: 128, ideal: 128, max: 256)
     } detail: {
-      ImagesDetailView2(
-//        isImageAnalysisSupplementaryInterfaceVisible: self.isImageAnalysisSupplementaryInterfaceVisible,
-      )
-      .frame(minWidth: 256)
-      // For some reason, applying toolbar(id:content:) to the enclosing NavigationSplitView causes the app to crash.
-      // This workaround is flawed since the sidebar toggle may appear in an overflow menu instead of the sidebar.
-      //
-      //   NSToolbar already contains an item with the identifier com.apple.SwiftUI.navigationSplitView.toggleSidebar.
-      //   Duplicate items of this type are not allowed.
-//      .toolbar(id: "\(Bundle.appID).Images") {
-//        ToolbarItem(id: "\(Bundle.appID).Images.LiveTextIcon") {
-//          let key: LocalizedStringKey = self.isImageAnalysisSupplementaryInterfaceVisible
-//            ? "Images.Toolbar.LiveTextIcon.Hide"
-//            : "Images.Toolbar.LiveTextIcon.Show"
-//
-//          Toggle(key, systemImage: "text.viewfinder", isOn: $isImageAnalysisSupplementaryInterfaceVisible)
-//            .help(key)
-//            .disabled(!self.isLiveTextEnabled)
-//        }
-//      }
+      ImagesDetailView2()
+        .frame(minWidth: 256)
+        // For some reason, applying toolbar(id:content:) to the enclosing NavigationSplitView causes the app to crash.
+        // This workaround is flawed since the sidebar toggle may appear in an overflow menu instead of the sidebar.
+        //
+        //   NSToolbar already contains an item with the identifier com.apple.SwiftUI.navigationSplitView.toggleSidebar.
+        //   Duplicate items of this type are not allowed.
+        .toolbar(id: "\(Bundle.appID).Images") {
+          ToolbarItem(id: "\(Bundle.appID).Images.LiveTextIcon") {
+            let key: LocalizedStringKey = self.isImageAnalysisSupplementaryInterfaceVisible
+              ? "Images.Toolbar.LiveTextIcon.Hide"
+              : "Images.Toolbar.LiveTextIcon.Show"
+
+            Toggle(key, systemImage: "text.viewfinder", isOn: $isImageAnalysisSupplementaryInterfaceVisible)
+              .help(key)
+              .disabled(!self.isLiveTextEnabled)
+          }
+        }
     }
     .background {
-      ImagesBackgroundView(
-        isBookmarked: self.isBookmarked,
-//        isSupplementaryInterfaceVisible: self.isImageAnalysisSupplementaryInterfaceVisible,
-      )
+      ImagesBackgroundView(isBookmarked: self.isBookmarked)
     }
     .toolbar(self.isWindowFullScreen ? .hidden : .automatic)
     .toolbarVisible(!self.hiddenLayout.toolbar || isVisible || self.isWindowFullScreen)
@@ -191,6 +202,7 @@ struct ImagesView2: View {
       }
     }
     .fileDialogCustomizationID(ImagesScene.id)
+    // This is not called when a menu is open.
     .onContinuousHover { phase in
       Task {
         switch phase {
@@ -235,40 +247,13 @@ struct ImagesView2: View {
       self.images.isBookmarked = self.isBookmarked
       self.images.loadBookmarks()
     }
-//    .onChange(
-//      of: ImagesViewSupplementaryInterfaceVisibleID(
-//        images: self.images,
-//        isLiveTextEnabled: self.isLiveTextEnabled,
-//        isLiveTextIconEnabled: self.isLiveTextIconEnabled,
-//      ),
-//    ) {
-//      let isVisible = switch self.imageAnalysisSupplementaryInterfaceVisibility {
-//        case .automatic: self.isLiveTextEnabled && self.isLiveTextIconEnabled
-//        case .visible: self.isLiveTextEnabled
-//        case .hidden: false
-//      }
-//
-//      self.isImageAnalysisSupplementaryInterfaceVisibleSet = self.isImageAnalysisSupplementaryInterfaceVisible != isVisible
-//      self.isImageAnalysisSupplementaryInterfaceVisible = isVisible
-//    }
-//    .onChange(of: self.isImageAnalysisSupplementaryInterfaceVisible) {
-//      guard !self.isImageAnalysisSupplementaryInterfaceVisibleSet else {
-//        self.isImageAnalysisSupplementaryInterfaceVisibleSet = false
-//
-//        return
-//      }
-//
-//      self.imageAnalysisSupplementaryInterfaceVisibility = self.isImageAnalysisSupplementaryInterfaceVisible
-//        ? .visible
-//        : .hidden
-//    }
     .onReceive(self.app.commandsPublisher) { command in
       self.onCommand(command)
     }
   }
 
   func onCommand(_ command: AppModelCommand) {
-    guard command.sceneID == self.sceneID else {
+    guard command.sceneID == .images(self.images.id) else {
       return
     }
 
@@ -309,8 +294,8 @@ struct ImagesView2: View {
         Task {
           await self.images.bookmark(item: item, isBookmarked: !item.isBookmarked)
         }
-//      case .toggleLiveTextIcon:
-//        self.isImageAnalysisSupplementaryInterfaceVisible.toggle()
+      case .toggleLiveTextIcon:
+        self.isImageAnalysisSupplementaryInterfaceVisible.toggle()
       case .toggleLiveTextHighlight:
         self.images.isHighlighted.toggle()
         self.images.highlight(items: self.images.visibleItems, isHighlighted: self.images.isHighlighted)

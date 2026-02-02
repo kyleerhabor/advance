@@ -126,7 +126,7 @@ enum StorageKeys {
   static let importHiddenFiles = StorageKey("\(Bundle.appID).import-hidden-files", defaultValue: false)
   static let importSubdirectories = StorageKey("\(Bundle.appID).import-subdirectories", defaultValue: true)
   static let isLiveTextEnabled = StorageKey("\(Bundle.appID).live-text-is-enabled", defaultValue: true)
-//  static let isLiveTextIconEnabled = StorageKey("\(Bundle.appID).live-text-icon-is-enabled", defaultValue: false)
+  static let isLiveTextIconEnabled = StorageKey("\(Bundle.appID).live-text-icon-is-enabled", defaultValue: false)
   static let isLiveTextSubjectEnabled = StorageKey("\(Bundle.appID).live-text-subject-is-enabled", defaultValue: false)
   static let isSystemSearchEnabled = StorageKey(
     "\(Bundle.appID).search-system-is-enabled",
@@ -151,10 +151,10 @@ enum StorageKeys {
     defaultValue: StorageColumnVisibility.all,
   )
 
-//  static let imageAnalysisSupplementaryInterfaceVisibility = StorageKey(
-//    "\(Bundle.appID).image-analysis-supplementary-interface-visibility",
-//    defaultValue: StorageVisibility.automatic,
-//  )
+  static let imageAnalysisSupplementaryInterfaceVisibility = StorageKey(
+    "\(Bundle.appID).image-analysis-supplementary-interface-visibility",
+    defaultValue: StorageVisibility.automatic,
+  )
 
   // MARK: - Support
 

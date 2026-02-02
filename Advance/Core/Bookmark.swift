@@ -87,6 +87,7 @@ extension URL: SecurityScopedResource {
 
 struct URLSource {
   let url: URL
+  // TODO: Consider whether or not to use URL.BookmarkResolutionOptions
   let options: URL.BookmarkCreationOptions
 }
 

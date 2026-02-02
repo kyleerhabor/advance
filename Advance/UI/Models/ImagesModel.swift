@@ -628,7 +628,7 @@ final class ImagesModel {
     items.forEach(setter(on: \.isImageAnalysisSelectableItemsHighlighted, value: isHighlighted))
   }
 
-  nonisolated private func orientationImageProperty(data: [CFString : Any]) -> CGImagePropertyOrientation? {
+  nonisolated private func orientationImageProperty(data: [CFString: Any]) -> CGImagePropertyOrientation? {
     guard let value = data[kCGImagePropertyOrientation] as? UInt32 else {
       return .identity
     }
@@ -640,7 +640,7 @@ final class ImagesModel {
     return orientation
   }
 
-  nonisolated private func sizeOrientation(at url: URL, data: [CFString : Any]) -> SizeOrientation? {
+  nonisolated private func sizeOrientation(at url: URL, data: [CFString: Any]) -> SizeOrientation? {
     guard let pixelWidth = data[kCGImagePropertyPixelWidth] as? Double else {
       Logger.model.fault("Properties of image source at file URL '\(url.pathString)' has no pixel width")
 
@@ -844,7 +844,7 @@ final class ImagesModel {
 
             guard let sizeOrientation = self.sizeOrientation(
                     at: document.source.url,
-                    data: copyProperties as! [CFString : Any],
+                    data: copyProperties as! [CFString: Any],
                   ) else {
               return nil
             }
@@ -986,7 +986,7 @@ final class ImagesModel {
           kCGImageSourceCreateThumbnailFromImageAlways: true,
           kCGImageSourceThumbnailMaxPixelSize: length,
           kCGImageSourceCreateThumbnailWithTransform: true,
-        ] as [CFString : Any]
+        ] as [CFString: Any]
 
         guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(
                 imageSource,
@@ -1022,7 +1022,7 @@ final class ImagesModel {
   nonisolated private func loadImage(
     item: RowID,
     parameters: ImagesItemModelImageParameters,
-    documents: [RowID : URLSourceDocument],
+    documents: [RowID: URLSourceDocument],
   ) async throws -> NSImage? {
     guard let document = documents[item],
           let image = try await self.loadImage(parameters: parameters, document: document) else {
@@ -1141,7 +1141,7 @@ final class ImagesModel {
           kCGImageSourceCreateThumbnailFromImageAlways: true,
           kCGImageSourceThumbnailMaxPixelSize: length,
           kCGImageSourceCreateThumbnailWithTransform: true,
-        ] as [CFString : Any]
+        ] as [CFString: Any]
 
         guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(
           imageSource,
@@ -1497,7 +1497,7 @@ final class ImagesModel {
   nonisolated private func items(
     _ items: [URL],
     directoryEnumerationOptions: FileManager.DirectoryEnumerationOptions,
-  ) async -> [URL : Item<URLSource>] {
+  ) async -> [URL: Item<URLSource>] {
     await withTaskGroup(of: Item<URLSource>?.self) { group in
       items.forEach { item in
         group.addTask {
@@ -1542,7 +1542,7 @@ final class ImagesModel {
         }
       }
 
-      let results = await group.reduce(into: [URL : Item<URLSource>]()) { partialResult, item in
+      let results = await group.reduce(into: [URL: Item<URLSource>]()) { partialResult, item in
         guard let item else {
           return
         }
@@ -2066,7 +2066,7 @@ final class ImagesModel {
       return nil
     }
 
-    let imagesItems: [RowID : ImagesModelLoadDocumentImagesItemInfo]
+    let imagesItems: [RowID: ImagesModelLoadDocumentImagesItemInfo]
 
     do {
       imagesItems = try await connection.read { db in
@@ -2125,9 +2125,15 @@ final class ImagesModel {
     await assigner.assign(fileBookmarks: fileBookmarks)
 
     do {
-      try await connection.write { [assigner] db in
-        try assigner.write(db, fileBookmarks: fileBookmarks)
-      }
+      // If the calling task is canceled, we still want the results written to the database.
+      try await Task { [assigner] in
+        try await connection.write { db in
+          try assigner.write(db, fileBookmarks: fileBookmarks)
+        }
+      }.value
+      // TODO: Figure out how to ignore task cancellation.
+      //
+      // We could create a Task and await its value property.
     } catch {
       Logger.model.error("Could not write to database: \(error)")
 

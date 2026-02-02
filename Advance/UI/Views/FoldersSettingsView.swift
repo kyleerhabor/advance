@@ -40,17 +40,17 @@ struct FoldersSettingsView: View {
     .listStyle(.inset)
     .focusedSceneValue(
       \.commandScene,
-       AppModelCommandScene(
+      AppModelCommandScene(
         id: .folders,
         showFinder: AppModelActionCommand(isDisabled: isInvalidSelection),
         openFinder: AppModelActionCommand(isDisabled: isInvalidSelection),
         showSidebar: AppModelActionCommand(isDisabled: true),
         sidebarBookmarks: AppModelToggleCommand(isDisabled: true, isOn: false),
         bookmark: AppModelToggleCommand(isDisabled: true, isOn: false),
-//        liveTextIcon: AppModelToggleCommand(isDisabled: true, isOn: false),
+        liveTextIcon: AppModelToggleCommand(isDisabled: true, isOn: false),
         liveTextHighlight: AppModelToggleCommand(isDisabled: true, isOn: false),
         resetWindowSize: AppModelActionCommand(isDisabled: true),
-       ),
+      ),
     )
     .toolbar {
       Button("Settings.Accessory.Folders.Item.Add", systemImage: "plus") {
@@ -112,7 +112,7 @@ struct FoldersSettingsView: View {
         Task {
           await self.folders.openFinder(items: self.selection)
         }
-      case .showSidebar, .toggleSidebarBookmarks, .bookmark, /*.toggleLiveTextIcon, */.toggleLiveTextHighlight,
+      case .showSidebar, .toggleSidebarBookmarks, .bookmark, .toggleLiveTextIcon, .toggleLiveTextHighlight,
            .resetWindowSize:
         unreachable()
     }

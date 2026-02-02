@@ -13,7 +13,7 @@ struct SettingsGeneralView: View {
   @AppStorage(StorageKeys.collapseMargins) private var collapseMargins
   @AppStorage(StorageKeys.hiddenLayout) private var hiddenLayout
   @AppStorage(StorageKeys.isLiveTextEnabled) private var isLiveTextEnabled
-//  @AppStorage(StorageKeys.isLiveTextIconEnabled) private var isLiveTextIconEnabled
+  @AppStorage(StorageKeys.isLiveTextIconEnabled) private var isLiveTextIconEnabled
   @AppStorage(StorageKeys.isLiveTextSubjectEnabled) private var isLiveTextSubjectEnabled
   @AppStorage(StorageKeys.margins) private var margins
   @AppStorage(StorageKeys.restoreLastImage) private var restoreLastImage
@@ -110,7 +110,7 @@ struct SettingsGeneralView: View {
           Toggle("Settings.General.LiveText.Enable", isOn: $isLiveTextEnabled)
 
           GroupBox {
-//            Toggle("Settings.General.LiveText.Icon", isOn: $isLiveTextIconEnabled)
+            Toggle("Settings.General.LiveText.Icon", isOn: $isLiveTextIconEnabled)
 
             Toggle(isOn: $isLiveTextSubjectEnabled) {
               Text("Settings.General.LiveText.Subject")

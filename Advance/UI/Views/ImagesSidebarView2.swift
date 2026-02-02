@@ -28,9 +28,9 @@ struct ImagesSidebarImportLabelStyle: LabelStyle {
 struct ImagesSidebarBackgroundView: View {
   @Environment(ImagesModel.self) private var images
   @AppStorage(StorageKeys.isLiveTextEnabled) private var isLiveTextEnabled
+  @ImageAnalysisSupplementaryInterfaceVisibleStorage private var isImageAnalysisSupplementaryInterfaceVisible
   let selection: Set<ImagesItemModel2.ID>
   let isBookmarked: Bool
-//  let isImageAnalysisSupplementaryInterfaceVisible: Bool
 
   var body: some View {
     let isInvalidSelection = self.images.isInvalidSelection(of: self.selection)
@@ -48,10 +48,10 @@ struct ImagesSidebarBackgroundView: View {
             isDisabled: isInvalidSelection,
             isOn: self.images.isBookmarked(items: self.selection),
           ),
-//          liveTextIcon: AppModelToggleCommand(
-//            isDisabled: !self.isLiveTextEnabled,
-//            isOn: self.isImageAnalysisSupplementaryInterfaceVisible,
-//          ),
+          liveTextIcon: AppModelToggleCommand(
+            isDisabled: !self.isLiveTextEnabled,
+            isOn: self.isImageAnalysisSupplementaryInterfaceVisible,
+          ),
           liveTextHighlight: AppModelToggleCommand(
             isDisabled: !self.isLiveTextEnabled || self.images.visibleItems.isEmpty,
             isOn: self.images.isHighlighted,
@@ -82,8 +82,8 @@ struct ImagesSidebarView2: View {
   @AppStorage(StorageKeys.importSubdirectories) private var importSubdirectories
   @AppStorage(StorageKeys.resolveConflicts) private var resolveConflicts
   @SceneStorage(StorageKeys.columnVisibility) private var columnVisibility
+  @ImageAnalysisSupplementaryInterfaceVisibleStorage private var isImageAnalysisSupplementaryInterfaceVisible
   @Binding var isBookmarked: Bool
-//  @Binding var isImageAnalysisSupplementaryInterfaceVisible: Bool
   @Binding var isFileImporterPresented: Bool
   @State private var selection = Set<ImagesItemModel2.ID>()
   @State private var isShowSidebarSet = false
@@ -94,9 +94,6 @@ struct ImagesSidebarView2: View {
   @State private var copyFolderError: ImagesModelCopyFolderError?
   @State private var isCopyFolderErrorPresented = false
   @FocusState private var isFocused
-  private var sceneID: AppModelCommandSceneID {
-    .imagesSidebar(self.images.id)
-  }
 
   private var directoryEnumerationOptions: FileManager.DirectoryEnumerationOptions {
     StorageKeys.directoryEnumerationOptions(
@@ -336,11 +333,7 @@ struct ImagesSidebarView2: View {
       }
     }
     .background {
-      ImagesSidebarBackgroundView(
-        selection: self.selection,
-        isBookmarked: self.isBookmarked,
-//        isImageAnalysisSupplementaryInterfaceVisible: self.isImageAnalysisSupplementaryInterfaceVisible,
-      )
+      ImagesSidebarBackgroundView(selection: self.selection, isBookmarked: self.isBookmarked)
     }
     .alert(isPresented: $isCopyFolderErrorPresented, error: self.copyFolderError) {}
     .fileImporter(isPresented: $isCopyFolderFileImporterPresented, allowedContentTypes: foldersContentTypes) { result in
@@ -384,7 +377,7 @@ struct ImagesSidebarView2: View {
   }
 
   func onCommand(_ command: AppModelCommand) {
-    guard command.sceneID == sceneID else {
+    guard command.sceneID == .imagesSidebar(self.images.id) else {
       return
     }
 
@@ -420,8 +413,8 @@ struct ImagesSidebarView2: View {
             isBookmarked: !self.images.isBookmarked(items: self.selection),
           )
         }
-//      case .toggleLiveTextIcon:
-//        self.isImageAnalysisSupplementaryInterfaceVisible.toggle()
+      case .toggleLiveTextIcon:
+        self.isImageAnalysisSupplementaryInterfaceVisible.toggle()
       case .toggleLiveTextHighlight:
         self.images.isHighlighted.toggle()
         self.images.highlight(items: self.images.visibleItems, isHighlighted: self.images.isHighlighted)

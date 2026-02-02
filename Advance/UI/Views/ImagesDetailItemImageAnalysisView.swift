@@ -16,10 +16,10 @@ struct ImagesDetailItemImageAnalysisView: View {
   @AppStorage(StorageKeys.isLiveTextEnabled) private var isLiveTextEnabled
   @AppStorage(StorageKeys.isLiveTextSubjectEnabled) private var isLiveTextSubjectEnabled
   @AppStorage(StorageKeys.isSystemSearchEnabled) private var isSystemSearchEnabled
+  @ImageAnalysisSupplementaryInterfaceVisibleStorage private var isSupplementaryInterfaceVisible
   @Binding var searchError: ImagesModelEngineURLError?
   @Binding var isSearchErrorPresented: Bool
   let item: ImagesItemModel2
-//  let isSupplementaryInterfaceVisible: Bool
   private var preferredInteractionTypes: ImageAnalysisOverlayView.InteractionTypes {
     var interactionTypes = ImageAnalysisOverlayView.InteractionTypes()
 
@@ -42,7 +42,7 @@ struct ImagesDetailItemImageAnalysisView: View {
       id: item.imageAnalysisID,
       analysis: item.imageAnalysis,
       preferredInteractionTypes: self.preferredInteractionTypes,
-//      isSupplementaryInterfaceHidden: !self.isSupplementaryInterfaceVisible,
+      isSupplementaryInterfaceHidden: !self.isSupplementaryInterfaceVisible,
     ) { delegate, menu, overlayView in
       let copyImage = menu.indexOfItem(withTag: ImageAnalysisOverlayView.MenuTag.copyImage)
 

@@ -52,7 +52,6 @@
       }
     },
     "Commands.Image.LiveTextIcon.Hide" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -63,7 +62,6 @@
       }
     },
     "Commands.Image.LiveTextIcon.Show" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -344,7 +342,6 @@
       }
     },
     "Images.Toolbar.LiveTextIcon.Hide" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -355,7 +352,6 @@
       }
     },
     "Images.Toolbar.LiveTextIcon.Show" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -907,7 +903,6 @@
       }
     },
     "Settings.General.LiveText.Icon" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
