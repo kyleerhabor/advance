@@ -112,11 +112,13 @@ final class ImagesItemImageModel {
   var image: NSImage
   var phase: ImagesItemModelImagePhase
   var aspectRatio: CGFloat
+  var isOpaque: Bool
 
-  init(image: NSImage, phase: ImagesItemModelImagePhase, aspectRatio: CGFloat) {
+  init(image: NSImage, phase: ImagesItemModelImagePhase, aspectRatio: CGFloat, isOpaque: Bool) {
     self.image = image
     self.phase = phase
     self.aspectRatio = aspectRatio
+    self.isOpaque = isOpaque
   }
 }
 
@@ -398,6 +400,7 @@ final class ImagesModel {
 
       item.sidebarImage.image = NSImage()
       item.sidebarImage.phase = .empty
+      item.sidebarImage.isOpaque = true
       item.detailImageParameters = ImagesItemModelImageParameters(width: .nan)
     }
   }
@@ -423,6 +426,7 @@ final class ImagesModel {
 
       item.detailImage.image = NSImage()
       item.detailImage.phase = .empty
+      item.detailImage.isOpaque = true
       item.detailImageParameters = ImagesItemModelImageParameters(width: .nan)
     }
   }
@@ -714,9 +718,19 @@ final class ImagesModel {
             title: item2.title,
             isBookmarked: item2.item.item.isBookmarked!,
             edge: [],
-            sidebarImage: ImagesItemImageModel(image: NSImage(), phase: .empty, aspectRatio: item2.aspectRatio),
+            sidebarImage: ImagesItemImageModel(
+              image: NSImage(),
+              phase: .empty,
+              aspectRatio: item2.aspectRatio,
+              isOpaque: true,
+            ),
             sidebarImageParameters: ImagesItemModelImageParameters(width: .nan),
-            detailImage: ImagesItemImageModel(image: NSImage(), phase: .empty, aspectRatio: item2.aspectRatio),
+            detailImage: ImagesItemImageModel(
+              image: NSImage(),
+              phase: .empty,
+              aspectRatio: item2.aspectRatio,
+              isOpaque: true,
+            ),
             detailImageParameters: ImagesItemModelImageParameters(width: .nan),
             imageAnalysis: nil,
             imageAnalysisID: UUID(),
@@ -1019,20 +1033,34 @@ final class ImagesModel {
     return image
   }
 
+  struct ImagesModelLoadImage {
+    let image: NSImage
+    let isOpaque: Bool
+  }
+
   nonisolated private func loadImage(
     item: RowID,
     parameters: ImagesItemModelImageParameters,
     documents: [RowID: URLSourceDocument],
-  ) async throws -> NSImage? {
+  ) async throws -> ImagesModelLoadImage? {
     guard let document = documents[item],
           let image = try await self.loadImage(parameters: parameters, document: document) else {
       return nil
     }
 
-    return NSImage(cgImage: image.image, size: .zero)
+    let result = ImagesModelLoadImage(
+      image: NSImage(cgImage: image.image, size: .zero),
+      isOpaque: image.image.alphaInfo.isOpaque,
+    )
+
+    return result
   }
 
-  private func loadSidebarImage(item: ImagesItemModel2.ID, parameters: ImagesItemModelImageParameters, image: NSImage?) {
+  private func loadSidebarImage(
+    item: ImagesItemModel2.ID,
+    parameters: ImagesItemModelImageParameters,
+    image: ImagesModelLoadImage?,
+  ) {
     guard let item = self.items[id: item] else {
       return
     }
@@ -1043,13 +1071,18 @@ final class ImagesModel {
       return
     }
 
-    item.sidebarImage.image = image
+    item.sidebarImage.image = image.image
     item.sidebarImage.phase = .success
-    item.sidebarImage.aspectRatio = image.size.width / image.size.height
+    item.sidebarImage.aspectRatio = image.image.size.width / image.image.size.height
+    item.sidebarImage.isOpaque = image.isOpaque
     item.sidebarImageParameters = parameters
   }
 
-  private func loadDetailImage(item: ImagesItemModel2.ID, parameters: ImagesItemModelImageParameters, image: NSImage?) {
+  private func loadDetailImage(
+    item: ImagesItemModel2.ID,
+    parameters: ImagesItemModelImageParameters,
+    image: ImagesModelLoadImage?,
+  ) {
     guard let item = self.items[id: item] else {
       return
     }
@@ -1060,10 +1093,10 @@ final class ImagesModel {
       return
     }
 
-    let aspectRatio = image.size.width / image.size.height
-    item.detailImage.image = image
+    item.detailImage.image = image.image
     item.detailImage.phase = .success
-    item.detailImage.aspectRatio = aspectRatio
+    item.detailImage.aspectRatio = image.image.size.width / image.image.size.height
+    item.detailImage.isOpaque = image.isOpaque
     item.detailImageParameters = parameters
   }
 

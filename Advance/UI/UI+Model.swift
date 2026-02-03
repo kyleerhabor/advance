@@ -122,6 +122,15 @@ extension CGSize {
   }
 }
 
+extension CGImageAlphaInfo {
+  var isOpaque: Bool {
+    switch self {
+      case .none, .noneSkipFirst, .noneSkipLast: true
+      default: false
+    }
+  }
+}
+
 // MARK: - Image I/O
 
 extension CGImagePropertyOrientation {

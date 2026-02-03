@@ -69,13 +69,15 @@ struct ImageAnalysisView: NSViewRepresentable {
   let isSupplementaryInterfaceHidden: Bool
   let transformMenu: (ImageAnalysisViewDelegate, NSMenu, ImageAnalysisOverlayView) -> NSMenu
 
+  private var isHidden: Bool {
+    !self.isSelectableItemsHighlighted && self.isSupplementaryInterfaceHidden
+  }
+
   func makeNSView(context: Context) -> ImageAnalysisOverlayView {
     let overlayView = ImageAnalysisOverlayView()
     overlayView.delegate = context.coordinator.delegate
     overlayView.preferredInteractionTypes = self.preferredInteractionTypes
-    overlayView.isSupplementaryInterfaceHidden = self.isSupplementaryInterfaceHidden
-//    self.setVisibility(overlayView, selectableItemsHighlighted: false, isAnimated: false)
-    
+    overlayView.isSupplementaryInterfaceHidden = self.isHidden
     overlayView.analysis = self.analysis
 
     return overlayView
@@ -89,7 +91,7 @@ struct ImageAnalysisView: NSViewRepresentable {
       overlayView.preferredInteractionTypes = self.preferredInteractionTypes
     }
 
-    let isSupplementaryInterfaceHidden = !self.isSelectableItemsHighlighted && self.isSupplementaryInterfaceHidden
+    let isSupplementaryInterfaceHidden = self.isHidden
 
     if overlayView.isSupplementaryInterfaceHidden != isSupplementaryInterfaceHidden {
       overlayView.setSupplementaryInterfaceHidden(isSupplementaryInterfaceHidden, animated: true)
@@ -101,7 +103,7 @@ struct ImageAnalysisView: NSViewRepresentable {
 
     if id != self.id {
       // For some reason, setting this property may raise a layout constraint exception when the supplementary interface
-      // is visible. Usually, AppKit will recover by breaking the violation, but othertimes, it's unable to, crashing instead.
+      // is visible. Usually, AppKit will recover by breaking the violation.
       overlayView.analysis = self.analysis
     }
   }
@@ -109,17 +111,4 @@ struct ImageAnalysisView: NSViewRepresentable {
   func makeCoordinator() -> ImageAnalysisViewCoordinator {
     ImageAnalysisViewCoordinator(delegate: ImageAnalysisViewDelegate(representable: self))
   }
-
-//  private func setVisibility(
-//    _ overlayView: ImageAnalysisOverlayView,
-//    selectableItemsHighlighted: Bool,
-//    isAnimated animate: Bool,
-//  ) {
-//    overlayView.setSupplementaryInterfaceHidden(
-//      !selectableItemsHighlighted && self.isSupplementaryInterfaceHidden,
-//      animated: animate,
-//    )
-//
-//    overlayView.selectableItemsHighlighted = selectableItemsHighlighted
-//  }
 }

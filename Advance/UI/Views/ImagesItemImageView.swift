@@ -17,8 +17,8 @@ struct ImagesItemImageView: View {
     let isSuccess = self.image.phase == .success
 
     // For some reason, drawing the image in a Canvas reduces hangs when scrolling. rendersAsynchronously further
-    // reduces this.
-    Canvas/*(rendersAsynchronously: true)*/ { context, size in
+    // reduces this, but I've noticed that it can produce odd renderings that are immediately fixed on the next rendering.
+    Canvas(opaque: self.image.isOpaque, /*rendersAsynchronously: true*/) { context, size in
       // context.opacity is writable, but doesn't seem to animate.
       context.draw(
         Image(nsImage: self.image.image),
