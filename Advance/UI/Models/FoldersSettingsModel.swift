@@ -417,7 +417,6 @@ final class FoldersSettingsModel {
 
           var folder = FolderRecord(fileBookmark: fileBookmark.rowID)
           try folder.upsert(db)
-
           _ = try item.pathComponents.reduce(0) { position, pathComponent in
             var folderPathComponent = FolderPathComponentRecord(component: pathComponent, position: position)
             try folderPathComponent.insert(db)

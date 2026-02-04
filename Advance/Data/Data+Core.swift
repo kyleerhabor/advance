@@ -39,6 +39,46 @@ actor Once<Success, Failure, each Argument> where Failure: Error {
   }
 }
 
+func createFileBookmarkSchemaAction(_ db: Database) throws {
+  try db.execute(
+    literal: """
+      CREATE TRIGGER \(sql: "\(FileBookmarkRecord.databaseTableName)_ad".quotedDatabaseIdentifier)
+      AFTER DELETE ON \(FileBookmarkRecord.self)
+      FOR EACH ROW
+      BEGIN
+        DELETE FROM \(BookmarkRecord.self)
+        WHERE \(BookmarkRecord.self).\(.rowID) = OLD.\(FileBookmarkRecord.Columns.bookmark);
+      END
+      """,
+  )
+}
+
+func createImagesItemSchemaAction(_ db: Database) throws {
+  let when: SQL = """
+    SELECT 1
+    FROM \(FileBookmarkRecord.self)
+    LEFT JOIN \(ImagesItemRecord.self)
+      ON \(ImagesItemRecord.self).\(ImagesItemRecord.Columns.fileBookmark) = \(FileBookmarkRecord.self).\(.rowID)
+    LEFT JOIN \(FolderRecord.self)
+      ON \(FolderRecord.self).\(FolderRecord.Columns.fileBookmark) = \(FileBookmarkRecord.self).\(.rowID)
+    WHERE \(FileBookmarkRecord.self).\(.rowID) = OLD.\(ImagesItemRecord.Columns.fileBookmark)
+      AND \(ImagesItemRecord.self).\(.rowID) IS NULL
+      AND \(FolderRecord.self).\(.rowID) IS NULL
+    """
+
+  try db.execute(
+    literal: """
+      CREATE TRIGGER \(sql: "\(ImagesItemRecord.databaseTableName)_ad".quotedDatabaseIdentifier)
+      AFTER DELETE ON \(ImagesItemRecord.self)
+      FOR EACH ROW WHEN (\(when))
+      BEGIN
+        DELETE FROM \(FileBookmarkRecord.self)
+        WHERE \(FileBookmarkRecord.self).\(.rowID) = OLD.\(ImagesItemRecord.Columns.fileBookmark);
+      END
+      """,
+  )
+}
+
 func createImagesItemPositionSchemaCheck(_ db: Database) throws {
   let name = "\(ItemImagesRecord.databaseTableName).\(ItemImagesRecord.Columns.item.name).\(ImagesItemRecord.Columns.position.name)"
   let message = "(\(ItemImagesRecord.databaseTableName).\(ItemImagesRecord.Columns.images.name), \(name)) must be unique"
@@ -167,6 +207,30 @@ func createFolderPathComponentSchemaAction(_ db: Database) throws {
   )
 }
 
+func createFolderSchemaAction(_ db: Database) throws {
+  // A folder's file bookmark is unique, so we don't need to check it.
+  let when: SQL = """
+    SELECT 1
+    FROM \(FileBookmarkRecord.self)
+    LEFT JOIN \(ImagesItemRecord.self)
+      ON \(ImagesItemRecord.self).\(ImagesItemRecord.Columns.fileBookmark) = \(FileBookmarkRecord.self).\(.rowID)
+    WHERE \(FileBookmarkRecord.self).\(.rowID) = OLD.\(FolderRecord.Columns.fileBookmark)
+      AND \(ImagesItemRecord.self).\(.rowID) IS NULL    
+    """
+
+  try db.execute(
+    literal: """
+      CREATE TRIGGER \(sql: "\(FolderRecord.databaseTableName)_ad".quotedDatabaseIdentifier)
+      AFTER DELETE ON \(FolderRecord.self)
+      FOR EACH ROW WHEN (\(when))
+      BEGIN
+        DELETE FROM \(FileBookmarkRecord.self)
+        WHERE \(FileBookmarkRecord.self).\(.rowID) = OLD.\(FolderRecord.Columns.fileBookmark);
+      END
+      """,
+  )
+}
+
 func createSchema(connection: some DatabaseWriter) throws {
   var migrator = DatabaseMigrator()
 
@@ -202,6 +266,7 @@ func createSchema(connection: some DatabaseWriter) throws {
         .indexed()
     }
 
+    try createFileBookmarkSchemaAction(db)
     try db.create(table: ImagesItemRecord.databaseTableName) { table in
       table.primaryKey(Column.rowID.name, .integer)
       table
@@ -220,6 +285,7 @@ func createSchema(connection: some DatabaseWriter) throws {
         .notNull()
     }
 
+    try createImagesItemSchemaAction(db)
     try db.create(table: ImagesRecord.databaseTableName) { table in
       table.primaryKey(Column.rowID.name, .integer)
       table
@@ -270,9 +336,10 @@ func createSchema(connection: some DatabaseWriter) throws {
         .column(FolderRecord.Columns.fileBookmark.name, .integer)
         .notNull()
         .unique()
-        .references(BookmarkRecord.databaseTableName)
+        .references(FileBookmarkRecord.databaseTableName)
     }
 
+    try createFolderSchemaAction(db)
     try db.create(table: PathComponentFolderRecord.databaseTableName) { table in
       table.primaryKey(Column.rowID.name, .integer)
       table

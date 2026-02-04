@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct SearchSettingsScene: Scene {
-  static let id = "search2"
+  static let id = "search"
 
   var body: some Scene {
     SwiftUI.Window("Settings.Accessory.Search.Window.Title", id: Self.id) {

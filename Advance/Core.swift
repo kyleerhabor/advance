@@ -170,6 +170,19 @@ extension CGSize {
   func scale(width: Double) -> Self {
     Self(width: width, height: width * (self.height / self.width))
   }
+
+  func scale(max: Double) -> Self {
+    let x = Swift.max(self.width, self.height)
+
+    if x < max {
+      return self
+    }
+
+    let scale = max / x
+    let size = Self(width: self.width * scale, height: self.height * scale)
+
+    return size
+  }
 }
 
 // MARK: - BigInt

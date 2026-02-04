@@ -11,6 +11,7 @@ import AsyncAlgorithms
 import Foundation
 import GRDB
 import ImageIO
+import Metal
 import OSLog
 import UniformTypeIdentifiers
 import VisionKit
@@ -111,6 +112,26 @@ extension FileManager {
     let iterator = TypedIterator(enumerator.makeIterator(), as: URL.self)
 
     return iterator
+  }
+}
+
+// MARK: - Metal
+
+extension MTLDevice {
+  // Metal Feature Set Tables: Maximum 2D texture width and height
+  //
+  // https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf
+  var max2DTextureSize: Int {
+    if self.supportsFamily(.apple10) {
+      return 32768 // 2^15
+    }
+
+    if self.supportsFamily(.apple3) || self.supportsFamily(.mac2) {
+      return 16384 // 2^15
+    }
+
+    // Apple2 is A8-series, which should be unreachable for this app, but for completeness, we may as well define it.
+    return 8192 // 2^14
   }
 }
 
