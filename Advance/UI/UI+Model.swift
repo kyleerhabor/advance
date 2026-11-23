@@ -99,6 +99,8 @@ struct TypedIterator<Base, T>: IteratorProtocol where Base: IteratorProtocol {
 
 extension TypedIterator: Sequence {}
 
+extension TypedIterator: Sendable where Base: Sendable {}
+
 extension FileManager {
   func enumerate(
     at url: URL,

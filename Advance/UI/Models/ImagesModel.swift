@@ -308,6 +308,11 @@ struct ImagesModelResample {
 
 extension ImagesModelResample: @MainActor Equatable {}
 
+struct ImagesModelLoadImage {
+  let image: NSImage
+  let isOpaque: Bool
+}
+
 struct ImagesModelLoadImageAnalysis {
   let image: ImageOrientation
   let url: URL
@@ -1031,11 +1036,6 @@ final class ImagesModel {
     }
 
     return image
-  }
-
-  struct ImagesModelLoadImage {
-    let image: NSImage
-    let isOpaque: Bool
   }
 
   nonisolated private func loadImage(

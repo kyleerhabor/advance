@@ -23,12 +23,12 @@ actor Once<Success, Failure, each Argument> where Failure: Error {
   private let body: (repeat each Argument) throws(Failure) -> Success
   private var value: Success?
 
-  init(body: @escaping (repeat each Argument) throws(Failure) -> Success) {
+  init(_ body: @escaping (repeat each Argument) throws(Failure) -> Success) {
     self.body = body
   }
 
   func callAsFunction(_ args: repeat each Argument) throws(Failure) -> Success {
-    if let value {
+    if let value = self.value {
       return value
     }
 

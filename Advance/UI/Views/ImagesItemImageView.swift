@@ -16,8 +16,7 @@ struct ImagesItemImageView: View {
   var body: some View {
     let isSuccess = self.image.phase == .success
 
-    // For some reason, drawing the image in a Canvas reduces hangs when scrolling. rendersAsynchronously further
-    // reduces this, but I've noticed that it can produce odd renderings that are immediately fixed on the next rendering.
+    // For some reason, rendersAsynchronously can produce odd renderings that are immediately fixed on the next rendering.
     Canvas(opaque: self.image.isOpaque) { context, size in
       var bounds: CGSize {
         guard let device = MTLCreateSystemDefaultDevice() else {
@@ -41,7 +40,6 @@ struct ImagesItemImageView: View {
         Image(nsImage: self.image.image),
         in: CGRect(origin: .zero, size: bounds),
       )
-
     }
     .visible(isSuccess)
     .background(.fill.quaternary.visible(!isSuccess), in: .rect)

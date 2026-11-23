@@ -314,7 +314,7 @@ extension View {
   func transform(@ViewBuilder _ content: (Self) -> some View) -> some View {
     content(self)
   }
-  
+
 //  func transform<Content>(@ViewBuilder body: @escaping (TransformViewModifier<Content>.Content) -> Content) -> some View {
 //    self.modifier(TransformViewModifier(content: body))
 //  }
